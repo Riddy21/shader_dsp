@@ -18,7 +18,7 @@ LIB_SOURCES = $(wildcard $(LIB_DIR)/*.cpp)
 HEADERS = $(wildcard $(INCLUDE_DIR)/*.h)
 OBJECTS = $(patsubst $(LIB_DIR)/%.cpp, $(OBJECT_DIR)/%.o, $(LIB_SOURCES))
 
-all : dirs $(TARGETS)	
+all : $(BIN_DIR) $(OBJECT_DIR) $(TARGETS)	
 
 # Building all final targets
 $(BIN_DIR)/% : $(SRC_DIR)/%.cpp $(OBJECTS)
@@ -28,11 +28,13 @@ $(BIN_DIR)/% : $(SRC_DIR)/%.cpp $(OBJECTS)
 $(OBJECT_DIR)/%.o : $(LIB_DIR)/%.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -I $(INCLUDE_DIR) -c -o $@ $<
 
-dirs :
+$(OBJECT_DIR):
 	mkdir -p $(OBJECT_DIR)
+
+$(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
 clean :
 	rm -rf $(BUILD_DIR)
 
-PHONY : all clean dirs
+PHONY : all clean
