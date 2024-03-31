@@ -1,12 +1,12 @@
+#include <catch2/catch_all.hpp>
+
 #include <iostream>
 #include <cmath>
 #include <vector>
 
 #include "audio_driver.h"
 
-//#define M_PI 3.14159265358979323846
-
-int main() {
+TEST_CASE("AudioDriver") {
     std::cout << "Hello, World!" << std::endl;
 
     int frames_per_buffer = 512;
@@ -27,9 +27,7 @@ int main() {
     audio_driver.set_buffer_link(audio_data_right, 2);
     audio_driver.open();
     audio_driver.start();
-    audio_driver.sleep(5);
+    audio_driver.sleep(1);
     audio_driver.stop();
     audio_driver.close();
-
-    return 0;
 }

@@ -1,4 +1,4 @@
-# Project Title
+# OpenGL Shader Digital Audio Signal Processor
 
 This project is an audio Digital Signal Processing (DSP) system that uses OpenGL shaders to process audio. 
 
@@ -12,6 +12,7 @@ This project depends on the following libraries:
 
 - [OpenGL Version 3.1](https://www.opengl.org/)
 - [PortAudio](http://www.portaudio.com/)
+- [Catch2](https://github.com/catchorg/Catch2)
 
 ## How to Build
 
