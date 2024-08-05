@@ -132,16 +132,16 @@ void AudioDriver::error(PaError err) {
     Pa_Terminate();
 }
 
-bool AudioDriver::set_buffer_link(const std::vector<float> & buffer_pointer, const unsigned channel) {
+bool AudioDriver::set_buffer_link(const std::vector<float> & buffer_vector, const unsigned channel) {
     if (channel <= 0 || channel > channels) {
         fprintf(stderr, "Error: Channel %d out of range.\n", channel);
         return false;
     }
-    if (buffer_pointer.size() != frames_per_buffer) {
+    if (buffer_vector.size() != frames_per_buffer) {
         fprintf(stderr, "Error: Buffer size does not match frames per buffer.\n");
         return false;
     }
-    channel_buffer_links[channel - 1] = buffer_pointer.data();
+    channel_buffer_links[channel - 1] = buffer_vector.data();
     printf("Linked buffer to channel %d.\n", channel);
     return true;
 }

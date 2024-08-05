@@ -23,10 +23,10 @@ public:
     /**
      * Link a buffer to the audio driver
      * 
-     * @param buffer_pointer The pointer to the buffer to link to the audio driver.
+     * @param buffer_vector The buffer to link to the audio driver.
      * @return True if the buffer was linked successfully, false otherwise.
     */
-    bool set_buffer_link(const std::vector<float> & buffer_pointer, const unsigned channel);
+    bool set_buffer_link(const std::vector<float> & buffer_vector, const unsigned channel);
     /**
      * Open the audio stream.
      * 
