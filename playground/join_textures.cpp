@@ -5,7 +5,7 @@
 
 // Shader sources
 const GLchar* vertexSource =
-    "#version 150 core\n"
+    "#version 300 es\n"
     "in vec2 position;"
     "in vec2 texcoord;"
     "out vec2 Texcoord;"
@@ -14,7 +14,8 @@ const GLchar* vertexSource =
     "   gl_Position = vec4(position, 0.0, 1.0);"
     "}";
 const GLchar* fragmentSource =
-    "#version 150 core\n"
+    "#version 300 es\n"
+    "precision mediump float;"
     "uniform sampler2D texKitten;"
     "uniform sampler2D texPuppy;"
     "in vec2 Texcoord;"
@@ -48,7 +49,7 @@ void keyboard(unsigned char key, int x, int y) {
         default:
             activeTexture[0] = 0;
             activeTexture[1] = 0;
-            return; // If any other key is pressed, do nothing
+            break;
     }
     glutPostRedisplay(); // Marks the current window as needing to be redisplayed
 }
@@ -93,23 +94,16 @@ void init() {
         -0.5f,  0.5f, 0.0f, 0.0f, // Top-left
          0.5f,  0.5f, 1.0f, 0.0f, // Top-right
          0.5f, -0.5f, 1.0f, 1.0f, // Bottom-right
-        -0.5f, -0.5f, 0.0f, 1.0f  // Bottom-left
+        -0.5f, -0.5f, 0.0f, 1.0f,  // Bottom-left
+         0.5f, -0.5f, 1.0f, 1.0f, // Bottom-right
+        -0.5f,  0.5f, 0.0f, 0.0f // Top-left
     };
-    GLuint elements[] = {
-        0, 1, 2,
-        2, 3, 0
-    };
-
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glGenBuffers(1, &ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STATIC_DRAW);
 
     GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
     glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), 0);
@@ -163,7 +157,7 @@ void display() {
         data = genTextureData(width, height, false);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, &data[0]);
 
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 
     glutSwapBuffers();
 }
