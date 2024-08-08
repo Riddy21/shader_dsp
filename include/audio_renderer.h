@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <GL/glew.h>
+#include <GL/glut.h>
 
 #include "audio_render_stage.h"
 
@@ -17,6 +18,78 @@
  * as well as holding audio texture output and managing audio buffer size and number of channels.
  */
 class AudioRenderer {
+private:
+    static AudioRenderer * instance;
+    // Private member functions
+    /**
+     * @brief Constructs an AudioRenderer object.
+     * 
+     * Private constructor to enforce singleton pattern.
+     */
+    AudioRenderer() {};
+
+    /**
+     * @brief Destroys the AudioRenderer object.
+     * 
+     * Private destructor to enforce singleton pattern.
+     */
+    ~AudioRenderer();
+
+    /**
+     * @brief Renders one stage of the audio data through OpenGL
+     */
+    void render(int value);
+
+    static void render_callback(int arg) {
+        instance->render(arg);
+    }
+
+    static void display_callback() {
+        glutSwapBuffers(); // unlock framerate
+        glutPostRedisplay();
+    }
+
+    /**
+     * @brief Creates a shader program
+     * 
+     * @param vertex_source The vertex shader source code
+     * @param fragment_source The fragment shader source code
+     * 
+     * @return The shader program
+     */
+    static GLuint compile_shaders(const GLchar* vertex_source, const GLchar* fragment_source);
+
+    // Private member variables
+    GLuint VAO; // Vertex Array For holding vertex attribute configurations
+    GLuint VBO; // Vertex Array buffer For holding vertex data
+    GLuint PBO; // Pixel buffer object for inputting and outputting to screen
+    GLuint FBO[3]; // Frame buffer object for swapping frames during shader processing
+    GLuint audio_texture[3]; // Audio texture for holding audio data
+
+    unsigned int num_stages; // Number of audio buffers
+    unsigned int buffer_size; // Size of audio data
+    unsigned int num_channels; // Number of audio channels
+
+    // buffers for audio data
+    std::shared_ptr<std::vector<float>> input_buffer_data;
+    std::vector<float> output_buffer_data;
+
+    // Simplify this into one struct
+    std::vector<AudioRenderStage> render_stages;
+
+    // Vertex Source code
+    const GLchar* vertex_source = R"glsl(
+        #version 300 es
+        precision highp float;
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec2 aTexCoord;
+        out vec2 TexCoord;
+        void main()
+        {
+            gl_Position = vec4(aPos, 0.0, 1.0);
+            TexCoord = aTexCoord;
+        }
+    )glsl";
 public:
     /**
      * @brief Returns the singleton instance of AudioRenderer.
@@ -24,8 +97,10 @@ public:
      * @return The singleton instance of AudioRenderer.
      */
     static AudioRenderer& get_instance() {
-        static AudioRenderer instance;
-        return instance;
+        if (!instance) {
+            instance = new AudioRenderer();
+        }
+        return *instance;
     }
 
     // Delete copy constructor and assignment operator
@@ -60,6 +135,10 @@ public:
      */
     static void main_loop();
 
+    static void iterate() {
+        render_callback(0);
+    }
+
     /**
      * @brief Adds a render stage to the audio renderer.
      * 
@@ -68,73 +147,14 @@ public:
      */
     bool add_render_stage(AudioRenderStage & render_stage);
 
-private:
-    // Private member functions
     /**
-     * @brief Constructs an AudioRenderer object.
+     * @brief Returns the output buffer data.
      * 
-     * Private constructor to enforce singleton pattern.
+     * @return The output buffer data.
      */
-    AudioRenderer() {};
-
-    /**
-     * @brief Destroys the AudioRenderer object.
-     * 
-     * Private destructor to enforce singleton pattern.
-     */
-    ~AudioRenderer();
-
-    /**
-     * @brief Renders one stage of the audio data through OpenGL
-     */
-    void render(int value);
-
-    static void render_callback(int arg) {
-        AudioRenderer * renderer = (AudioRenderer *)arg;
-        renderer->render(arg);
+    std::vector<float> get_output_buffer_data() const {
+        return output_buffer_data;
     }
-
-    /**
-     * @brief Creates a shader program
-     * 
-     * @param vertex_source The vertex shader source code
-     * @param fragment_source The fragment shader source code
-     * 
-     * @return The shader program
-     */
-    static GLuint compile_shaders(const GLchar* vertex_source, const GLchar* fragment_source);
-
-    // Private member variables
-    GLuint VAO; // Vertex Array For holding vertex attribute configurations
-    GLuint VBO; // Vertex Array buffer For holding vertex data
-    GLuint PBO[2]; // Pixel buffer object for inputting and outputting to screen
-    GLuint FBO[2]; // Frame buffer object for swapping frames during shader processing
-    GLuint audio_texture[3]; // Audio texture for holding audio data
-
-    unsigned int num_stages; // Number of audio buffers
-    unsigned int buffer_size; // Size of audio data
-    unsigned int num_channels; // Number of audio channels
-
-    // buffers for audio data
-    std::shared_ptr<std::vector<float>> input_buffer_data;
-    std::vector<float> output_buffer_data;
-
-    // Simplify this into one struct
-    std::vector<AudioRenderStage> render_stages;
-
-    // Vertex Source code
-    const GLchar* vertex_source = R"glsl(
-        #version 330 es
-        precision highp float;
-        layout (location = 0) in vec2 aPos;
-        layout (location = 1) in vec2 aTexCoord;
-        out vec2 TexCoord;
-        void main()
-        {
-            gl_Position = vec4(aPos, 0.0, 1.0);
-            TexCoord = aTexCoord;
-        }
-    )glsl";
 };
 
 #endif // AUDIO_RENDERER_H

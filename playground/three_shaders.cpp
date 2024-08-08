@@ -154,13 +154,13 @@ void display(int value) {
     // Second shader processing step
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(shaderProgram[3]);
-    glBindTexture(GL_TEXTURE_1D, texture[2%2]);
+    glBindTexture(GL_TEXTURE_2D, texture[2%2]);
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
 
     // TODO: I think we need some kind of mutex here so it doesn't update when it's being read
-    //glutSwapBuffers(); // if you want to unbound the frame rate, don't need to display on screen
+    glutSwapBuffers(); // if you want to unbound the frame rate, don't need to display on screen
     glutTimerFunc(0, display, 0);
 }
 
