@@ -1,7 +1,9 @@
 #include "catch2/catch_all.hpp"
 #include "catch2/catch_approx.hpp"
+#include <thread>
 
 #include "audio_renderer.h"
+#include "audio_driver.h"
 
 TEST_CASE("AudioRenderer") {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
@@ -83,15 +85,18 @@ TEST_CASE("AudioRenderer") {
 
     REQUIRE(audio_renderer.init(512, 20));
 
-    audio_renderer.iterate();
-    //audio_renderer.main_loop();
+    // Open a thread to wait 1 sec and the shut it down
+    std::thread t1([&audio_renderer](){
+        // Wait for 1 sec
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        audio_renderer.terminate();
+    });
+
+    audio_renderer.main_loop();
 
     // Check the output buffer data
     std::vector<float> output_buffer_data = audio_renderer.get_output_buffer_data();
     for (int i = 0; i < 512*20; i++) {
         REQUIRE(output_buffer_data[i] == Catch::Approx(1.21f));
     }
-
-    REQUIRE(audio_renderer.terminate());
-    REQUIRE(audio_renderer.cleanup());
 }

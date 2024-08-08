@@ -281,8 +281,24 @@ void AudioRenderer::main_loop()
 
 bool AudioRenderer::cleanup()
 {
-    // TODO: Add cleanup code here for anything that needs to be cleaned up
-    // TODO: Start here and implement the cleanup function
+    // Delete the shader programs
+    for (int i = 0; i < num_stages; i++) {
+        glDeleteProgram(render_stages[i].shader_program);
+    }
+
+    // Delete the textures
+    glDeleteTextures(3, audio_texture);
+
+    // Delete the framebuffers
+    glDeleteFramebuffers(3, FBO);
+
+    // Delete the vertex array and buffer
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+
+    // Delete the pixel buffer object
+    glDeleteBuffers(1, &PBO);
+
     return true;
 }
 
