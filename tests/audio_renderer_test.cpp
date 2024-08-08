@@ -17,12 +17,12 @@ TEST_CASE("AudioRenderer") {
         precision highp float;
         in vec2 TexCoord;
         out vec4 FragColor;
-        uniform sampler2D texture1;
-        uniform sampler2D texture2;
+        uniform sampler2D input_audio_texture;
+        uniform sampler2D stream_audio_texture;
         void main()
         {
-            float color = texture(texture1, TexCoord).r + 0.01f;
-            float color2 = texture(texture2, TexCoord).r + 0.001;
+            float color = texture(input_audio_texture, TexCoord).r + 0.01f;
+            float color2 = texture(stream_audio_texture, TexCoord).r + 0.001;
             FragColor = vec4(color+color2, color2, 0.0, 1.0);
         }
     )glsl";
@@ -35,12 +35,12 @@ TEST_CASE("AudioRenderer") {
         precision highp float;
         in vec2 TexCoord;
         out vec4 FragColor;
-        uniform sampler2D texture1;
-        uniform sampler2D texture2;
+        uniform sampler2D input_audio_texture;
+        uniform sampler2D stream_audio_texture;
         void main()
         {
-            float color = texture(texture1, TexCoord).r + 0.02f;
-            float color2 = texture(texture2, TexCoord).r + 0.002;
+            float color = texture(input_audio_texture, TexCoord).r + 0.02f;
+            float color2 = texture(stream_audio_texture, TexCoord).r + 0.002;
             FragColor = vec4(color+color2, 0.0, color2, 1.0);
         }
     )glsl";
@@ -53,12 +53,12 @@ TEST_CASE("AudioRenderer") {
         precision highp float;
         in vec2 TexCoord;
         out vec4 FragColor;
-        uniform sampler2D texture1;
-        uniform sampler2D texture2;
+        uniform sampler2D input_audio_texture;
+        uniform sampler2D stream_audio_texture;
         void main()
         {
-            float color = texture(texture1, TexCoord).r + 0.03f;
-            float color2 = texture(texture2, TexCoord).r + 0.003f;
+            float color = texture(input_audio_texture, TexCoord).r + 0.03f;
+            float color2 = texture(stream_audio_texture, TexCoord).r + 0.003f;
             FragColor = vec4(color+color2, color2, color, 1.0);
         }
     )glsl";
@@ -71,12 +71,12 @@ TEST_CASE("AudioRenderer") {
         precision highp float;
         in vec2 TexCoord;
         out vec4 FragColor;
-        uniform sampler2D texture1;
-        uniform sampler2D texture2;
+        uniform sampler2D input_audio_texture;
+        uniform sampler2D stream_audio_texture;
         void main()
         {
-            float color = texture(texture1, TexCoord).r + 0.04f;
-            float color2 = texture(texture2, TexCoord).r + 0.004f;
+            float color = texture(input_audio_texture, TexCoord).r + 0.04f;
+            float color2 = texture(stream_audio_texture, TexCoord).r + 0.004f;
             FragColor = vec4(color+color2, color2, color, 1.0);
         }
     )glsl";
@@ -91,6 +91,8 @@ TEST_CASE("AudioRenderer") {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         audio_renderer.terminate();
     });
+
+    t1.detach();
 
     audio_renderer.main_loop();
 

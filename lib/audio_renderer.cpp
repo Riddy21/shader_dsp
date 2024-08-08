@@ -1,5 +1,6 @@
 #include <GL/glew.h>
 #include <GL/glut.h>
+#include <GL/freeglut.h>
 #include <iostream>
 #include <vector>
 #include <cstring>
@@ -92,6 +93,8 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int num_
     glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE);
     glutInitWindowSize(buffer_size, num_channels);
     glutCreateWindow("Audio Processing");
+    // Set the window close action to continue execution
+    glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
 
     // Initialize GLEW
     GLenum glewInitResult = glewInit();
@@ -226,7 +229,7 @@ void AudioRenderer::render(int value)
         glActiveTexture(GL_TEXTURE1);
         glBindFramebuffer(GL_FRAMEBUFFER, FBO[2]);
         glBindTexture(GL_TEXTURE_2D, audio_texture[2]);
-        glUniform1i(glGetUniformLocation(render_stages[i].shader_program, "texture2"), 1);
+        glUniform1i(glGetUniformLocation(render_stages[i].shader_program, "input_audio_texture"), 1);
         // TODO: Fill with other data like time, or recorded data
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, &render_stages[i].audio_buffer.data()[0]);
 
@@ -237,7 +240,7 @@ void AudioRenderer::render(int value)
 
         // Only one first stage
         if (i == 0) {
-            glUniform1i(glGetUniformLocation(render_stages[i].shader_program, "texture1"), 0);
+            glUniform1i(glGetUniformLocation(render_stages[i].shader_program, "stream_audio_texture"), 0);
             // TODO: Fill with other data like time, or recorded data
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, &render_stages[0].audio_buffer.data()[0]);
         }

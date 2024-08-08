@@ -41,10 +41,9 @@ public:
         out vec4 FragColor;
 
         void main() {
-            //outColor = mix(texture(input_audio_texture, TexCoord),
-                           //texture(stream_audio_texture, TexCoord), 0.5);
+            FragColor = mix(texture(input_audio_texture, TexCoord),
+                            texture(stream_audio_texture, TexCoord), 0.5);
 
-            FragColor = vec4(texture(stream_audio_texture, TexCoord).r, 0.0, 0.0, 1.0);
         }
     )glsl"; // Default shader source (Kept in files for the future versions)
 
