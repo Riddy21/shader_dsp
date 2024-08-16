@@ -12,7 +12,7 @@ AudioRenderer * AudioRenderer::instance = nullptr;
 bool AudioRenderer::add_render_stage(AudioRenderStage& render_stage)
 {
     // Add the render stage to the list of render stages
-    render_stages.push_back(render_stage);
+    render_stages.push_back(&render_stage);
     num_stages = render_stages.size();
 
     return true;
@@ -117,13 +117,13 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int num_
 
     // Compile the render stage as a shader program
     for (int i = 0; i < num_stages; i++) {
-        GLuint return_value = compile_shaders(vertex_source, render_stages[i].fragment_source);
+        GLuint return_value = compile_shaders(vertex_source, render_stages[i]->fragment_source);
 
         if (return_value == 0) {
             return false;
         }
 
-        render_stages[i].shader_program = return_value;
+        render_stages[i]->shader_program = return_value;
     }
 
     // Just a default set of vertices to cover the screen
@@ -201,6 +201,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int num_
     }
 
     // Init the output buffer
+    input_buffer_data = std::vector<float>(buffer_size * num_channels); // Add with data in the future?
     output_buffer_data = std::vector<float>(buffer_size * num_channels);
 
     render(0); // Render the first frame
@@ -220,7 +221,7 @@ void AudioRenderer::render(int value)
 
     for (int i = 0; i < num_stages; i++) { // Do all except last stage
         // use the shader program 0 first 
-        glUseProgram(render_stages[i].shader_program);
+        glUseProgram(render_stages[i]->shader_program);
 
         // Bind the vertex array
         glBindVertexArray(VAO);
@@ -229,9 +230,13 @@ void AudioRenderer::render(int value)
         glActiveTexture(GL_TEXTURE1);
         glBindFramebuffer(GL_FRAMEBUFFER, FBO[2]);
         glBindTexture(GL_TEXTURE_2D, audio_texture[2]);
-        glUniform1i(glGetUniformLocation(render_stages[i].shader_program, "input_audio_texture"), 1);
+        glUniform1i(glGetUniformLocation(render_stages[i]->shader_program, "input_audio_texture"), 1);
+
+        // FIXME: This is a test
+        render_stages[i]->update(200);
+
         // TODO: Fill with other data like time, or recorded data
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, &render_stages[i].audio_buffer.data()[0]);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, &render_stages[i]->audio_buffer.data()[0]);
 
         // Fill the second buffer with the stream audio texture
         glActiveTexture(GL_TEXTURE0);
@@ -240,9 +245,9 @@ void AudioRenderer::render(int value)
 
         // Only one first stage
         if (i == 0) {
-            glUniform1i(glGetUniformLocation(render_stages[i].shader_program, "stream_audio_texture"), 0);
+            glUniform1i(glGetUniformLocation(render_stages[i]->shader_program, "stream_audio_texture"), 0);
             // TODO: Fill with other data like time, or recorded data
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, &render_stages[0].audio_buffer.data()[0]);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, &input_buffer_data.data()[0]);
         }
             
         // Bind the Draw the triangles
@@ -250,6 +255,7 @@ void AudioRenderer::render(int value)
 
         // unset the vertex array
         glBindVertexArray(0);
+        glBindTexture(GL_TEXTURE_2D, 0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
@@ -266,6 +272,7 @@ void AudioRenderer::render(int value)
 
     // Output to screen
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindTexture(GL_TEXTURE_2D, audio_texture[(num_stages-1) % 2]);
     glBindVertexArray(VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -286,7 +293,7 @@ bool AudioRenderer::cleanup()
 {
     // Delete the shader programs
     for (int i = 0; i < num_stages; i++) {
-        glDeleteProgram(render_stages[i].shader_program);
+        glDeleteProgram(render_stages[i]->shader_program);
     }
 
     // Delete the textures

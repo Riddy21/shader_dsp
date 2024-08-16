@@ -71,11 +71,11 @@ private:
     unsigned int num_channels; // Number of audio channels
 
     // buffers for audio data
-    std::shared_ptr<std::vector<float>> input_buffer_data;
+    std::vector<float> input_buffer_data; // TODO: This should be something else in the future
     std::vector<float> output_buffer_data;
 
     // Simplify this into one struct
-    std::vector<AudioRenderStage> render_stages;
+    std::vector<AudioRenderStage * > render_stages; // FIXME: Make this a shared pointer
 
     // Vertex Source code
     const GLchar* vertex_source = R"glsl(

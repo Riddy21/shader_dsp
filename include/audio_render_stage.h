@@ -20,6 +20,15 @@ public:
           sample_rate(sample_rate),
           num_channels(num_channels) {}
 
+    /**
+     * @brief Loads audio data into the specified buffer index.
+     * 
+     * This function is responsible for loading audio data into the buffer specified by the buffer_index parameter.
+     * 
+     * @param buffer_index The index of the buffer to load the audio data into.
+     */
+    virtual void update(const unsigned int buffer_index) {};
+
     // Settings
     const unsigned int frames_per_buffer;
     const unsigned int sample_rate;
@@ -35,15 +44,14 @@ public:
 
         in vec2 TexCoord;
 
-        //uniform sampler2D input_audio_texture;
+        uniform sampler2D input_audio_texture;
         uniform sampler2D stream_audio_texture;
 
         out vec4 FragColor;
 
         void main() {
-            FragColor = mix(texture(input_audio_texture, TexCoord),
-                            texture(stream_audio_texture, TexCoord), 0.5);
-
+            FragColor = texture(input_audio_texture, TexCoord) +
+                        texture(stream_audio_texture, TexCoord);
         }
     )glsl"; // Default shader source (Kept in files for the future versions)
 

@@ -38,7 +38,7 @@ $(OBJECT_DIR)/%.o : $(LIB_DIR)/%.cpp $(HEADERS)
 	mkdir -p $(OBJECT_DIR)
 	$(CXX) $(CXXFLAGS) -I $(INCLUDE_DIR) -c -o $@ $<
 
-$(TEST_EXE_DIR)/%_test : $(TEST_DIR)/%_test.cpp $(OBJECT_DIR)/%.o
+$(TEST_EXE_DIR)/%_test : $(TEST_DIR)/%_test.cpp $(OBJECTS)
 	mkdir -p $(TEST_EXE_DIR)
 	$(CXX) $(CXXFLAGS) -I $(INCLUDE_DIR) -o $@ $^ $(LDFLAGS)
 	./$@

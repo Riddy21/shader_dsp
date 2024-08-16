@@ -10,7 +10,7 @@ TEST_CASE("AudioRenderer") {
     
     // TODO: Add a render stage and see if it works
 
-    AudioRenderStage render_stage2 = AudioRenderStage(512, 44100, 20);
+    AudioRenderStage render_stage2 = AudioRenderStage(512, 44100, 2);
     render_stage2.audio_buffer = std::vector<float>(512*20, 0.1f);
     render_stage2.fragment_source = R"glsl(
         #version 300 es
@@ -28,7 +28,7 @@ TEST_CASE("AudioRenderer") {
     )glsl";
     audio_renderer.add_render_stage(render_stage2);
 
-    AudioRenderStage render_stage3 = AudioRenderStage(512, 44100, 20);
+    AudioRenderStage render_stage3 = AudioRenderStage(512, 44100, 2);
     render_stage3.audio_buffer = std::vector<float>(512*20, 0.2f);
     render_stage3.fragment_source = R"glsl(
         #version 300 es
@@ -46,7 +46,7 @@ TEST_CASE("AudioRenderer") {
     )glsl";
     audio_renderer.add_render_stage(render_stage3);
 
-    AudioRenderStage render_stage4 = AudioRenderStage(512, 44100, 20);
+    AudioRenderStage render_stage4 = AudioRenderStage(512, 44100, 2);
     render_stage4.audio_buffer = std::vector<float>(512*20, 0.3f);
     render_stage4.fragment_source = R"glsl(
         #version 300 es
@@ -64,7 +64,7 @@ TEST_CASE("AudioRenderer") {
     )glsl";
     audio_renderer.add_render_stage(render_stage4);
 
-    AudioRenderStage render_stage5 = AudioRenderStage(512, 44100, 20);
+    AudioRenderStage render_stage5 = AudioRenderStage(512, 44100, 2);
     render_stage5.audio_buffer = std::vector<float>(512*20, 0.4f);
     render_stage5.fragment_source = R"glsl(
         #version 300 es
@@ -77,13 +77,13 @@ TEST_CASE("AudioRenderer") {
         {
             float color = texture(input_audio_texture, TexCoord).r + 0.04f;
             float color2 = texture(stream_audio_texture, TexCoord).r + 0.004f;
-            FragColor = vec4(color+color2, color2, color, 1.0);
+            FragColor = vec4(color+color2, color2+color, color2+color, 1.0);
         }
     )glsl";
     audio_renderer.add_render_stage(render_stage5);
 
 
-    REQUIRE(audio_renderer.init(512, 20));
+    REQUIRE(audio_renderer.init(512, 2));
 
     // Open a thread to wait 1 sec and the shut it down
     std::thread t1([&audio_renderer](){
@@ -98,7 +98,7 @@ TEST_CASE("AudioRenderer") {
 
     // Check the output buffer data
     std::vector<float> output_buffer_data = audio_renderer.get_output_buffer_data();
-    for (int i = 0; i < 512*20; i++) {
-        REQUIRE(output_buffer_data[i] == Catch::Approx(1.21f));
+    for (int i = 0; i < 512*2; i++) {
+        REQUIRE(output_buffer_data[i] == Catch::Approx(1.11f));
     }
 }
