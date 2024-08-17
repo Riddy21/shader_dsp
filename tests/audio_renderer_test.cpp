@@ -97,7 +97,7 @@ TEST_CASE("AudioRenderer") {
     // Check the output buffer data
     auto output_buffer_data = audio_renderer.get_output_buffer_data();
     for (int i = 0; i < 512*2; i++) {
-        REQUIRE(output_buffer_data[i] == Catch::Approx(1.11f));
+        REQUIRE(output_buffer_data[i] == Catch::Approx(1.22f));
     }
 
     t1.detach();

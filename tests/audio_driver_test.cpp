@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <mutex>
 
 #include "audio_driver.h"
 
@@ -21,9 +22,12 @@ TEST_CASE("AudioDriver") {
         audio_data_interleaved[i+1] = sin(((double)(i)/((double)channels*(double)frames_per_buffer)) * M_PI * 10.0);
     }
 
+    std::mutex audio_mutex;
+
     // Create the audio driver
     AudioDriver audio_driver(frames_per_buffer, 44100, channels);
     REQUIRE(audio_driver.set_buffer_link(audio_data_interleaved));
+    REQUIRE(audio_driver.set_mutex_link(audio_mutex));
     REQUIRE(audio_driver.open());
     REQUIRE(audio_driver.start());
     audio_driver.sleep(1);
