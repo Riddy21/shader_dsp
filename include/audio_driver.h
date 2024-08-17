@@ -3,6 +3,7 @@
 #define AUDIO_DRIVER_H
 
 #include <vector>
+#include <mutex>
 
 #include <portaudio.h>
 
@@ -15,7 +16,11 @@ public:
      * @param frames_per_buffer The number of frames per buffer.
      * @param channels The number of channels in the audio stream.
     */
-    AudioDriver(const unsigned frames_per_buffer, const unsigned sample_rate, const unsigned channels);
+    AudioDriver(const unsigned frames_per_buffer, const unsigned sample_rate, const unsigned channels) : 
+        stream(0),
+        sample_rate(sample_rate),
+        channels(channels),
+        frames_per_buffer(frames_per_buffer) {}
     /**
      * Destructor for the AudioDriver class.
     */
@@ -26,7 +31,15 @@ public:
      * @param buffer_vector The buffer to link to the audio driver.
      * @return True if the buffer was linked successfully, false otherwise.
     */
-    bool set_buffer_link(const std::vector<float> & buffer_vector, const unsigned channel);
+    bool set_buffer_link(const std::vector<float> & buffer_vector);
+
+    /**
+     * Link a mutex to the audio driver
+     * 
+     * @param mutex The mutex to link to the audio driver.
+     * @return True if the mutex was linked successfully, false otherwise.
+     */
+    bool set_mutex_link(std::mutex & mutex);
     /**
      * Open the audio stream.
      * 
@@ -66,10 +79,13 @@ private:
     static void error(PaError err);
 
     PaStream *stream;
-    std::vector<const float *> channel_buffer_links;
+    std::shared_ptr<const std::vector<float>> channel_buffer_link = nullptr; // Data doesn't change, only the pointer
+    std::shared_ptr<std::mutex> audio_mutex = nullptr;
+
     const unsigned sample_rate;
     const unsigned channels;
     const unsigned frames_per_buffer;
+
 };
 
 #endif

@@ -92,13 +92,14 @@ TEST_CASE("AudioRenderer") {
         audio_renderer.terminate();
     });
 
-    t1.detach();
-
-    audio_renderer.main_loop();
+    audio_renderer.iterate();
 
     // Check the output buffer data
-    std::vector<float> output_buffer_data = audio_renderer.get_output_buffer_data();
+    auto output_buffer_data = audio_renderer.get_output_buffer_data();
     for (int i = 0; i < 512*2; i++) {
         REQUIRE(output_buffer_data[i] == Catch::Approx(1.11f));
     }
+
+    t1.detach();
+    audio_renderer.main_loop();
 }

@@ -1,5 +1,7 @@
 #include "catch2/catch_all.hpp"
 #include <thread>
+#include <iostream>
+#include <mutex>
 
 #include "audio_driver.h"
 #include "audio_renderer.h"
@@ -7,7 +9,7 @@
 
 TEST_CASE("AudioGeneratorRenderStage") {
     AudioGeneratorRenderStage audio_generator(512, 44100, 2, "media/test.wav");
-    AudioDriver audio_driver(512*2, 44100, 2);
+    AudioDriver audio_driver(512, 44100, 2);
 
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
     audio_renderer.add_render_stage(audio_generator);
@@ -15,21 +17,19 @@ TEST_CASE("AudioGeneratorRenderStage") {
     REQUIRE(audio_renderer.init(512, 44100, 2));
 
     // Open a thread to wait 1 sec and the shut it down
-    std::thread t1([&audio_renderer, &audio_driver](){
-        // Wait for 1 sec
-        std::this_thread::sleep_for(std::chrono::seconds(4));
-        audio_renderer.terminate();
+    std::thread t1([&audio_renderer, &audio_driver, &audio_generator](){
+        std::this_thread::sleep_for(std::chrono::seconds(7));
         audio_driver.stop();
         audio_driver.close();
+        audio_renderer.terminate();
     });
 
-    t1.detach();
-
-    REQUIRE(audio_driver.set_buffer_link(audio_renderer.get_output_buffer_data(), 1));
-    REQUIRE(audio_driver.set_buffer_link(audio_renderer.get_output_buffer_data(), 2));
+    REQUIRE(audio_driver.set_buffer_link(audio_renderer.get_output_buffer_data()));
+    REQUIRE(audio_driver.set_mutex_link(audio_renderer.get_audio_mutex()));
     REQUIRE(audio_driver.open());
     REQUIRE(audio_driver.start());
 
+    t1.detach();
     audio_renderer.main_loop();
 
 }

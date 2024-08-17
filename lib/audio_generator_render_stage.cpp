@@ -1,5 +1,9 @@
 #include <vector>
 #include <iostream>
+#include <fstream>
+#include <cstring>
+
+#include "audio_wav.h"
 #include "audio_generator_render_stage.h"
 
 AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
@@ -24,54 +28,48 @@ void AudioGeneratorRenderStage::update(const unsigned int buffer_index) {
 
 std::vector<float> AudioGeneratorRenderStage::load_audio_data_from_file(const char * audio_filepath) {
     // Open the audio file
-    FILE *file = fopen(audio_filepath, "rb");
+    std::ifstream file(audio_filepath, std::ios::binary);
     if (!file) {
         std::cerr << "Failed to open audio file: " << audio_filepath << std::endl;
         exit(1);
     }
 
     // Read the audio file header
-    char header[44];
-    if (fread(header, sizeof(char), 44, file) != 44) {
-        std::cerr << "Failed to read audio file header" << std::endl;
-        fclose(file);
+    WAVHeader header;
+    file.read((char *) &header, sizeof(WAVHeader));
+
+    if (strncmp(header.riff, "RIFF", 4) != 0 || strncmp(header.wave, "WAVE", 4) != 0) {
+        std::cerr << "Invalid audio file format: " << audio_filepath << std::endl;
         exit(1);
     }
 
-    // Check if the audio file format is supported
-    if (header[0] != 'R' || header[1] != 'I' || header[2] != 'F' || header[3] != 'F' ||
-        header[8] != 'W' || header[9] != 'A' || header[10] != 'V' || header[11] != 'E') {
-        std::cerr << "Unsupported audio file format" << std::endl;
-        fclose(file);
+    if (header.format_type != 1) {
+        std::cerr << "Invalid audio file format type: " << audio_filepath << std::endl;
         exit(1);
     }
 
-    // Convert header to useful information and print out
-    unsigned int sample_rate = *(unsigned int*)&header[24];
-    unsigned int num_channels = *(int16_t*)&header[22];
-    unsigned int bits_per_sample = *(int16_t*)&header[34];
-    unsigned int num_samples = *(int16_t*)&header[40];
-    std::cout << "Audio File: " << audio_filepath << std::endl;
-    std::cout << "Sample Rate: " << sample_rate << std::endl;
-    std::cout << "Number of Channels: " << num_channels << std::endl;
-    std::cout << "Bits per Sample: " << bits_per_sample << std::endl;
-    std::cout << "Number of Samples: " << num_samples << std::endl;
+    // print info 
+    std::cout << "Audio file: " << audio_filepath << std::endl;
+    std::cout << "Channels: " << header.channels << std::endl;
+    std::cout << "Sample rate: " << header.sample_rate << std::endl;
+    std::cout << "Bits per sample: " << header.bits_per_sample << std::endl;
+    std::cout << "Data size: " << header.data_size << std::endl;
 
     // Read the audio data
-    // FIXME: Change this to store the data using multiple channel vectors
-    std::vector<float> audio_data;
-    while (!feof(file)) {
-        int16_t sample;
-        if (fread(&sample, sizeof(int16_t), 1, file) != 1) {
-            break;
-        }
-        const float normalization_factor = 32768.0f;
-        audio_data.push_back(sample/normalization_factor);
+    std::vector<int16_t> data(header.data_size);
+    file.read((char *) data.data(), header.data_size);
+
+    if (!file) {
+        std::cerr << "Failed to read audio data from file: " << audio_filepath << std::endl;
+        exit(1);
     }
 
-    // Close the audio file
-    fclose(file);
-
-    // Store the audio data in the full_audio_data vector
+    // Convert the audio data to float
+    std::vector<float> audio_data(data.size());
+    for (unsigned int i = 0; i < data.size(); i++) {
+        audio_data[i] = data[i] / (2.0f * 32768.0f) + 0.5f; // have to shift the wave from 0.0 to 1.0
+    }
     return audio_data;
+
+
 }

@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <GL/glew.h>
 #include <GL/glut.h>
 
@@ -76,6 +77,9 @@ private:
     // buffers for audio data
     std::vector<float> input_buffer_data; // TODO: This should be something else in the future
     std::vector<float> output_buffer_data;
+
+    // Mutex for locking the audio data
+    std::mutex audio_mutex = std::mutex();
 
     // Simplify this into one struct
     std::vector<AudioRenderStage * > render_stages; // FIXME: Make this a shared pointer
@@ -155,8 +159,17 @@ public:
      * 
      * @return The output buffer data.
      */
-    std::vector<float> get_output_buffer_data() const {
+    const std::vector<float> & get_output_buffer_data() {
         return output_buffer_data;
+    }
+
+    /**
+     * @brief Returns the audio mutex.
+     * 
+     * @return The audio mutex.
+     */
+    std::mutex & get_audio_mutex() {
+        return audio_mutex;
     }
 };
 

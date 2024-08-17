@@ -10,21 +10,20 @@ TEST_CASE("AudioDriver") {
     std::cout << "Hello, World!" << std::endl;
 
     int frames_per_buffer = 512;
+    int channels = 2;
 
     // Generate the audio data
-    std::vector<float> audio_data_left(frames_per_buffer);
-    std::vector<float> audio_data_right(frames_per_buffer);
+    std::vector<float> audio_data_interleaved(frames_per_buffer*channels);
 
     // Generate sine wave for both channels
-    for (int i = 0; i < frames_per_buffer; i++) {
-        audio_data_left[i] = sin(((double)i/(double)frames_per_buffer) * M_PI * 10.0);
-        audio_data_right[i] = sin(((double)i/(double)frames_per_buffer) * M_PI * 20.0);
+    for (int i = 0; i < frames_per_buffer*channels; i=i+channels) {
+        audio_data_interleaved[i] = sin(((double)(i)/((double)channels*(double)frames_per_buffer)) * M_PI * 10.0);
+        audio_data_interleaved[i+1] = sin(((double)(i)/((double)channels*(double)frames_per_buffer)) * M_PI * 10.0);
     }
 
     // Create the audio driver
-    AudioDriver audio_driver(frames_per_buffer, 44100, 2);
-    REQUIRE(audio_driver.set_buffer_link(audio_data_left, 1));
-    REQUIRE(audio_driver.set_buffer_link(audio_data_right, 2));
+    AudioDriver audio_driver(frames_per_buffer, 44100, channels);
+    REQUIRE(audio_driver.set_buffer_link(audio_data_interleaved));
     REQUIRE(audio_driver.open());
     REQUIRE(audio_driver.start());
     audio_driver.sleep(1);

@@ -1,20 +1,10 @@
 #include <stdio.h>
 #include <cstring>
+#include <memory>
 #include <portaudio.h>
 
 #include "audio_driver.h"
 
-AudioDriver::AudioDriver(const unsigned frames_per_buffer, const unsigned sample_rate, const unsigned channels) : 
-    stream(0),
-    sample_rate(sample_rate),
-    channels(channels),
-    frames_per_buffer(frames_per_buffer)
-{
-    // Initialize the buffer links
-    for (unsigned i = 0; i < channels; i++) {
-        channel_buffer_links.push_back(new float[frames_per_buffer]);
-    }
-}
 
 AudioDriver::~AudioDriver() {
     Pa_Terminate();
@@ -75,7 +65,7 @@ bool AudioDriver::start() {
     }
     // Check that all the channels have been linked
     for (unsigned i = 0; i < channels; i++) {
-        if (channel_buffer_links[i] == nullptr) {
+        if (channel_buffer_link == nullptr) {
             fprintf(stderr, "Error: Channel %d not linked.\n", i+1);
             return false;
         }
@@ -132,17 +122,17 @@ void AudioDriver::error(PaError err) {
     Pa_Terminate();
 }
 
-bool AudioDriver::set_buffer_link(const std::vector<float> & buffer_vector, const unsigned channel) {
-    if (channel <= 0 || channel > channels) {
-        fprintf(stderr, "Error: Channel %d out of range.\n", channel);
-        return false;
-    }
-    if (buffer_vector.size() != frames_per_buffer) {
+bool AudioDriver::set_buffer_link(const std::vector<float> & buffer_vector) {
+    if (buffer_vector.size() != frames_per_buffer*channels) {
         fprintf(stderr, "Error: Buffer size does not match frames per buffer.\n");
         return false;
     }
-    channel_buffer_links[channel - 1] = buffer_vector.data();
-    printf("Linked buffer to channel %d.\n", channel);
+    channel_buffer_link = std::shared_ptr<const std::vector<float>>(&buffer_vector, [](const std::vector<float>*){});
+    return true;
+}
+
+bool AudioDriver::set_mutex_link(std::mutex & mutex) {
+    audio_mutex = std::shared_ptr<std::mutex>(&mutex, [](std::mutex*){});
     return true;
 }
 
@@ -151,12 +141,13 @@ int AudioDriver::audio_callback(const void *input_buffer, void *output_buffer,
                                 PaStreamCallbackFlags status_flags, void *user_data) {
     AudioDriver * driver = (AudioDriver *) user_data;
     float * out = (float *) output_buffer;
-    // TODO: Think about how to make this faster by doing the interleaving earlier
-    // interleave the channels
-    for (unsigned i = 0; i < frames_per_buffer; i++) {
-        for (unsigned j = 0; j < driver->channels; j++) {
-            *out++ = driver->channel_buffer_links[j][i];
-        }
-    }
+
+    // Lock the audio buffer
+    driver->audio_mutex->lock();
+    // Copy the audio buffer to the output buffer
+    memcpy(out, driver->channel_buffer_link->data(), frames_per_buffer * driver->channels * sizeof(float));
+    // Unlock the audio buffer
+    driver->audio_mutex->unlock();
+
     return paContinue;
 }

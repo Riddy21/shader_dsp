@@ -209,7 +209,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     render(0); // Render the first frame
     // Links to display and timer functions for updating audio data
     // Calculate the delay in milliseconds based on the sample rate
-    int delay = buffer_size * (1000.f / (float)sample_rate);
+    int delay = buffer_size * num_channels * (1000.f / (float)sample_rate);
     // Set the timer function with the calculated delay
     glutTimerFunc(delay, render_callback, 0);
     glutDisplayFunc(display_callback);
@@ -270,7 +270,13 @@ void AudioRenderer::render(int value)
     glReadPixels(0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, 0);
     float * ptr2 = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     if (ptr2) {
-        memcpy(&output_buffer_data[0], ptr2, buffer_size * num_channels * sizeof(float));
+        audio_mutex.lock();
+        // FIXME: make the output buffer into a queue that updates
+        //        so that the audio driver can read from it smoothly
+        for (unsigned int i = 0; i < buffer_size * num_channels; i++) {
+            output_buffer_data[i] = ptr2[i]*2.0f - 1.0f;
+        }
+        audio_mutex.unlock();
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     }
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
@@ -287,7 +293,7 @@ void AudioRenderer::render(int value)
     glUseProgram(0);
 
     // Calculate the delay in milliseconds based on the sample rate
-    int delay = buffer_size * (1000.f / (float)sample_rate);
+    int delay = buffer_size * num_channels * (1000.f / (float)sample_rate);
 
     // Set the timer function with the calculated delay
     glutTimerFunc(delay, render_callback, 0);
@@ -327,7 +333,8 @@ bool AudioRenderer::cleanup()
 bool AudioRenderer::terminate()
 {
     // Terminate the OpenGL context
-    glutDestroyWindow(glutGetWindow());
+    glutLeaveMainLoop();
+    //glutDestroyWindow(glutGetWindow()); // Don't need this
 
     return true;
 }
