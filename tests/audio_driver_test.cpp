@@ -22,7 +22,7 @@ TEST_CASE("AudioDriver") {
     }
 
     // Create the audio driver
-    AudioDriver audio_driver(44100, frames_per_buffer, 2);
+    AudioDriver audio_driver(frames_per_buffer, 44100, 2);
     REQUIRE(audio_driver.set_buffer_link(audio_data_left, 1));
     REQUIRE(audio_driver.set_buffer_link(audio_data_right, 2));
     REQUIRE(audio_driver.open());

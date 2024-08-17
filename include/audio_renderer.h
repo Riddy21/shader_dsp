@@ -66,9 +66,12 @@ private:
     GLuint FBO[3]; // Frame buffer object for swapping frames during shader processing
     GLuint audio_texture[3]; // Audio texture for holding audio data
 
+    unsigned long frame_count = 0; // Frame count for debugging
+
     unsigned int num_stages; // Number of audio buffers
     unsigned int buffer_size; // Size of audio data
     unsigned int num_channels; // Number of audio channels
+    unsigned int sample_rate; // Sample rate of audio data
 
     // buffers for audio data
     std::vector<float> input_buffer_data; // TODO: This should be something else in the future
@@ -114,7 +117,7 @@ public:
      * @param num_channels The number of audio channels.
      * @return True if initialization is successful, false otherwise.
      */
-    bool init(const unsigned int buffer_size, const unsigned int num_channels);
+    bool init(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels);
 
     /**
      * @brief Terminates the audio renderer.

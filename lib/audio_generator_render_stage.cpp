@@ -14,7 +14,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
 
 void AudioGeneratorRenderStage::update(const unsigned int buffer_index) {
     // Copy the audio data from the full_audio_data vector in the ith buffer index
-    const unsigned int start_index = buffer_index * frames_per_buffer * num_channels;
+    const unsigned int start_index = (buffer_index * frames_per_buffer * num_channels) % full_audio_data.size();
 
     for (unsigned int i = 0; i < frames_per_buffer * num_channels; i++) {
         audio_buffer[i] = full_audio_data[start_index + i];
@@ -58,6 +58,7 @@ std::vector<float> AudioGeneratorRenderStage::load_audio_data_from_file(const ch
     std::cout << "Number of Samples: " << num_samples << std::endl;
 
     // Read the audio data
+    // FIXME: Change this to store the data using multiple channel vectors
     std::vector<float> audio_data;
     while (!feof(file)) {
         int16_t sample;

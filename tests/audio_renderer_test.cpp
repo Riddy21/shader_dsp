@@ -83,7 +83,7 @@ TEST_CASE("AudioRenderer") {
     audio_renderer.add_render_stage(render_stage5);
 
 
-    REQUIRE(audio_renderer.init(512, 2));
+    REQUIRE(audio_renderer.init(512, 44100, 2));
 
     // Open a thread to wait 1 sec and the shut it down
     std::thread t1([&audio_renderer](){

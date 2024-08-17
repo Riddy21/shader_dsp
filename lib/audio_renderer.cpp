@@ -75,9 +75,10 @@ GLuint AudioRenderer::compile_shaders(const GLchar* vertex_source, const GLchar*
     return shader_program;
 }
 
-bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int num_channels) {
+bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels) {
     this->buffer_size = buffer_size;
     this->num_channels = num_channels;
+    this->sample_rate = sample_rate;
 
     // Check that at least one stage has been added
     if (num_stages == 0) {
@@ -91,7 +92,8 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int num_
 
     // Init the OpenGL context
     glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE);
-    glutInitWindowSize(buffer_size, num_channels);
+    //glutInitWindowSize(buffer_size, num_channels);
+    glutInitWindowSize(buffer_size, 100);
     glutCreateWindow("Audio Processing");
     // Set the window close action to continue execution
     glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
@@ -205,8 +207,11 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int num_
     output_buffer_data = std::vector<float>(buffer_size * num_channels);
 
     render(0); // Render the first frame
-    // TODO: Write links to display and timer functions for updating audio data
-    glutTimerFunc(0, render_callback, 0);
+    // Links to display and timer functions for updating audio data
+    // Calculate the delay in milliseconds based on the sample rate
+    int delay = buffer_size * (1000.f / (float)sample_rate);
+    // Set the timer function with the calculated delay
+    glutTimerFunc(delay, render_callback, 0);
     glutDisplayFunc(display_callback);
 
     return true;
@@ -233,7 +238,7 @@ void AudioRenderer::render(int value)
         glUniform1i(glGetUniformLocation(render_stages[i]->shader_program, "input_audio_texture"), 1);
 
         // FIXME: This is a test
-        render_stages[i]->update(200);
+        render_stages[i]->update((unsigned int)frame_count);
 
         // TODO: Fill with other data like time, or recorded data
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, &render_stages[i]->audio_buffer.data()[0]);
@@ -281,7 +286,14 @@ void AudioRenderer::render(int value)
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
 
-    glutTimerFunc(0, render_callback, 0);
+    // Calculate the delay in milliseconds based on the sample rate
+    int delay = buffer_size * (1000.f / (float)sample_rate);
+
+    // Set the timer function with the calculated delay
+    glutTimerFunc(delay, render_callback, 0);
+
+    // Increment frame count
+    frame_count++;
 }
 
 void AudioRenderer::main_loop()

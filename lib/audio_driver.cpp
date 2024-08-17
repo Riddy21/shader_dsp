@@ -4,7 +4,7 @@
 
 #include "audio_driver.h"
 
-AudioDriver::AudioDriver(const unsigned sample_rate, const unsigned frames_per_buffer, const unsigned channels) : 
+AudioDriver::AudioDriver(const unsigned frames_per_buffer, const unsigned sample_rate, const unsigned channels) : 
     stream(0),
     sample_rate(sample_rate),
     channels(channels),

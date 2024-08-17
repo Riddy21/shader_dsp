@@ -15,7 +15,7 @@ public:
      * @param frames_per_buffer The number of frames per buffer.
      * @param channels The number of channels in the audio stream.
     */
-    AudioDriver(const unsigned sample_rate, const unsigned frames_per_buffer, const unsigned channels);
+    AudioDriver(const unsigned frames_per_buffer, const unsigned sample_rate, const unsigned channels);
     /**
      * Destructor for the AudioDriver class.
     */
