@@ -202,9 +202,11 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         return false;
     }
 
-    // Init the output buffer
+    // Init buffers
     input_buffer_data = std::vector<float>(buffer_size * num_channels); // Add with data in the future?
-    output_buffer_data = std::vector<float>(buffer_size * num_channels);
+    for (int i = 0; i < 3; i++) {
+        output_buffer.push(std::vector<float>(buffer_size * num_channels));
+    }
 
     render(0); // Render the first frame
     // Links to display and timer functions for updating audio data
@@ -270,12 +272,13 @@ void AudioRenderer::render(int value)
     glReadPixels(0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, 0);
     float * ptr2 = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     if (ptr2) {
+        std::vector<float> output_buffer_data(buffer_size * num_channels);
         audio_mutex.lock();
-        // FIXME: make the output buffer into a queue that updates
-        //        so that the audio driver can read from it smoothly
+        // FIXME: make the output buffer into a queue that updates so that the audio driver can read from it
         for (unsigned int i = 0; i < buffer_size * num_channels; i++) {
             output_buffer_data[i] = ptr2[i]*2.0f - 1.0f;
         }
+        output_buffer.push(output_buffer_data);
         audio_mutex.unlock();
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     }

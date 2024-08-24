@@ -95,9 +95,16 @@ TEST_CASE("AudioRenderer") {
     audio_renderer.iterate();
 
     // Check the output buffer data
-    auto output_buffer_data = audio_renderer.get_output_buffer_data();
+    AudioBuffer & output_buffer = audio_renderer.get_output_buffer();
+    for (int i = 0; i < 3; i++){
+        auto buffer = output_buffer.pop();
+        for (int j = 0; j < 512*2; j++) {
+            REQUIRE(buffer[j] == 0.0f);
+        }
+    }
+    auto buffer = output_buffer.pop();
     for (int i = 0; i < 512*2; i++) {
-        REQUIRE(output_buffer_data[i] == Catch::Approx(1.22f));
+        REQUIRE(buffer[i] == Catch::Approx((0.1f + 0.2f + 0.3f + 0.4f + 0.01f + 0.02f + 0.03f + 0.04f + 0.001f + 0.002f + 0.003f + 0.004f)*2.0f - 1.0f));
     }
 
     t1.detach();

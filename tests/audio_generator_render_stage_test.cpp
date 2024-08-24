@@ -24,12 +24,11 @@ TEST_CASE("AudioGeneratorRenderStage") {
         audio_renderer.terminate();
     });
 
-    REQUIRE(audio_driver.set_buffer_link(audio_renderer.get_output_buffer_data()));
+    REQUIRE(audio_driver.set_buffer_link(audio_renderer.get_output_buffer()));
     REQUIRE(audio_driver.set_mutex_link(audio_renderer.get_audio_mutex()));
     REQUIRE(audio_driver.open());
     REQUIRE(audio_driver.start());
 
     t1.detach();
     audio_renderer.main_loop();
-
 }

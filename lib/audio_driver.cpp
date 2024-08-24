@@ -122,12 +122,8 @@ void AudioDriver::error(PaError err) {
     Pa_Terminate();
 }
 
-bool AudioDriver::set_buffer_link(const std::vector<float> & buffer_vector) {
-    if (buffer_vector.size() != frames_per_buffer*channels) {
-        fprintf(stderr, "Error: Buffer size does not match frames per buffer.\n");
-        return false;
-    }
-    channel_buffer_link = std::shared_ptr<const std::vector<float>>(&buffer_vector, [](const std::vector<float>*){});
+bool AudioDriver::set_buffer_link(AudioBuffer & buffer) {
+    channel_buffer_link = std::shared_ptr<AudioBuffer>(&buffer, [](const AudioBuffer*){});
     return true;
 }
 
@@ -144,8 +140,9 @@ int AudioDriver::audio_callback(const void *input_buffer, void *output_buffer,
 
     // Lock the audio buffer
     driver->audio_mutex->lock();
+    const std::vector<float> & buffer = driver->channel_buffer_link->pop();
     // Copy the audio buffer to the output buffer
-    memcpy(out, driver->channel_buffer_link->data(), frames_per_buffer * driver->channels * sizeof(float));
+    memcpy(out, buffer.data(), frames_per_buffer * driver->channels * sizeof(float));
     // Unlock the audio buffer
     driver->audio_mutex->unlock();
 

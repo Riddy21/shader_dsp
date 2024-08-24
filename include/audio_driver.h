@@ -4,8 +4,10 @@
 
 #include <vector>
 #include <mutex>
-
 #include <portaudio.h>
+#include <memory>
+
+#include "audio_buffer.h"
 
 class AudioDriver {
 public:
@@ -31,7 +33,7 @@ public:
      * @param buffer_vector The buffer to link to the audio driver.
      * @return True if the buffer was linked successfully, false otherwise.
     */
-    bool set_buffer_link(const std::vector<float> & buffer_vector);
+    bool set_buffer_link(AudioBuffer & buffer);
 
     /**
      * Link a mutex to the audio driver
@@ -79,7 +81,7 @@ private:
     static void error(PaError err);
 
     PaStream *stream;
-    std::shared_ptr<const std::vector<float>> channel_buffer_link = nullptr; // Data doesn't change, only the pointer
+    std::shared_ptr<AudioBuffer> channel_buffer_link = nullptr; // Data doesn't change, only the pointer
     std::shared_ptr<std::mutex> audio_mutex = nullptr;
 
     const unsigned sample_rate;

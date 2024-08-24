@@ -8,6 +8,7 @@
 #include <GL/glew.h>
 #include <GL/glut.h>
 
+#include "audio_buffer.h"
 #include "audio_render_stage.h"
 
 // TODO: Make this class so that the generator can run
@@ -76,7 +77,7 @@ private:
 
     // buffers for audio data
     std::vector<float> input_buffer_data; // TODO: This should be something else in the future
-    std::vector<float> output_buffer_data;
+    AudioBuffer output_buffer = AudioBuffer(10);
 
     // Mutex for locking the audio data
     std::mutex audio_mutex = std::mutex();
@@ -159,8 +160,8 @@ public:
      * 
      * @return The output buffer data.
      */
-    const std::vector<float> & get_output_buffer_data() {
-        return output_buffer_data;
+    AudioBuffer & get_output_buffer() {
+        return output_buffer;
     }
 
     /**
