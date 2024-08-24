@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <cmath>
 
 #include "audio_wav.h"
 #include "audio_generator_render_stage.h"
@@ -23,6 +24,10 @@ void AudioGeneratorRenderStage::update(const unsigned int buffer_index) {
     for (unsigned int i = 0; i < frames_per_buffer * num_channels; i++) {
         audio_buffer[i] = full_audio_data[start_index + i];
     }
+    //for (unsigned int i = 0; i < frames_per_buffer * num_channels; i=i+2) {
+    //    audio_buffer[i] = (sin(((double)(i)/((double)num_channels*(double)frames_per_buffer)) * M_PI * 10.0 * (int)((buffer_index+1)/100)))*0.5f + 0.5f;
+    //    audio_buffer[i+1] = (sin(((double)(i)/((double)num_channels*(double)frames_per_buffer)) * M_PI * 10.0 * (int)((buffer_index+1)/100)))*0.5f + 0.5f;
+    //}
 
 }
 
@@ -67,6 +72,7 @@ std::vector<float> AudioGeneratorRenderStage::load_audio_data_from_file(const ch
     // Convert the audio data to float
     std::vector<float> audio_data(data.size());
     for (unsigned int i = 0; i < data.size(); i++) {
+        // Normalize the audio data to the range [0.0, 1.0]
         audio_data[i] = data[i] / (2.0f * 32768.0f) + 0.5f; // have to shift the wave from 0.0 to 1.0
     }
     return audio_data;

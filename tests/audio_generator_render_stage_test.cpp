@@ -16,7 +16,7 @@ TEST_CASE("AudioGeneratorRenderStage") {
 
     REQUIRE(audio_renderer.init(512, 44100, 2));
 
-    // Open a thread to wait 1 sec and the shut it down
+    // Open a thread to wait few sec and the shut it down
     std::thread t1([&audio_renderer, &audio_driver, &audio_generator](){
         std::this_thread::sleep_for(std::chrono::seconds(7));
         audio_driver.stop();
@@ -28,7 +28,7 @@ TEST_CASE("AudioGeneratorRenderStage") {
     REQUIRE(audio_driver.set_mutex_link(audio_renderer.get_audio_mutex()));
     REQUIRE(audio_driver.open());
     REQUIRE(audio_driver.start());
+    audio_renderer.main_loop();
 
     t1.detach();
-    audio_renderer.main_loop();
 }
