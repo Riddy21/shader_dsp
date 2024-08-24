@@ -77,7 +77,7 @@ private:
 
     // buffers for audio data
     std::vector<float> input_buffer_data; // TODO: This should be something else in the future
-    AudioBuffer output_buffer = AudioBuffer(1000);
+    AudioBuffer output_buffer = AudioBuffer(20);
 
     // Mutex for locking the audio data
     std::mutex audio_mutex = std::mutex();

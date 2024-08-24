@@ -92,7 +92,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Init the OpenGL context
     glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE);
-    glutInitWindowSize(buffer_size * num_channels,100);
+    glutInitWindowSize(buffer_size * num_channels, 100);
     //glutInitWindowSize(buffer_size, 100);
     glutCreateWindow("Audio Processing");
     // Set the window close action to continue execution
@@ -155,6 +155,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         glBindFramebuffer(GL_FRAMEBUFFER, FBO[i]);
         glBindTexture(GL_TEXTURE_2D, audio_texture[i]);
         // Configure the texture
+        // FIXME: Need to somehow make the y direction not blend together
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -206,7 +207,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Init buffers
     input_buffer_data = std::vector<float>(buffer_size * num_channels); // Add with data in the future?
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 3; i++) {
         output_buffer.push(std::vector<float>(buffer_size * num_channels));
     }
 

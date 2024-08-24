@@ -24,11 +24,6 @@ void AudioGeneratorRenderStage::update(const unsigned int buffer_index) {
     for (unsigned int i = 0; i < frames_per_buffer * num_channels; i++) {
         audio_buffer[i] = full_audio_data[start_index + i];
     }
-    //for (unsigned int i = 0; i < frames_per_buffer * num_channels; i=i+2) {
-    //    audio_buffer[i] = (sin(((double)(i)/((double)num_channels*(double)frames_per_buffer)) * M_PI * 10.0 * (int)((buffer_index+1)/100)))*0.5f + 0.5f;
-    //    audio_buffer[i+1] = (sin(((double)(i)/((double)num_channels*(double)frames_per_buffer)) * M_PI * 10.0 * (int)((buffer_index+1)/100)))*0.5f + 0.5f;
-    //}
-
 }
 
 std::vector<float> AudioGeneratorRenderStage::load_audio_data_from_file(const char * audio_filepath) {

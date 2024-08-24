@@ -34,14 +34,6 @@ public:
      * @return True if the buffer was linked successfully, false otherwise.
     */
     bool set_buffer_link(AudioBuffer & buffer);
-
-    /**
-     * Link a mutex to the audio driver
-     * 
-     * @param mutex The mutex to link to the audio driver.
-     * @return True if the mutex was linked successfully, false otherwise.
-     */
-    bool set_mutex_link(std::mutex & mutex);
     /**
      * Open the audio stream.
      * 
@@ -82,7 +74,6 @@ private:
 
     PaStream *stream;
     std::shared_ptr<AudioBuffer> channel_buffer_link = nullptr; // Data doesn't change, only the pointer
-    std::shared_ptr<std::mutex> audio_mutex = nullptr;
 
     const unsigned sample_rate;
     const unsigned channels;

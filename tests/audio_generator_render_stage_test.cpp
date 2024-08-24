@@ -25,7 +25,6 @@ TEST_CASE("AudioGeneratorRenderStage") {
     });
 
     REQUIRE(audio_driver.set_buffer_link(audio_renderer.get_output_buffer()));
-    REQUIRE(audio_driver.set_mutex_link(audio_renderer.get_audio_mutex()));
     REQUIRE(audio_driver.open());
     REQUIRE(audio_driver.start());
     audio_renderer.main_loop();

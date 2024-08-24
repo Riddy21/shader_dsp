@@ -42,7 +42,6 @@ const std::vector<float> & AudioBuffer::pop() {
 
     mutex.unlock();
     read_index = (read_index + 1) % circular_queue.size();
-    printf("How many in the buffer: %d\n", write_index - read_index);
     return buffer;
 }
 

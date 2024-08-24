@@ -27,12 +27,9 @@ TEST_CASE("AudioDriver") {
     AudioBuffer audio_buffer(1);
     audio_buffer.push(audio_data_interleaved);
 
-    std::mutex audio_mutex;
-
     // Create the audio driver
     AudioDriver audio_driver(frames_per_buffer, 44100, channels);
     REQUIRE(audio_driver.set_buffer_link(audio_buffer));
-    REQUIRE(audio_driver.set_mutex_link(audio_mutex));
     REQUIRE(audio_driver.open());
     REQUIRE(audio_driver.start());
     audio_driver.sleep(1);

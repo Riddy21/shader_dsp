@@ -127,24 +127,15 @@ bool AudioDriver::set_buffer_link(AudioBuffer & buffer) {
     return true;
 }
 
-bool AudioDriver::set_mutex_link(std::mutex & mutex) {
-    audio_mutex = std::shared_ptr<std::mutex>(&mutex, [](std::mutex*){});
-    return true;
-}
-
 int AudioDriver::audio_callback(const void *input_buffer, void *output_buffer,
                                 unsigned long frames_per_buffer, const PaStreamCallbackTimeInfo *time_info,
                                 PaStreamCallbackFlags status_flags, void *user_data) {
     AudioDriver * driver = (AudioDriver *) user_data;
     float * out = (float *) output_buffer;
 
-    // Lock the audio buffer
-    driver->audio_mutex->lock();
     const std::vector<float> & buffer = driver->channel_buffer_link->pop();
     // Copy the audio buffer to the output buffer
     memcpy(out, buffer.data(), frames_per_buffer * driver->channels * sizeof(float));
-    // Unlock the audio buffer
-    driver->audio_mutex->unlock();
 
     return paContinue;
 }
