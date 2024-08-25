@@ -92,8 +92,8 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Init the OpenGL context
     glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE);
-    //glutInitWindowSize(buffer_size, num_channels);
-    glutInitWindowSize(buffer_size, 100);
+    glutInitWindowSize(buffer_size*num_channels, 100);
+    //glutInitWindowSize(buffer_size, 100);
     glutCreateWindow("Audio Processing");
     // Set the window close action to continue execution
     glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
@@ -163,7 +163,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         // Attach the texture to the framebuffer
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, audio_texture[i], 0);
         // Allocate memory for the texture
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, buffer_size, num_channels, 0, GL_RED, GL_FLOAT, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, buffer_size*num_channels, 1, 0, GL_RED, GL_FLOAT, nullptr);
 
         // Unbind everything
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -241,7 +241,7 @@ void AudioRenderer::render(int value)
         render_stages[i]->update((unsigned int)frame_count);
 
         // TODO: Fill with other data like time, or recorded data
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, &render_stages[i]->audio_buffer.data()[0]);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size*num_channels, 1, GL_RED, GL_FLOAT, &render_stages[i]->audio_buffer.data()[0]);
 
         // Fill the second buffer with the stream audio texture
         glActiveTexture(GL_TEXTURE0);
@@ -252,7 +252,7 @@ void AudioRenderer::render(int value)
         if (i == 0) {
             glUniform1i(glGetUniformLocation(render_stages[i]->shader_program, "stream_audio_texture"), 0);
             // TODO: Fill with other data like time, or recorded data
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, &input_buffer_data.data()[0]);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size*num_channels, 1, GL_RED, GL_FLOAT, &input_buffer_data.data()[0]);
         }
             
         // Bind the Draw the triangles
@@ -267,7 +267,7 @@ void AudioRenderer::render(int value)
     // Read the data back from the GPU
     glBindFramebuffer(GL_FRAMEBUFFER, FBO[(num_stages-1) % 2]);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, PBO);
-    glReadPixels(0, 0, buffer_size, num_channels, GL_RED, GL_FLOAT, 0);
+    glReadPixels(0, 0, buffer_size*num_channels, 1, GL_RED, GL_FLOAT, 0);
     float * ptr2 = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     if (ptr2) {
         audio_mutex.lock();
