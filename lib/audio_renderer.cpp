@@ -158,8 +158,8 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         // FIXME: Need to somehow make the y direction not blend together
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
         glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, flatColor);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
@@ -207,7 +207,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Init buffers
     input_buffer_data = std::vector<float>(buffer_size * num_channels); // Add with data in the future?
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 4; i++) {
         output_buffer.push(std::vector<float>(buffer_size * num_channels));
     }
 

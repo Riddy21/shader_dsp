@@ -96,7 +96,7 @@ TEST_CASE("AudioRenderer") {
 
     // Check the output buffer data
     AudioBuffer & output_buffer = audio_renderer.get_output_buffer();
-    for (int i = 0; i < 3; i++){
+    for (int i = 0; i < 4; i++){
         auto buffer = output_buffer.pop();
         for (int j = 0; j < 512*2; j++) {
             REQUIRE(buffer[j] == 0.0f);
