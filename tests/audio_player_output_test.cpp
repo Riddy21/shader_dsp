@@ -5,17 +5,17 @@
 #include <vector>
 #include <mutex>
 
-#include "audio_driver.h"
+#include "audio_player_output.h"
 #include "audio_buffer.h"
 
-TEST_CASE("AudioDriver") {
+TEST_CASE("AudioPlayerOutputTest") {
     std::cout << "Hello, World!" << std::endl;
 
     int frames_per_buffer = 512;
     int channels = 2;
 
     // Generate the audio data
-    std::vector<float> audio_data_interleaved(frames_per_buffer*channels);
+    float audio_data_interleaved[frames_per_buffer*channels];
 
     // Generate sine wave for both channels
     for (int i = 0; i < frames_per_buffer*channels; i=i+channels) {
@@ -25,11 +25,11 @@ TEST_CASE("AudioDriver") {
 
     // Create audio buffer
     AudioBuffer audio_buffer(1);
-    audio_buffer.push(audio_data_interleaved);
+    audio_buffer.push(audio_data_interleaved, frames_per_buffer*channels);
 
     // Create the audio driver
-    AudioDriver audio_driver(frames_per_buffer, 44100, channels);
-    REQUIRE(audio_driver.set_buffer_link(audio_buffer));
+    AudioPlayerOutput audio_driver(frames_per_buffer, 44100, channels);
+    REQUIRE(audio_driver.set_buffer_link(&audio_buffer));
     REQUIRE(audio_driver.open());
     REQUIRE(audio_driver.start());
     audio_driver.sleep(1);

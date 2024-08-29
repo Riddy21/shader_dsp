@@ -12,8 +12,8 @@ AudioRenderer * AudioRenderer::instance = nullptr;
 bool AudioRenderer::add_render_stage(AudioRenderStage& render_stage)
 {
     // Add the render stage to the list of render stages
-    render_stages.push_back(&render_stage);
-    num_stages = render_stages.size();
+    m_render_stages.push_back(&render_stage);
+    m_num_stages = m_render_stages.size();
 
     return true;
 }
@@ -76,12 +76,12 @@ GLuint AudioRenderer::compile_shaders(const GLchar* vertex_source, const GLchar*
 }
 
 bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels) {
-    this->buffer_size = buffer_size;
-    this->num_channels = num_channels;
-    this->sample_rate = sample_rate;
+    this->m_buffer_size = buffer_size;
+    this->m_num_channels = num_channels;
+    this->m_sample_rate = sample_rate;
 
     // Check that at least one stage has been added
-    if (num_stages == 0) {
+    if (m_num_stages == 0) {
         std::cerr << "Error: No render stages added." << std::endl;
         return false;
     }
@@ -118,14 +118,14 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     glDisable(GL_FRAMEBUFFER_SRGB);
 
     // Compile the render stage as a shader program
-    for (int i = 0; i < num_stages; i++) {
-        GLuint return_value = compile_shaders(vertex_source, render_stages[i]->fragment_source);
+    for (unsigned int i = 0; i < m_num_stages; i++) {
+        GLuint return_value = compile_shaders(m_vertex_source, m_render_stages[i]->m_fragment_source);
 
         if (return_value == 0) {
             return false;
         }
 
-        render_stages[i]->shader_program = return_value;
+        m_render_stages[i]->shader_program = return_value;
     }
 
     // Just a default set of vertices to cover the screen
@@ -140,11 +140,11 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     };
 
     // Generate Buffer Objects
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenFramebuffers(3, FBO);
-    glGenTextures(3, audio_texture); // 3 textures for audio data // 0-1 for input and 2 for output
-    glGenBuffers(1, &PBO); // 2 PBOs for audio data
+    glGenVertexArrays(1, &m_VAO);
+    glGenBuffers(1, &m_VBO);
+    glGenFramebuffers(3, m_FBO);
+    glGenTextures(3, m_audio_texture); // 3 textures for audio data // 0-1 for input and 2 for output
+    glGenBuffers(1, &m_PBO); // 2 PBOs for audio data
 
     // flat color for the texture border
     const float flatColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -152,8 +152,8 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     // Bind the Frame buffers
     for (int i = 0; i < 3; i++) {
         // Bind the right textures and framebuffers
-        glBindFramebuffer(GL_FRAMEBUFFER, FBO[i]);
-        glBindTexture(GL_TEXTURE_2D, audio_texture[i]);
+        glBindFramebuffer(GL_FRAMEBUFFER, m_FBO[i]);
+        glBindTexture(GL_TEXTURE_2D, m_audio_texture[i]);
         // Configure the texture
         // FIXME: Need to somehow make the y direction not blend together
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -164,7 +164,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         // Attach the texture to the framebuffer
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, audio_texture[i], 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_audio_texture[i], 0);
         // Allocate memory for the texture
         glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, buffer_size*num_channels, 1, 0, GL_RED, GL_FLOAT, nullptr);
 
@@ -174,10 +174,10 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     }
 
     // Bind Vertex Objects
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBindVertexArray(m_VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
     // Bind Pixel buffers
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, PBO);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
 
     // Allocate memory for vertex data
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -206,9 +206,10 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     }
 
     // Init buffers
-    input_buffer_data = std::vector<float>(buffer_size * num_channels); // Add with data in the future?
+    m_input_buffer_data = std::vector<float>(buffer_size * num_channels); // Add with data in the future?
     for (int i = 0; i < 4; i++) {
-        output_buffer.push(std::vector<float>(buffer_size * num_channels));
+        // Push a few empty buffers filled with 0s
+        push_data_to_all_output_buffers(new float[buffer_size * num_channels](), buffer_size * num_channels);
     }
 
     render(0); // Render the first frame
@@ -222,6 +223,30 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     return true;
 }
 
+void AudioRenderer::calculate_frame_rate()
+{
+    // Calculate the frame rate
+    static int previous_time = glutGet(GLUT_ELAPSED_TIME);
+    int current_time = glutGet(GLUT_ELAPSED_TIME);
+    m_frame_count++;
+
+    // Calculate the elapsed time
+    int elapsed_time = current_time - previous_time;
+
+    // Print the frame rate every second
+    if (elapsed_time > 1000) {
+        float frame_rate = m_frame_count / (elapsed_time / 1000.f);
+        // Update the window title with the frame rate
+        char title[100];
+        sprintf(title, "Audio Processing (%.2f fps)", frame_rate);
+        glutSetWindowTitle(title);
+
+        // Reset the frame count and previous time
+        m_frame_count = 0;
+        previous_time = current_time;
+    }
+}
+
 void AudioRenderer::render(int value)
 {
     // Clear the color of the window
@@ -229,35 +254,35 @@ void AudioRenderer::render(int value)
     glClear(GL_COLOR_BUFFER_BIT);
 
 
-    for (int i = 0; i < num_stages; i++) { // Do all except last stage
+    for (int i = 0; i < (int)m_num_stages; i++) { // Do all except last stage
         // use the shader program 0 first 
-        glUseProgram(render_stages[i]->shader_program);
+        glUseProgram(m_render_stages[i]->shader_program);
 
         // Bind the vertex array
-        glBindVertexArray(VAO);
+        glBindVertexArray(m_VAO);
 
         // Fill the third buffer with the stream audio texture
         glActiveTexture(GL_TEXTURE1);
-        glBindFramebuffer(GL_FRAMEBUFFER, FBO[2]);
-        glBindTexture(GL_TEXTURE_2D, audio_texture[2]);
-        glUniform1i(glGetUniformLocation(render_stages[i]->shader_program, "input_audio_texture"), 1);
+        glBindFramebuffer(GL_FRAMEBUFFER, m_FBO[2]);
+        glBindTexture(GL_TEXTURE_2D, m_audio_texture[2]);
+        glUniform1i(glGetUniformLocation(m_render_stages[i]->shader_program, "input_audio_texture"), 1);
 
         // FIXME: This is a test
-        render_stages[i]->update((unsigned int)frame_count);
+        m_render_stages[i]->update();
 
         // TODO: Fill with other data like time, or recorded data
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size*num_channels, 1, GL_RED, GL_FLOAT, &render_stages[i]->audio_buffer.data()[0]);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_buffer_size*m_num_channels, 1, GL_RED, GL_FLOAT, &m_render_stages[i]->m_audio_buffer[0]);
 
         // Fill the second buffer with the stream audio texture
         glActiveTexture(GL_TEXTURE0);
-        glBindFramebuffer(GL_FRAMEBUFFER, FBO[i % 2]);
-        glBindTexture(GL_TEXTURE_2D, audio_texture[abs(i-1) % 2]);
+        glBindFramebuffer(GL_FRAMEBUFFER, m_FBO[i % 2]);
+        glBindTexture(GL_TEXTURE_2D, m_audio_texture[abs(i-1) % 2]);
 
         // Only one first stage
         if (i == 0) {
-            glUniform1i(glGetUniformLocation(render_stages[i]->shader_program, "stream_audio_texture"), 0);
+            glUniform1i(glGetUniformLocation(m_render_stages[i]->shader_program, "stream_audio_texture"), 0);
             // TODO: Fill with other data like time, or recorded data
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, buffer_size*num_channels, 1, GL_RED, GL_FLOAT, &input_buffer_data.data()[0]);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_buffer_size*m_num_channels, 1, GL_RED, GL_FLOAT, &m_input_buffer_data.data()[0]);
         }
             
         // Bind the Draw the triangles
@@ -270,20 +295,12 @@ void AudioRenderer::render(int value)
     }
 
     // Read the data back from the GPU
-    glBindFramebuffer(GL_FRAMEBUFFER, FBO[(num_stages-1) % 2]);
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, PBO);
-    glReadPixels(0, 0, buffer_size * num_channels, 1, GL_RED, GL_FLOAT, 0);
-    float * ptr2 = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-    if (ptr2) {
-        std::vector<float> output_buffer_data(buffer_size * num_channels);
-        audio_mutex.lock();
-        // FIXME: make the output buffer into a queue that updates so that the audio driver can read from it
-        for (unsigned int i = 0; i < buffer_size * num_channels; i++) {
-            output_buffer_data[i] = (double)ptr2[i]*2.0f - 1.0f;
-        }
-        output_buffer.push(output_buffer_data);
-        //// debug print some values of the input and output
-        audio_mutex.unlock();
+    glBindFramebuffer(GL_FRAMEBUFFER, m_FBO[(m_num_stages-1) % 2]);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
+    glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
+    const float * output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+    if (output_buffer_data) {
+        push_data_to_all_output_buffers(output_buffer_data, m_buffer_size * m_num_channels);
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     }
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
@@ -291,8 +308,8 @@ void AudioRenderer::render(int value)
 
     // Output to screen
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, audio_texture[(num_stages-1) % 2]);
-    glBindVertexArray(VAO);
+    glBindTexture(GL_TEXTURE_2D, m_audio_texture[(m_num_stages-1) % 2]);
+    glBindVertexArray(m_VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // Unbind everything
@@ -301,13 +318,12 @@ void AudioRenderer::render(int value)
     glUseProgram(0);
 
     // Calculate the delay in milliseconds based on the sample rate
-    int delay = buffer_size * num_channels * (1000.f / (float)sample_rate);
+    int delay = m_buffer_size * m_num_channels * (1000.f / (float)m_sample_rate);
+
+    calculate_frame_rate(); // Calculate the frame rate
 
     // Set the timer function with the calculated delay
     glutTimerFunc(delay, render_callback, 0);
-
-    // Increment frame count
-    frame_count++;
 }
 
 void AudioRenderer::main_loop()
@@ -318,22 +334,22 @@ void AudioRenderer::main_loop()
 bool AudioRenderer::cleanup()
 {
     // Delete the shader programs
-    for (int i = 0; i < num_stages; i++) {
-        glDeleteProgram(render_stages[i]->shader_program);
+    for (unsigned int i = 0; i < m_num_stages; i++) {
+        glDeleteProgram(m_render_stages[i]->shader_program);
     }
 
     // Delete the textures
-    glDeleteTextures(3, audio_texture);
+    glDeleteTextures(3, m_audio_texture);
 
     // Delete the framebuffers
-    glDeleteFramebuffers(3, FBO);
+    glDeleteFramebuffers(3, m_FBO);
 
     // Delete the vertex array and buffer
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
+    glDeleteVertexArrays(1, &m_VAO);
+    glDeleteBuffers(1, &m_VBO);
 
     // Delete the pixel buffer object
-    glDeleteBuffers(1, &PBO);
+    glDeleteBuffers(1, &m_PBO);
 
     return true;
 }
@@ -352,5 +368,23 @@ AudioRenderer::~AudioRenderer()
     // Clean up the OpenGL context
     if (!cleanup()) {
         std::cerr << "Failed to clean up OpenGL context." << std::endl;
+    }
+    m_output_buffers.clear();
+}
+
+AudioBuffer * AudioRenderer::get_new_output_buffer()
+{
+    // Create a new output buffer
+    std::unique_ptr<AudioBuffer> output_buffer(new AudioBuffer(m_buffer_size * m_num_channels));
+    m_output_buffers.push_back(std::move(output_buffer));
+    
+    return m_output_buffers.back().get();
+}
+
+void AudioRenderer::push_data_to_all_output_buffers(const float * data, const unsigned int size)
+{
+    // Push the data to all output buffers
+    for (unsigned int i = 0; i < m_output_buffers.size(); i++) {
+        m_output_buffers[i]->push(data, size);
     }
 }

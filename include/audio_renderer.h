@@ -42,10 +42,21 @@ private:
      */
     void render(int value);
 
+    /**
+     * @brief Calculates the frame rate of the audio renderer
+     */
+    void calculate_frame_rate();
+
+    /**
+     * @brief Static callback function for rendering
+     */
     static void render_callback(int arg) {
         instance->render(arg);
     }
 
+    /**
+     * @brief Static callback function for displaying
+     */
     static void display_callback() {
         glutSwapBuffers(); // unlock framerate
         glutPostRedisplay();
@@ -61,32 +72,38 @@ private:
      */
     static GLuint compile_shaders(const GLchar* vertex_source, const GLchar* fragment_source);
 
+    /**
+     * @brief Push data to all output buffers
+     * 
+     * @param data The data to push
+     * @param size The size of the data
+     */
+    void push_data_to_all_output_buffers(const float * data, const unsigned int size);
+
+
     // Private member variables
-    GLuint VAO; // Vertex Array For holding vertex attribute configurations
-    GLuint VBO; // Vertex Array buffer For holding vertex data
-    GLuint PBO; // Pixel buffer object for inputting and outputting to screen
-    GLuint FBO[3]; // Frame buffer object for swapping frames during shader processing
-    GLuint audio_texture[3]; // Audio texture for holding audio data
+    GLuint m_VAO; // Vertex Array For holding vertex attribute configurations
+    GLuint m_VBO; // Vertex Array buffer For holding vertex data
+    GLuint m_PBO; // Pixel buffer object for inputting and outputting to screen
+    GLuint m_FBO[3]; // Frame buffer object for swapping frames during shader processing
+    GLuint m_audio_texture[3]; // Audio texture for holding audio data
 
-    unsigned long frame_count = 0; // Frame count for debugging
+    unsigned int m_num_stages; // Number of audio buffers
+    unsigned int m_buffer_size; // Size of audio data
+    unsigned int m_num_channels; // Number of audio channels
+    unsigned int m_sample_rate; // Sample rate of audio data
 
-    unsigned int num_stages; // Number of audio buffers
-    unsigned int buffer_size; // Size of audio data
-    unsigned int num_channels; // Number of audio channels
-    unsigned int sample_rate; // Sample rate of audio data
+    unsigned int m_frame_count = 0; // Frame count for calculating frame rate
 
     // buffers for audio data
-    std::vector<float> input_buffer_data; // TODO: This should be something else in the future
-    AudioBuffer output_buffer = AudioBuffer(20);
-
-    // Mutex for locking the audio data
-    std::mutex audio_mutex = std::mutex();
+    std::vector<float> m_input_buffer_data; // TODO: This should be something else in the future
+    std::vector<std::unique_ptr<AudioBuffer>> m_output_buffers = std::vector<std::unique_ptr<AudioBuffer>>(); // Output buffers
 
     // Simplify this into one struct
-    std::vector<AudioRenderStage * > render_stages; // FIXME: Make this a shared pointer
+    std::vector<AudioRenderStage * > m_render_stages; // FIXME: Make this a shared pointer
 
     // Vertex Source code
-    const GLchar* vertex_source = R"glsl(
+    const GLchar* m_vertex_source = R"glsl(
         #version 300 es
         precision highp float;
         layout (location = 0) in vec2 aPos;
@@ -157,22 +174,11 @@ public:
     bool add_render_stage(AudioRenderStage & render_stage);
 
     /**
-     * @brief Returns the output buffer data.
+     * @brief Returns a new output buffer for the audio renderer
      * 
      * @return The output buffer data.
      */
-    AudioBuffer & get_output_buffer() {
-        return output_buffer;
-    }
-
-    /**
-     * @brief Returns the audio mutex.
-     * 
-     * @return The audio mutex.
-     */
-    std::mutex & get_audio_mutex() {
-        return audio_mutex;
-    }
+    AudioBuffer * get_new_output_buffer();
 };
 
 #endif // AUDIO_RENDERER_H

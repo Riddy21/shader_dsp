@@ -3,7 +3,7 @@
 #include <thread>
 
 #include "audio_renderer.h"
-#include "audio_driver.h"
+#include "audio_player_output.h"
 
 TEST_CASE("AudioRenderer") {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
@@ -11,8 +11,10 @@ TEST_CASE("AudioRenderer") {
     // TODO: Add a render stage and see if it works
 
     AudioRenderStage render_stage2 = AudioRenderStage(512, 44100, 2);
-    render_stage2.audio_buffer = std::vector<float>(512*20, 0.1f);
-    render_stage2.fragment_source = R"glsl(
+    float audio_buffer[512*2];
+    std::fill_n(audio_buffer, 512*2, -0.1f);
+    render_stage2.m_audio_buffer = audio_buffer;
+    render_stage2.m_fragment_source = R"glsl(
         #version 300 es
         precision highp float;
         in vec2 TexCoord;
@@ -29,8 +31,10 @@ TEST_CASE("AudioRenderer") {
     audio_renderer.add_render_stage(render_stage2);
 
     AudioRenderStage render_stage3 = AudioRenderStage(512, 44100, 2);
-    render_stage3.audio_buffer = std::vector<float>(512*20, 0.2f);
-    render_stage3.fragment_source = R"glsl(
+    float audio_buffer2[512*2];
+    std::fill_n(audio_buffer2, 512*2, -0.2f);
+    render_stage3.m_audio_buffer = audio_buffer2;
+    render_stage3.m_fragment_source = R"glsl(
         #version 300 es
         precision highp float;
         in vec2 TexCoord;
@@ -47,8 +51,10 @@ TEST_CASE("AudioRenderer") {
     audio_renderer.add_render_stage(render_stage3);
 
     AudioRenderStage render_stage4 = AudioRenderStage(512, 44100, 2);
-    render_stage4.audio_buffer = std::vector<float>(512*20, 0.3f);
-    render_stage4.fragment_source = R"glsl(
+    float audio_buffer3[512*2];
+    std::fill_n(audio_buffer3, 512*2, -0.3f);
+    render_stage4.m_audio_buffer = audio_buffer3;
+    render_stage4.m_fragment_source = R"glsl(
         #version 300 es
         precision highp float;
         in vec2 TexCoord;
@@ -65,8 +71,10 @@ TEST_CASE("AudioRenderer") {
     audio_renderer.add_render_stage(render_stage4);
 
     AudioRenderStage render_stage5 = AudioRenderStage(512, 44100, 2);
-    render_stage5.audio_buffer = std::vector<float>(512*20, 0.4f);
-    render_stage5.fragment_source = R"glsl(
+    float audio_buffer4[512*2];
+    std::fill_n(audio_buffer4, 512*2, -0.4f);
+    render_stage5.m_audio_buffer = audio_buffer4;
+    render_stage5.m_fragment_source = R"glsl(
         #version 300 es
         precision highp float;
         in vec2 TexCoord;
@@ -95,16 +103,16 @@ TEST_CASE("AudioRenderer") {
     audio_renderer.iterate();
 
     // Check the output buffer data
-    AudioBuffer & output_buffer = audio_renderer.get_output_buffer();
+    AudioBuffer * output_buffer = audio_renderer.get_new_output_buffer();
     for (int i = 0; i < 4; i++){
-        auto buffer = output_buffer.pop();
+        auto buffer = output_buffer->pop();
         for (int j = 0; j < 512*2; j++) {
-            REQUIRE(buffer[j] == 0.0f);
+            REQUIRE(buffer[j] == Catch::Approx(0.0f));
         }
     }
-    auto buffer = output_buffer.pop();
+    auto buffer = output_buffer->pop();
     for (int i = 0; i < 512*2; i++) {
-        REQUIRE(buffer[i] == Catch::Approx((0.1f + 0.2f + 0.3f + 0.4f + 0.01f + 0.02f + 0.03f + 0.04f + 0.001f + 0.002f + 0.003f + 0.004f)*2.0f - 1.0f));
+        REQUIRE(buffer[i] == Catch::Approx(-0.1f - 0.2f - 0.3f - 0.4f + 0.01f + 0.02f + 0.03f + 0.04f + 0.001f + 0.002f + 0.003f + 0.004f));
     }
 
     t1.detach();

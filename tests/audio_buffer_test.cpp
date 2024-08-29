@@ -11,39 +11,38 @@ TEST_CASE("AudioQueue_push_pop") {
     AudioBuffer audio_queue(11);
 
     // Push 10 buffers
-    for (int i = 0; i < 11; i++) {
+    for (int i = 0; i < 10; i++) {
         std::vector<float> buffer(i, (float)i);
-        audio_queue.push(buffer);
+        audio_queue.push(buffer.data(), buffer.size());
     }
 
     // Pop 10 buffers
-    for (int i = 0; i < 11; i++) {
-        const std::vector<float> & buffer = audio_queue.pop();
-        REQUIRE(buffer.size() == (unsigned)i);
+    for (int i = 0; i < 10; i++) {
+        const float * buffer = audio_queue.pop();
+        if (i != 0) {
+            REQUIRE((unsigned)buffer[i-1] == (unsigned)i);
+        }
     }
 }
 
-TEST_CASE("AudioQueue_push_overflow") {
+TEST_CASE("AudioQueue_push_underflow") {
     // Create an audio queue
     AudioBuffer audio_queue(10);
 
-    // Push 10 buffers
-    for (int i = 0; i < 10; i++) {
+    // Push 5 buffers
+    for (int i = 0; i < 15; i++) {
         std::vector<float> buffer(i, (float)i);
-        audio_queue.push(buffer);
+        audio_queue.push(buffer.data(), buffer.size());
     }
-
-    // Push 1 more buffer
-    std::vector<float> buffer(10, 10.0);
-    audio_queue.push(buffer);
 
     // Pop 10 buffers
     for (int i = 0; i < 10; i++) {
-        const std::vector<float> & buffer = audio_queue.pop();
+        const float * buffer = audio_queue.pop();
         if (i == 0) {
-            REQUIRE(buffer.size() == 10);
+        }
+        else if (i < 5) {
+            REQUIRE((unsigned)buffer[i-1] == (unsigned)i+10);
         } else {
-            REQUIRE(buffer.size() == (unsigned)i);
         }
     }
 }
@@ -59,7 +58,7 @@ TEST_CASE("AudioQueue_push_pop_threaded") {
             // Sleep for a random time
             std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
             std::vector<float> buffer(i, (float)i);
-            audio_queue.push(buffer);
+            audio_queue.push(buffer.data(), buffer.size());
         }
     });
 
@@ -69,8 +68,8 @@ TEST_CASE("AudioQueue_push_pop_threaded") {
         for (int i = 0; i < 100; i++) {
             // Sleep for a random time
             std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
-            const std::vector<float> & buffer = audio_queue.pop();
-            REQUIRE(buffer.size() == (unsigned)i);
+            const float * buffer = audio_queue.pop();
+            REQUIRE((unsigned)buffer[i-1] == (unsigned)i);
         }
     });
 

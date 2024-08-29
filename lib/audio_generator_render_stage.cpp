@@ -12,18 +12,40 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                                                      const unsigned int num_channels,
                                                      const char * audio_filepath)
     : AudioRenderStage(frames_per_buffer, sample_rate, num_channels),
-      audio_filepath(audio_filepath) {
+      m_audio_filepath(audio_filepath) {
         // Load the audio data filepath into the full_audio_data vector
-        full_audio_data = load_audio_data_from_file(audio_filepath);
+        m_full_audio_data = load_audio_data_from_file(audio_filepath);
 }
 
-void AudioGeneratorRenderStage::update(const unsigned int buffer_index) {
-    // Copy the audio data from the full_audio_data vector in the ith buffer index
-    const unsigned int start_index = (buffer_index * frames_per_buffer * num_channels) % full_audio_data.size();
 
-    for (unsigned int i = 0; i < frames_per_buffer * num_channels; i++) {
-        audio_buffer[i] = full_audio_data[start_index + i];
+
+void AudioGeneratorRenderStage::update() {
+    // Copy the audio data from the full_audio_data vector in the ith buffer index
+    const unsigned int start_index = (m_play_index * m_frames_per_buffer * m_num_channels) % m_full_audio_data.size();
+
+    // Make sure that the audio buffer is not out of bounds
+    if (m_play_index * m_frames_per_buffer * m_num_channels >= m_full_audio_data.size()) {
+        stop();
     }
+
+    if (m_is_playing) {
+        m_audio_buffer = &m_full_audio_data[start_index];
+    } else {
+        m_audio_buffer = m_empty_audio_data.data();
+    }
+
+    m_play_index++;
+
+}
+
+void AudioGeneratorRenderStage::play() {
+    m_play_index = 0;
+    m_is_playing = true;
+}
+
+void AudioGeneratorRenderStage::stop() {
+    m_play_index = 0;
+    m_is_playing = false;
 }
 
 std::vector<float> AudioGeneratorRenderStage::load_audio_data_from_file(const char * audio_filepath) {
@@ -68,7 +90,7 @@ std::vector<float> AudioGeneratorRenderStage::load_audio_data_from_file(const ch
     std::vector<float> audio_data(data.size());
     for (unsigned int i = 0; i < data.size(); i++) {
         // Normalize the audio data to the range [0.0, 1.0]
-        audio_data[i] = data[i] / (2.0f * 32768.0f) + 0.5f; // have to shift the wave from 0.0 to 1.0
+        audio_data[i] = data[i] / 32768.0f; // have to shift the wave from 0.0 to 1.0
     }
     return audio_data;
 

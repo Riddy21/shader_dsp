@@ -8,8 +8,9 @@
 #include <memory>
 
 #include "audio_buffer.h"
+#include "audio_output.h"
 
-class AudioDriver {
+class AudioPlayerOutput : public AudioOutput {
 public:
     /**
      * Constructor for the AudioDriver class.
@@ -18,22 +19,13 @@ public:
      * @param frames_per_buffer The number of frames per buffer.
      * @param channels The number of channels in the audio stream.
     */
-    AudioDriver(const unsigned frames_per_buffer, const unsigned sample_rate, const unsigned channels) : 
-        stream(0),
-        sample_rate(sample_rate),
-        channels(channels),
-        frames_per_buffer(frames_per_buffer) {}
+    AudioPlayerOutput(const unsigned frames_per_buffer, const unsigned sample_rate, const unsigned channels) : 
+        AudioOutput(frames_per_buffer, sample_rate, channels),
+        m_stream(0) {}
     /**
      * Destructor for the AudioDriver class.
     */
-    ~AudioDriver();
-    /**
-     * Link a buffer to the audio driver
-     * 
-     * @param buffer_vector The buffer to link to the audio driver.
-     * @return True if the buffer was linked successfully, false otherwise.
-    */
-    bool set_buffer_link(AudioBuffer & buffer);
+    ~AudioPlayerOutput();
     /**
      * Open the audio stream.
      * 
@@ -72,13 +64,7 @@ private:
                               PaStreamCallbackFlags status_flags, void *user_data);
     static void error(PaError err);
 
-    PaStream *stream;
-    std::shared_ptr<AudioBuffer> channel_buffer_link = nullptr; // Data doesn't change, only the pointer
-
-    const unsigned sample_rate;
-    const unsigned channels;
-    const unsigned frames_per_buffer;
-
+    PaStream *m_stream;
 };
 
 #endif

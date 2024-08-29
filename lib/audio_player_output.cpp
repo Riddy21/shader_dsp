@@ -3,14 +3,14 @@
 #include <memory>
 #include <portaudio.h>
 
-#include "audio_driver.h"
+#include "audio_player_output.h"
 
 
-AudioDriver::~AudioDriver() {
+AudioPlayerOutput::~AudioPlayerOutput() {
     Pa_Terminate();
 }
 
-bool AudioDriver::open(PaDeviceIndex index) { PaStreamParameters outputParameters;
+bool AudioPlayerOutput::open(PaDeviceIndex index) { PaStreamParameters outputParameters;
     PaError err;
 
     // Initialize PortAudio
@@ -30,20 +30,20 @@ bool AudioDriver::open(PaDeviceIndex index) { PaStreamParameters outputParameter
     }
 
     // Set up output parameters
-    outputParameters.channelCount = channels;
+    outputParameters.channelCount = m_channels;
     outputParameters.sampleFormat = paFloat32;
     outputParameters.suggestedLatency = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
     outputParameters.hostApiSpecificStreamInfo = NULL;
 
     // Set up the stream with the output parameters
     err = Pa_OpenStream(
-        &stream,
+        &m_stream,
         NULL,
         &outputParameters,
-        sample_rate,
-        frames_per_buffer,
+        m_sample_rate,
+        m_frames_per_buffer,
         paClipOff,
-        AudioDriver::audio_callback,
+        AudioPlayerOutput::audio_callback,
         this
     );
     if (err != paNoError) {
@@ -51,27 +51,25 @@ bool AudioDriver::open(PaDeviceIndex index) { PaStreamParameters outputParameter
         return false;
     }
     printf("Opened stream with device: %s\n", Pa_GetDeviceInfo(outputParameters.device)->name);
-    printf("Sample rate: %d\n", sample_rate);
-    printf("Frames per buffer: %d\n", frames_per_buffer);
-    printf("Channels: %d\n", channels);
+    printf("Sample rate: %d\n", m_sample_rate);
+    printf("Frames per buffer: %d\n", m_frames_per_buffer);
+    printf("Channels: %d\n", m_channels);
     printf("Latency: %f\n", outputParameters.suggestedLatency);
     return true;
 }
 
-bool AudioDriver::start() {
-    if (stream == 0) {
+bool AudioPlayerOutput::start() {
+    if (m_stream == 0) {
         fprintf(stderr, "Error: Stream not open.\n");
         return false;
     }
     // Check that all the channels have been linked
-    for (unsigned i = 0; i < channels; i++) {
-        if (channel_buffer_link == nullptr) {
-            fprintf(stderr, "Error: Channel %d not linked.\n", i+1);
-            return false;
-        }
+    if (m_audio_buffer_link == nullptr) {
+        fprintf(stderr, "Error: Buffer not linked.\n");
+        return false;
     }
     // Start the stream
-    PaError err = Pa_StartStream(stream);
+    PaError err = Pa_StartStream(m_stream);
     if (err != paNoError) {
         error(err);
         return false;
@@ -80,13 +78,13 @@ bool AudioDriver::start() {
     return true;
 }
 
-bool AudioDriver::stop() {
-    if (stream == 0) {
+bool AudioPlayerOutput::stop() {
+    if (m_stream == 0) {
         fprintf(stderr, "Error: Stream not open.\n");
         return false;
     }
     // Stop the stream
-    PaError err = Pa_StopStream(stream);
+    PaError err = Pa_StopStream(m_stream);
     if (err != paNoError) {
         error(err);
         return false;
@@ -95,13 +93,13 @@ bool AudioDriver::stop() {
     return true;
 }
 
-bool AudioDriver::close() {
-    if (stream == 0) {
+bool AudioPlayerOutput::close() {
+    if (m_stream == 0) {
         fprintf(stderr, "Error: Stream not open.\n");
         return false;
     }
     // Close the stream
-    PaError err = Pa_CloseStream(stream);
+    PaError err = Pa_CloseStream(m_stream);
     if (err != paNoError) {
         error(err);
         return false;
@@ -110,32 +108,27 @@ bool AudioDriver::close() {
     return true;
 }
 
-void AudioDriver::sleep(const unsigned seconds) {
+void AudioPlayerOutput::sleep(const unsigned seconds) {
     printf("Sleeping for %d seconds.\n", seconds);
     Pa_Sleep(1000*seconds);
 }
 
-void AudioDriver::error(PaError err) {
+void AudioPlayerOutput::error(PaError err) {
     fprintf(stderr, "portaudio error: %s\n", Pa_GetErrorText(err));
     fprintf(stderr, "error number: %d\n", err);
     fprintf(stderr, "error message: %s\n", Pa_GetErrorText(err));
     Pa_Terminate();
 }
 
-bool AudioDriver::set_buffer_link(AudioBuffer & buffer) {
-    channel_buffer_link = std::shared_ptr<AudioBuffer>(&buffer, [](const AudioBuffer*){});
-    return true;
-}
-
-int AudioDriver::audio_callback(const void *input_buffer, void *output_buffer,
+int AudioPlayerOutput::audio_callback(const void *input_buffer, void *output_buffer,
                                 unsigned long frames_per_buffer, const PaStreamCallbackTimeInfo *time_info,
                                 PaStreamCallbackFlags status_flags, void *user_data) {
-    AudioDriver * driver = (AudioDriver *) user_data;
+    AudioPlayerOutput * driver = (AudioPlayerOutput *) user_data;
     float * out = (float *) output_buffer;
 
-    const std::vector<float> & buffer = driver->channel_buffer_link->pop();
+    const float * buffer = driver->m_audio_buffer_link->pop();
     // Copy the audio buffer to the output buffer
-    memcpy(out, buffer.data(), frames_per_buffer * driver->channels * sizeof(float));
+    memcpy(out, buffer, frames_per_buffer * driver->m_channels * sizeof(float));
 
     return paContinue;
 }

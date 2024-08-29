@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <vector>
+#include <cstring>
 
 #include "audio_buffer.h"
 
@@ -9,8 +10,8 @@ AudioBuffer::AudioBuffer(const unsigned int max_size) {
         fprintf(stderr, "Error: Max size must be greater than 0.\n");
         return;
     }
-    this->max_size = max_size;
-    circular_queue.reserve(max_size);
+    this->m_max_size = max_size;
+    m_circular_queue.reserve(max_size);
 }
 
 AudioBuffer::~AudioBuffer() {
@@ -18,35 +19,46 @@ AudioBuffer::~AudioBuffer() {
 }
 
 void AudioBuffer::clear() {
-    for (auto & buffer : circular_queue) {
-        buffer.clear();
+    for (const float * buffer : m_circular_queue) {
+        delete[] buffer;
     }
-    circular_queue.clear();
+    m_circular_queue.clear();
 }
 
-void AudioBuffer::push(const std::vector<float> & buffer) {
-    mutex.lock();
-    if (circular_queue.size() == max_size) {
-        circular_queue[write_index] = buffer; //copy buffer to write_index
+void AudioBuffer::push(const float * buffer, const unsigned int buffer_size) {
+    m_mutex.lock();
+    // Have to copy because don't know if buffer is deallocated
+    float * buffer_copy = new float[buffer_size];
+    memcpy(buffer_copy, buffer, buffer_size * sizeof(float));
+
+    if (m_circular_queue.size() == m_max_size) {
+        m_circular_queue[m_write_index] = buffer_copy; //copy buffer to write_index
     } else {
-        circular_queue.push_back(buffer);
+        m_circular_queue.push_back(buffer_copy);
     }
     
-    mutex.unlock();
-    write_index = (write_index + 1) % max_size;
+    m_mutex.unlock();
+    m_write_index = (m_write_index + 1) % m_max_size;
 }
 
-const std::vector<float> & AudioBuffer::pop() {
-    mutex.lock();
-    const std::vector<float> & buffer = circular_queue[read_index];
+const float * AudioBuffer::pop() {
+    m_mutex.lock();
+    const float * buffer = m_circular_queue[m_read_index];
+    m_mutex.unlock();
 
-    mutex.unlock();
-    read_index = (read_index + 1) % circular_queue.size();
-    //if (read_index > write_index) {
+    //if (read_index >= write_index) {
     //    printf("Num Elements: %d\n", circular_queue.size() - read_index + write_index);
     //} else {
     //    printf("Num Elements: %d\n", write_index - read_index);
     //}
+
+    // If the num elements gets below 1 don't increment read_index
+    if (m_read_index == m_write_index) {
+        printf("WARNING: Audio Queue Underrun!\n");
+    } else {
+        m_read_index = (m_read_index + 1) % (m_circular_queue.size());
+    }
+
     return buffer;
 }
 

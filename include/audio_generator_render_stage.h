@@ -30,14 +30,33 @@ public:
                               const unsigned int num_channels,
                               const char * audio_filepath);
 
-    // Destructor
+    /**
+     * @brief Destroys the AudioGenerator object.
+     */
     ~AudioGeneratorRenderStage() {} // TODO: Implement destructor
 
-    // Load audio data
-    void update(const unsigned int buffer_index);
+    /**
+     * @brief Updates the audio data in the specified buffer index.
+     * 
+     * This function is responsible for updating the audio data in the specified buffer index.
+     */
+    void update();
 
-    const char * audio_filepath; // Default audio file path
+    /**
+     * @brief Plays the audio data.
+     * 
+     * This function is responsible for playing the audio data.
+     */
+    void play();
 
+    /**
+     * @brief Stops the audio data.
+     * 
+     * This function is responsible for stopping the audio data.
+     */
+    void stop();
+
+    const char * m_audio_filepath; // Default audio file path
 
 private:
     // Load audio file
@@ -47,8 +66,14 @@ private:
      * This function is responsible for loading audio data from the specified audio file into the full_audio_data vector.
      */
     static std::vector<float> load_audio_data_from_file(const char * audio_filepath);
+
+    // controls
+    bool m_is_playing = false;
+    unsigned int m_play_index = 0;
     // Audio data
-    std::vector<float> full_audio_data;
+    std::vector<float> m_full_audio_data;
+    // Empty audio sound data
+    std::vector<float> m_empty_audio_data = std::vector<float>(m_frames_per_buffer * m_num_channels, 0.0f);
 };
 
 #endif

@@ -16,9 +16,9 @@ public:
     AudioRenderStage(const unsigned int frames_per_buffer,
                      const unsigned int sample_rate,
                      const unsigned int num_channels)
-        : frames_per_buffer(frames_per_buffer),
-          sample_rate(sample_rate),
-          num_channels(num_channels) {}
+        : m_frames_per_buffer(frames_per_buffer),
+          m_sample_rate(sample_rate),
+          m_num_channels(num_channels) {}
 
     /**
      * @brief Loads audio data into the specified buffer index.
@@ -27,18 +27,18 @@ public:
      * 
      * @param buffer_index The index of the buffer to load the audio data into.
      */
-    virtual void update(const unsigned int buffer_index) {};
+    virtual void update() {};
 
     // Settings
-    const unsigned int frames_per_buffer;
-    const unsigned int sample_rate;
-    const unsigned int num_channels;
+    const unsigned int m_frames_per_buffer;
+    const unsigned int m_sample_rate;
+    const unsigned int m_num_channels;
 
     // Audio Data
     // Initilize with 0 vector
-    std::vector<float> audio_buffer = std::vector<float>(frames_per_buffer * num_channels, 0.0f);
+    const float * m_audio_buffer = new float[m_frames_per_buffer * m_num_channels]();
 
-    const GLchar* fragment_source = R"glsl(
+    const GLchar* m_fragment_source = R"glsl(
         #version 300 es
         precision highp float;
 
