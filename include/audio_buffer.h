@@ -13,6 +13,7 @@ public:
     const float * pop();
     void clear();
     unsigned int get_size() { return m_circular_queue.size(); }
+    unsigned int get_max_size() { return m_max_size; }
 
 private:
     std::vector<const float *> m_circular_queue;

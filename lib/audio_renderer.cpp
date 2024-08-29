@@ -207,10 +207,10 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Init buffers
     m_input_buffer_data = std::vector<float>(buffer_size * num_channels); // Add with data in the future?
-    for (int i = 0; i < 4; i++) {
-        // Push a few empty buffers filled with 0s
-        push_data_to_all_output_buffers(new float[buffer_size * num_channels](), buffer_size * num_channels);
-    }
+    //for (int i = 0; i < 4; i++) {
+    //    // Push a few empty buffers filled with 0s
+    //    push_data_to_all_output_buffers(new float[buffer_size * num_channels](), buffer_size * num_channels);
+    //}
 
     render(0); // Render the first frame
     // Links to display and timer functions for updating audio data
