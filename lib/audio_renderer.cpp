@@ -375,7 +375,7 @@ AudioRenderer::~AudioRenderer()
 AudioBuffer * AudioRenderer::get_new_output_buffer()
 {
     // Create a new output buffer
-    std::unique_ptr<AudioBuffer> output_buffer(new AudioBuffer(m_buffer_size * m_num_channels));
+    std::unique_ptr<AudioBuffer> output_buffer(new AudioBuffer(20));
     m_output_buffers.push_back(std::move(output_buffer));
     
     return m_output_buffers.back().get();

@@ -24,12 +24,12 @@ TEST_CASE("AudioPlayerOutputTest") {
     }
 
     // Create audio buffer
-    AudioBuffer audio_buffer(1);
-    audio_buffer.push(audio_data_interleaved, frames_per_buffer*channels);
+    AudioBuffer * audio_buffer = new AudioBuffer(1);
+    audio_buffer->push(audio_data_interleaved, frames_per_buffer*channels);
 
     // Create the audio driver
     AudioPlayerOutput audio_driver(frames_per_buffer, 44100, channels);
-    REQUIRE(audio_driver.set_buffer_link(&audio_buffer));
+    REQUIRE(audio_driver.set_buffer_link(audio_buffer));
     REQUIRE(audio_driver.open());
     REQUIRE(audio_driver.start());
     audio_driver.sleep(1);

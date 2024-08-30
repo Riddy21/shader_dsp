@@ -33,7 +33,6 @@ TEST_CASE("AudioGeneratorRenderStage") {
     auto audio_buffer = audio_renderer.get_new_output_buffer();
     audio_buffer->push(new float[512*2](), 512*2);
     audio_buffer->push(new float[512*2](), 512*2);
-    audio_buffer->push(new float[512*2](), 512*2);
     REQUIRE(audio_driver.set_buffer_link(audio_buffer));
     REQUIRE(audio_driver.open());
     REQUIRE(audio_driver.start());
