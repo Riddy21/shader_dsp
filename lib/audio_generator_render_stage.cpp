@@ -89,8 +89,7 @@ std::vector<float> AudioGeneratorRenderStage::load_audio_data_from_file(const ch
     // Convert the audio data to float
     std::vector<float> audio_data(data.size());
     for (unsigned int i = 0; i < data.size(); i++) {
-        // Normalize the audio data to the range [0.0, 1.0]
-        audio_data[i] = data[i] / 32768.0f; // have to shift the wave from 0.0 to 1.0
+        audio_data[i] = data[i] / 32768.0f; // have to shift the wave from -1.0 to 1.0
     }
     return audio_data;
 

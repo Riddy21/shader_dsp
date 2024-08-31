@@ -9,12 +9,32 @@ AudioFileOutput::~AudioFileOutput() {
 
 bool AudioFileOutput::open() {
     // Open file from m_filename
-    std::ofstream m_file(m_filename, std::ios::binary);
+    m_file = std::ofstream(m_filename, std::ios::binary);
+    // Check that file is open
+    if (!m_file.is_open()) {
+        fprintf(stderr, "Error: File not open.\n");
+        return false;
+    }
+    return true;
 }
 
 bool AudioFileOutput::close() {
+    // Complete the audio file header
+    m_header.overall_size = (size_t)m_file.tellp() - 8;
+    m_header.data_size = (size_t)m_file.tellp() - sizeof(WAVHeader);
+
+    m_file.seekp(0);
+    m_file.write((char *) &m_header, sizeof(WAVHeader));
+
     // Close file
     m_file.close();
+
+    // Check that file is closed
+    if (m_file.is_open()) {
+        fprintf(stderr, "Error: File not closed.\n");
+        return false;
+    }
+    return true;
 }
 
 bool AudioFileOutput::start() {
@@ -25,31 +45,23 @@ bool AudioFileOutput::start() {
     }
 
     // Write the audio file header
-    WAVHeader header;
-    header.riff[0] = 'R';
-    header.riff[1] = 'I';
-    header.riff[2] = 'F';
-    header.riff[3] = 'F';
-    header.overall_size = 0;
-    header.wave[0] = 'W';
-    header.wave[1] = 'A';
-    header.wave[2] = 'V';
-    header.wave[3] = 'E';
-    header.length_of_fmt = 16;
-    header.format_type = 1;
-    header.channels = m_channels;
-    header.sample_rate = m_sample_rate;
-    header.byte_rate = header.sample_rate * header.channels * header.bits_per_sample / 8;
-    header.block_align = header.channels * header.bits_per_sample / 8;
-    header.bits_per_sample = 32;
-    header.data_size = 0;
+    m_header.length_of_fmt = 16;
+    m_header.format_type = 1;
+    m_header.channels = m_channels;
+    m_header.sample_rate = m_sample_rate;
+    m_header.bits_per_sample = 16;
+    m_header.byte_rate = m_header.sample_rate * m_header.channels * m_header.bits_per_sample / 8;
+    m_header.block_align = m_header.channels * m_header.bits_per_sample / 8;
+    m_header.data_size = 0;
 
-    m_file.write((char *) &header, sizeof(WAVHeader));
+    m_file.write((char *) &m_header, sizeof(WAVHeader));
+
+    m_is_running = true;
 
     // Start a thread to write audio data to the file
     std::thread t1(write_audio_callback, this);
-
     t1.detach();
+
     return true;
 }
 
@@ -59,6 +71,19 @@ void AudioFileOutput::write_audio_callback(AudioFileOutput* audio_file_output) {
         fprintf(stderr, "Error: File not open.\n");
         return;
     }
+    while (audio_file_output->m_is_running) {
+        // Write audio data to the file
+        auto audio_buffer = audio_file_output->m_audio_buffer_link->pop();
+
+        for (unsigned i = 0; i < audio_file_output->m_frames_per_buffer*audio_file_output->m_channels; i++) {
+            // convert float to int16_t
+            int16_t sample = (int16_t)(audio_buffer[i] * 32760.0f);
+            audio_file_output->m_file.write((char *) &sample, sizeof(int16_t));
+        }
+
+        // Wait for a short time
+        std::this_thread::sleep_for(std::chrono::milliseconds((int)(1000.0f/((double)audio_file_output->m_sample_rate/(double)audio_file_output->m_frames_per_buffer))));
+    }
 }
 
 bool AudioFileOutput::stop() {
@@ -67,4 +92,6 @@ bool AudioFileOutput::stop() {
         return false;
     }
     // TODO: Stop writing audio data to the file
+    m_is_running = false;
+    return true;
 }

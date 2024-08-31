@@ -28,13 +28,11 @@ void AudioBuffer::clear() {
 void AudioBuffer::push(const float * buffer, const unsigned int buffer_size) {
     m_mutex.lock();
     // Have to copy because don't know if buffer is deallocated
-    // FIXME: Remove this extra copy
     float * buffer_copy = new float[buffer_size];
     memcpy(buffer_copy, buffer, buffer_size * sizeof(float));
-
     m_circular_queue[m_write_index] = buffer_copy; //copy buffer to write_index
-
     m_mutex.unlock();
+
     m_write_index = (m_write_index + 1) % m_max_size;
 }
 
