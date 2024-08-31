@@ -100,6 +100,7 @@ private:
     std::vector<std::unique_ptr<AudioBuffer>> m_output_buffers = std::vector<std::unique_ptr<AudioBuffer>>(); // Output buffers
 
     // Simplify this into one struct
+    // FIXME: Convert this into a unique pointer
     std::vector<AudioRenderStage * > m_render_stages; // FIXME: Make this a shared pointer
 
     // Vertex Source code
@@ -174,11 +175,26 @@ public:
     bool add_render_stage(AudioRenderStage & render_stage);
 
     /**
+     * @brief Adds a keyboard callback to the audio renderer.
+     * 
+     * @param callback The callback function to be added.
+     * @return True if the callback is successfully added, false otherwise.
+     */
+    bool add_keyboard_callback(void (*callback)(unsigned char, int, int)){
+        glutKeyboardFunc(callback);
+        return true;
+    }
+
+    /**
      * @brief Returns a new output buffer for the audio renderer
      * 
      * @return The output buffer data.
      */
     AudioBuffer * get_new_output_buffer();
+
+    AudioRenderStage * get_render_stage(const unsigned int index) {
+        return m_render_stages[index];
+    }
 };
 
 #endif // AUDIO_RENDERER_H
