@@ -23,6 +23,16 @@ bool AudioPlayerOutput::open(PaDeviceIndex index) { PaStreamParameters outputPar
     if (index == -1) {
         index = Pa_GetDefaultOutputDevice();
     }
+
+    // Get all the audio devices
+    int numDevices = Pa_GetDeviceCount();
+    for (int i = 0; i < numDevices; i++) {
+        const PaDeviceInfo *deviceInfo;
+        deviceInfo = Pa_GetDeviceInfo(i);
+        printf("Device %d: %s\n", i, deviceInfo->name);
+        printf("Audio API: %s\n", Pa_GetHostApiInfo(deviceInfo->hostApi)->name);
+    }
+
     outputParameters.device = index;
     if (outputParameters.device == paNoDevice) {
         fprintf(stderr, "Error: No default output device.\n");
@@ -32,7 +42,7 @@ bool AudioPlayerOutput::open(PaDeviceIndex index) { PaStreamParameters outputPar
     // Set up output parameters
     outputParameters.channelCount = m_channels;
     outputParameters.sampleFormat = paFloat32;
-    outputParameters.suggestedLatency = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
+    outputParameters.suggestedLatency = 0.001;
     outputParameters.hostApiSpecificStreamInfo = NULL;
 
     // Set up the stream with the output parameters

@@ -49,7 +49,7 @@ const float * AudioBuffer::pop() {
 
     // If the num elements gets below 1 don't increment read_index
     if (((m_read_index + 1) % (m_circular_queue.size())) == m_write_index) {
-        printf("WARNING: Audio Queue Underrun!\n");
+        //printf("WARNING: Audio Queue Underrun!\n");
     } else {
         m_read_index = (m_read_index + 1) % (m_circular_queue.size());
     }
