@@ -15,9 +15,37 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
       m_audio_filepath(audio_filepath) {
         // Load the audio data filepath into the full_audio_data vector
         m_full_audio_data = load_audio_data_from_file(audio_filepath);
+
+        // Create parameters for the audio generator
+        AudioRenderStageParameter input_audio_texture_parameter;
+        input_audio_texture_parameter.name = "input_audio_texture";
+        input_audio_texture_parameter.type = ParameterType::STREAM_INPUT;
+        input_audio_texture_parameter.datatype = ParameterDataType::FLOAT;
+        input_audio_texture_parameter.format = ParameterFormat::RED;
+        input_audio_texture_parameter.internal_format = ParameterInternalFormat::R32F;
+        input_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
+        input_audio_texture_parameter.parameter_height = 1;
+        input_audio_texture_parameter.data = m_empty_audio_data.data();
+
+        AudioRenderStageParameter stream_audio_texture_parameter;
+        stream_audio_texture_parameter.name = "stream_audio_texture";
+        stream_audio_texture_parameter.type = ParameterType::STREAM_INPUT;
+        stream_audio_texture_parameter.datatype = ParameterDataType::FLOAT;
+        stream_audio_texture_parameter.format = ParameterFormat::RED;
+        stream_audio_texture_parameter.internal_format = ParameterInternalFormat::R32F;
+        stream_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
+        stream_audio_texture_parameter.parameter_height = 1;
+        stream_audio_texture_parameter.data = m_audio_buffer;
+
+        AudioRenderStageParameter output_audio_texture_parameter;
+        output_audio_texture_parameter.name = "output_audio_texture";
+        output_audio_texture_parameter.type = ParameterType::STREAM_OUTPUT;
+        output_audio_texture_parameter.datatype = ParameterDataType::FLOAT;
+        output_audio_texture_parameter.format = ParameterFormat::RED;
+        output_audio_texture_parameter.internal_format = ParameterInternalFormat::R32F;
+        output_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
+        output_audio_texture_parameter.parameter_height = 1;
 }
-
-
 
 void AudioGeneratorRenderStage::update() {
     // Copy the audio data from the full_audio_data vector in the ith buffer index

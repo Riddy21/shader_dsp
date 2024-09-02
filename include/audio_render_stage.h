@@ -5,6 +5,8 @@
 #include <vector>
 #include <GL/glew.h>
 
+#include "audio_render_stage_parameter.h"
+
 class AudioRenderStage {
 private:
     // Shader source
@@ -56,6 +58,7 @@ public:
     )glsl"; // Default shader source (Kept in files for the future versions)
 
     // #TODO: Add linkages to next stage
+    std::vector<AudioRenderStageParameter> m_parameters;
 };
 
 #endif // AUDIO_RENDER_STAGE_H
