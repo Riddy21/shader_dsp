@@ -46,7 +46,10 @@ enum ParameterInternalFormat {
     RGBA32F = GL_RGBA32F
 };
 
-struct AudioRenderStageParameter {
+class AudioRenderStageParameter {
+
+public:
+    // FIXME: Reoganize this with a proper constructor and destructor
     const char * name;
     ParameterType type;
     ParameterDataType datatype;
@@ -55,7 +58,17 @@ struct AudioRenderStageParameter {
     unsigned int parameter_width;
     unsigned int parameter_height;
     const void * data;
-    // Add links to textures and stuff
+
+    GLuint framebuffer;
+    GLuint texture;
+
+    static GLuint generate_framebuffer(const AudioRenderStageParameter & parameter);
+    static GLuint generate_texture(const AudioRenderStageParameter & parameter);
+    static void bind_texture_to_framebuffer(const AudioRenderStageParameter & output_parameter,
+                                            const AudioRenderStageParameter & input_parameter);
+
+private:
+    static GLuint color_attachment_index;
 };
 
 #endif

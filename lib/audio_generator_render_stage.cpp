@@ -16,7 +16,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         // Load the audio data filepath into the full_audio_data vector
         m_full_audio_data = load_audio_data_from_file(audio_filepath);
 
-        // Create parameters for the audio generator
+        // Create parameters for the audio generator ports in shader
         AudioRenderStageParameter input_audio_texture_parameter;
         input_audio_texture_parameter.name = "input_audio_texture";
         input_audio_texture_parameter.type = ParameterType::STREAM_INPUT;
@@ -45,6 +45,11 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         output_audio_texture_parameter.internal_format = ParameterInternalFormat::R32F;
         output_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
         output_audio_texture_parameter.parameter_height = 1;
+        output_audio_texture_parameter.data = nullptr;
+
+        m_parameters.push_back(input_audio_texture_parameter);
+        m_parameters.push_back(stream_audio_texture_parameter);
+        m_parameters.push_back(output_audio_texture_parameter);
 }
 
 void AudioGeneratorRenderStage::update() {
