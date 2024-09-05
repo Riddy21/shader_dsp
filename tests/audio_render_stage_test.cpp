@@ -13,6 +13,10 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     glutCreateWindow("Audio Processing");
     glewInit();
 
+    // placeholder frame buffer
+    GLuint FBO;
+    glGenFramebuffers(1, &FBO);
+
     AudioRenderStage render_stage = AudioRenderStage(512, 44100, 2);
 
     const float * empty_data = new float[512 * 2]();
@@ -38,7 +42,7 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     parameter2.parameter_width = 512 * 2;
     parameter2.parameter_height = 1;
     parameter2.data = nullptr;
-    parameter2.framebuffer = AudioRenderStageParameter::generate_framebuffer(parameter2);
+    parameter2.framebuffer = FBO;
 
     REQUIRE(render_stage.add_parameter(parameter1));
     REQUIRE(render_stage.add_parameter(parameter2));
@@ -66,7 +70,7 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     parameter4.parameter_width = 512 * 2;
     parameter4.parameter_height = 1;
     parameter4.data = nullptr;
-    parameter4.framebuffer = AudioRenderStageParameter::generate_framebuffer(parameter4);
+    parameter4.framebuffer = FBO;
 
     REQUIRE(render_stage2.add_parameter(parameter3));
     REQUIRE(render_stage2.add_parameter(parameter4));

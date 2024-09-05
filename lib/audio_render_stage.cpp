@@ -3,6 +3,19 @@
 #include "audio_render_stage.h"
 #include "audio_render_stage_parameter.h"
 
+AudioRenderStage::~AudioRenderStage() {
+    // Delete the framebuffer
+    glDeleteFramebuffers(1, &m_framebuffer);
+    // delete the textures
+    for (auto &param : m_parameters) {
+        if (param.texture != 0) {
+            glDeleteTextures(1, &param.texture);
+        }
+    }
+    // Delete shader program
+    glDeleteProgram(m_shader_program);
+}
+
 bool AudioRenderStage::compile_shader_program() {
     const GLchar * vertex_source = AudioRenderer::get_instance().m_vertex_source;
     const GLchar * fragment_source = m_fragment_source;

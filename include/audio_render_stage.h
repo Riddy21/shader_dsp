@@ -16,6 +16,41 @@ private:
     // Framebuffer for the stage if it involves outputs
     GLuint m_framebuffer;
 
+    // Parameters
+    std::vector<AudioRenderStageParameter> m_parameters;
+
+public:
+    friend class AudioRenderer;
+    // Constructor
+    AudioRenderStage(const unsigned int frames_per_buffer,
+                     const unsigned int sample_rate,
+                     const unsigned int num_channels)
+        : m_frames_per_buffer(frames_per_buffer),
+          m_sample_rate(sample_rate),
+          m_num_channels(num_channels) {}
+
+    // Destructor
+    ~AudioRenderStage();
+
+    /**
+     * @brief Loads audio data into the specified buffer index.
+     * 
+     * This function is responsible for loading audio data into the buffer specified by the buffer_index parameter.
+     * 
+     * @param buffer_index The index of the buffer to load the audio data into.
+     */
+    virtual void update() {};
+
+    /** 
+     * @brief Add a parameter to the audio parameter list
+     * 
+     * This function adds a parameter to the audio parameter list
+     * 
+     * @param parameter The parameter to add
+     * @return True if the parameter is successfully added, false otherwise.
+     */
+    bool add_parameter(AudioRenderStageParameter & parameter);
+
     /**
      * @brief Compile the shader program.
      * 
@@ -36,38 +71,6 @@ private:
      * This function is responsible for initializing the framebuffer.
      */
     bool initialize_framebuffer();
-
-    // Parameters
-    std::vector<AudioRenderStageParameter> m_parameters;
-
-public:
-    friend class AudioRenderer;
-    // Constructor
-    AudioRenderStage(const unsigned int frames_per_buffer,
-                     const unsigned int sample_rate,
-                     const unsigned int num_channels)
-        : m_frames_per_buffer(frames_per_buffer),
-          m_sample_rate(sample_rate),
-          m_num_channels(num_channels) {}
-
-    /**
-     * @brief Loads audio data into the specified buffer index.
-     * 
-     * This function is responsible for loading audio data into the buffer specified by the buffer_index parameter.
-     * 
-     * @param buffer_index The index of the buffer to load the audio data into.
-     */
-    virtual void update() {};
-
-    /** 
-     * @brief Add a parameter to the audio parameter list
-     * 
-     * This function adds a parameter to the audio parameter list
-     * 
-     * @param parameter The parameter to add
-     * @return True if the parameter is successfully added, false otherwise.
-     */
-    bool add_parameter(AudioRenderStageParameter & parameter);
 
     /**
      * @brief Returns the parameters of the render stage.

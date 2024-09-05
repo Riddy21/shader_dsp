@@ -206,15 +206,40 @@ void AudioRenderer::render(int value)
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    for (int i = 0; i < (int)m_num_stages; i++) {
+        // bind the framebuffer of the stage
+        glBindFramebuffer(GL_FRAMEBUFFER, m_render_stages[i]->m_framebuffer);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    for (auto & stage : m_render_stages) {
-        // Bind the framebuffers to the render stage
-        glBindFramebuffer(GL_FRAMEBUFFER, stage->m_framebuffer);
+        // Use the shader program of the stage
+        glUseProgram(m_render_stages[i]->m_shader_program);
 
+        // FIXME: This is a test
+        m_render_stages[i]->update();
+
+        // Bind the textures of the stage
+        unsigned int texture_count = 0;
+        for (auto& parameter : m_render_stages[i]->m_parameters) {
+            // Bind the texture to the shader program
+            glActiveTexture(GL_TEXTURE0 + texture_count);
+            glBindTexture(GL_TEXTURE_2D, parameter.texture);
+            glUniform1i(glGetUniformLocation(m_render_stages[i]->m_shader_program, parameter.name), texture_count);
+            texture_count++;
+        }
+
+        // Bind the vertex array and draw
+        glBindVertexArray(m_VAO);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        // Unbind everything
+        glBindVertexArray(0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glUseProgram(0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     // Read the data back from the GPU
-    glBindFramebuffer(GL_FRAMEBUFFER, m_FBO[(m_num_stages-1) % 2]);
+    glBindFramebuffer(GL_FRAMEBUFFER, m_render_stages[m_num_stages]->m_framebuffer); // Bind the second last stage frame buffer
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
     const float * output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
@@ -227,7 +252,6 @@ void AudioRenderer::render(int value)
 
     // Output to screen
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, m_audio_texture[(m_num_stages-1) % 2]);
     glBindVertexArray(m_VAO);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -252,17 +276,6 @@ void AudioRenderer::main_loop()
 
 bool AudioRenderer::cleanup()
 {
-    // Delete the shader programs
-    for (unsigned int i = 0; i < m_num_stages; i++) {
-        glDeleteProgram(m_render_stages[i]->m_shader_program);
-    }
-
-    // Delete the textures
-    glDeleteTextures(3, m_audio_texture);
-
-    // Delete the framebuffers
-    glDeleteFramebuffers(3, m_FBO);
-
     // Delete the vertex array and buffer
     glDeleteVertexArrays(1, &m_VAO);
     glDeleteBuffers(1, &m_VBO);
