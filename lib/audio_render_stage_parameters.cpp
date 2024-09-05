@@ -1,17 +1,18 @@
 #include <GL/glew.h>
 #include <GL/glut.h>
+#include <iostream>
 
 #include "audio_render_stage_parameter.h"
 
 GLuint AudioRenderStageParameter::color_attachment_index = GL_COLOR_ATTACHMENT0;
 
-GLuint AudioRenderStageParameter::generate_framebuffer(const AudioRenderStageParameter & parameter) {
+GLuint AudioRenderStageParameter::generate_framebuffer(AudioRenderStageParameter & parameter) {
     GLuint framebuffer;
     glGenFramebuffers(1, &framebuffer);
     return framebuffer;
 }
 
-GLuint AudioRenderStageParameter::generate_texture(const AudioRenderStageParameter & parameter) {
+GLuint AudioRenderStageParameter::generate_texture(AudioRenderStageParameter & parameter) {
     // Generate the texture
     GLuint texture;
     glGenTextures(1, &texture);
@@ -36,11 +37,11 @@ GLuint AudioRenderStageParameter::generate_texture(const AudioRenderStageParamet
     return texture;
 }
 
-void AudioRenderStageParameter::bind_texture_to_framebuffer(const AudioRenderStageParameter & output_parameter,
-                                                                   const AudioRenderStageParameter & input_parameter) {
+void AudioRenderStageParameter::bind_framebuffer_to_texture(AudioRenderStageParameter & output_parameter,
+                                                            AudioRenderStageParameter & input_parameter) {
     // Bind the framebuffer and texture
     glBindFramebuffer(GL_FRAMEBUFFER, output_parameter.framebuffer);
-    glBindTexture(GL_TEXTURE_2D, output_parameter.texture);
+    glBindTexture(GL_TEXTURE_2D, input_parameter.texture);
 
     // Configure the texture
     glFramebufferTexture2D(GL_FRAMEBUFFER, color_attachment_index, GL_TEXTURE_2D, output_parameter.texture, 0);
@@ -55,4 +56,13 @@ void AudioRenderStageParameter::bind_texture_to_framebuffer(const AudioRenderSta
 
     // Increment the color attachment index
     color_attachment_index++;
+
+    GLint maxColorAttachments;
+    glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &maxColorAttachments);
+    if (GL_COLOR_ATTACHMENT0 + (GLuint)maxColorAttachments < color_attachment_index) {
+        color_attachment_index = GL_COLOR_ATTACHMENT0;
+    }
+
+    output_parameter.is_bound = true;
+    input_parameter.is_bound = true;
 }

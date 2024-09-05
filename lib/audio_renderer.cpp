@@ -18,63 +18,6 @@ bool AudioRenderer::add_render_stage(AudioRenderStage& render_stage)
     return true;
 }
 
-GLuint AudioRenderer::compile_shaders(const GLchar* vertex_source, const GLchar* fragment_source)
-{
-    // Create the vertex and fragment shaders
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-
-    // Compile the vertex shader
-    glShaderSource(vertex_shader, 1, &vertex_source, NULL);
-    glCompileShader(vertex_shader);
-
-    // Check for vertex shader compilation errors
-    GLint vertex_success;
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &vertex_success);
-    if (!vertex_success) {
-        GLchar info_log[512];
-        glGetShaderInfoLog(vertex_shader, 512, NULL, info_log);
-        std::cerr << "Error compiling vertex shader: " << info_log << std::endl;
-        return 0;
-    }
-
-    // Compile the fragment shader
-    glShaderSource(fragment_shader, 1, &fragment_source, NULL);
-    glCompileShader(fragment_shader);
-
-    // Check for fragment shader compilation errors
-    GLint fragment_success;
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &fragment_success);
-    if (!fragment_success) {
-        GLchar info_log[512];
-        glGetShaderInfoLog(fragment_shader, 512, NULL, info_log);
-        std::cerr << "Error compiling fragment shader: " << info_log << std::endl;
-        return 0;
-    }
-
-    // Create the shader program
-    GLuint shader_program = glCreateProgram();
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    glLinkProgram(shader_program);
-
-    // Check for shader program linking errors
-    GLint program_success;
-    glGetProgramiv(shader_program, GL_LINK_STATUS, &program_success);
-    if (!program_success) {
-        GLchar info_log[512];
-        glGetProgramInfoLog(shader_program, 512, NULL, info_log);
-        std::cerr << "Error linking shader program: " << info_log << std::endl;
-        return 0;
-    }
-
-    // Delete the shaders
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
-    return shader_program;
-}
-
 bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels) {
     this->m_buffer_size = buffer_size;
     this->m_num_channels = num_channels;
@@ -117,16 +60,40 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_FRAMEBUFFER_SRGB);
 
-    // Compile the render stage as a shader program
-    for (unsigned int i = 0; i < m_num_stages; i++) {
-        GLuint return_value = compile_shaders(m_vertex_source, m_render_stages[i]->m_fragment_source);
+    // Check that there are enough render stages
+    if (m_num_stages < 1) {
+        std::cerr << "Error: Not enough render stages added." << std::endl;
+        return false;
+    }
 
-        if (return_value == 0) {
+    // Compile the render stage as a shader program
+    for (auto& stage : m_render_stages) {
+        bool return_value = stage->compile_shader_program();
+        if (return_value == false) {
+            std::cerr << "Failed to compile shader program." << std::endl;
             return false;
         }
-
-        m_render_stages[i]->shader_program = return_value;
     }
+
+    // Generate the audio textures and frame buffers
+    for (auto& stage : m_render_stages) {
+        bool return_value = stage->compile_parameters();
+        if (return_value == false) {
+            std::cerr << "Failed to compile parameters." << std::endl;
+            return false;
+        }
+    }
+
+    // Link the stages together by linking and checking the framebuffers and textures
+    for (int i = 0; i < (int)m_num_stages - 1; i++) { // Link all except last stage because it's output
+        bool return_value = AudioRenderStage::link_stages(*m_render_stages[i], *m_render_stages[i+1]);
+        if (return_value == false) {
+            std::cerr << "Failed to link stages." << std::endl;
+            return false;
+        }
+    }
+
+    // FIXME: Continue here
 
     // Just a default set of vertices to cover the screen
     GLfloat vertices[] = {
@@ -139,39 +106,12 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
          1.0f, -1.0f, 1.0f, 1.0f // Bottom-right
     };
 
+    // Generate Textures and Framebuffers
+
     // Generate Buffer Objects
     glGenVertexArrays(1, &m_VAO);
     glGenBuffers(1, &m_VBO);
-    glGenFramebuffers(3, m_FBO);
-    glGenTextures(3, m_audio_texture); // 3 textures for audio data // 0-1 for input and 2 for output
     glGenBuffers(1, &m_PBO); // 2 PBOs for audio data
-
-    // flat color for the texture border
-    const float flatColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
-
-    // Bind the Frame buffers
-    for (int i = 0; i < 3; i++) {
-        // Bind the right textures and framebuffers
-        glBindFramebuffer(GL_FRAMEBUFFER, m_FBO[i]);
-        glBindTexture(GL_TEXTURE_2D, m_audio_texture[i]);
-        // Configure the texture
-        // FIXME: Need to somehow make the y direction not blend together
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, flatColor);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-        // Attach the texture to the framebuffer
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_audio_texture[i], 0);
-        // Allocate memory for the texture
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, buffer_size*num_channels, 1, 0, GL_RED, GL_FLOAT, nullptr);
-
-        // Unbind everything
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
 
     // Bind Vertex Objects
     glBindVertexArray(m_VAO);
@@ -252,7 +192,7 @@ void AudioRenderer::render(int value)
 
     for (int i = 0; i < (int)m_num_stages; i++) { // Do all except last stage
         // use the shader program 0 first 
-        glUseProgram(m_render_stages[i]->shader_program);
+        glUseProgram(m_render_stages[i]->m_shader_program);
 
         // Bind the vertex array
         glBindVertexArray(m_VAO);
@@ -261,7 +201,7 @@ void AudioRenderer::render(int value)
         glActiveTexture(GL_TEXTURE1);
         glBindFramebuffer(GL_FRAMEBUFFER, m_FBO[2]);
         glBindTexture(GL_TEXTURE_2D, m_audio_texture[2]);
-        glUniform1i(glGetUniformLocation(m_render_stages[i]->shader_program, "input_audio_texture"), 1);
+        glUniform1i(glGetUniformLocation(m_render_stages[i]->m_shader_program, "input_audio_texture"), 1);
 
         // FIXME: This is a test
         m_render_stages[i]->update();
@@ -276,7 +216,7 @@ void AudioRenderer::render(int value)
 
         // Only one first stage
         if (i == 0) {
-            glUniform1i(glGetUniformLocation(m_render_stages[i]->shader_program, "stream_audio_texture"), 0);
+            glUniform1i(glGetUniformLocation(m_render_stages[i]->m_shader_program, "stream_audio_texture"), 0);
             // TODO: Fill with other data like time, or recorded data
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_buffer_size*m_num_channels, 1, GL_RED, GL_FLOAT, &m_input_buffer_data.data()[0]);
         }
@@ -331,7 +271,7 @@ bool AudioRenderer::cleanup()
 {
     // Delete the shader programs
     for (unsigned int i = 0; i < m_num_stages; i++) {
-        glDeleteProgram(m_render_stages[i]->shader_program);
+        glDeleteProgram(m_render_stages[i]->m_shader_program);
     }
 
     // Delete the textures

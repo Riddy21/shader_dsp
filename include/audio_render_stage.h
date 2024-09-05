@@ -3,6 +3,7 @@
 #define AUDIO_RENDER_STAGE_H
 
 #include <vector>
+#include <unordered_map>
 #include <GL/glew.h>
 
 #include "audio_render_stage_parameter.h"
@@ -10,10 +11,27 @@
 class AudioRenderStage {
 private:
     // Shader source
-    GLuint shader_program; // Keeps a copy of the shader program associated with the stage
+    GLuint m_shader_program; // Keeps a copy of the shader program associated with the stage
+
+    /**
+     * @brief Compile the shader program.
+     * 
+     * This function is responsible for compiling the shader program.
+     */
+    bool compile_shader_program();
+
+    /**
+     * @brief Compile parameters
+     * 
+     * This function prepared the framebuffers and textures for the parameters
+     */
+    bool compile_parameters();
+
+    // Parameters
+    std::vector<AudioRenderStageParameter> m_parameters;
 
 public:
-    friend class AudioRenderer; // Allow AudioRenderer to access private members
+    friend class AudioRenderer;
     // Constructor
     AudioRenderStage(const unsigned int frames_per_buffer,
                      const unsigned int sample_rate,
@@ -31,6 +49,32 @@ public:
      */
     virtual void update() {};
 
+    /** 
+     * @brief Add a parameter to the audio parameter list
+     * 
+     * This function adds a parameter to the audio parameter list
+     * 
+     * @param parameter The parameter to add
+     * @return True if the parameter is successfully added, false otherwise.
+     */
+    bool add_parameter(AudioRenderStageParameter & parameter);
+
+    /**
+     * @brief Returns the parameters of the render stage.
+     * 
+     * This function returns the parameters of the render stage with the type specified
+     * 
+     * @return The parameters of the render stage.
+     */
+    std::unordered_map<const char *, AudioRenderStageParameter &> get_parameters_with_type(AudioRenderStageParameter::Type type);
+
+    /**
+     * @brief Link this stage to another stage
+     * 
+     * This function links this render stage to another stage by linking frame buffers and textures of 2 stages
+     */
+    static bool link_stages(AudioRenderStage & stage1, AudioRenderStage & stage2);
+
     // Settings
     const unsigned int m_frames_per_buffer;
     const unsigned int m_sample_rate;
@@ -40,7 +84,8 @@ public:
     // Initilize with 0 vector
     const float * m_audio_buffer = new float[m_frames_per_buffer * m_num_channels]();
 
-    const GLchar* m_fragment_source = R"glsl(
+    // TODO: Make this a private in the future
+    GLchar const * m_fragment_source = R"glsl(
         #version 300 es
         precision highp float;
 
@@ -57,8 +102,6 @@ public:
         }
     )glsl"; // Default shader source (Kept in files for the future versions)
 
-    // #TODO: Add linkages to next stage
-    std::vector<AudioRenderStageParameter> m_parameters;
 };
 
 #endif // AUDIO_RENDER_STAGE_H

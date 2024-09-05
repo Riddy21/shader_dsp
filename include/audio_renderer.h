@@ -63,16 +63,6 @@ private:
     }
 
     /**
-     * @brief Creates a shader program
-     * 
-     * @param vertex_source The vertex shader source code
-     * @param fragment_source The fragment shader source code
-     * 
-     * @return The shader program
-     */
-    static GLuint compile_shaders(const GLchar* vertex_source, const GLchar* fragment_source);
-
-    /**
      * @brief Push data to all output buffers
      * 
      * @param data The data to push
@@ -85,8 +75,10 @@ private:
     GLuint m_VAO; // Vertex Array For holding vertex attribute configurations
     GLuint m_VBO; // Vertex Array buffer For holding vertex data
     GLuint m_PBO; // Pixel buffer object for inputting and outputting to screen
-    GLuint m_FBO[3]; // Frame buffer object for swapping frames during shader processing
-    GLuint m_audio_texture[3]; // Audio texture for holding audio data
+
+    // FIXME: Delete this after
+    GLuint m_FBO[3];
+    GLuint m_audio_texture[3];
 
     unsigned int m_num_stages; // Number of audio buffers
     unsigned int m_buffer_size; // Size of audio data
@@ -104,7 +96,7 @@ private:
     std::vector<AudioRenderStage * > m_render_stages; // FIXME: Make this a shared pointer
 
     // Vertex Source code
-    const GLchar* m_vertex_source = R"glsl(
+    static constexpr GLchar const * m_vertex_source = R"glsl(
         #version 300 es
         precision highp float;
         layout (location = 0) in vec2 aPos;
@@ -118,6 +110,7 @@ private:
     )glsl";
 
 public:
+    friend class AudioRenderStage;
     /**
      * @brief Returns the singleton instance of AudioRenderer.
      * 
