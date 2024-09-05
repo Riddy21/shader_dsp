@@ -43,8 +43,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Initialize GLEW
     GLenum glewInitResult = glewInit();
-    if (glewInitResult != GLEW_OK) {
-        std::cerr << "Failed to initialize GLEW: " << glewGetErrorString(glewInitResult) << std::endl;
+    if (glewInitResult != GLEW_OK) {        std::cerr << "Failed to initialize GLEW: " << glewGetErrorString(glewInitResult) << std::endl;
         return false;
     }
 
@@ -93,7 +92,17 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         }
     }
 
-    // FIXME: Continue here
+    // Check that the parameters in the last stage of the render stages is only output
+    auto final_output_params = m_render_stages[m_num_stages - 1]->get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_OUTPUT);
+    if (final_output_params.size() != 1) {
+        std::cerr << "Error: Final stage must have only one output parameter." << std::endl;
+        return false;
+    }
+    // The size of the output param must be the same as the buffer size
+    if (final_output_params.begin()->second.parameter_width * final_output_params.begin()->second.parameter_height != buffer_size * num_channels) {
+        std::cerr << "Error: Final stage output parameter width must be the same as the buffer size." << std::endl;
+        return false;
+    }
 
     // Just a default set of vertices to cover the screen
     GLfloat vertices[] = {
@@ -108,6 +117,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Generate Textures and Framebuffers
 
+    // FIXME: Use shader program to do this in a different function when infra is set up
     // Generate Buffer Objects
     glGenVertexArrays(1, &m_VAO);
     glGenBuffers(1, &m_VBO);
@@ -126,7 +136,6 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size * num_channels * sizeof(float), nullptr, GL_STREAM_READ);
 
     // Configure the vertex attributes
-    // FIXME: Use shader program to do this in a different function when infra is set up
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0); // Vertex attributes
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)(2 * sizeof(GLfloat))); // Texture attributes

@@ -49,17 +49,14 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         output_audio_texture_parameter.parameter_height = 1;
         output_audio_texture_parameter.data = nullptr;
 
-        if (this->add_parameter(input_audio_texture_parameter)) {
+        if (!this->add_parameter(input_audio_texture_parameter)) {
             std::cerr << "Failed to add input_audio_texture_parameter" << std::endl;
-            exit(1);
         }
-        if (this->add_parameter(stream_audio_texture_parameter)) {
+        if (!this->add_parameter(stream_audio_texture_parameter)) {
             std::cerr << "Failed to add stream_audio_texture_parameter" << std::endl;
-            exit(1);
         }
-        if (this->add_parameter(output_audio_texture_parameter)) {
+        if (!this->add_parameter(output_audio_texture_parameter)) {
             std::cerr << "Failed to add output_audio_texture_parameter" << std::endl;
-            exit(1);
         }
 }
 
