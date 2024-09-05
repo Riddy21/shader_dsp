@@ -64,9 +64,18 @@ bool AudioRenderStage::compile_shader_program() {
     return true;
 }
 
+bool AudioRenderStage::initialize_framebuffer() {
+    glGenFramebuffers(1, &m_framebuffer);
+    if (m_framebuffer == 0) {
+        std::cerr << "Error: Failed to generate framebuffer." << std::endl;
+        return false;
+    }
+    return true;
+}
+
 bool AudioRenderStage::compile_parameters() {
     for (auto &param : m_parameters) {
-        param.framebuffer = AudioRenderStageParameter::generate_framebuffer(param);
+        param.framebuffer = m_framebuffer;
         param.texture = AudioRenderStageParameter::generate_texture(param);
 
         if (param.framebuffer == 0 || param.texture == 0) {
@@ -127,6 +136,7 @@ bool AudioRenderStage::link_stages(AudioRenderStage &stage1, AudioRenderStage &s
             std::cerr << "Error: Output parameter framebuffer is not generated" << std::endl;
             return false;
         }
+
 
         printf("Binding %s to %s\n", output_param.first, input_param->first);
             

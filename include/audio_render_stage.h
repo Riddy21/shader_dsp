@@ -13,6 +13,9 @@ private:
     // Shader source
     GLuint m_shader_program; // Keeps a copy of the shader program associated with the stage
 
+    // Framebuffer for the stage if it involves outputs
+    GLuint m_framebuffer;
+
     /**
      * @brief Compile the shader program.
      * 
@@ -26,6 +29,13 @@ private:
      * This function prepared the framebuffers and textures for the parameters
      */
     bool compile_parameters();
+
+    /**
+     * @brief Initialize the framebuffer.
+     * 
+     * This function is responsible for initializing the framebuffer.
+     */
+    bool initialize_framebuffer();
 
     // Parameters
     std::vector<AudioRenderStageParameter> m_parameters;

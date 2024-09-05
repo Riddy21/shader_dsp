@@ -74,6 +74,14 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         }
     }
 
+    for (auto& stage : m_render_stages) {
+        bool return_value = stage->initialize_framebuffer();
+        if (return_value == false) {
+            std::cerr << "Failed to initialize framebuffer." << std::endl;
+            return false;
+        }
+    }
+
     // Generate the audio textures and frame buffers
     for (auto& stage : m_render_stages) {
         bool return_value = stage->compile_parameters();
@@ -199,44 +207,10 @@ void AudioRenderer::render(int value)
     glClear(GL_COLOR_BUFFER_BIT);
 
 
-    for (int i = 0; i < (int)m_num_stages; i++) { // Do all except last stage
-        // use the shader program 0 first 
-        glUseProgram(m_render_stages[i]->m_shader_program);
+    for (auto & stage : m_render_stages) {
+        // Bind the framebuffers to the render stage
+        glBindFramebuffer(GL_FRAMEBUFFER, stage->m_framebuffer);
 
-        // Bind the vertex array
-        glBindVertexArray(m_VAO);
-
-        // Fill the third buffer with the stream audio texture
-        glActiveTexture(GL_TEXTURE1);
-        glBindFramebuffer(GL_FRAMEBUFFER, m_FBO[2]);
-        glBindTexture(GL_TEXTURE_2D, m_audio_texture[2]);
-        glUniform1i(glGetUniformLocation(m_render_stages[i]->m_shader_program, "input_audio_texture"), 1);
-
-        // FIXME: This is a test
-        m_render_stages[i]->update();
-
-        // TODO: Fill with other data like time, or recorded data
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_buffer_size*m_num_channels, 1, GL_RED, GL_FLOAT, &m_render_stages[i]->m_audio_buffer[0]);
-
-        // Fill the second buffer with the stream audio texture
-        glActiveTexture(GL_TEXTURE0);
-        glBindFramebuffer(GL_FRAMEBUFFER, m_FBO[i % 2]);
-        glBindTexture(GL_TEXTURE_2D, m_audio_texture[abs(i-1) % 2]);
-
-        // Only one first stage
-        if (i == 0) {
-            glUniform1i(glGetUniformLocation(m_render_stages[i]->m_shader_program, "stream_audio_texture"), 0);
-            // TODO: Fill with other data like time, or recorded data
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_buffer_size*m_num_channels, 1, GL_RED, GL_FLOAT, &m_input_buffer_data.data()[0]);
-        }
-            
-        // Bind the Draw the triangles
-        glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        // unset the vertex array
-        glBindVertexArray(0);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     // Read the data back from the GPU

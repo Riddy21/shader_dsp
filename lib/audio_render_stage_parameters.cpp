@@ -6,12 +6,6 @@
 
 GLuint AudioRenderStageParameter::color_attachment_index = GL_COLOR_ATTACHMENT0;
 
-GLuint AudioRenderStageParameter::generate_framebuffer(AudioRenderStageParameter & parameter) {
-    GLuint framebuffer;
-    glGenFramebuffers(1, &framebuffer);
-    return framebuffer;
-}
-
 GLuint AudioRenderStageParameter::generate_texture(AudioRenderStageParameter & parameter) {
     // Generate the texture
     GLuint texture;

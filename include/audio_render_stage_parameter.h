@@ -63,13 +63,11 @@ public:
     GLuint framebuffer = 0;
     GLuint texture = 0;
 
-    static GLuint generate_framebuffer(AudioRenderStageParameter & parameter);
+    static GLuint color_attachment_index;
+
     static GLuint generate_texture(AudioRenderStageParameter & parameter);
     static void bind_framebuffer_to_texture(AudioRenderStageParameter & output_parameter,
                                             AudioRenderStageParameter & input_parameter);
-
-private:
-    static GLuint color_attachment_index;
 };
 
 #endif
