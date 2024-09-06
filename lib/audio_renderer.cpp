@@ -95,8 +95,13 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     }
 
     // Link the stages together by linking and checking the framebuffers and textures
-    for (int i = 0; i < (int)m_num_stages - 1; i++) { // Link all except last stage because it's output
-        bool return_value = AudioRenderStage::link_stages(*m_render_stages[i], *m_render_stages[i+1]);
+    for (int i = 0; i < (int)m_num_stages; i++) { // Link all except last stage because it's output
+        if (i == m_num_stages - 1) {
+            // FIXME: Write a function to link the last stage to output
+            pass
+        } else{
+            bool return_value = AudioRenderStage::link_stages(*m_render_stages[i], *m_render_stages[i+1]);
+        }
         if (return_value == false) {
             std::cerr << "Failed to link stages." << std::endl;
             return false;
@@ -214,11 +219,7 @@ void AudioRenderer::render(int value)
 
         // bind the framebuffer of the stage
         // If on the last stage, bind the screen
-        if (i == m_num_stages - 1) {
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        } else {
-            glBindFramebuffer(GL_FRAMEBUFFER, m_render_stages[i+1]->m_framebuffer);
-        }
+        glBindFramebuffer(GL_FRAMEBUFFER, m_render_stages[i]->m_framebuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // FIXME: This is a test
@@ -242,6 +243,7 @@ void AudioRenderer::render(int value)
                 glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
                                 parameter.second.parameter_width,
                                 parameter.second.parameter_height,
+                                //GL_RED, GL_FLOAT,
                                 parameter.second.format,
                                 parameter.second.datatype,
                                 *parameter.second.data);
@@ -258,7 +260,6 @@ void AudioRenderer::render(int value)
         glBindVertexArray(0);
         glBindTexture(GL_TEXTURE_2D, 0);
         glUseProgram(0);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
@@ -277,6 +278,7 @@ void AudioRenderer::render(int value)
     // Unbind everything
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(0);
 
     // Calculate the delay in milliseconds based on the sample rate

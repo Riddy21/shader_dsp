@@ -76,10 +76,6 @@ private:
     GLuint m_VBO; // Vertex Array buffer For holding vertex data
     GLuint m_PBO; // Pixel buffer object for inputting and outputting to screen
 
-    // FIXME: Delete this after
-    GLuint m_FBO[3];
-    GLuint m_audio_texture[3];
-
     unsigned int m_num_stages; // Number of audio buffers
     unsigned int m_buffer_size; // Size of audio data
     unsigned int m_num_channels; // Number of audio channels

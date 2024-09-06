@@ -50,11 +50,10 @@ TEST_CASE("AudioRenderer") {
         precision highp float;
 
         in vec2 TexCoord;
+        out vec4 FragColor;
 
         uniform sampler2D input_audio_texture;
         uniform sampler2D stream_audio_texture;
-
-        out vec4 FragColor;
 
         void main()
         {
@@ -242,6 +241,14 @@ TEST_CASE("AudioRenderer") {
 
 
     REQUIRE(audio_renderer.init(512, 44100, 2));
+
+    //GLuint framebuffer;
+    //glGenFramebuffers(1, &framebuffer);
+
+    //output_audio_texture_parameter.framebuffer = framebuffer;
+
+    //AudioRenderStageParameter::bind_framebuffer_to_texture(output_audio_texture_parameter, input_audio_texture_parameter);
+    //AudioRenderStageParameter::bind_framebuffer_to_texture(output_audio_texture_parameter, stream_audio_texture_parameter);
 
     // Open a thread to wait 1 sec and the shut it down
     std::thread t1([&audio_renderer](){

@@ -159,7 +159,7 @@ bool AudioRenderStage::link_stages(AudioRenderStage &stage1, AudioRenderStage &s
 
         printf("Binding %s to %s\n", output_param.first, input_param->first);
             
-        AudioRenderStageParameter::bind_framebuffer_to_texture(output_param.second, input_param->second);
+        AudioRenderStageParameter::bind_framebuffer_to_texture(input_param->second, input_param->second);
 
         // Check the is_bound flag
         if (!output_param.second.is_bound) {
