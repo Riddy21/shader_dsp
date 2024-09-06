@@ -192,10 +192,10 @@ bool AudioRenderStage::add_parameter(AudioRenderStageParameter &parameter) {
         std::cerr << "Error: Parameter width or height is 0." << std::endl;
         return false;
     }
-    if (parameter.format == AudioRenderStageParameter::Format::RED &&
-        parameter.internal_format != AudioRenderStageParameter::InternalFormat::R8 &&
-        parameter.internal_format != AudioRenderStageParameter::InternalFormat::R16F &&
-        parameter.internal_format != AudioRenderStageParameter::InternalFormat::R32F) {
+    if (parameter.format == GL_RED &&
+        parameter.internal_format != GL_R8 &&
+        parameter.internal_format != GL_R16F &&
+        parameter.internal_format != GL_R32F) {
         std::cerr << "Error: Invalid internal format for RED format." << std::endl;
         return false;
     }

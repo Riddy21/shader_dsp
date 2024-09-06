@@ -20,9 +20,9 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         AudioRenderStageParameter input_audio_texture_parameter;
         input_audio_texture_parameter.name = "input_audio_texture";
         input_audio_texture_parameter.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-        input_audio_texture_parameter.datatype = AudioRenderStageParameter::DataType::FLOAT;
-        input_audio_texture_parameter.format = AudioRenderStageParameter::Format::RED;
-        input_audio_texture_parameter.internal_format = AudioRenderStageParameter::InternalFormat::R32F;
+        input_audio_texture_parameter.datatype = GL_FLOAT;
+        input_audio_texture_parameter.format = GL_RED;
+        input_audio_texture_parameter.internal_format = GL_R32F;
         input_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
         input_audio_texture_parameter.parameter_height = 1;
         input_audio_texture_parameter.data = &m_audio_buffer;
@@ -31,9 +31,9 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         stream_audio_texture_parameter.name = "stream_audio_texture";
         stream_audio_texture_parameter.link_name = "output_audio_texture";
         stream_audio_texture_parameter.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-        stream_audio_texture_parameter.datatype = AudioRenderStageParameter::DataType::FLOAT;
-        stream_audio_texture_parameter.format = AudioRenderStageParameter::Format::RED;
-        stream_audio_texture_parameter.internal_format = AudioRenderStageParameter::InternalFormat::R32F;
+        stream_audio_texture_parameter.datatype = GL_FLOAT;
+        stream_audio_texture_parameter.format = GL_RED;
+        stream_audio_texture_parameter.internal_format = GL_R32F;
         stream_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
         stream_audio_texture_parameter.parameter_height = 1;
         stream_audio_texture_parameter.data = nullptr;
@@ -42,9 +42,9 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         output_audio_texture_parameter.name = "output_audio_texture";
         output_audio_texture_parameter.link_name = "stream_audio_texture";
         output_audio_texture_parameter.type = AudioRenderStageParameter::Type::STREAM_OUTPUT;
-        output_audio_texture_parameter.datatype = AudioRenderStageParameter::DataType::FLOAT;
-        output_audio_texture_parameter.format = AudioRenderStageParameter::Format::RED;
-        output_audio_texture_parameter.internal_format = AudioRenderStageParameter::InternalFormat::R32F;
+        output_audio_texture_parameter.datatype = GL_FLOAT;
+        output_audio_texture_parameter.format = GL_RED;
+        output_audio_texture_parameter.internal_format = GL_R32F;
         output_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
         output_audio_texture_parameter.parameter_height = 1;
         output_audio_texture_parameter.data = nullptr;

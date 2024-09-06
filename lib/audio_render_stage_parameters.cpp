@@ -12,11 +12,11 @@ GLuint AudioRenderStageParameter::generate_texture(AudioRenderStageParameter & p
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
 
-    const float flat_color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    const float flat_color[] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     // Configure the texture
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, flat_color);
@@ -24,7 +24,8 @@ GLuint AudioRenderStageParameter::generate_texture(AudioRenderStageParameter & p
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 
     // allocate memory for the texture
-    glTexImage2D(GL_TEXTURE_2D, 0, parameter.internal_format, parameter.parameter_width, parameter.parameter_height, 0, parameter.format, parameter.datatype, parameter.data);
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, parameter.parameter_width, parameter.parameter_height, 0, GL_RED, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, parameter.internal_format, parameter.parameter_width, parameter.parameter_height, 0, parameter.format, parameter.datatype, nullptr);
 
     // Unbind the texture
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -38,7 +39,7 @@ void AudioRenderStageParameter::bind_framebuffer_to_texture(AudioRenderStagePara
     glBindTexture(GL_TEXTURE_2D, input_parameter.texture);
 
     // Configure the texture
-    glFramebufferTexture2D(GL_FRAMEBUFFER, color_attachment_index, GL_TEXTURE_2D, output_parameter.texture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, color_attachment_index, GL_TEXTURE_2D, input_parameter.texture, 0);
 
     // draw the buffer
     GLenum draw_buffers[1] = { color_attachment_index };

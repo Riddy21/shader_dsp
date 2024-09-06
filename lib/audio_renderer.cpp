@@ -234,11 +234,11 @@ void AudioRenderer::render(int value)
 
             // If it has data, update the texture
             if (parameter.second.data != nullptr) {
-                printf("Print data\n");
-                for (int i = 0; i < 4; i++) {
-                    printf("%f ", (*parameter.second.data)[i]);
-                }
-                printf("\n");
+                //printf("Print data\n");
+                //for (int i = 0; i < 4; i++) {
+                //    printf("%f ", (*parameter.second.data)[i]);
+                //}
+                //printf("\n");
                 glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
                                 parameter.second.parameter_width,
                                 parameter.second.parameter_height,
@@ -265,10 +265,10 @@ void AudioRenderer::render(int value)
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
     const float * output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     if (output_buffer_data) {
-        printf("Output buffer data: ");
-        for (int i = 0; i < 4; i++) {
-            printf("%f ", output_buffer_data[i]);
-        }
+        //printf("Output buffer data: ");
+        //for (int i = 0; i < 4; i++) {
+        //    printf("%f ", output_buffer_data[i]);
+        //}
         push_data_to_all_output_buffers(output_buffer_data, m_buffer_size * m_num_channels);
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     }
