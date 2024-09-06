@@ -57,7 +57,7 @@ public:
     InternalFormat internal_format = InternalFormat::R32F;
     unsigned int parameter_width = 0;
     unsigned int parameter_height = 0;
-    const void * data = nullptr;
+    const float ** data = nullptr;
     bool is_bound = false;
 
     GLuint framebuffer = 0;

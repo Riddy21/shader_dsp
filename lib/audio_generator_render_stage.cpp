@@ -25,7 +25,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         input_audio_texture_parameter.internal_format = AudioRenderStageParameter::InternalFormat::R32F;
         input_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
         input_audio_texture_parameter.parameter_height = 1;
-        input_audio_texture_parameter.data = m_empty_audio_data.data();
+        input_audio_texture_parameter.data = &m_audio_buffer;
 
         AudioRenderStageParameter stream_audio_texture_parameter;
         stream_audio_texture_parameter.name = "stream_audio_texture";
@@ -36,7 +36,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         stream_audio_texture_parameter.internal_format = AudioRenderStageParameter::InternalFormat::R32F;
         stream_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
         stream_audio_texture_parameter.parameter_height = 1;
-        stream_audio_texture_parameter.data = m_audio_buffer;
+        stream_audio_texture_parameter.data = nullptr;
 
         AudioRenderStageParameter output_audio_texture_parameter;
         output_audio_texture_parameter.name = "output_audio_texture";

@@ -11,7 +11,7 @@
 class AudioRenderStage {
 private:
     // Shader source
-    GLuint m_shader_program; // Keeps a copy of the shader program associated with the stage
+    GLuint m_shader_program = 0; // Keeps a copy of the shader program associated with the stage
 
     // Framebuffer for the stage if it involves outputs
     GLuint m_framebuffer;

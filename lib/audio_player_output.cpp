@@ -24,14 +24,14 @@ bool AudioPlayerOutput::open(PaDeviceIndex index) { PaStreamParameters outputPar
         index = Pa_GetDefaultOutputDevice();
     }
 
-    // Get all the audio devices
-    int numDevices = Pa_GetDeviceCount();
-    for (int i = 0; i < numDevices; i++) {
-        const PaDeviceInfo *deviceInfo;
-        deviceInfo = Pa_GetDeviceInfo(i);
-        printf("Device %d: %s\n", i, deviceInfo->name);
-        printf("Audio API: %s\n", Pa_GetHostApiInfo(deviceInfo->hostApi)->name);
-    }
+    //// Get all the audio devices
+    //int numDevices = Pa_GetDeviceCount();
+    //for (int i = 0; i < numDevices; i++) {
+    //    const PaDeviceInfo *deviceInfo;
+    //    deviceInfo = Pa_GetDeviceInfo(i);
+    //    printf("Device %d: %s\n", i, deviceInfo->name);
+    //    printf("Audio API: %s\n", Pa_GetHostApiInfo(deviceInfo->hostApi)->name);
+    //}
 
     outputParameters.device = index;
     if (outputParameters.device == paNoDevice) {

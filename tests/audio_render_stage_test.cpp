@@ -29,7 +29,7 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     parameter1.internal_format = AudioRenderStageParameter::InternalFormat::R32F;
     parameter1.parameter_width = 512 * 2;
     parameter1.parameter_height = 1;
-    parameter1.data = empty_data;
+    parameter1.data = &empty_data;
     parameter1.texture = AudioRenderStageParameter::generate_texture(parameter1);
 
     AudioRenderStageParameter parameter2;

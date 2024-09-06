@@ -73,7 +73,7 @@ private:
     // Audio data
     std::vector<float> m_full_audio_data;
     // Empty audio sound data
-    std::vector<float> m_empty_audio_data = std::vector<float>(m_frames_per_buffer * m_num_channels, 0.0f);
+    const std::vector<float> m_empty_audio_data = std::vector<float>(m_frames_per_buffer * m_num_channels, 0.0f);
 };
 
 #endif

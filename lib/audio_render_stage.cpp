@@ -37,6 +37,8 @@ bool AudioRenderStage::compile_shader_program() {
         std::cerr << "Error compiling vertex shader: " << info_log << std::endl;
         return 0;
     }
+    printf("Compiled vertex shader\n");
+    printf("Vertex source: %s\n", vertex_source);
 
     // Compile the fragment shader
     glShaderSource(fragment_shader, 1, &fragment_source, NULL);
@@ -51,6 +53,8 @@ bool AudioRenderStage::compile_shader_program() {
         std::cerr << "Error compiling fragment shader: " << info_log << std::endl;
         return 0;
     }
+    printf("Compiled fragment shader\n");
+    printf("Fragment source: %s\n", fragment_source);
 
     // Create the shader program
     GLuint shader_program = glCreateProgram();
@@ -67,12 +71,14 @@ bool AudioRenderStage::compile_shader_program() {
         std::cerr << "Error linking shader program: " << info_log << std::endl;
         return 0;
     }
+    printf("Linked shader program\n");
 
     // Delete the shaders
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
     m_shader_program = shader_program;
+    printf("Shader program: %d\n", m_shader_program);
 
     return true;
 }
@@ -158,13 +164,6 @@ bool AudioRenderStage::link_stages(AudioRenderStage &stage1, AudioRenderStage &s
         // Check the is_bound flag
         if (!output_param.second.is_bound) {
             std::cerr << "Error: Output parameter " << output_param.first << " is not bound." << std::endl;
-            return false;
-        }
-    }
-
-    for (auto &input_param : input_params) {
-        if (!input_param.second.is_bound) {
-            std::cerr << "Error: Input parameter " << input_param.first << " is not bound." << std::endl;
             return false;
         }
     }
