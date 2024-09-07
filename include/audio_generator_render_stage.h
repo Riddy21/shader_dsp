@@ -2,6 +2,8 @@
 #ifndef AUDIO_GENERATOR_H
 #define AUDIO_GENERATOR_H
 
+#define MAX_TEXTURE_SIZE 4096
+
 #include "audio_render_stage.h"
 
 /**
@@ -71,7 +73,9 @@ private:
     bool m_is_playing = false;
     unsigned int m_play_index = 0;
     // Audio data
-    std::vector<float> m_full_audio_data;
+    std::vector<float> m_full_audio_data = std::vector<float>();
+    const float * m_full_audio_data_ptr;
+
     // Empty audio sound data
     const std::vector<float> m_empty_audio_data = std::vector<float>(m_frames_per_buffer * m_num_channels, 0.0f);
 };

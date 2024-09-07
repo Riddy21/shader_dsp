@@ -129,7 +129,8 @@ bool AudioRenderStage::compile_parameters() {
     return true;
 }
 
-bool AudioRenderStage::link_stages(AudioRenderStage &stage1, AudioRenderStage &stage2) {
+bool AudioRenderStage::link_stages(AudioRenderStage &stage1, AudioRenderStage &stage2)
+{
     // Check for the stage1's output parameters match the stage2's input parameters
     auto output_params = stage1.get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_OUTPUT);
     auto input_params = stage2.get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_INPUT);
@@ -257,6 +258,12 @@ bool AudioRenderStage::update_fragment_source(GLchar const *fragment_source)
     // Check if fragment source contains all nessesary variables
     // Check input parameters
     for (auto &param : m_parameters) {
+        if (param.type == AudioRenderStageParameter::Type::INITIALIZATION) {
+            if (strstr(fragment_source, ("uniform sampler2D " + std::string(param.name)).c_str()) == nullptr) {
+                std::cerr << "Error: Fragment source does not contain initialization parameter " << param.name << std::endl;
+                return false;
+            }
+        }
         if (param.type == AudioRenderStageParameter::Type::STREAM_INPUT) {
             if (strstr(fragment_source, ("uniform sampler2D " + std::string(param.name)).c_str()) == nullptr) {
                 std::cerr << "Error: Fragment source does not contain input parameter " << param.name << std::endl;
@@ -326,3 +333,17 @@ std::unordered_map<const char *, AudioRenderStageParameter &> AudioRenderStage::
     }
     return output_parameters;
 }
+
+std::unordered_map<const char *, AudioRenderStageParameter &> AudioRenderStage::get_parameters_with_types(std::vector<AudioRenderStageParameter::Type> types)
+{
+    std::unordered_map<const char *, AudioRenderStageParameter &> output_parameters;
+    for (auto &param : m_parameters) {
+        for (auto &type : types) {
+            if (param.type == type) {
+                output_parameters.emplace(param.name, param);
+            }
+        }
+    }
+    return output_parameters;
+}
+

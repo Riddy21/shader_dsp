@@ -51,12 +51,14 @@ protected:
         in vec2 TexCoord;
 
         uniform sampler2D input_audio_texture;
+        uniform sampler2D beginning_audio_texture;
         uniform sampler2D stream_audio_texture;
 
         out vec4 FragColor;
 
         void main() {
-            FragColor = texture(input_audio_texture, TexCoord) +
+            FragColor = texture(beginning_audio_texture, TexCoord * vec2(0.25, 0)) +
+                        texture(input_audio_texture, TexCoord) +
                         texture(stream_audio_texture, TexCoord);
         }
     )glsl"; // Default shader source (Kept in files for the future versions)
@@ -114,9 +116,22 @@ public:
      * 
      * This function returns the parameters of the render stage with the type specified
      * 
+     * @param type The type of the parameter.
+     * 
      * @return The parameters of the render stage.
      */
     std::unordered_map<const char *, AudioRenderStageParameter &> get_parameters_with_type(AudioRenderStageParameter::Type type);
+
+    /**
+     * @brief Returns the parameters of the render stage.
+     * 
+     * This function returns the parameters of the render stage with the types specified
+     * 
+     * @param types The types of the parameters.
+     * 
+     * @return The parameters of the render stage.
+     */
+    std::unordered_map<const char *, AudioRenderStageParameter &> get_parameters_with_types(std::vector<AudioRenderStageParameter::Type> types);
 
     /**
      * @brief Link this stage to another stage

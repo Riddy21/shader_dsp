@@ -16,7 +16,23 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         // Load the audio data filepath into the full_audio_data vector
         m_full_audio_data = load_audio_data_from_file(audio_filepath);
 
+        // Determine width and height based on MAX_TEXTURE_SIZE round to nearest multiple of MAX_TEXTURE_SIZE
+        const unsigned int width = std::max((unsigned)MAX_TEXTURE_SIZE, m_frames_per_buffer * m_num_channels);
+        const unsigned int height = m_full_audio_data.size() / MAX_TEXTURE_SIZE + 1;
+
+        // Fill the rest with zeros
+        m_full_audio_data.resize(width * height, 0.0f);
+
+        m_full_audio_data_ptr = m_full_audio_data.data();
+
         // Create parameters for the audio generator ports in shader
+        AudioRenderStageParameter beginning_audio_texture_parameter = 
+                AudioRenderStageParameter("beginning_audio_texture",
+                                          AudioRenderStageParameter::Type::INITIALIZATION,
+                                          width,
+                                          height,
+                                          &m_full_audio_data_ptr);
+
         AudioRenderStageParameter input_audio_texture_parameter = 
                 AudioRenderStageParameter("input_audio_texture",
                                           AudioRenderStageParameter::Type::STREAM_INPUT,
@@ -40,6 +56,9 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                                           nullptr,
                                           "stream_audio_texture");
 
+        if (!this->add_parameter(beginning_audio_texture_parameter)) {
+            std::cerr << "Failed to add beginning_audio_texture_parameter" << std::endl;
+        }
         if (!this->add_parameter(input_audio_texture_parameter)) {
             std::cerr << "Failed to add input_audio_texture_parameter" << std::endl;
         }

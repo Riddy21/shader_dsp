@@ -6,15 +6,39 @@
 #include <GL/glut.h>
 #include <GL/freeglut.h>
 
+/**
+ * @class AudioRenderStageParameter
+ * @brief Represents a parameter used in the AudioRenderStage class.
+ *
+ * The AudioRenderStageParameter class encapsulates the properties and functionality of a parameter used in the AudioRenderStage class.
+ * It provides methods to retrieve information about the parameter, such as its name, type, dimensions, and data.
+ * It also provides methods to bind the parameter to a texture or framebuffer for rendering.
+ */
 class AudioRenderStageParameter {
 public:
-    friend class AudioRenderStage;
+    friend class AudioRenderStage; // Allow AudioRenderStage to access private members
+
     enum Type {
-        INITIALIZATION,
-        STREAM_INPUT,
-        STREAM_OUTPUT
+        INITIALIZATION, // pushes data to the shader at the beginning of the program
+        STREAM_INPUT, // Pushes data to the shader during rendering
+        STREAM_OUTPUT // Output data from the shader
     };
 
+    /**
+     * @brief Constructor for the AudioRenderStageParameter class.
+     * 
+     * This constructor initializes the AudioRenderStageParameter object with the specified properties. 
+     * 
+     * @param name The name of the parameter.
+     * @param type The type of the parameter.
+     * @param parameter_width The width of the parameter.
+     * @param parameter_height The height of the parameter.
+     * @param data The data of the parameter.
+     * @param link_name The name of the parameter to link to.
+     * @param datatype The data type of the parameter.
+     * @param format The format of the parameter.
+     * @param internal_format The internal format of the parameter.
+     */
     AudioRenderStageParameter(const char * name,
                               Type type,
                               unsigned int parameter_width,

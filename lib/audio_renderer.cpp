@@ -173,12 +173,14 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         return false;
     }
 
+    // Initialize the textures with data
+
     render(0); // Render the first frame
     // Links to display and timer functions for updating audio data
     // Calculate the delay in milliseconds based on the sample rate
     int delay = buffer_size * num_channels * (1000.f / (float)sample_rate);
     // Set the timer function with the calculated delay
-    glutTimerFunc(delay, render_callback, 0);
+    glutTimerFunc(delay, render_callback, 1);
     glutDisplayFunc(display_callback);
 
     m_initialized = true;
@@ -230,14 +232,17 @@ void AudioRenderer::render(int value)
 
         // Bind the textures of the stage
         unsigned int texture_count = 0;
-        for (auto& parameter : m_render_stages[i]->get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_INPUT)) {
+
+        for (auto& parameter : m_render_stages[i]->get_parameters_with_types({AudioRenderStageParameter::Type::STREAM_INPUT,
+                                                                              AudioRenderStageParameter::Type::INITIALIZATION})) {
             // Bind the texture to the shader program
             glActiveTexture(GL_TEXTURE0 + texture_count);
             glBindTexture(GL_TEXTURE_2D, parameter.second.get_texture());
             glUniform1i(glGetUniformLocation(m_render_stages[i]->m_shader_program, parameter.second.name), texture_count);
 
             // If it has data, update the texture
-            if (parameter.second.data != nullptr) {
+            if (parameter.second.data != nullptr &&
+                parameter.second.type == AudioRenderStageParameter::Type::STREAM_INPUT) {
                 glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
                                 parameter.second.parameter_width,
                                 parameter.second.parameter_height,
@@ -284,7 +289,7 @@ void AudioRenderer::render(int value)
     calculate_frame_rate(); // Calculate the frame rate
 
     // Set the timer function with the calculated delay
-    glutTimerFunc(delay, render_callback, 0);
+    glutTimerFunc(delay, render_callback, 1);
 }
 
 void AudioRenderer::main_loop()

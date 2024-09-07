@@ -8,7 +8,7 @@
 #include "audio_generator_render_stage.h"
 
 TEST_CASE("AudioGeneratorRenderStage") {
-    AudioGeneratorRenderStage audio_generator(512, 44100, 2, "media/test.wav");
+    AudioGeneratorRenderStage audio_generator(512, 44100, 2, "media/sine.wav");
     AudioPlayerOutput audio_driver(512, 44100, 2);
 
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
