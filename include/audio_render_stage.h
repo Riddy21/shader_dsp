@@ -20,13 +20,6 @@ private:
     std::vector<AudioRenderStageParameter> m_parameters;
 
     /**
-     * @brief Compile the shader program.
-     * 
-     * This function is responsible for compiling the shader program.
-     */
-    bool compile_shader_program();
-
-    /**
      * @brief Compile parameters
      * 
      * This function prepared the framebuffers and textures for the parameters
@@ -82,13 +75,20 @@ public:
     ~AudioRenderStage();
 
     /**
+     * @brief Compile the shader program.
+     * 
+     * This function is responsible for compiling the shader program.
+     */
+    bool compile_shader_program();
+
+    /**
      * @brief Initializes the audio render stage.
      * 
      * This function is responsible for initializing the audio render stage.
      * 
      * @return True if initialization is successful, false otherwise.
      */
-    bool init();
+    bool init_params();
 
     /**
      * @brief Loads audio data into the specified buffer index.

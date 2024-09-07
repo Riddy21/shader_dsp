@@ -128,8 +128,11 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // initialize all the render stages
     for (auto& stage : m_render_stages) {
-        bool return_value = stage->init();
-        if (return_value == false) {
+        if (!stage->compile_shader_program()) {
+            std::cerr << "Failed to compile render stages" << std::endl;
+            return false;
+        }
+        if (!stage->init_params()) {
             std::cerr << "Failed to compile render stages" << std::endl;
             return false;
         }

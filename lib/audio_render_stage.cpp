@@ -11,12 +11,7 @@ AudioRenderStage::~AudioRenderStage() {
     glDeleteProgram(m_shader_program);
 }
 
-bool AudioRenderStage::init() {
-    // Compile the shader program
-    if (!compile_shader_program()) {
-        return false;
-    }
-
+bool AudioRenderStage::init_params() {
     // Initialize the framebuffer
     if (!initialize_framebuffer()) {
         return false;

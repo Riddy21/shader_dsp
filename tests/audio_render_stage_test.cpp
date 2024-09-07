@@ -13,10 +13,6 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     glutCreateWindow("Audio Processing");
     glewInit();
 
-    // placeholder frame buffer
-    GLuint FBO;
-    glGenFramebuffers(1, &FBO);
-
     AudioRenderStage render_stage = AudioRenderStage(512, 44100, 2);
 
     const float * empty_data = new float[512 * 2]();
@@ -40,7 +36,7 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     REQUIRE(render_stage.add_parameter(parameter1));
     REQUIRE(render_stage.add_parameter(parameter2));
 
-    render_stage.init();
+    render_stage.init_params();
 
     AudioRenderStage render_stage2 = AudioRenderStage(512, 44100, 2);
 
@@ -63,7 +59,7 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     REQUIRE(render_stage2.add_parameter(parameter3));
     REQUIRE(render_stage2.add_parameter(parameter4));
 
-    render_stage2.init();
+    render_stage2.init_params();
 
     // Check the parameters
     auto output_params = render_stage.get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_OUTPUT);
@@ -75,6 +71,5 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     REQUIRE(input_params.find("input_parameter2") != input_params.end());
 
     // Link the stages
-    bool linked = AudioRenderStage::link_stages(render_stage, render_stage2);
-    REQUIRE(linked == true);
+    REQUIRE(AudioRenderStage::link_stages(render_stage, render_stage2));
 }
