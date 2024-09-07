@@ -70,7 +70,6 @@ private:
      */
     void push_data_to_all_output_buffers(const float * data, const unsigned int size);
 
-
     // Private member variables
     GLuint m_VAO; // Vertex Array For holding vertex attribute configurations
     GLuint m_VBO; // Vertex Array buffer For holding vertex data
@@ -83,8 +82,10 @@ private:
 
     unsigned int m_frame_count = 0; // Frame count for calculating frame rate
 
+    // Marking initialized
+    bool m_initialized = false;
+
     // buffers for audio data
-    std::vector<float> m_input_buffer_data; // TODO: This should be something else in the future
     std::vector<std::unique_ptr<AudioBuffer>> m_output_buffers = std::vector<std::unique_ptr<AudioBuffer>>(); // Output buffers
 
     // Simplify this into one struct

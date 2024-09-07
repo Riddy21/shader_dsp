@@ -11,6 +11,10 @@ AudioRenderer * AudioRenderer::instance = nullptr;
 
 bool AudioRenderer::add_render_stage(AudioRenderStage& render_stage)
 {
+    if (m_initialized) {
+        std::cerr << "Error: Cannot add render stage after initialization." << std::endl;
+        return false;
+    }
     // Add the render stage to the list of render stages
     m_render_stages.push_back(&render_stage);
     m_num_stages = m_render_stages.size();
@@ -18,16 +22,8 @@ bool AudioRenderer::add_render_stage(AudioRenderStage& render_stage)
     return true;
 }
 
-bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels) {
-    this->m_buffer_size = buffer_size;
-    this->m_num_channels = num_channels;
-    this->m_sample_rate = sample_rate;
-
-    // Check that at least one stage has been added
-    if (m_num_stages == 0) {
-        std::cerr << "Error: No render stages added." << std::endl;
-        return false;
-    }
+void initialize_glut(unsigned int window_width, unsigned int window_height) {
+    printf("Initializing GLUT\n");
 
     int argc = 0;
     char** argv = nullptr;
@@ -35,93 +31,14 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Init the OpenGL context
     glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE);
-    glutInitWindowSize(buffer_size * num_channels, 100);
+    glutInitWindowSize(window_width, window_height);
     //glutInitWindowSize(buffer_size, 100);
     glutCreateWindow("Audio Processing");
     // Set the window close action to continue execution
     glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
+}
 
-    // Initialize GLEW
-    GLenum glewInitResult = glewInit();
-    if (glewInitResult != GLEW_OK) {        std::cerr << "Failed to initialize GLEW: " << glewGetErrorString(glewInitResult) << std::endl;
-        return false;
-    }
-
-    // Print the OpenGL version
-    const GLubyte* glVersion = glGetString(GL_VERSION);
-    const GLubyte* glslVersion = glGetString(GL_SHADING_LANGUAGE_VERSION);
-    
-    std::cout << "OpenGL Version: " << glVersion << std::endl;
-    std::cout << "GLSL Version: " << glslVersion << std::endl;
-
-    // Set GL settings for audio rendering
-    glDisable(GL_BLEND);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_FRAMEBUFFER_SRGB);
-
-    // Check that there are enough render stages
-    if (m_num_stages < 1) {
-        std::cerr << "Error: Not enough render stages added." << std::endl;
-        return false;
-    }
-
-    // Compile the render stage as a shader program
-    for (auto& stage : m_render_stages) {
-        bool return_value = stage->compile_shader_program();
-        if (return_value == false) {
-            std::cerr << "Failed to compile shader program." << std::endl;
-            return false;
-        }
-        printf("Compiled shader program\n");
-    }
-
-    for (auto& stage : m_render_stages) {
-        bool return_value = stage->initialize_framebuffer();
-        if (return_value == false) {
-            std::cerr << "Failed to initialize framebuffer." << std::endl;
-            return false;
-        }
-        printf("Initialized framebuffer\n");
-    }
-
-    // Generate the audio textures and frame buffers
-    for (auto& stage : m_render_stages) {
-        bool return_value = stage->compile_parameters();
-        if (return_value == false) {
-            std::cerr << "Failed to compile parameters." << std::endl;
-            return false;
-        }
-        printf("Compiled parameters\n");
-    }
-
-    // Link the stages together by linking and checking the framebuffers and textures
-    for (int i = 0; i < (int)m_num_stages; i++) { // Link all except last stage because it's output
-        bool return_value;
-        if (i == m_num_stages - 1) {
-            printf("Tying off stage %d\n", i);
-            return_value = AudioRenderStage::tie_off_output_stage(*m_render_stages[i]);
-        } else{
-            printf("Linking stage %d to stage %d\n", i, i+1);
-            return_value = AudioRenderStage::link_stages(*m_render_stages[i], *m_render_stages[i+1]);
-        }
-        if (return_value == false) {
-            std::cerr << "Failed to link stages." << std::endl;
-            return false;
-        }
-    }
-
-    // Check that the parameters in the last stage of the render stages is only output
-    auto final_output_params = m_render_stages[m_num_stages - 1]->get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_OUTPUT);
-    if (final_output_params.size() != 1) {
-        std::cerr << "Error: Final stage must have only one output parameter." << std::endl;
-        return false;
-    }
-    // The size of the output param must be the same as the buffer size
-    if (final_output_params.begin()->second.parameter_width * final_output_params.begin()->second.parameter_height != buffer_size * num_channels) {
-        std::cerr << "Error: Final stage output parameter width must be the same as the buffer size." << std::endl;
-        return false;
-    }
-
+bool create_quad(GLuint &VAO, GLuint &VBO, GLuint &PBO, const unsigned int num_channels, const unsigned int buffer_size) {
     // Just a default set of vertices to cover the screen
     GLfloat vertices[] = {
         // Position    Texcoords
@@ -137,15 +54,15 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // FIXME: Use shader program to do this in a different function when infra is set up
     // Generate Buffer Objects
-    glGenVertexArrays(1, &m_VAO);
-    glGenBuffers(1, &m_VBO);
-    glGenBuffers(1, &m_PBO); // 2 PBOs for audio data
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &PBO); // 2 PBOs for audio data
 
     // Bind Vertex Objects
-    glBindVertexArray(m_VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
     // Bind Pixel buffers
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
+    glBindBuffer(GL_PIXEL_PACK_BUFFER, PBO);
 
     // Allocate memory for vertex data
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -170,9 +87,88 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         std::cerr << "Failed to initialize OpenGL: " << error << std::endl;
         return false;
     }
+    return true;
+}
 
-    // Init buffers
-    m_input_buffer_data = std::vector<float>(buffer_size * num_channels); // Add with data in the future?
+bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels) {
+    if (m_initialized) {
+        std::cerr << "Error: Audio renderer already initialized." << std::endl;
+        return false;
+    }
+
+    this->m_buffer_size = buffer_size;
+    this->m_num_channels = num_channels;
+    this->m_sample_rate = sample_rate;
+
+    // Check that at least one stage has been added
+    if (m_num_stages == 0) {
+        std::cerr << "Error: No render stages added." << std::endl;
+        return false;
+    }
+
+    // Initialize GLUT
+    initialize_glut(buffer_size*num_channels, 100);
+    
+    // Initialize GLEW
+    GLenum glewInitResult = glewInit();
+    if (glewInitResult != GLEW_OK) {        std::cerr << "Failed to initialize GLEW: " << glewGetErrorString(glewInitResult) << std::endl;
+        return false;
+    }
+
+    // Print the OpenGL version
+    const GLubyte* glVersion = glGetString(GL_VERSION);
+    const GLubyte* glslVersion = glGetString(GL_SHADING_LANGUAGE_VERSION);
+    std::cout << "OpenGL Version: " << glVersion << std::endl;
+    std::cout << "GLSL Version: " << glslVersion << std::endl;
+
+    // Set GL settings for audio rendering
+    glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_FRAMEBUFFER_SRGB);
+
+    // initialize all the render stages
+    for (auto& stage : m_render_stages) {
+        bool return_value = stage->init();
+        if (return_value == false) {
+            std::cerr << "Failed to compile render stages" << std::endl;
+            return false;
+        }
+    }
+    std::cout << "Render stages compiled successfully." << std::endl;
+
+    // Link the stages together by linking and checking the framebuffers and textures
+    for (int i = 0; i < (int)m_num_stages; i++) { // Link all except last stage because it's output
+        bool return_value;
+        if ((unsigned)i == m_num_stages - 1) {
+            printf("Tying off stage %d\n", i);
+            return_value = AudioRenderStage::tie_off_output_stage(*m_render_stages[i]);
+        } else{
+            printf("Linking stage %d to stage %d\n", i, i+1);
+            return_value = AudioRenderStage::link_stages(*m_render_stages[i], *m_render_stages[i+1]);
+        }
+        if (return_value == false) {
+            std::cerr << "Failed to link stages." << std::endl;
+            return false;
+        }
+    }
+
+    // Check that the parameters in the last stage of the render stages is only output
+    auto final_output_params = m_render_stages[m_num_stages - 1]->get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_OUTPUT);
+    if (final_output_params.size() != 1) {
+        std::cerr << "Error: Final stage must have only one output parameter." << std::endl;
+        return false;
+    }
+    // The size of the output param must be the same as the buffer size
+    if (final_output_params.begin()->second.parameter_width * final_output_params.begin()->second.parameter_height != buffer_size * num_channels) {
+        std::cerr << "Error: Final stage output parameter width must be the same as the buffer size." << std::endl;
+        return false;
+    }
+
+    // Create the quad
+    if (!create_quad(m_VAO, m_VBO, m_PBO, num_channels, buffer_size)) {
+        std::cerr << "Failed to create quad." << std::endl;
+        return false;
+    }
 
     render(0); // Render the first frame
     // Links to display and timer functions for updating audio data
@@ -181,6 +177,8 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     // Set the timer function with the calculated delay
     glutTimerFunc(delay, render_callback, 0);
     glutDisplayFunc(display_callback);
+
+    m_initialized = true;
 
     return true;
 }

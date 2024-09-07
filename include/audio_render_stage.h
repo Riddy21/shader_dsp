@@ -19,38 +19,6 @@ private:
     // Parameters
     std::vector<AudioRenderStageParameter> m_parameters;
 
-public:
-    friend class AudioRenderer;
-    // Constructor
-    AudioRenderStage(const unsigned int frames_per_buffer,
-                     const unsigned int sample_rate,
-                     const unsigned int num_channels)
-        : m_frames_per_buffer(frames_per_buffer),
-          m_sample_rate(sample_rate),
-          m_num_channels(num_channels) {}
-
-    // Destructor
-    ~AudioRenderStage();
-
-    /**
-     * @brief Loads audio data into the specified buffer index.
-     * 
-     * This function is responsible for loading audio data into the buffer specified by the buffer_index parameter.
-     * 
-     * @param buffer_index The index of the buffer to load the audio data into.
-     */
-    virtual void update() {};
-
-    /** 
-     * @brief Add a parameter to the audio parameter list
-     * 
-     * This function adds a parameter to the audio parameter list
-     * 
-     * @param parameter The parameter to add
-     * @return True if the parameter is successfully added, false otherwise.
-     */
-    bool add_parameter(AudioRenderStageParameter & parameter);
-
     /**
      * @brief Compile the shader program.
      * 
@@ -72,23 +40,7 @@ public:
      */
     bool initialize_framebuffer();
 
-    /**
-     * @brief Returns the parameters of the render stage.
-     * 
-     * This function returns the parameters of the render stage with the type specified
-     * 
-     * @return The parameters of the render stage.
-     */
-    std::unordered_map<const char *, AudioRenderStageParameter &> get_parameters_with_type(AudioRenderStageParameter::Type type);
-
-    /**
-     * @brief Link this stage to another stage
-     * 
-     * This function links this render stage to another stage by linking frame buffers and textures of 2 stages
-     */
-    static bool link_stages(AudioRenderStage & stage1, AudioRenderStage & stage2);
-
-    static bool tie_off_output_stage(AudioRenderStage & stage);
+protected:
 
     // Settings
     const unsigned int m_frames_per_buffer;
@@ -99,7 +51,6 @@ public:
     // Initilize with 0 vector
     const float * m_audio_buffer = new float[m_frames_per_buffer * m_num_channels]();
 
-    // TODO: Make this a private in the future
     GLchar const * m_fragment_source = R"glsl(
         #version 300 es
         precision highp float;
@@ -117,6 +68,83 @@ public:
         }
     )glsl"; // Default shader source (Kept in files for the future versions)
 
+public:
+    friend class AudioRenderer;
+    // Constructor
+    AudioRenderStage(const unsigned int frames_per_buffer,
+                     const unsigned int sample_rate,
+                     const unsigned int num_channels)
+        : m_frames_per_buffer(frames_per_buffer),
+          m_sample_rate(sample_rate),
+          m_num_channels(num_channels) {}
+
+    // Destructor
+    ~AudioRenderStage();
+
+    /**
+     * @brief Initializes the audio render stage.
+     * 
+     * This function is responsible for initializing the audio render stage.
+     * 
+     * @return True if initialization is successful, false otherwise.
+     */
+    bool init();
+
+    /**
+     * @brief Loads audio data into the specified buffer index.
+     * 
+     * This function is responsible for loading audio data into the buffer specified by the buffer_index parameter.
+     * 
+     * @param buffer_index The index of the buffer to load the audio data into.
+     */
+    virtual void update() {};
+
+    /** 
+     * @brief Add a parameter to the audio parameter list
+     * 
+     * This function adds a parameter to the audio parameter list
+     * 
+     * @param parameter The parameter to add
+     * @return True if the parameter is successfully added, false otherwise.
+     */
+    bool add_parameter(AudioRenderStageParameter & parameter);
+
+    /**
+     * @brief Returns the parameters of the render stage.
+     * 
+     * This function returns the parameters of the render stage with the type specified
+     * 
+     * @return The parameters of the render stage.
+     */
+    std::unordered_map<const char *, AudioRenderStageParameter &> get_parameters_with_type(AudioRenderStageParameter::Type type);
+
+    /**
+     * @brief Link this stage to another stage
+     * 
+     * This function links this render stage to another stage by linking frame buffers and textures of 2 stages
+     */
+    static bool link_stages(AudioRenderStage & stage1, AudioRenderStage & stage2);
+
+    /**
+     * @brief Tie off the output stage
+     * 
+     * This function ties off the output stage by linking the frame buffer to the screen
+     */
+    static bool tie_off_output_stage(AudioRenderStage & stage);
+
+    /**
+     * @brief Update the fragment source
+     * 
+     * This function updates the fragment source of the shader program
+     */
+    bool update_fragment_source(GLchar const * fragment_source);
+
+    /**
+     * @brief Update the audio buffer
+     * 
+     * This function updates the audio buffer of the render stage
+     */
+    bool update_audio_buffer(const float * audio_buffer, const unsigned int buffer_size);
 };
 
 #endif // AUDIO_RENDER_STAGE_H

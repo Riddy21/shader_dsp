@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstring>
 #include "audio_renderer.h"
 #include "audio_render_stage.h"
 #include "audio_render_stage_parameter.h"
@@ -14,6 +15,25 @@ AudioRenderStage::~AudioRenderStage() {
     }
     // Delete shader program
     glDeleteProgram(m_shader_program);
+}
+
+bool AudioRenderStage::init() {
+    // Compile the shader program
+    if (!compile_shader_program()) {
+        return false;
+    }
+
+    // Initialize the framebuffer
+    if (!initialize_framebuffer()) {
+        return false;
+    }
+
+    // Compile the parameters
+    if (!compile_parameters()) {
+        return false;
+    }
+
+    return true;
 }
 
 bool AudioRenderStage::compile_shader_program() {
@@ -93,6 +113,14 @@ bool AudioRenderStage::initialize_framebuffer() {
 }
 
 bool AudioRenderStage::compile_parameters() {
+    if (m_framebuffer == 0) {
+        std::cerr << "Error: Framebuffer not generated." << std::endl;
+        return false;
+    }
+    if (m_parameters.size() == 0) {
+        std::cerr << "Error: No parameters to compile." << std::endl;
+        return false;
+    }
     for (auto &param : m_parameters) {
         if (param.type == AudioRenderStageParameter::Type::STREAM_OUTPUT) {
             // Generate the frame buffer
@@ -232,6 +260,38 @@ bool AudioRenderStage::tie_off_output_stage(AudioRenderStage & stage){
         }
     }
 
+    return true;
+}
+
+bool AudioRenderStage::update_fragment_source(GLchar const *fragment_source)
+{
+    // Check if fragment source contains all nessesary variables
+    // Check input parameters
+    for (auto &param : m_parameters) {
+        if (param.type == AudioRenderStageParameter::Type::STREAM_INPUT) {
+            if (strstr(fragment_source, ("uniform sampler2D " + std::string(param.name)).c_str()) == nullptr) {
+                std::cerr << "Error: Fragment source does not contain input parameter " << param.name << std::endl;
+                return false;
+            }
+        }
+        if (param.type == AudioRenderStageParameter::Type::STREAM_OUTPUT) {
+            if (strstr(fragment_source, param.name) == nullptr) {
+                std::cerr << "Error: Fragment source does not contain output parameter " << param.name << std::endl;
+                return false;
+            }
+        }
+    }
+
+    m_fragment_source = fragment_source;
+    return true;
+}
+
+bool AudioRenderStage::update_audio_buffer(const float *audio_buffer, const unsigned int buffer_size) {
+    if (buffer_size != m_frames_per_buffer * m_num_channels) {
+        printf("Error: Buffer size must be the same as the frames per buffer * num channels\n");
+        return false;
+    }
+    m_audio_buffer = audio_buffer;
     return true;
 }
 
