@@ -24,9 +24,6 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     AudioRenderStageParameter parameter1;
     parameter1.name = "input_parameter";
     parameter1.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-    parameter1.datatype = AudioRenderStageParameter::DataType::FLOAT;
-    parameter1.format = AudioRenderStageParameter::Format::RED;
-    parameter1.internal_format = AudioRenderStageParameter::InternalFormat::R32F;
     parameter1.parameter_width = 512 * 2;
     parameter1.parameter_height = 1;
     parameter1.data = &empty_data;
@@ -36,9 +33,6 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     parameter2.name = "output_parameter";
     parameter2.link_name = "input_parameter2";
     parameter2.type = AudioRenderStageParameter::Type::STREAM_OUTPUT;
-    parameter2.datatype = AudioRenderStageParameter::DataType::FLOAT;
-    parameter2.format = AudioRenderStageParameter::Format::RED;
-    parameter2.internal_format = AudioRenderStageParameter::InternalFormat::R32F;
     parameter2.parameter_width = 512 * 2;
     parameter2.parameter_height = 1;
     parameter2.data = nullptr;
@@ -53,9 +47,6 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     parameter3.name = "input_parameter2";
     parameter3.link_name = "output_parameter";
     parameter3.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-    parameter3.datatype = AudioRenderStageParameter::DataType::FLOAT;
-    parameter3.format = AudioRenderStageParameter::Format::RED;
-    parameter3.internal_format = AudioRenderStageParameter::InternalFormat::R32F;
     parameter3.parameter_width = 512 * 2;
     parameter3.parameter_height = 1;
     parameter3.data = nullptr;
@@ -64,9 +55,6 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     AudioRenderStageParameter parameter4;
     parameter4.name = "output_parameter";
     parameter4.type = AudioRenderStageParameter::Type::STREAM_OUTPUT;
-    parameter4.datatype = AudioRenderStageParameter::DataType::FLOAT;
-    parameter4.format = AudioRenderStageParameter::Format::RED;
-    parameter4.internal_format = AudioRenderStageParameter::InternalFormat::R32F;
     parameter4.parameter_width = 512 * 2;
     parameter4.parameter_height = 1;
     parameter4.data = nullptr;

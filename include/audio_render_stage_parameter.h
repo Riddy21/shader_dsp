@@ -35,6 +35,7 @@ public:
     static GLuint generate_texture(AudioRenderStageParameter & parameter);
     static void bind_framebuffer_to_texture(AudioRenderStageParameter & output_parameter,
                                             AudioRenderStageParameter & input_parameter);
+    static void bind_framebuffer_to_output(AudioRenderStageParameter & output_parameter);
 };
 
 #endif

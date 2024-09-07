@@ -24,7 +24,6 @@ GLuint AudioRenderStageParameter::generate_texture(AudioRenderStageParameter & p
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 
     // allocate memory for the texture
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, parameter.parameter_width, parameter.parameter_height, 0, GL_RED, GL_FLOAT, nullptr);
     glTexImage2D(GL_TEXTURE_2D, 0, parameter.internal_format, parameter.parameter_width, parameter.parameter_height, 0, parameter.format, parameter.datatype, nullptr);
 
     // Unbind the texture
@@ -40,6 +39,7 @@ void AudioRenderStageParameter::bind_framebuffer_to_texture(AudioRenderStagePara
 
     // Configure the texture
     glFramebufferTexture2D(GL_FRAMEBUFFER, color_attachment_index, GL_TEXTURE_2D, input_parameter.texture, 0);
+    printf("Color attachment index: %d\n", color_attachment_index);
 
     // draw the buffer
     GLenum draw_buffers[1] = { color_attachment_index };

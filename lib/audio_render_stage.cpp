@@ -94,10 +94,18 @@ bool AudioRenderStage::initialize_framebuffer() {
 
 bool AudioRenderStage::compile_parameters() {
     for (auto &param : m_parameters) {
-        param.framebuffer = m_framebuffer;
+        if (param.type == AudioRenderStageParameter::Type::STREAM_OUTPUT) {
+            // Generate the frame buffer
+            param.framebuffer = m_framebuffer;
+            printf("Generated framebuffer %s: %d\n", param.name, param.framebuffer);
+            if (param.framebuffer == 0) {
+                return false;
+            }
+        }
+        // Generate output texture as well in case it needs to be outputted somewhere else
         param.texture = AudioRenderStageParameter::generate_texture(param);
-
-        if (param.framebuffer == 0 || param.texture == 0) {
+        printf("Generated texture %s: %d\n", param.name, param.texture);
+        if (param.texture == 0) {
             return false;
         }
     }
@@ -114,7 +122,7 @@ bool AudioRenderStage::link_stages(AudioRenderStage &stage1, AudioRenderStage &s
         // Find in input_params
         auto input_param = input_params.find(output_param.second.link_name);
         if (input_param == input_params.end()) {
-            std::cerr << "Error: Output parameter not found in input parameters." << std::endl;
+            std::cerr << "Error: Output parameter " << output_param.first << " link name " << output_param.second.link_name << " not found in input parameters." << std::endl;
             return false;
         }
         // Check if the parameters are compatible
@@ -156,10 +164,66 @@ bool AudioRenderStage::link_stages(AudioRenderStage &stage1, AudioRenderStage &s
             return false;
         }
 
-
         printf("Binding %s to %s\n", output_param.first, input_param->first);
             
-        AudioRenderStageParameter::bind_framebuffer_to_texture(input_param->second, input_param->second);
+        AudioRenderStageParameter::bind_framebuffer_to_texture(output_param.second, input_param->second);
+
+        // Check the is_bound flag
+        if (!input_param->second.is_bound) {
+            std::cerr << "Error: Output parameter " << output_param.first << " is not bound." << std::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool AudioRenderStage::tie_off_output_stage(AudioRenderStage & stage){
+    auto output_params = stage.get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_OUTPUT);
+
+    // There can only be one output parameter at the end
+    if (output_params.size() != 1) {
+        std::cerr << "Error: Final stage must have only one output parameter." << std::endl;
+        return false;
+    }
+
+    // link the params
+    for (auto &output_param : output_params) {
+        if (output_param.second.data != nullptr) {
+            std::cerr << "Error: Output parameter has data bound" << std::endl;
+            return false;
+        }
+        if (output_param.second.is_bound) {
+            std::cerr << "Error: Input parameter is already bound" << std::endl;
+            return false;
+        }
+        if (output_param.second.framebuffer == 0) {
+            std::cerr << "Error: Output parameter framebuffer is not generated" << std::endl;
+            return false;
+        }
+        if (output_param.second.texture == 0) {
+            std::cerr << "Error: Output parameter texture is not generated" << std::endl;
+            return false;
+        }
+        if (output_param.second.parameter_width * output_param.second.parameter_height != stage.m_frames_per_buffer * stage.m_num_channels) {
+            std::cerr << "Error: Output parameter width must be the same as the buffer size." << std::endl;
+            return false;
+        }
+        if (output_param.second.internal_format != GL_R32F) {
+            std::cerr << "Error: Output parameter internal format must be GL_R32F." << std::endl;
+            return false;
+        }
+        if (output_param.second.format != GL_RED) {
+            std::cerr << "Error: Output parameter format must be GL_RED." << std::endl;
+            return false;
+        }
+        if (output_param.second.datatype != GL_FLOAT) {
+            std::cerr << "Error: Output parameter data type must be GL_FLOAT." << std::endl;
+            return false;
+        }
+
+        printf("Tying off %s to output\n", output_param.first);
+        AudioRenderStageParameter::bind_framebuffer_to_texture(output_param.second, output_param.second);
 
         // Check the is_bound flag
         if (!output_param.second.is_bound) {

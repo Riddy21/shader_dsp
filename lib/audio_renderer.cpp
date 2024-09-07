@@ -96,11 +96,13 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Link the stages together by linking and checking the framebuffers and textures
     for (int i = 0; i < (int)m_num_stages; i++) { // Link all except last stage because it's output
+        bool return_value;
         if (i == m_num_stages - 1) {
-            // FIXME: Write a function to link the last stage to output
-            pass
+            printf("Tying off stage %d\n", i);
+            return_value = AudioRenderStage::tie_off_output_stage(*m_render_stages[i]);
         } else{
-            bool return_value = AudioRenderStage::link_stages(*m_render_stages[i], *m_render_stages[i+1]);
+            printf("Linking stage %d to stage %d\n", i, i+1);
+            return_value = AudioRenderStage::link_stages(*m_render_stages[i], *m_render_stages[i+1]);
         }
         if (return_value == false) {
             std::cerr << "Failed to link stages." << std::endl;
@@ -235,15 +237,9 @@ void AudioRenderer::render(int value)
 
             // If it has data, update the texture
             if (parameter.second.data != nullptr) {
-                //printf("Print data\n");
-                //for (int i = 0; i < 4; i++) {
-                //    printf("%f ", (*parameter.second.data)[i]);
-                //}
-                //printf("\n");
                 glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
                                 parameter.second.parameter_width,
                                 parameter.second.parameter_height,
-                                //GL_RED, GL_FLOAT,
                                 parameter.second.format,
                                 parameter.second.datatype,
                                 *parameter.second.data);
@@ -256,24 +252,24 @@ void AudioRenderer::render(int value)
         glBindVertexArray(m_VAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        // Unbind everything
-        glBindVertexArray(0);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glUseProgram(0);
     }
+
+    // Bind the color attachment we are on
+    glReadBuffer(AudioRenderStageParameter::color_attachment_index - 1); // Change to the specific color attachment you want to read from
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
     const float * output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     if (output_buffer_data) {
-        //printf("Output buffer data: ");
-        //for (int i = 0; i < 4; i++) {
-        //    printf("%f ", output_buffer_data[i]);
-        //}
         push_data_to_all_output_buffers(output_buffer_data, m_buffer_size * m_num_channels);
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     }
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+
+    // Display to screen
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // Unbind everything
     glBindVertexArray(0);

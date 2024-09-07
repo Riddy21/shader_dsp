@@ -88,6 +88,8 @@ public:
      */
     static bool link_stages(AudioRenderStage & stage1, AudioRenderStage & stage2);
 
+    static bool tie_off_output_stage(AudioRenderStage & stage);
+
     // Settings
     const unsigned int m_frames_per_buffer;
     const unsigned int m_sample_rate;
