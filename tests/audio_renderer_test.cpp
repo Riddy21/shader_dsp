@@ -17,28 +17,27 @@ TEST_CASE("AudioRenderer") {
     const float * empty_buffer = new float[512*2]();
 
     // Create parameters for the audio generator ports in shader
-    AudioRenderStageParameter input_audio_texture_parameter;
-    input_audio_texture_parameter.name = "input_audio_texture";
-    input_audio_texture_parameter.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-    input_audio_texture_parameter.parameter_width = 512 * 2;
-    input_audio_texture_parameter.parameter_height = 1;
-    input_audio_texture_parameter.data = (const float **) &audio_buffer;
+    AudioRenderStageParameter input_audio_texture_parameter =
+            AudioRenderStageParameter("input_audio_texture",
+                                      AudioRenderStageParameter::Type::STREAM_INPUT,
+                                      512 * 2,
+                                      1,
+                                      (const float **) &audio_buffer);
 
-    AudioRenderStageParameter stream_audio_texture_parameter;
-    stream_audio_texture_parameter.name = "stream_audio_texture";
-    stream_audio_texture_parameter.link_name = nullptr;
-    stream_audio_texture_parameter.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-    stream_audio_texture_parameter.parameter_width = 512 * 2;
-    stream_audio_texture_parameter.parameter_height = 1;
-    stream_audio_texture_parameter.data = &empty_buffer;
+    AudioRenderStageParameter stream_audio_texture_parameter =
+            AudioRenderStageParameter("stream_audio_texture",
+                                      AudioRenderStageParameter::Type::STREAM_INPUT,
+                                      512 * 2,
+                                      1,
+                                      &empty_buffer);
 
-    AudioRenderStageParameter output_audio_texture_parameter;
-    output_audio_texture_parameter.name = "output_audio_texture";
-    output_audio_texture_parameter.link_name = "stream_audio_texture";
-    output_audio_texture_parameter.type = AudioRenderStageParameter::Type::STREAM_OUTPUT;
-    output_audio_texture_parameter.parameter_width = 512 * 2;
-    output_audio_texture_parameter.parameter_height = 1;
-    output_audio_texture_parameter.data = nullptr;
+    AudioRenderStageParameter output_audio_texture_parameter =
+            AudioRenderStageParameter("output_audio_texture",
+                                      AudioRenderStageParameter::Type::STREAM_OUTPUT,
+                                      512 * 2,
+                                      1,
+                                      nullptr,
+                                      "stream_audio_texture");
 
     REQUIRE(render_stage2.add_parameter(input_audio_texture_parameter));
     REQUIRE(render_stage2.add_parameter(stream_audio_texture_parameter));
@@ -70,28 +69,28 @@ TEST_CASE("AudioRenderer") {
     std::fill_n(audio_buffer2, 512*2, -0.2f);
 
     // Create parameters for the audio generator ports in shader
-    AudioRenderStageParameter input_audio_texture_parameter2;
-    input_audio_texture_parameter2.name = "input_audio_texture";
-    input_audio_texture_parameter2.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-    input_audio_texture_parameter2.parameter_width = 512 * 2;
-    input_audio_texture_parameter2.parameter_height = 1;
-    input_audio_texture_parameter2.data = (const float **) &audio_buffer2;
+    AudioRenderStageParameter input_audio_texture_parameter2 =
+            AudioRenderStageParameter("input_audio_texture",
+                                      AudioRenderStageParameter::Type::STREAM_INPUT,
+                                      512 * 2,
+                                      1,
+                                      (const float **) &audio_buffer2);
 
-    AudioRenderStageParameter stream_audio_texture_parameter2;
-    stream_audio_texture_parameter2.name = "stream_audio_texture";
-    stream_audio_texture_parameter2.link_name = "output_audio_texture";
-    stream_audio_texture_parameter2.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-    stream_audio_texture_parameter2.parameter_width = 512 * 2;
-    stream_audio_texture_parameter2.parameter_height = 1;
-    stream_audio_texture_parameter2.data = nullptr;
+    AudioRenderStageParameter stream_audio_texture_parameter2 =
+            AudioRenderStageParameter("stream_audio_texture",
+                                      AudioRenderStageParameter::Type::STREAM_INPUT,
+                                      512 * 2,
+                                      1,
+                                      nullptr,
+                                      "output_audio_texture");
 
-    AudioRenderStageParameter output_audio_texture_parameter2;
-    output_audio_texture_parameter2.name = "output_audio_texture";
-    output_audio_texture_parameter2.link_name = "stream_audio_texture";
-    output_audio_texture_parameter2.type = AudioRenderStageParameter::Type::STREAM_OUTPUT;  
-    output_audio_texture_parameter2.parameter_width = 512 * 2;
-    output_audio_texture_parameter2.parameter_height = 1;
-    output_audio_texture_parameter2.data = nullptr;
+    AudioRenderStageParameter output_audio_texture_parameter2 =
+            AudioRenderStageParameter("output_audio_texture",
+                                      AudioRenderStageParameter::Type::STREAM_OUTPUT,
+                                      512 * 2,
+                                      1,
+                                      nullptr,
+                                      "stream_audio_texture");
 
     render_stage3.add_parameter(input_audio_texture_parameter2);
     render_stage3.add_parameter(stream_audio_texture_parameter2);
@@ -120,28 +119,26 @@ TEST_CASE("AudioRenderer") {
     std::fill_n(audio_buffer4, 512*2, -0.3f);
 
     // Create parameters for the audio generator ports in shader
-    AudioRenderStageParameter input_audio_texture_parameter4;
-    input_audio_texture_parameter4.name = "input_audio_texture";
-    input_audio_texture_parameter4.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-    input_audio_texture_parameter4.parameter_width = 512 * 2;
-    input_audio_texture_parameter4.parameter_height = 1;
-    input_audio_texture_parameter4.data = (const float **) &audio_buffer4;
+    AudioRenderStageParameter input_audio_texture_parameter4 =
+            AudioRenderStageParameter("input_audio_texture",
+                                      AudioRenderStageParameter::Type::STREAM_INPUT,
+                                      512 * 2,
+                                      1,
+                                      (const float **) &audio_buffer4);
 
-    AudioRenderStageParameter stream_audio_texture_parameter4;
-    stream_audio_texture_parameter4.name = "stream_audio_texture";
-    stream_audio_texture_parameter4.link_name = "output_audio_texture";
-    stream_audio_texture_parameter4.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-    stream_audio_texture_parameter4.parameter_width = 512 * 2;
-    stream_audio_texture_parameter4.parameter_height = 1;
-    stream_audio_texture_parameter4.data = nullptr;
+    AudioRenderStageParameter stream_audio_texture_parameter4 =
+            AudioRenderStageParameter("stream_audio_texture",
+                                      AudioRenderStageParameter::Type::STREAM_INPUT,
+                                      512 * 2,
+                                      1,
+                                      nullptr,
+                                      "output_audio_texture");
 
-    AudioRenderStageParameter output_audio_texture_parameter4;
-    output_audio_texture_parameter4.name = "output_audio_texture";
-    output_audio_texture_parameter4.link_name = nullptr;
-    output_audio_texture_parameter4.type = AudioRenderStageParameter::Type::STREAM_OUTPUT;
-    output_audio_texture_parameter4.parameter_width = 512 * 2;
-    output_audio_texture_parameter4.parameter_height = 1;
-    output_audio_texture_parameter4.data = nullptr;
+    AudioRenderStageParameter output_audio_texture_parameter4 =
+            AudioRenderStageParameter("output_audio_texture",
+                                      AudioRenderStageParameter::Type::STREAM_OUTPUT,
+                                      512 * 2,
+                                      1);
 
     render_stage5.add_parameter(input_audio_texture_parameter4);
     render_stage5.add_parameter(stream_audio_texture_parameter4);

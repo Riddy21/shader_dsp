@@ -17,37 +17,28 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         m_full_audio_data = load_audio_data_from_file(audio_filepath);
 
         // Create parameters for the audio generator ports in shader
-        AudioRenderStageParameter input_audio_texture_parameter;
-        input_audio_texture_parameter.name = "input_audio_texture";
-        input_audio_texture_parameter.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-        input_audio_texture_parameter.datatype = GL_FLOAT;
-        input_audio_texture_parameter.format = GL_RED;
-        input_audio_texture_parameter.internal_format = GL_R32F;
-        input_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
-        input_audio_texture_parameter.parameter_height = 1;
-        input_audio_texture_parameter.data = &m_audio_buffer;
+        AudioRenderStageParameter input_audio_texture_parameter = 
+                AudioRenderStageParameter("input_audio_texture",
+                                          AudioRenderStageParameter::Type::STREAM_INPUT,
+                                          m_frames_per_buffer * m_num_channels,
+                                          1,
+                                          &m_audio_buffer);
 
-        AudioRenderStageParameter stream_audio_texture_parameter;
-        stream_audio_texture_parameter.name = "stream_audio_texture";
-        stream_audio_texture_parameter.link_name = "output_audio_texture";
-        stream_audio_texture_parameter.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-        stream_audio_texture_parameter.datatype = GL_FLOAT;
-        stream_audio_texture_parameter.format = GL_RED;
-        stream_audio_texture_parameter.internal_format = GL_R32F;
-        stream_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
-        stream_audio_texture_parameter.parameter_height = 1;
-        stream_audio_texture_parameter.data = nullptr;
+        AudioRenderStageParameter stream_audio_texture_parameter = 
+                AudioRenderStageParameter("stream_audio_texture",
+                                          AudioRenderStageParameter::Type::STREAM_INPUT,
+                                          m_frames_per_buffer * m_num_channels,
+                                          1,
+                                          nullptr,
+                                          "output_audio_texture");
 
-        AudioRenderStageParameter output_audio_texture_parameter;
-        output_audio_texture_parameter.name = "output_audio_texture";
-        output_audio_texture_parameter.link_name = "stream_audio_texture";
-        output_audio_texture_parameter.type = AudioRenderStageParameter::Type::STREAM_OUTPUT;
-        output_audio_texture_parameter.datatype = GL_FLOAT;
-        output_audio_texture_parameter.format = GL_RED;
-        output_audio_texture_parameter.internal_format = GL_R32F;
-        output_audio_texture_parameter.parameter_width = m_frames_per_buffer * m_num_channels;
-        output_audio_texture_parameter.parameter_height = 1;
-        output_audio_texture_parameter.data = nullptr;
+        AudioRenderStageParameter output_audio_texture_parameter =
+                AudioRenderStageParameter("output_audio_texture",
+                                          AudioRenderStageParameter::Type::STREAM_OUTPUT,
+                                          m_frames_per_buffer * m_num_channels,
+                                          1,
+                                          nullptr,
+                                          "stream_audio_texture");
 
         if (!this->add_parameter(input_audio_texture_parameter)) {
             std::cerr << "Failed to add input_audio_texture_parameter" << std::endl;

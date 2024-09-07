@@ -90,7 +90,7 @@ private:
 
     // Simplify this into one struct
     // FIXME: Convert this into a unique pointer
-    std::vector<AudioRenderStage * > m_render_stages; // FIXME: Make this a shared pointer
+    std::vector<std::shared_ptr<AudioRenderStage>> m_render_stages; // FIXME: Make this a shared pointer
 
     // Vertex Source code
     static constexpr GLchar const * m_vertex_source = R"glsl(
@@ -183,7 +183,7 @@ public:
     AudioBuffer * get_new_output_buffer();
 
     AudioRenderStage * get_render_stage(const unsigned int index) {
-        return m_render_stages[index];
+        return m_render_stages[index].get();
     }
 };
 

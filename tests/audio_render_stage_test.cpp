@@ -21,47 +21,49 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
 
     const float * empty_data = new float[512 * 2]();
 
-    AudioRenderStageParameter parameter1;
-    parameter1.name = "input_parameter";
-    parameter1.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-    parameter1.parameter_width = 512 * 2;
-    parameter1.parameter_height = 1;
-    parameter1.data = &empty_data;
-    parameter1.texture = AudioRenderStageParameter::generate_texture(parameter1);
+    AudioRenderStageParameter parameter1 =
+            AudioRenderStageParameter(
+                                      "input_parameter",
+                                      AudioRenderStageParameter::Type::STREAM_INPUT,
+                                      512 * 2,
+                                      1,
+                                      &empty_data);
 
-    AudioRenderStageParameter parameter2;
-    parameter2.name = "output_parameter";
-    parameter2.link_name = "input_parameter2";
-    parameter2.type = AudioRenderStageParameter::Type::STREAM_OUTPUT;
-    parameter2.parameter_width = 512 * 2;
-    parameter2.parameter_height = 1;
-    parameter2.data = nullptr;
-    parameter2.framebuffer = FBO;
+    AudioRenderStageParameter parameter2 = 
+            AudioRenderStageParameter("output_parameter",
+                                      AudioRenderStageParameter::Type::STREAM_OUTPUT,
+                                      512 * 2,
+                                      1,
+                                      nullptr,
+                                      "input_parameter2");
 
     REQUIRE(render_stage.add_parameter(parameter1));
     REQUIRE(render_stage.add_parameter(parameter2));
 
+    render_stage.init();
+
     AudioRenderStage render_stage2 = AudioRenderStage(512, 44100, 2);
 
-    AudioRenderStageParameter parameter3;
-    parameter3.name = "input_parameter2";
-    parameter3.link_name = "output_parameter";
-    parameter3.type = AudioRenderStageParameter::Type::STREAM_INPUT;
-    parameter3.parameter_width = 512 * 2;
-    parameter3.parameter_height = 1;
-    parameter3.data = nullptr;
-    parameter3.texture = AudioRenderStageParameter::generate_texture(parameter3);
+    AudioRenderStageParameter parameter3 =
+            AudioRenderStageParameter(
+                                      "input_parameter2",
+                                      AudioRenderStageParameter::Type::STREAM_INPUT,
+                                      512 * 2,
+                                      1,
+                                      nullptr,
+                                      "output_parameter");
 
-    AudioRenderStageParameter parameter4;
-    parameter4.name = "output_parameter";
-    parameter4.type = AudioRenderStageParameter::Type::STREAM_OUTPUT;
-    parameter4.parameter_width = 512 * 2;
-    parameter4.parameter_height = 1;
-    parameter4.data = nullptr;
-    parameter4.framebuffer = FBO;
+    AudioRenderStageParameter parameter4 =
+            AudioRenderStageParameter("output_parameter",
+                                      AudioRenderStageParameter::Type::STREAM_OUTPUT,
+                                      512 * 2,
+                                      1,
+                                      nullptr);
 
     REQUIRE(render_stage2.add_parameter(parameter3));
     REQUIRE(render_stage2.add_parameter(parameter4));
+
+    render_stage2.init();
 
     // Check the parameters
     auto output_params = render_stage.get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_OUTPUT);

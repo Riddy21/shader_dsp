@@ -7,12 +7,6 @@
 AudioRenderStage::~AudioRenderStage() {
     // Delete the framebuffer
     glDeleteFramebuffers(1, &m_framebuffer);
-    // delete the textures
-    for (auto &param : m_parameters) {
-        if (param.texture != 0) {
-            glDeleteTextures(1, &param.texture);
-        }
-    }
     // Delete shader program
     glDeleteProgram(m_shader_program);
 }
@@ -124,16 +118,16 @@ bool AudioRenderStage::compile_parameters() {
     for (auto &param : m_parameters) {
         if (param.type == AudioRenderStageParameter::Type::STREAM_OUTPUT) {
             // Generate the frame buffer
-            param.framebuffer = m_framebuffer;
-            printf("Generated framebuffer %s: %d\n", param.name, param.framebuffer);
-            if (param.framebuffer == 0) {
+            param.m_framebuffer = m_framebuffer;
+            printf("Generated framebuffer %s: %d\n", param.name, param.m_framebuffer);
+            if (param.m_framebuffer== 0) {
                 return false;
             }
         }
         // Generate output texture as well in case it needs to be outputted somewhere else
-        param.texture = AudioRenderStageParameter::generate_texture(param);
-        printf("Generated texture %s: %d\n", param.name, param.texture);
-        if (param.texture == 0) {
+        param.generate_texture();
+        printf("Generated texture %s: %d\n", param.name, param.m_texture);
+        if (param.m_texture == 0) {
             return false;
         }
     }
@@ -179,15 +173,15 @@ bool AudioRenderStage::link_stages(AudioRenderStage &stage1, AudioRenderStage &s
             std::cerr << "Error: Input parameter has data bound" << std::endl;
             return false;
         }
-        if (input_param->second.is_bound || output_param.second.is_bound) {
+        if (input_param->second.m_is_bound || output_param.second.m_is_bound) {
             std::cerr << "Error: Input parameter is already bound" << std::endl;
             return false;
         }
-        if (input_param->second.texture == 0) {
+        if (input_param->second.m_texture == 0) {
             std::cerr << "Error: Input parameter texture is not generated" << std::endl;
             return false;
         }
-        if (output_param.second.framebuffer == 0) {
+        if (output_param.second.m_framebuffer == 0) {
             std::cerr << "Error: Output parameter framebuffer is not generated" << std::endl;
             return false;
         }
@@ -197,7 +191,7 @@ bool AudioRenderStage::link_stages(AudioRenderStage &stage1, AudioRenderStage &s
         AudioRenderStageParameter::bind_framebuffer_to_texture(output_param.second, input_param->second);
 
         // Check the is_bound flag
-        if (!input_param->second.is_bound) {
+        if (!input_param->second.m_is_bound) {
             std::cerr << "Error: Output parameter " << output_param.first << " is not bound." << std::endl;
             return false;
         }
@@ -221,15 +215,15 @@ bool AudioRenderStage::tie_off_output_stage(AudioRenderStage & stage){
             std::cerr << "Error: Output parameter has data bound" << std::endl;
             return false;
         }
-        if (output_param.second.is_bound) {
+        if (output_param.second.m_is_bound) {
             std::cerr << "Error: Input parameter is already bound" << std::endl;
             return false;
         }
-        if (output_param.second.framebuffer == 0) {
+        if (output_param.second.m_framebuffer == 0) {
             std::cerr << "Error: Output parameter framebuffer is not generated" << std::endl;
             return false;
         }
-        if (output_param.second.texture == 0) {
+        if (output_param.second.m_texture == 0) {
             std::cerr << "Error: Output parameter texture is not generated" << std::endl;
             return false;
         }
@@ -254,7 +248,7 @@ bool AudioRenderStage::tie_off_output_stage(AudioRenderStage & stage){
         AudioRenderStageParameter::bind_framebuffer_to_texture(output_param.second, output_param.second);
 
         // Check the is_bound flag
-        if (!output_param.second.is_bound) {
+        if (!output_param.second.m_is_bound) {
             std::cerr << "Error: Output parameter " << output_param.first << " is not bound." << std::endl;
             return false;
         }

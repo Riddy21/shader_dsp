@@ -16,7 +16,7 @@ bool AudioRenderer::add_render_stage(AudioRenderStage& render_stage)
         return false;
     }
     // Add the render stage to the list of render stages
-    m_render_stages.push_back(&render_stage);
+    m_render_stages.push_back(std::shared_ptr<AudioRenderStage>(&render_stage, [](AudioRenderStage*){}));
     m_num_stages = m_render_stages.size();
 
     return true;
@@ -230,7 +230,7 @@ void AudioRenderer::render(int value)
         for (auto& parameter : m_render_stages[i]->get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_INPUT)) {
             // Bind the texture to the shader program
             glActiveTexture(GL_TEXTURE0 + texture_count);
-            glBindTexture(GL_TEXTURE_2D, parameter.second.texture);
+            glBindTexture(GL_TEXTURE_2D, parameter.second.get_texture());
             glUniform1i(glGetUniformLocation(m_render_stages[i]->m_shader_program, parameter.second.name), texture_count);
 
             // If it has data, update the texture
@@ -253,7 +253,7 @@ void AudioRenderer::render(int value)
     }
 
     // Bind the color attachment we are on
-    glReadBuffer(AudioRenderStageParameter::color_attachment_index - 1); // Change to the specific color attachment you want to read from
+    glReadBuffer(AudioRenderStageParameter::get_latest_color_attachment_index()); // Change to the specific color attachment you want to read from
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
