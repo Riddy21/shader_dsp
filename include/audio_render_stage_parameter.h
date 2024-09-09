@@ -21,7 +21,8 @@ public:
     enum Type {
         INITIALIZATION, // pushes data to the shader at the beginning of the program
         STREAM_INPUT, // Pushes data to the shader during rendering
-        STREAM_OUTPUT // Output data from the shader
+        STREAM_OUTPUT, // Output data from the shader
+        STREAM_CONTROL
     };
 
     /**

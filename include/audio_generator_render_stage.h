@@ -42,7 +42,7 @@ public:
      * 
      * This function is responsible for updating the audio data in the specified buffer index.
      */
-    void update();
+    void update() override;
 
     /**
      * @brief Plays the audio data.

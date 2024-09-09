@@ -160,6 +160,20 @@ public:
      * This function updates the audio buffer of the render stage
      */
     bool update_audio_buffer(const float * audio_buffer, const unsigned int buffer_size);
+
+    GLint get_texture_count() const {
+        // FIXME: This should reflect that actually texture count later
+        return 0;
+    }
+
+    GLint get_framebuffer_count() const {
+        // FIXME: This should reflect that actually framebuffer count later
+        return 0;
+    }
+
+    GLuint get_shader_program() const {
+        return m_shader_program;
+    }
 };
 
 #endif // AUDIO_RENDER_STAGE_H
