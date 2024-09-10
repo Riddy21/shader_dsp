@@ -10,6 +10,8 @@
 
 #include "audio_render_stage.h"
 
+class AudioRenderStage; // Forward declaration
+
 class AudioParameter {
 public:
     enum ConnectionType {
@@ -30,17 +32,19 @@ public:
 
     virtual void update_shader() = 0;
 
+    void link_render_stage(const AudioRenderStage * render_stage) {
+        m_render_stage_linked = render_stage;
+    }
+
 protected:
     AudioParameter(const char * name,
-                   ConnectionType connection_type,
-                   const AudioRenderStage * render_stage_linked)
+                   ConnectionType connection_type)
         : name(name),    
-          connection_type(connection_type),
-          m_render_stage_linked(render_stage_linked)
+          connection_type(connection_type)
     {};
 
     void * m_value = nullptr;
-    const AudioRenderStage * m_render_stage_linked;
+    const AudioRenderStage * m_render_stage_linked = nullptr;
 };
 
 

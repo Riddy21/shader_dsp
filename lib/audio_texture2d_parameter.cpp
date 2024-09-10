@@ -50,7 +50,7 @@ bool AudioTexture2DParameter::init() {
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + m_render_stage_linked->get_color_attachment_count(),
                                GL_TEXTURE_2D, m_texture, 0);
         // Draw the buffer
-        GLenum draw_buffers[1] = { GL_COLOR_ATTACHMENT0 + m_render_stage_linked->get_color_attachment_count() };
+        GLenum draw_buffers[1] = { m_render_stage_linked->get_color_attachment_count() };
         glDrawBuffers(1, draw_buffers);
         // Unbind the framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -74,7 +74,7 @@ bool AudioTexture2DParameter::init() {
 }
 
 void AudioTexture2DParameter::update_shader() {
-    glActiveTexture(GL_TEXTURE0 + m_render_stage_linked->get_texture_count());
+    glActiveTexture(m_render_stage_linked->get_texture_count());
     glBindTexture(GL_TEXTURE_2D, m_texture);
     glUniform1i(glGetUniformLocation(m_render_stage_linked->get_shader_program(), name), m_render_stage_linked->get_texture_count());
 

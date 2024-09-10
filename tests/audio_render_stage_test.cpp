@@ -2,16 +2,30 @@
 #include <GL/glew.h>
 #include <GL/glut.h>
 
+#include "audio_texture2d_parameter.h"
 #include "audio_render_stage.h"
 
-TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
-    // Init the GL context
-    int argc = 0;
-    char ** argv = nullptr;
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE);
-    glutCreateWindow("Audio Processing");
-    glewInit();
+class TestFixture {
+public:
+    TestFixture() {
+        if (!initialized) {
+                // Init the GL context
+                int argc = 0;
+                char ** argv = nullptr;
+                glutInit(&argc, argv);
+                glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE);
+                glutCreateWindow("Audio Processing");
+                glewInit();
+
+                initialized = true;
+        }
+    }
+    static bool initialized;
+};
+
+bool TestFixture::initialized = false;
+
+TEST_CASE_METHOD(TestFixture, "AudioRendererStageTest_get_parameters_with_type") {
 
     AudioRenderStage render_stage = AudioRenderStage(512, 44100, 2);
 
@@ -33,8 +47,8 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
                                       nullptr,
                                       "input_parameter2");
 
-    REQUIRE(render_stage.add_parameter(parameter1));
-    REQUIRE(render_stage.add_parameter(parameter2));
+    REQUIRE(render_stage.add_parameter_old(parameter1));
+    REQUIRE(render_stage.add_parameter_old(parameter2));
 
     render_stage.init_params();
 
@@ -56,8 +70,8 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
                                       1,
                                       nullptr);
 
-    REQUIRE(render_stage2.add_parameter(parameter3));
-    REQUIRE(render_stage2.add_parameter(parameter4));
+    REQUIRE(render_stage2.add_parameter_old(parameter3));
+    REQUIRE(render_stage2.add_parameter_old(parameter4));
 
     render_stage2.init_params();
 
@@ -73,3 +87,17 @@ TEST_CASE("AudioRendererStageTest_get_parameters_with_type") {
     // Link the stages
     REQUIRE(AudioRenderStage::link_stages(render_stage, render_stage2));
 }
+
+TEST_CASE_METHOD(TestFixture, "AudioRendererStageTest_add_parameter") {
+    AudioRenderStage render_stage = AudioRenderStage(512, 44100, 2);
+
+    AudioTexture2DParameter parameter1 =
+            AudioTexture2DParameter(
+                                      "input_parameter",
+                                      AudioParameter::ConnectionType::INPUT,
+                                      512 * 2,
+                                      1);
+
+    render_stage.add_parameter(std::make_unique<AudioTexture2DParameter>(parameter1));
+}
+

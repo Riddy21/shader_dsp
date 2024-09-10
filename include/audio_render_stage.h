@@ -6,7 +6,10 @@
 #include <unordered_map>
 #include <GL/glew.h>
 
+#include "audio_parameter.h"
 #include "audio_render_stage_parameter.h"
+
+class AudioParameter;
 
 class AudioRenderStage {
 private:
@@ -16,8 +19,13 @@ private:
     // Framebuffer for the stage if it involves outputs
     GLuint m_framebuffer;
 
+    GLuint m_color_attachment = GL_COLOR_ATTACHMENT0;
+    GLuint m_active_texture = GL_TEXTURE0;
+
     // Parameters
-    std::vector<AudioRenderStageParameter> m_parameters;
+    std::vector<AudioRenderStageParameter> m_parameters_old;
+
+    std::vector<std::unique_ptr<AudioParameter>> m_parameters;
 
     /**
      * @brief Compile parameters
@@ -54,12 +62,12 @@ protected:
         uniform sampler2D beginning_audio_texture;
         uniform sampler2D stream_audio_texture;
 
-        out vec4 FragColor;
+        out vec4 output_audio_texture;
 
         void main() {
-            FragColor = texture(beginning_audio_texture, TexCoord * vec2(0.25, 0)) +
-                        texture(input_audio_texture, TexCoord) +
-                        texture(stream_audio_texture, TexCoord);
+            output_audio_texture = texture(beginning_audio_texture, TexCoord * vec2(0.25, 0)) +
+                                   texture(input_audio_texture, TexCoord) +
+                                   texture(stream_audio_texture, TexCoord);
         }
     )glsl"; // Default shader source (Kept in files for the future versions)
 
@@ -109,7 +117,10 @@ public:
      * @param parameter The parameter to add
      * @return True if the parameter is successfully added, false otherwise.
      */
-    bool add_parameter(AudioRenderStageParameter & parameter);
+    // FIXME: delete this
+    bool add_parameter_old(AudioRenderStageParameter & parameter);
+
+    bool add_parameter(std::unique_ptr<AudioParameter> parameter);
 
     /**
      * @brief Returns the parameters of the render stage.
@@ -163,12 +174,11 @@ public:
 
     GLuint get_texture_count() const {
         // FIXME: This should reflect that actually texture count later
-        return 0;
+        return m_active_texture;
     }
 
     GLuint get_color_attachment_count() const {
-        // FIXME: This should reflect that actually framebuffer count later
-        return 0;
+        return m_color_attachment;
     }
 
     GLuint get_shader_program() const {

@@ -106,11 +106,25 @@ bool AudioRenderStage::compile_parameters() {
         std::cerr << "Error: Framebuffer not generated." << std::endl;
         return false;
     }
+    // FIXME: Delete this
+    if (m_parameters_old.size() == 0) {
+        std::cerr << "Error: No parameters to compile." << std::endl;
+        return false;
+    }
     if (m_parameters.size() == 0) {
         std::cerr << "Error: No parameters to compile." << std::endl;
         return false;
     }
-    for (auto &param : m_parameters) {
+    //for (auto &param : m_parameters) {
+    //    if (!param->init()) {
+    //        printf("Error: Failed to initialize parameter %s\n", param->name);
+    //        return false;
+    //    }
+    //    // Increment the color attachment
+    //    m_color_attachment++;
+    //}
+    // FIXME: Delete this
+    for (auto &param : m_parameters_old) {
         if (param.type == AudioRenderStageParameter::Type::STREAM_OUTPUT) {
             // Generate the frame buffer
             param.m_framebuffer = m_framebuffer;
@@ -257,7 +271,7 @@ bool AudioRenderStage::update_fragment_source(GLchar const *fragment_source)
 {
     // Check if fragment source contains all nessesary variables
     // Check input parameters
-    for (auto &param : m_parameters) {
+    for (auto &param : m_parameters_old) {
         if (param.type == AudioRenderStageParameter::Type::INITIALIZATION) {
             if (strstr(fragment_source, ("uniform sampler2D " + std::string(param.name)).c_str()) == nullptr) {
                 std::cerr << "Error: Fragment source does not contain initialization parameter " << param.name << std::endl;
@@ -291,7 +305,7 @@ bool AudioRenderStage::update_audio_buffer(const float *audio_buffer, const unsi
     return true;
 }
 
-bool AudioRenderStage::add_parameter(AudioRenderStageParameter &parameter) {
+bool AudioRenderStage::add_parameter_old(AudioRenderStageParameter &parameter) {
     // Double check parameter values
     if (parameter.name == nullptr) {
         std::cerr << "Error: Parameter name is null." << std::endl;
@@ -320,13 +334,22 @@ bool AudioRenderStage::add_parameter(AudioRenderStageParameter &parameter) {
         return false;
     }
 
-    m_parameters.push_back(parameter);
+    m_parameters_old.push_back(parameter);
+    return true;
+}
+
+bool AudioRenderStage::add_parameter(std::unique_ptr<AudioParameter> parameter) {
+    // Link parameter to the stage
+    parameter->link_render_stage(this);
+
+    // Put in the parameter list
+    m_parameters.push_back(std::move(parameter));
     return true;
 }
 
 std::unordered_map<const char *, AudioRenderStageParameter &> AudioRenderStage::get_parameters_with_type(AudioRenderStageParameter::Type type) {
     std::unordered_map<const char *, AudioRenderStageParameter &> output_parameters;
-    for (auto &param : m_parameters) {
+    for (auto &param : m_parameters_old) {
         if (param.type == type) {
             output_parameters.emplace(param.name, param);
         }
@@ -337,7 +360,7 @@ std::unordered_map<const char *, AudioRenderStageParameter &> AudioRenderStage::
 std::unordered_map<const char *, AudioRenderStageParameter &> AudioRenderStage::get_parameters_with_types(std::vector<AudioRenderStageParameter::Type> types)
 {
     std::unordered_map<const char *, AudioRenderStageParameter &> output_parameters;
-    for (auto &param : m_parameters) {
+    for (auto &param : m_parameters_old) {
         for (auto &type : types) {
             if (param.type == type) {
                 output_parameters.emplace(param.name, param);

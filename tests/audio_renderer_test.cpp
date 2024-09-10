@@ -39,9 +39,9 @@ TEST_CASE("AudioRenderer") {
                                       nullptr,
                                       "stream_audio_texture");
 
-    REQUIRE(render_stage2.add_parameter(input_audio_texture_parameter));
-    REQUIRE(render_stage2.add_parameter(stream_audio_texture_parameter));
-    REQUIRE(render_stage2.add_parameter(output_audio_texture_parameter));
+    REQUIRE(render_stage2.add_parameter_old(input_audio_texture_parameter));
+    REQUIRE(render_stage2.add_parameter_old(stream_audio_texture_parameter));
+    REQUIRE(render_stage2.add_parameter_old(output_audio_texture_parameter));
 
     REQUIRE(render_stage2.update_audio_buffer(audio_buffer, 512*2));
     const char * m_fragment_source2 = R"glsl(
@@ -92,9 +92,9 @@ TEST_CASE("AudioRenderer") {
                                       nullptr,
                                       "stream_audio_texture");
 
-    render_stage3.add_parameter(input_audio_texture_parameter2);
-    render_stage3.add_parameter(stream_audio_texture_parameter2);
-    render_stage3.add_parameter(output_audio_texture_parameter2);
+    render_stage3.add_parameter_old(input_audio_texture_parameter2);
+    render_stage3.add_parameter_old(stream_audio_texture_parameter2);
+    render_stage3.add_parameter_old(output_audio_texture_parameter2);
 
     REQUIRE(render_stage3.update_audio_buffer(audio_buffer2, 512*2));
     const char * m_fragment_source3 = R"glsl(
@@ -140,9 +140,9 @@ TEST_CASE("AudioRenderer") {
                                       512 * 2,
                                       1);
 
-    render_stage5.add_parameter(input_audio_texture_parameter4);
-    render_stage5.add_parameter(stream_audio_texture_parameter4);
-    render_stage5.add_parameter(output_audio_texture_parameter4);
+    render_stage5.add_parameter_old(input_audio_texture_parameter4);
+    render_stage5.add_parameter_old(stream_audio_texture_parameter4);
+    render_stage5.add_parameter_old(output_audio_texture_parameter4);
 
     REQUIRE(render_stage5.update_audio_buffer(audio_buffer4, 512*2));
     const char * m_fragment_source4 = R"glsl(
