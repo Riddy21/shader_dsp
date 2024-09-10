@@ -24,7 +24,7 @@ public:
 
     ~AudioParameter() {};
 
-    virtual void init() = 0;
+    virtual bool init() = 0;
 
     virtual void set_value(const void * value_ptr) = 0;
 

@@ -33,7 +33,7 @@ public:
         delete[] static_cast<const float *>(m_value);
     }
 
-    void init() override;
+    bool init() override;
 
     void set_value(const void * value_ptr) override;
 
