@@ -36,7 +36,7 @@ public:
         return m_value;
     }
 
-    virtual void update_shader() = 0;
+    virtual void render_parameter() = 0;
 
     void link_render_stage(const AudioRenderStage * render_stage) {
         m_render_stage_linked = render_stage;

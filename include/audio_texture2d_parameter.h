@@ -35,7 +35,7 @@ public:
 
     void set_value(const void * value_ptr) override;
 
-    void update_shader() override;
+    void render_parameter() override;
 
     GLuint get_texture() const { return m_texture; }
 
@@ -54,7 +54,7 @@ private:
     GLuint m_texture;
     const GLuint m_parameter_width;
     const GLuint m_parameter_height;
-    const GLuint m_datatype;
+    const GLint m_datatype;
     const GLuint m_format;
     const GLuint m_internal_format;
 

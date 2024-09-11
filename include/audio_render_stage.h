@@ -19,8 +19,8 @@ private:
     // Framebuffer for the stage if it involves outputs
     GLuint m_framebuffer;
 
-    GLuint m_color_attachment = GL_COLOR_ATTACHMENT0;
-    GLuint m_active_texture = GL_TEXTURE0;
+    GLuint m_color_attachment = 0;
+    GLuint m_active_texture = 0;
 
     // Parameters
     std::vector<AudioRenderStageParameter> m_parameters_old;
@@ -121,6 +121,8 @@ public:
     bool add_parameter_old(AudioRenderStageParameter & parameter);
 
     bool add_parameter(std::unique_ptr<AudioParameter> parameter);
+
+    void render_stage();
 
     /**
      * @brief Returns the parameters of the render stage.

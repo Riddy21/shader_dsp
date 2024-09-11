@@ -42,6 +42,7 @@ public:
      * 
      * This function is responsible for updating the audio data in the specified buffer index.
      */
+    // FIXME: Delete this
     void update() override;
 
     /**

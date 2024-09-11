@@ -94,6 +94,7 @@ bool AudioRenderStage::compile_shader_program() {
 
 bool AudioRenderStage::initialize_framebuffer() {
     glGenFramebuffers(1, &m_framebuffer);
+    printf("Initialized framebuffer %d\n", m_framebuffer);
     if (m_framebuffer == 0) {
         std::cerr << "Error: Failed to generate framebuffer." << std::endl;
         return false;
@@ -245,8 +246,16 @@ bool AudioRenderStage::tie_off_output_stage(AudioRenderStage & stage){
     return true;
 }
 
-bool AudioRenderStage::update_fragment_source(GLchar const *fragment_source)
-{
+void AudioRenderStage::render_stage() {
+    m_active_texture = 0;
+    for (auto &param : m_parameters) {
+        param->render_parameter();
+        m_active_texture++;
+    }
+
+}
+
+bool AudioRenderStage::update_fragment_source(GLchar const *fragment_source) {
     // Check if fragment source contains all nessesary variables
     // Check input parameters
     for (auto &param : m_parameters_old) {
@@ -324,6 +333,8 @@ bool AudioRenderStage::add_parameter(std::unique_ptr<AudioParameter> parameter) 
     m_parameters.push_back(std::move(parameter));
     return true;
 }
+
+
 
 std::unordered_map<const char *, AudioRenderStageParameter &> AudioRenderStage::get_parameters_with_type(AudioRenderStageParameter::Type type) {
     std::unordered_map<const char *, AudioRenderStageParameter &> output_parameters;

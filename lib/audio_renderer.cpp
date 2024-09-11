@@ -126,7 +126,13 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_FRAMEBUFFER_SRGB);
 
+    if (m_render_stages.size() == 0) {
+        std::cerr << "Error: No render stages added." << std::endl;
+        return false;
+    }
+
     // initialize all the render stages
+    // TODO: Find way to make this more intuitive
     for (auto& stage : m_render_stages) {
         if (!stage->compile_shader_program()) {
             std::cerr << "Failed to compile render stages" << std::endl;
@@ -139,33 +145,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     }
     std::cout << "Render stages compiled successfully." << std::endl;
 
-    // Link the stages together by linking and checking the framebuffers and textures
-    for (int i = 0; i < (int)m_num_stages; i++) { // Link all except last stage because it's output
-        bool return_value;
-        if ((unsigned)i == m_num_stages - 1) {
-            printf("Tying off stage %d\n", i);
-            return_value = AudioRenderStage::tie_off_output_stage(*m_render_stages[i]);
-        } else{
-            printf("Linking stage %d to stage %d\n", i, i+1);
-            return_value = AudioRenderStage::link_stages(*m_render_stages[i], *m_render_stages[i+1]);
-        }
-        if (return_value == false) {
-            std::cerr << "Failed to link stages." << std::endl;
-            return false;
-        }
-    }
-
-    // Check that the parameters in the last stage of the render stages is only output
-    auto final_output_params = m_render_stages[m_num_stages - 1]->get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_OUTPUT);
-    if (final_output_params.size() != 1) {
-        std::cerr << "Error: Final stage must have only one output parameter." << std::endl;
-        return false;
-    }
-    // The size of the output param must be the same as the buffer size
-    if (final_output_params.begin()->second.parameter_width * final_output_params.begin()->second.parameter_height != buffer_size * num_channels) {
-        std::cerr << "Error: Final stage output parameter width must be the same as the buffer size." << std::endl;
-        return false;
-    }
+    // FIXME: Verify all stages and output parameters are good
 
     // Create the quad
     if (!create_quad(m_VAO, m_VBO, m_PBO, num_channels, buffer_size)) {
@@ -227,41 +207,19 @@ void AudioRenderer::render(int value)
         glBindFramebuffer(GL_FRAMEBUFFER, m_render_stages[i]->m_framebuffer);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // FIXME: This is a test
-        m_render_stages[i]->update();
-
-        // Bind the textures of the stage
-        unsigned int texture_count = 0;
-
-        for (auto& parameter : m_render_stages[i]->get_parameters_with_types({AudioRenderStageParameter::Type::STREAM_INPUT,
-                                                                              AudioRenderStageParameter::Type::INITIALIZATION})) {
-            // Bind the texture to the shader program
-            glActiveTexture(GL_TEXTURE0 + texture_count);
-            glBindTexture(GL_TEXTURE_2D, parameter.second.get_texture());
-            glUniform1i(glGetUniformLocation(m_render_stages[i]->m_shader_program, parameter.second.name), texture_count);
-
-            // If it has data, update the texture
-            if (parameter.second.data != nullptr &&
-                parameter.second.type == AudioRenderStageParameter::Type::STREAM_INPUT) {
-                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-                                parameter.second.parameter_width,
-                                parameter.second.parameter_height,
-                                parameter.second.format,
-                                parameter.second.datatype,
-                                *parameter.second.data);
-            }
-
-            texture_count++;
-        }
+        // Render the stage
+        m_render_stages[i]->render_stage();
 
         // Bind the vertex array and draw
         glBindVertexArray(m_VAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
+        // Unbind the texture
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     // Bind the color attachment we are on
-    glReadBuffer(AudioRenderStageParameter::get_latest_color_attachment_index()); // Change to the specific color attachment you want to read from
+    glReadBuffer(GL_COLOR_ATTACHMENT0 + m_render_stages[m_num_stages - 1]->get_color_attachment_count() - 1); // Change to the specific color attachment you want to read from
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
