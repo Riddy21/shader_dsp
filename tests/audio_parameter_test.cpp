@@ -9,7 +9,6 @@ TEST_CASE("MakeUniqueTest") {
 
     AudioTexture2DParameter audio_parameter = AudioTexture2DParameter("audio_parameter",
                                                                       AudioParameter::ConnectionType::INPUT,
-                                                                      nullptr,
                                                                       512,
                                                                       512);
 

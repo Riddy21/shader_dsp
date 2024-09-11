@@ -106,39 +106,17 @@ bool AudioRenderStage::compile_parameters() {
         std::cerr << "Error: Framebuffer not generated." << std::endl;
         return false;
     }
-    // FIXME: Delete this
-    if (m_parameters_old.size() == 0) {
-        std::cerr << "Error: No parameters to compile." << std::endl;
-        return false;
-    }
     if (m_parameters.size() == 0) {
         std::cerr << "Error: No parameters to compile." << std::endl;
         return false;
     }
-    //for (auto &param : m_parameters) {
-    //    if (!param->init()) {
-    //        printf("Error: Failed to initialize parameter %s\n", param->name);
-    //        return false;
-    //    }
-    //    // Increment the color attachment
-    //    m_color_attachment++;
-    //}
-    // FIXME: Delete this
-    for (auto &param : m_parameters_old) {
-        if (param.type == AudioRenderStageParameter::Type::STREAM_OUTPUT) {
-            // Generate the frame buffer
-            param.m_framebuffer = m_framebuffer;
-            printf("Generated framebuffer %s: %d\n", param.name, param.m_framebuffer);
-            if (param.m_framebuffer== 0) {
-                return false;
-            }
-        }
-        // Generate output texture as well in case it needs to be outputted somewhere else
-        param.generate_texture();
-        printf("Generated texture %s: %d\n", param.name, param.m_texture);
-        if (param.m_texture == 0) {
+    for (auto &param : m_parameters) {
+        if (!param->init()) {
+            printf("Error: Failed to initialize parameter %s\n", param->name);
             return false;
         }
+        // Increment the color attachment
+        m_color_attachment++;
     }
     return true;
 }

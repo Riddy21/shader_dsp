@@ -29,7 +29,6 @@ public:
         if (m_texture != 0) {
             glDeleteTextures(1, &m_texture);
         }
-        delete[] static_cast<const float *>(m_value);
     }
 
     bool init() override;
@@ -41,6 +40,17 @@ public:
     GLuint get_texture() const { return m_texture; }
 
 private:
+    class ParamFloatData : public ParamData {
+    public:
+        ParamFloatData(unsigned int size)
+                : m_data(new float[size]()) {}
+        virtual ~ParamFloatData() override { delete[] m_data; }
+        void * get_data() const override { return m_data; }
+    private:
+        float * m_data;
+    };
+
+
     GLuint m_texture;
     const GLuint m_parameter_width;
     const GLuint m_parameter_height;

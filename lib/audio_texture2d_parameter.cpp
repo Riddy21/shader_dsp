@@ -31,15 +31,14 @@ bool AudioTexture2DParameter::init() {
     // allocate memory for the texture
     if (connection_type == ConnectionType::INPUT || connection_type == ConnectionType::INITIALIZATION) {
         // Allocate memory for the texture and data 
-        if (m_value == nullptr) {
+        if (m_data == nullptr) {
             printf("Warning: value is nullptr when declared as input or initialization in parameter %s\n", name);
         }
-        glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, m_value);
+        glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, m_data->get_data());
 
     } else if (connection_type == ConnectionType::PASSTHROUGH || connection_type == ConnectionType::OUTPUT) {
         // Allocate memory for the texture and data but don't update the data
         glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, nullptr);
-
     }
     
     // Link frame buffer to texture if output
@@ -79,7 +78,7 @@ void AudioTexture2DParameter::update_shader() {
     glUniform1i(glGetUniformLocation(m_render_stage_linked->get_shader_program(), name), m_render_stage_linked->get_texture_count());
 
     if (connection_type == ConnectionType::INPUT) {
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_parameter_width, m_parameter_height, m_format, m_datatype, m_value);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_parameter_width, m_parameter_height, m_format, m_datatype, m_data->get_data());
     } else if (connection_type == ConnectionType::PASSTHROUGH) {
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_parameter_width, m_parameter_height, m_format, m_datatype, nullptr);
     }
@@ -88,13 +87,23 @@ void AudioTexture2DParameter::update_shader() {
 
 void AudioTexture2DParameter::set_value(const void * value_ptr) {
     // Initialize m_value with enough memory
-    m_value = new float[m_parameter_width * m_parameter_height];
+    if (m_data == nullptr) {
+        m_data = std::make_unique<ParamFloatData>(m_parameter_width * m_parameter_height);
+    }
 
     // Cast the value pointer to a float pointer
     const float* float_value_ptr = static_cast<const float*>(value_ptr);
 
     // Copy the value to m_value
-    std::memcpy(m_value, float_value_ptr, m_parameter_width * m_parameter_height * sizeof(float));
+    std::memcpy(m_data->get_data(), float_value_ptr, m_parameter_width * m_parameter_height * sizeof(float));
+
+    printf("Pointer location %p\n", m_data->get_data());
+
+    float * m_value_float = static_cast<float*>(m_data->get_data());
+    printf("set value \n");
+    for (int i = 0; i < 10; i++) {
+        printf("%f\n", m_value_float[i]);
+    }
 }
 
 

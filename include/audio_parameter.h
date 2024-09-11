@@ -24,11 +24,17 @@ public:
     const char * name;
     const ConnectionType connection_type;
 
-    ~AudioParameter() {};
+    ~AudioParameter() {
+        //delete m_deleter;
+    }
 
     virtual bool init() = 0;
 
     virtual void set_value(const void * value_ptr) = 0;
+
+    const void * const get_value() const {
+        return m_value;
+    }
 
     virtual void update_shader() = 0;
 
@@ -37,12 +43,18 @@ public:
     }
 
 protected:
+    struct ParamData {
+        virtual ~ParamData() = default;
+        virtual void * get_data() const = 0;
+    };
+
     AudioParameter(const char * name,
                    ConnectionType connection_type)
         : name(name),    
           connection_type(connection_type)
     {};
 
+    std::unique_ptr<ParamData> m_data = nullptr;
     void * m_value = nullptr;
     const AudioRenderStage * m_render_stage_linked = nullptr;
 };
