@@ -30,7 +30,12 @@ public:
 
     virtual bool init() = 0;
 
-    virtual void set_value(const void * value_ptr) = 0;
+    virtual bool set_value(const void * value_ptr) = 0;
+
+    virtual bool link_to_parameter(const AudioParameter * parameter) {
+        m_linked_parameter = parameter;
+        return true;
+    }
 
     const void * const get_value() const {
         return m_value;
@@ -57,6 +62,7 @@ protected:
     std::unique_ptr<ParamData> m_data = nullptr;
     void * m_value = nullptr;
     const AudioRenderStage * m_render_stage_linked = nullptr;
+    const AudioParameter * m_linked_parameter = nullptr;
 };
 
 

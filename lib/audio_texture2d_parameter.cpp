@@ -15,6 +15,7 @@ bool AudioTexture2DParameter::init() {
 
     // Generate the texture
     glGenTextures(1, &m_texture);
+    printf("Parameter %s texture generated: %d\n", name, m_texture);
 
     // Bind the texture
     glBindTexture(GL_TEXTURE_2D, m_texture);
@@ -64,11 +65,17 @@ bool AudioTexture2DParameter::init() {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
+    if (m_linked_parameter != nullptr) {
+        printf("Linked parameter texture value is: %d\n", static_cast<const AudioTexture2DParameter*>(m_linked_parameter)->get_texture());
+    }
+
     GLenum status = glGetError();
     if (status != GL_NO_ERROR) {
         printf("Error: OpenGL error in parameter %s\n", name);
         return false;
     }
+
+    printf("Texture location: %d\n", m_texture);
 
     // Unbind the texture
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -90,7 +97,13 @@ void AudioTexture2DParameter::render_parameter() {
     }
 }
 
-void AudioTexture2DParameter::set_value(const void * value_ptr) {
+bool AudioTexture2DParameter::set_value(const void * value_ptr) {
+    // Only allow setting value if the parameter is an input
+    if (connection_type == ConnectionType::PASSTHROUGH || connection_type == ConnectionType::OUTPUT) {
+        printf("Error: Cannot set value for parameter %s\n", name);
+        return false;
+    }
+
     // Initialize m_value with enough memory
     if (m_data == nullptr) {
         m_data = std::make_unique<ParamFloatData>(m_parameter_width * m_parameter_height);
@@ -101,6 +114,8 @@ void AudioTexture2DParameter::set_value(const void * value_ptr) {
 
     // Copy the value to m_value
     std::memcpy(m_data->get_data(), float_value_ptr, m_parameter_width * m_parameter_height * sizeof(float));
+
+    return true;
 }
 
 

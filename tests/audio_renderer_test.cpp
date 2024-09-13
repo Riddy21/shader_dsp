@@ -9,8 +9,6 @@
 TEST_CASE("AudioRenderer") {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
     
-    // TODO: Add a render stage and see if it works
-
     AudioRenderStage render_stage2 = AudioRenderStage(512, 44100, 2);
     float * audio_buffer = new float[512*2]();
     std::fill_n(audio_buffer, 512*2, -0.1f);
@@ -22,22 +20,12 @@ TEST_CASE("AudioRenderer") {
         std::make_unique<AudioTexture2DParameter>("input_audio_texture",
                               AudioParameter::ConnectionType::INPUT,
                               512, 2);
-    input_audio_texture->set_value(audio_buffer);
-
-    auto stream_audio_texture = 
-        std::make_unique<AudioTexture2DParameter>("stream_audio_texture",
-                              AudioParameter::ConnectionType::PASSTHROUGH,
-                              512, 2);
-    stream_audio_texture->set_value(empty_buffer);
+    REQUIRE(input_audio_texture->set_value(audio_buffer));
 
     auto output_audio_texture =
         std::make_unique<AudioTexture2DParameter>("output_audio_texture",
                               AudioParameter::ConnectionType::OUTPUT,
                               512, 2);
-
-    REQUIRE(render_stage2.add_parameter(std::move(input_audio_texture)));
-    REQUIRE(render_stage2.add_parameter(std::move(stream_audio_texture)));
-    REQUIRE(render_stage2.add_parameter(std::move(output_audio_texture)));
 
     REQUIRE(render_stage2.update_audio_buffer(audio_buffer, 512*2));
     const char * m_fragment_source2 = R"glsl(
@@ -48,97 +36,89 @@ TEST_CASE("AudioRenderer") {
         out vec4 output_audio_texture;
 
         uniform sampler2D input_audio_texture;
-        uniform sampler2D stream_audio_texture;
 
         void main()
         {
             float color = texture(input_audio_texture, TexCoord).r + 0.01f;
-            float color2 = texture(stream_audio_texture, TexCoord).r + 0.001;
+            float color2 = 0.001;
             output_audio_texture = vec4(color+color2, color2, 0.0, 1.0);
         }
     )glsl";
     REQUIRE(render_stage2.update_fragment_source(m_fragment_source2));
     audio_renderer.add_render_stage(render_stage2);
 
-    //AudioRenderStage render_stage3 = AudioRenderStage(512, 44100, 2);
-    //float * audio_buffer2 = new float[512*2]();
-    //std::fill_n(audio_buffer2, 512*2, -0.2f);
+    AudioRenderStage render_stage3 = AudioRenderStage(512, 44100, 2);
+    float * audio_buffer2 = new float[512*2]();
+    std::fill_n(audio_buffer2, 512*2, -0.2f);
 
-    //// Create parameters for the audio generator ports in shader
-    //AudioRenderStageParameter input_audio_texture_parameter2 =
-    //        AudioRenderStageParameter("input_audio_texture",
-    //                                  AudioRenderStageParameter::Type::STREAM_INPUT,
-    //                                  512 * 2,
-    //                                  1,
-    //                                  (const float **) &audio_buffer2);
+    // Create parameters for the audio generator ports in shader
+    auto input_audio_texture2 =
+        std::make_unique<AudioTexture2DParameter>("input_audio_texture",
+                              AudioParameter::ConnectionType::INPUT,
+                              512, 2);
+    REQUIRE(input_audio_texture2->set_value(audio_buffer2));
 
-    //AudioRenderStageParameter stream_audio_texture_parameter2 =
-    //        AudioRenderStageParameter("stream_audio_texture",
-    //                                  AudioRenderStageParameter::Type::STREAM_INPUT,
-    //                                  512 * 2,
-    //                                  1,
-    //                                  nullptr,
-    //                                  "output_audio_texture");
+    auto stream_audio_texture2 = 
+        std::make_unique<AudioTexture2DParameter>("stream_audio_texture",
+                              AudioParameter::ConnectionType::PASSTHROUGH,
+                              512, 2);
+    
+    auto output_audio_texture2 =
+        std::make_unique<AudioTexture2DParameter>("output_audio_texture",
+                              AudioParameter::ConnectionType::OUTPUT,
+                              512, 2);
 
-    //AudioRenderStageParameter output_audio_texture_parameter2 =
-    //        AudioRenderStageParameter("output_audio_texture",
-    //                                  AudioRenderStageParameter::Type::STREAM_OUTPUT,
-    //                                  512 * 2,
-    //                                  1,
-    //                                  nullptr,
-    //                                  "stream_audio_texture");
+    REQUIRE(render_stage3.update_audio_buffer(audio_buffer2, 512*2));
+    const char * m_fragment_source3 = R"glsl(
+        #version 300 es
+        precision highp float;
+        in vec2 TexCoord;
+        out vec4 output_audio_texture;
+        uniform sampler2D input_audio_texture;
+        uniform sampler2D stream_audio_texture;
+        void main()
+        {
+            float color = texture(input_audio_texture, TexCoord).r + 0.02f;
+            float color2 = texture(stream_audio_texture, TexCoord).r + 0.002f;
+            output_audio_texture = vec4(color+color2, 0.0, color2, 1.0);
+        }
+    )glsl";
+    REQUIRE(render_stage3.update_fragment_source(m_fragment_source3));
+    audio_renderer.add_render_stage(render_stage3);
 
-    //render_stage3.add_parameter_old(input_audio_texture_parameter2);
-    //render_stage3.add_parameter_old(stream_audio_texture_parameter2);
-    //render_stage3.add_parameter_old(output_audio_texture_parameter2);
+    REQUIRE(output_audio_texture->link_to_parameter(stream_audio_texture2.get()));
+    REQUIRE(stream_audio_texture2->link_to_parameter(output_audio_texture.get()));
+    REQUIRE(render_stage2.add_parameter(std::move(input_audio_texture)));
+    REQUIRE(render_stage2.add_parameter(std::move(output_audio_texture)));
+    REQUIRE(render_stage3.add_parameter(std::move(input_audio_texture2)));
+    REQUIRE(render_stage3.add_parameter(std::move(stream_audio_texture2)));
+    REQUIRE(render_stage3.add_parameter(std::move(output_audio_texture2)));
 
-    //REQUIRE(render_stage3.update_audio_buffer(audio_buffer2, 512*2));
-    //const char * m_fragment_source3 = R"glsl(
-    //    #version 300 es
-    //    precision highp float;
-    //    in vec2 TexCoord;
-    //    out vec4 output_audio_texture;
-    //    uniform sampler2D input_audio_texture;
-    //    uniform sampler2D stream_audio_texture;
-    //    void main()
-    //    {
-    //        float color = texture(input_audio_texture, TexCoord).r + 0.02f;
-    //        float color2 = texture(stream_audio_texture, TexCoord).r + 0.002;
-    //        output_audio_texture = vec4(color+color2, 0.0, color2, 1.0);
-    //    }
-    //)glsl";
-    //REQUIRE(render_stage3.update_fragment_source(m_fragment_source3));
-    //audio_renderer.add_render_stage(render_stage3);
 
     //AudioRenderStage render_stage5 = AudioRenderStage(512, 44100, 2);
     //float * audio_buffer4 = new float[512*2]();
     //std::fill_n(audio_buffer4, 512*2, -0.3f);
 
     //// Create parameters for the audio generator ports in shader
-    //AudioRenderStageParameter input_audio_texture_parameter4 =
-    //        AudioRenderStageParameter("input_audio_texture",
-    //                                  AudioRenderStageParameter::Type::STREAM_INPUT,
-    //                                  512 * 2,
-    //                                  1,
-    //                                  (const float **) &audio_buffer4);
+    //auto input_audio_texture4 =
+    //    std::make_unique<AudioTexture2DParameter>("input_audio_texture",
+    //                          AudioParameter::ConnectionType::INPUT,
+    //                          512, 2);
+    //input_audio_texture4->set_value(audio_buffer4);
 
-    //AudioRenderStageParameter stream_audio_texture_parameter4 =
-    //        AudioRenderStageParameter("stream_audio_texture",
-    //                                  AudioRenderStageParameter::Type::STREAM_INPUT,
-    //                                  512 * 2,
-    //                                  1,
-    //                                  nullptr,
-    //                                  "output_audio_texture");
+    //auto stream_audio_texture4 = 
+    //    std::make_unique<AudioTexture2DParameter>("stream_audio_texture",
+    //                          AudioParameter::ConnectionType::PASSTHROUGH,
+    //                          512, 2);
+    
+    //auto output_audio_texture4 =
+    //    std::make_unique<AudioTexture2DParameter>("output_audio_texture",
+    //                          AudioParameter::ConnectionType::OUTPUT,
+    //                          512, 2);
 
-    //AudioRenderStageParameter output_audio_texture_parameter4 =
-    //        AudioRenderStageParameter("output_audio_texture",
-    //                                  AudioRenderStageParameter::Type::STREAM_OUTPUT,
-    //                                  512 * 2,
-    //                                  1);
-
-    //render_stage5.add_parameter_old(input_audio_texture_parameter4);
-    //render_stage5.add_parameter_old(stream_audio_texture_parameter4);
-    //render_stage5.add_parameter_old(output_audio_texture_parameter4);
+    //REQUIRE(render_stage5.add_parameter(std::move(input_audio_texture4)));
+    //REQUIRE(render_stage5.add_parameter(std::move(stream_audio_texture4)));
+    //REQUIRE(render_stage5.add_parameter(std::move(output_audio_texture4)));
 
     //REQUIRE(render_stage5.update_audio_buffer(audio_buffer4, 512*2));
     //const char * m_fragment_source4 = R"glsl(
@@ -182,7 +162,8 @@ TEST_CASE("AudioRenderer") {
 
     buffer = output_buffer->pop();
     for (int i = 0; i < 512*2; i++) {
-        REQUIRE(buffer[i] == Catch::Approx(-0.1f - 0.2f - 0.3f + 0.01f + 0.02f + 0.03f + 0.001f + 0.002f + 0.003f));
+        //REQUIRE(buffer[i] == Catch::Approx(-0.1f - 0.2f - 0.3f + 0.01f + 0.02f + 0.03f + 0.001f + 0.002f + 0.003f));
+        REQUIRE(buffer[i] == Catch::Approx(-0.1f - 0.2f + 0.01f + 0.02f + 0.001f + 0.002f));
     }
 
     t1.detach();

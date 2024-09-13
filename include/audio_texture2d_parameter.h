@@ -33,7 +33,7 @@ public:
 
     bool init() override;
 
-    void set_value(const void * value_ptr) override;
+    bool set_value(const void * value_ptr) override;
 
     void render_parameter() override;
 

@@ -91,13 +91,12 @@ TEST_CASE_METHOD(TestFixture, "AudioRendererStageTest_get_parameters_with_type")
 TEST_CASE_METHOD(TestFixture, "AudioRendererStageTest_add_parameter") {
     AudioRenderStage render_stage = AudioRenderStage(512, 44100, 2);
 
-    AudioTexture2DParameter parameter1 =
-            AudioTexture2DParameter(
+    auto parameter1 =std::make_unique<AudioTexture2DParameter>(
                                       "input_parameter",
                                       AudioParameter::ConnectionType::INPUT,
                                       512 * 2,
                                       1);
 
-    render_stage.add_parameter(std::make_unique<AudioTexture2DParameter>(parameter1));
+    render_stage.add_parameter(std::move(parameter1));
 }
 
