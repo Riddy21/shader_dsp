@@ -69,7 +69,6 @@ protected:
     )glsl"; // Default shader source (Kept in files for the future versions)
 
 public:
-    friend class AudioRenderer;
     // Constructor
     AudioRenderStage(const unsigned int frames_per_buffer,
                      const unsigned int sample_rate,
@@ -130,6 +129,7 @@ public:
      */
     void render_stage();
 
+    // Update values
     /**
      * @brief Update the fragment source
      * 
@@ -144,20 +144,21 @@ public:
      */
     bool update_audio_buffer(const float * audio_buffer, const unsigned int buffer_size);
 
-    GLuint get_texture_count() const {
-        return m_active_texture;
-    }
-
+    // Getters
     void set_texture_count(const GLuint count) {
         m_active_texture = count;
     }
 
-    GLuint get_color_attachment_count() const {
-        return m_color_attachment;
-    }
-
     void set_color_attachment_count(const GLuint count) {
         m_color_attachment = count;
+    }
+
+    GLuint get_texture_count() const {
+        return m_active_texture;
+    }
+
+    GLuint get_color_attachment_count() const {
+        return m_color_attachment;
     }
 
     GLuint get_shader_program() const {

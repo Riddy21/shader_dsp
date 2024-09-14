@@ -31,14 +31,10 @@ public:
         }
     }
 
-    bool init() override;
-
+    // Setters
     bool set_value(const void * value_ptr) override;
 
-    void render_parameter() override;
-
-    bool process_linked_params() override;
-
+    // Getters
     GLuint get_texture() const { return m_texture; }
 
 private:
@@ -51,6 +47,12 @@ private:
     private:
         float * m_data;
     };
+
+    bool init_parameter() override;
+
+    void render_parameter() override;
+
+    bool bind_parameter() override;
 
 
     GLuint m_texture;

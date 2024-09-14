@@ -14,6 +14,7 @@ class AudioRenderStage; // Forward declaration
 
 class AudioParameter {
 public:
+    friend class AudioRenderStage;
     enum ConnectionType {
         INPUT,
         PASSTHROUGH,
@@ -25,31 +26,23 @@ public:
     const ConnectionType connection_type;
 
     ~AudioParameter() {
-        //delete m_deleter;
     }
 
-    virtual bool init() = 0;
-
-    virtual bool set_value(const void * value_ptr) = 0;
-
-    virtual bool link_to_parameter(const AudioParameter * parameter) {
+    // Linking to other parameters
+    virtual bool link(const AudioParameter * parameter) {
         m_linked_parameter = parameter;
         return true;
     }
 
-    virtual void render_parameter() = 0;
+    // Setters
+    virtual bool set_value(const void * value_ptr) = 0;
 
-    virtual bool process_linked_params() = 0;
-
+    // Getters
     const void * const get_value() const {
         return m_value;
     }
 
-    void link_render_stage(AudioRenderStage * render_stage) {
-        m_render_stage_linked = render_stage;
-    }
-
-    bool is_linked() const {
+    bool is_connected() const {
         return m_linked_parameter != nullptr;
     }
 
@@ -64,6 +57,16 @@ protected:
         : name(name),    
           connection_type(connection_type)
     {};
+
+    virtual bool init_parameter() = 0;
+
+    virtual bool bind_parameter() = 0;
+
+    virtual void render_parameter() = 0;
+
+    void link_render_stage(AudioRenderStage * render_stage) {
+        m_render_stage_linked = render_stage;
+    }
 
     std::unique_ptr<ParamData> m_data = nullptr;
     void * m_value = nullptr;

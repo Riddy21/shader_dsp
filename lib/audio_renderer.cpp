@@ -132,7 +132,6 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     }
 
     // initialize all the render stages
-    // TODO: Find way to make this more intuitive
     for (auto& stage : m_render_stages) {
         if (!stage->compile_shader_program()) {
             std::cerr << "Failed to compile render stages" << std::endl;
@@ -206,23 +205,12 @@ void AudioRenderer::render(int value)
     glClear(GL_COLOR_BUFFER_BIT);
 
     for (int i = 0; i < (int)m_num_stages; i++) {
-        // Use the shader program of the stage
-        glUseProgram(m_render_stages[i]->m_shader_program);
-
-        // bind the framebuffer of the stage
-        // If on the last stage, bind the screen
-        glBindFramebuffer(GL_FRAMEBUFFER, m_render_stages[i]->m_framebuffer);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
         // Render the stage
         m_render_stages[i]->render_stage();
 
         // Bind the vertex array and draw
         glBindVertexArray(m_VAO);
         glDrawArrays(GL_TRIANGLES, 0, 6);
-
-        // Unbind the texture
-        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     // Bind the color attachment we are on
@@ -245,7 +233,6 @@ void AudioRenderer::render(int value)
     // Unbind everything
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(0);
 
     // Calculate the delay in milliseconds based on the sample rate

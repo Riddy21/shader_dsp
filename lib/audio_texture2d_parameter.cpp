@@ -7,7 +7,7 @@
 
 const float AudioTexture2DParameter::FLAT_COLOR[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-bool AudioTexture2DParameter::init() {
+bool AudioTexture2DParameter::init_parameter() {
     if (m_render_stage_linked == nullptr) {
         printf("Error: render stage linked is nullptr in parameter %s\n", name);
         return false;
@@ -88,7 +88,7 @@ bool AudioTexture2DParameter::set_value(const void * value_ptr) {
     return true;
 }
 
-bool AudioTexture2DParameter::process_linked_params() {
+bool AudioTexture2DParameter::bind_parameter() {
     // Pass if parameter is not an output or passthrough
     if (connection_type != ConnectionType::OUTPUT) {
         return true;

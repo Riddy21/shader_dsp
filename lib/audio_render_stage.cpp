@@ -102,7 +102,7 @@ bool AudioRenderStage::compile_parameters() {
         return false;
     }
     for (auto &param : m_parameters) {
-        if (!param->init()) {
+        if (!param->init_parameter()) {
             printf("Error: Failed to initialize parameter %s\n", param->name);
             return false;
         }
@@ -112,7 +112,7 @@ bool AudioRenderStage::compile_parameters() {
 
 bool AudioRenderStage::link_params() {
     for (auto &param : m_parameters) {
-        if (!param->process_linked_params()) {
+        if (!param->bind_parameter()) {
             printf("Error: Failed to process linked parameters for %s\n", param->name);
             return false;
         }
@@ -127,11 +127,21 @@ bool AudioRenderStage::link_params() {
 
 void AudioRenderStage::render_stage() {
     m_active_texture = 0;
+    
+    // Use the shader program of the stage
+    glUseProgram(m_shader_program);
+
+    // Bind the framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Render parameters
     for (auto &param : m_parameters) {
         param->render_parameter();
         m_active_texture ++;
     }
-
+    
+    // NOTE: Should unbind, but makes API a lot more convoluted
 }
 
 bool AudioRenderStage::update_fragment_source(GLchar const *fragment_source) {
