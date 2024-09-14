@@ -143,6 +143,15 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
             return false;
         }
     }
+
+    // Link parameters
+    for (auto& stage : m_render_stages) {
+        if (!stage->link_params()) {
+            std::cerr << "Failed to link render stages" << std::endl;
+            return false;
+        }
+    }
+
     std::cout << "Render stages compiled successfully." << std::endl;
 
     // FIXME: Verify all stages and output parameters are good
@@ -219,7 +228,8 @@ void AudioRenderer::render(int value)
     }
 
     // Bind the color attachment we are on
-    glReadBuffer(GL_COLOR_ATTACHMENT0 + m_render_stages[m_num_stages - 1]->get_color_attachment_count() - 1); // Change to the specific color attachment you want to read from
+    glReadBuffer(GL_COLOR_ATTACHMENT0 + m_render_stages[m_num_stages - 1]->get_color_attachment_count()); // Change to the specific color attachment you want to read from
+    printf("output parameter color attachment: %d\n", m_render_stages[m_num_stages - 1]->get_color_attachment_count());
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);

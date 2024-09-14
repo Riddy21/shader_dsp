@@ -42,33 +42,6 @@ bool AudioTexture2DParameter::init() {
         glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, nullptr);
     }
     
-    // Link frame buffer to texture if output
-    if (connection_type == ConnectionType::OUTPUT) {
-        printf("Binding framebuffer to texture: %s\n", name);
-        // bind the frame buffer
-        glBindFramebuffer(GL_FRAMEBUFFER, m_render_stage_linked->get_framebuffer());
-        // Link the texture to the framebuffer
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + m_render_stage_linked->get_color_attachment_count(),
-                               GL_TEXTURE_2D, m_texture, 0);
-        // Draw the buffer
-        GLenum draw_buffers[1] = { GL_COLOR_ATTACHMENT0 + m_render_stage_linked->get_color_attachment_count() };
-        glDrawBuffers(1, draw_buffers);
-
-        // Check for errors 
-        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        if (status != GL_FRAMEBUFFER_COMPLETE) {
-            printf("Error: Framebuffer is not complete in parameter %s\n", name);
-            return false;
-        }
-
-        // Unbind the framebuffer
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    }
-
-    if (m_linked_parameter != nullptr) {
-        printf("Linked parameter texture value is: %d\n", static_cast<const AudioTexture2DParameter*>(m_linked_parameter)->get_texture());
-    }
-
     GLenum status = glGetError();
     if (status != GL_NO_ERROR) {
         printf("Error: OpenGL error in parameter %s\n", name);
@@ -116,6 +89,73 @@ bool AudioTexture2DParameter::set_value(const void * value_ptr) {
     std::memcpy(m_data->get_data(), float_value_ptr, m_parameter_width * m_parameter_height * sizeof(float));
 
     return true;
+}
+
+bool AudioTexture2DParameter::process_linked_params() {
+    // Pass if parameter is not an output or passthrough
+    if (connection_type != ConnectionType::OUTPUT) {
+        return true;
+    }
+    
+    const AudioTexture2DParameter* linked_param = nullptr;
+    if (m_linked_parameter == nullptr) {
+        // If not linked, then tie off
+        linked_param = this;
+        printf("Output parameter %s is tied off\n", name);
+    } else {
+        //Check if the linked parameter is an AudioTexture2DParameter
+        linked_param = dynamic_cast<const AudioTexture2DParameter*>(m_linked_parameter);
+        printf("Output parameter %s linked to passthrough parameter %s\n", name, linked_param->name);
+    }
+
+    if (linked_param == nullptr) {
+        printf("Error: Linked parameter is not an AudioTexture2DParameter in parameter %s\n", name);
+        return false;
+    }
+
+    // Check if linked parameter is initialized
+    if (linked_param->get_texture() == 0) {
+        printf("Error: Linked parameter texture is not initialized in parameter %s\n", name);
+        return false;
+    }
+
+    if (linked_param->connection_type != ConnectionType::PASSTHROUGH && linked_param != this) {
+        printf("Error: Linked parameter is not a passthrough in parameter %s\n", name);
+        return false;
+    }
+
+    // bind the frame buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, m_render_stage_linked->get_framebuffer());
+
+    glBindTexture(GL_TEXTURE_2D, linked_param->get_texture());
+
+    // Link the texture to the framebuffer
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + m_render_stage_linked->get_color_attachment_count(),
+                           GL_TEXTURE_2D, linked_param->get_texture(), 0);
+
+    // Draw the buffer
+    GLenum draw_buffers[1] = { GL_COLOR_ATTACHMENT0 + m_render_stage_linked->get_color_attachment_count() };
+    glDrawBuffers(1, draw_buffers);
+
+    printf("output parameter %s color attachment: %d\n", name, m_render_stage_linked->get_color_attachment_count());
+
+    // Check for errors 
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        printf("Error: Framebuffer is not complete in parameter %s\n", name);
+        return false;
+    }
+
+    // Unbind the framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Unbind texture
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return true;
+
+
+
 }
 
 

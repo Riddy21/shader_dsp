@@ -37,14 +37,20 @@ public:
         return true;
     }
 
+    virtual void render_parameter() = 0;
+
+    virtual bool process_linked_params() = 0;
+
     const void * const get_value() const {
         return m_value;
     }
 
-    virtual void render_parameter() = 0;
-
     void link_render_stage(const AudioRenderStage * render_stage) {
         m_render_stage_linked = render_stage;
+    }
+
+    bool is_linked() const {
+        return m_linked_parameter != nullptr;
     }
 
 protected:

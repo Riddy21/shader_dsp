@@ -7,7 +7,6 @@
 #include <GL/glew.h>
 
 #include "audio_parameter.h"
-#include "audio_render_stage_parameter.h"
 
 class AudioParameter;
 
@@ -23,8 +22,6 @@ private:
     GLuint m_active_texture = 0;
 
     // Parameters
-    std::vector<AudioRenderStageParameter> m_parameters_old;
-
     std::vector<std::unique_ptr<AudioParameter>> m_parameters;
 
     /**
@@ -101,6 +98,13 @@ public:
     bool init_params();
 
     /**
+     * @brief Process linked parameters together
+     * 
+     * @return True if success
+     */
+    bool link_params();
+
+    /**
      * @brief Loads audio data into the specified buffer index.
      * 
      * This function is responsible for loading audio data into the buffer specified by the buffer_index parameter.
@@ -117,48 +121,14 @@ public:
      * @param parameter The parameter to add
      * @return True if the parameter is successfully added, false otherwise.
      */
-    // FIXME: delete this
-    bool add_parameter_old(AudioRenderStageParameter & parameter);
-
     bool add_parameter(std::unique_ptr<AudioParameter> parameter);
 
+    /**
+     * @brief Render the stage.
+     * 
+     * This function is responsible for rendering the stage and all parameters
+     */
     void render_stage();
-
-    /**
-     * @brief Returns the parameters of the render stage.
-     * 
-     * This function returns the parameters of the render stage with the type specified
-     * 
-     * @param type The type of the parameter.
-     * 
-     * @return The parameters of the render stage.
-     */
-    std::unordered_map<const char *, AudioRenderStageParameter &> get_parameters_with_type(AudioRenderStageParameter::Type type);
-
-    /**
-     * @brief Returns the parameters of the render stage.
-     * 
-     * This function returns the parameters of the render stage with the types specified
-     * 
-     * @param types The types of the parameters.
-     * 
-     * @return The parameters of the render stage.
-     */
-    std::unordered_map<const char *, AudioRenderStageParameter &> get_parameters_with_types(std::vector<AudioRenderStageParameter::Type> types);
-
-    /**
-     * @brief Link this stage to another stage
-     * 
-     * This function links this render stage to another stage by linking frame buffers and textures of 2 stages
-     */
-    static bool link_stages(AudioRenderStage & stage1, AudioRenderStage & stage2);
-
-    /**
-     * @brief Tie off the output stage
-     * 
-     * This function ties off the output stage by linking the frame buffer to the screen
-     */
-    static bool tie_off_output_stage(AudioRenderStage & stage);
 
     /**
      * @brief Update the fragment source
@@ -175,7 +145,6 @@ public:
     bool update_audio_buffer(const float * audio_buffer, const unsigned int buffer_size);
 
     GLuint get_texture_count() const {
-        // FIXME: This should reflect that actually texture count later
         return m_active_texture;
     }
 

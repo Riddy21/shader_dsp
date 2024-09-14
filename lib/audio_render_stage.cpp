@@ -2,7 +2,6 @@
 #include <cstring>
 #include "audio_renderer.h"
 #include "audio_render_stage.h"
-#include "audio_render_stage_parameter.h"
 
 AudioRenderStage::~AudioRenderStage() {
     // Delete the framebuffer
@@ -116,133 +115,22 @@ bool AudioRenderStage::compile_parameters() {
             printf("Error: Failed to initialize parameter %s\n", param->name);
             return false;
         }
-        // Increment the color attachment
-        m_color_attachment++;
     }
     return true;
 }
 
-bool AudioRenderStage::link_stages(AudioRenderStage &stage1, AudioRenderStage &stage2)
-{
-    // Check for the stage1's output parameters match the stage2's input parameters
-    auto output_params = stage1.get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_OUTPUT);
-    auto input_params = stage2.get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_INPUT);
-
-    // link the params
-    for (auto &output_param : output_params) {
-        // Find in input_params
-        auto input_param = input_params.find(output_param.second.link_name);
-        if (input_param == input_params.end()) {
-            std::cerr << "Error: Output parameter " << output_param.first << " link name " << output_param.second.link_name << " not found in input parameters." << std::endl;
+bool AudioRenderStage::link_params() {
+    for (auto &param : m_parameters) {
+        if (!param->process_linked_params()) {
+            printf("Error: Failed to process linked parameters for %s\n", param->name);
             return false;
         }
-        // Check if the parameters are compatible
-        if (output_param.second.parameter_width != input_param->second.parameter_width ||
-            output_param.second.parameter_height != input_param->second.parameter_height) {
-            std::cerr << "Error: Output parameter and input parameter dimensions do not match." << std::endl;
-            return false;
-        }
-        if (output_param.second.internal_format != input_param->second.internal_format) {
-            std::cerr << "Error: Output parameter and input parameter internal formats do not match." << std::endl;
-            return false;
-        }
-        if (output_param.second.format != input_param->second.format) {
-            std::cerr << "Error: Output parameter and input parameter formats do not match." << std::endl;
-            return false;
-        }
-        if (output_param.second.datatype != input_param->second.datatype) {
-            std::cerr << "Error: Output parameter and input parameter data types do not match." << std::endl;
-            return false;
-        }
-        if (output_param.second.data != nullptr) {
-            std::cerr << "Error: Output parameter has data bound" << std::endl;
-            return false;
-        }
-        if (input_param->second.data != nullptr) {
-            std::cerr << "Error: Input parameter has data bound" << std::endl;
-            return false;
-        }
-        if (input_param->second.m_is_bound || output_param.second.m_is_bound) {
-            std::cerr << "Error: Input parameter is already bound" << std::endl;
-            return false;
-        }
-        if (input_param->second.m_texture == 0) {
-            std::cerr << "Error: Input parameter texture is not generated" << std::endl;
-            return false;
-        }
-        if (output_param.second.m_framebuffer == 0) {
-            std::cerr << "Error: Output parameter framebuffer is not generated" << std::endl;
-            return false;
-        }
-
-        printf("Binding %s to %s\n", output_param.first, input_param->first);
-            
-        AudioRenderStageParameter::bind_framebuffer_to_texture(output_param.second, input_param->second);
-
-        // Check the is_bound flag
-        if (!input_param->second.m_is_bound) {
-            std::cerr << "Error: Output parameter " << output_param.first << " is not bound." << std::endl;
-            return false;
+        // Only increment if the parameter is an output
+        if (param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
+            m_color_attachment++;
         }
     }
-
-    return true;
-}
-
-bool AudioRenderStage::tie_off_output_stage(AudioRenderStage & stage){
-    auto output_params = stage.get_parameters_with_type(AudioRenderStageParameter::Type::STREAM_OUTPUT);
-
-    // There can only be one output parameter at the end
-    if (output_params.size() != 1) {
-        std::cerr << "Error: Final stage must have only one output parameter." << std::endl;
-        return false;
-    }
-
-    // link the params
-    for (auto &output_param : output_params) {
-        if (output_param.second.data != nullptr) {
-            std::cerr << "Error: Output parameter has data bound" << std::endl;
-            return false;
-        }
-        if (output_param.second.m_is_bound) {
-            std::cerr << "Error: Input parameter is already bound" << std::endl;
-            return false;
-        }
-        if (output_param.second.m_framebuffer == 0) {
-            std::cerr << "Error: Output parameter framebuffer is not generated" << std::endl;
-            return false;
-        }
-        if (output_param.second.m_texture == 0) {
-            std::cerr << "Error: Output parameter texture is not generated" << std::endl;
-            return false;
-        }
-        if (output_param.second.parameter_width * output_param.second.parameter_height != stage.m_frames_per_buffer * stage.m_num_channels) {
-            std::cerr << "Error: Output parameter width must be the same as the buffer size." << std::endl;
-            return false;
-        }
-        if (output_param.second.internal_format != GL_R32F) {
-            std::cerr << "Error: Output parameter internal format must be GL_R32F." << std::endl;
-            return false;
-        }
-        if (output_param.second.format != GL_RED) {
-            std::cerr << "Error: Output parameter format must be GL_RED." << std::endl;
-            return false;
-        }
-        if (output_param.second.datatype != GL_FLOAT) {
-            std::cerr << "Error: Output parameter data type must be GL_FLOAT." << std::endl;
-            return false;
-        }
-
-        printf("Tying off %s to output\n", output_param.first);
-        AudioRenderStageParameter::bind_framebuffer_to_texture(output_param.second, output_param.second);
-
-        // Check the is_bound flag
-        if (!output_param.second.m_is_bound) {
-            std::cerr << "Error: Output parameter " << output_param.first << " is not bound." << std::endl;
-            return false;
-        }
-    }
-
+    m_color_attachment--; // Decrement the color attachment to the last one
     return true;
 }
 
@@ -258,22 +146,22 @@ void AudioRenderStage::render_stage() {
 bool AudioRenderStage::update_fragment_source(GLchar const *fragment_source) {
     // Check if fragment source contains all nessesary variables
     // Check input parameters
-    for (auto &param : m_parameters_old) {
-        if (param.type == AudioRenderStageParameter::Type::INITIALIZATION) {
-            if (strstr(fragment_source, ("uniform sampler2D " + std::string(param.name)).c_str()) == nullptr) {
-                std::cerr << "Error: Fragment source does not contain initialization parameter " << param.name << std::endl;
+    for (auto &param : m_parameters) {
+        if (param->connection_type == AudioParameter::ConnectionType::INITIALIZATION) {
+            if (strstr(fragment_source, ("uniform sampler2D " + std::string(param->name)).c_str()) == nullptr) {
+                std::cerr << "Error: Fragment source does not contain initialization parameter " << param->name << std::endl;
                 return false;
             }
         }
-        if (param.type == AudioRenderStageParameter::Type::STREAM_INPUT) {
-            if (strstr(fragment_source, ("uniform sampler2D " + std::string(param.name)).c_str()) == nullptr) {
-                std::cerr << "Error: Fragment source does not contain input parameter " << param.name << std::endl;
+        if (param->connection_type == AudioParameter::ConnectionType::INPUT) {
+            if (strstr(fragment_source, ("uniform sampler2D " + std::string(param->name)).c_str()) == nullptr) {
+                std::cerr << "Error: Fragment source does not contain input parameter " << param->name << std::endl;
                 return false;
             }
         }
-        if (param.type == AudioRenderStageParameter::Type::STREAM_OUTPUT) {
-            if (strstr(fragment_source, param.name) == nullptr) {
-                std::cerr << "Error: Fragment source does not contain output parameter " << param.name << std::endl;
+        if (param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
+            if (strstr(fragment_source, param->name) == nullptr) {
+                std::cerr << "Error: Fragment source does not contain output parameter " << param->name << std::endl;
                 return false;
             }
         }
@@ -292,39 +180,6 @@ bool AudioRenderStage::update_audio_buffer(const float *audio_buffer, const unsi
     return true;
 }
 
-bool AudioRenderStage::add_parameter_old(AudioRenderStageParameter &parameter) {
-    // Double check parameter values
-    if (parameter.name == nullptr) {
-        std::cerr << "Error: Parameter name is null." << std::endl;
-        return false;
-    }
-    if (parameter.type == AudioRenderStageParameter::Type::STREAM_INPUT &&
-        parameter.link_name == nullptr &&
-        parameter.data == nullptr) {
-        std::cerr << "Error: Cannot have input parameter with no connected output and no data" << std::endl;
-        return false;
-    }
-    if (parameter.type == AudioRenderStageParameter::Type::STREAM_OUTPUT &&
-        parameter.data != nullptr) {
-        std::cerr << "Error: Cannot have output parameter with data" << std::endl;
-        return false;
-    }
-    if (parameter.parameter_width == 0 || parameter.parameter_height == 0) {
-        std::cerr << "Error: Parameter width or height is 0." << std::endl;
-        return false;
-    }
-    if (parameter.format == GL_RED &&
-        parameter.internal_format != GL_R8 &&
-        parameter.internal_format != GL_R16F &&
-        parameter.internal_format != GL_R32F) {
-        std::cerr << "Error: Invalid internal format for RED format." << std::endl;
-        return false;
-    }
-
-    m_parameters_old.push_back(parameter);
-    return true;
-}
-
 bool AudioRenderStage::add_parameter(std::unique_ptr<AudioParameter> parameter) {
     // Link parameter to the stage
     parameter->link_render_stage(this);
@@ -333,29 +188,3 @@ bool AudioRenderStage::add_parameter(std::unique_ptr<AudioParameter> parameter) 
     m_parameters.push_back(std::move(parameter));
     return true;
 }
-
-
-
-std::unordered_map<const char *, AudioRenderStageParameter &> AudioRenderStage::get_parameters_with_type(AudioRenderStageParameter::Type type) {
-    std::unordered_map<const char *, AudioRenderStageParameter &> output_parameters;
-    for (auto &param : m_parameters_old) {
-        if (param.type == type) {
-            output_parameters.emplace(param.name, param);
-        }
-    }
-    return output_parameters;
-}
-
-std::unordered_map<const char *, AudioRenderStageParameter &> AudioRenderStage::get_parameters_with_types(std::vector<AudioRenderStageParameter::Type> types)
-{
-    std::unordered_map<const char *, AudioRenderStageParameter &> output_parameters;
-    for (auto &param : m_parameters_old) {
-        for (auto &type : types) {
-            if (param.type == type) {
-                output_parameters.emplace(param.name, param);
-            }
-        }
-    }
-    return output_parameters;
-}
-

@@ -37,6 +37,8 @@ public:
 
     void render_parameter() override;
 
+    bool process_linked_params() override;
+
     GLuint get_texture() const { return m_texture; }
 
 private:

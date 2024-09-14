@@ -26,51 +26,6 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
 
         m_full_audio_data_ptr = m_full_audio_data.data();
 
-        // FIXME: Delete these
-        // Create parameters for the audio generator ports in shader
-        AudioRenderStageParameter beginning_audio_texture_parameter = 
-                AudioRenderStageParameter("beginning_audio_texture",
-                                          AudioRenderStageParameter::Type::INITIALIZATION,
-                                          width,
-                                          height,
-                                          &m_full_audio_data_ptr);
-
-        AudioRenderStageParameter input_audio_texture_parameter = 
-                AudioRenderStageParameter("input_audio_texture",
-                                          AudioRenderStageParameter::Type::STREAM_INPUT,
-                                          m_frames_per_buffer * m_num_channels,
-                                          1,
-                                          &m_audio_buffer);
-
-        AudioRenderStageParameter stream_audio_texture_parameter = 
-                AudioRenderStageParameter("stream_audio_texture",
-                                          AudioRenderStageParameter::Type::STREAM_INPUT,
-                                          m_frames_per_buffer * m_num_channels,
-                                          1,
-                                          nullptr,
-                                          "output_audio_texture");
-
-        AudioRenderStageParameter output_audio_texture_parameter =
-                AudioRenderStageParameter("output_audio_texture",
-                                          AudioRenderStageParameter::Type::STREAM_OUTPUT,
-                                          m_frames_per_buffer * m_num_channels,
-                                          1,
-                                          nullptr,
-                                          "stream_audio_texture");
-
-        if (!this->add_parameter_old(beginning_audio_texture_parameter)) {
-            std::cerr << "Failed to add beginning_audio_texture_parameter" << std::endl;
-        }
-        if (!this->add_parameter_old(input_audio_texture_parameter)) {
-            std::cerr << "Failed to add input_audio_texture_parameter" << std::endl;
-        }
-        if (!this->add_parameter_old(stream_audio_texture_parameter)) {
-            std::cerr << "Failed to add stream_audio_texture_parameter" << std::endl;
-        }
-        if (!this->add_parameter_old(output_audio_texture_parameter)) {
-            std::cerr << "Failed to add output_audio_texture_parameter" << std::endl;
-        }
-
         // Add new parameter objects to the parameter list
         auto beginning_audio_texture =
             std::make_unique<AudioTexture2DParameter>("beginning_audio_texture",
