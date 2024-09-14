@@ -19,13 +19,13 @@ TEST_CASE("AudioRenderer") {
     auto input_audio_texture =
         std::make_unique<AudioTexture2DParameter>("input_audio_texture",
                               AudioParameter::ConnectionType::INPUT,
-                              512, 2);
+                              512 * 2, 1);
     REQUIRE(input_audio_texture->set_value(audio_buffer));
 
     auto output_audio_texture =
         std::make_unique<AudioTexture2DParameter>("output_audio_texture",
                               AudioParameter::ConnectionType::OUTPUT,
-                              512, 2);
+                              512 * 2, 1);
 
     REQUIRE(render_stage2.update_audio_buffer(audio_buffer, 512*2));
     const char * m_fragment_source2 = R"glsl(
@@ -55,18 +55,18 @@ TEST_CASE("AudioRenderer") {
     auto input_audio_texture2 =
         std::make_unique<AudioTexture2DParameter>("input_audio_texture",
                               AudioParameter::ConnectionType::INPUT,
-                              512, 2);
+                              512 * 2, 1);
     REQUIRE(input_audio_texture2->set_value(audio_buffer2));
 
     auto stream_audio_texture2 = 
         std::make_unique<AudioTexture2DParameter>("stream_audio_texture",
                               AudioParameter::ConnectionType::PASSTHROUGH,
-                              512, 2);
+                              512 * 2, 1);
     
     auto output_audio_texture2 =
         std::make_unique<AudioTexture2DParameter>("output_audio_texture",
                               AudioParameter::ConnectionType::OUTPUT,
-                              512, 2);
+                              512 * 2, 1);
 
     REQUIRE(render_stage3.update_audio_buffer(audio_buffer2, 512*2));
     const char * m_fragment_source3 = R"glsl(

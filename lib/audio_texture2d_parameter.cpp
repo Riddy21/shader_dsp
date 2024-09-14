@@ -15,7 +15,6 @@ bool AudioTexture2DParameter::init() {
 
     // Generate the texture
     glGenTextures(1, &m_texture);
-    printf("Parameter %s texture generated: %d\n", name, m_texture);
 
     // Bind the texture
     glBindTexture(GL_TEXTURE_2D, m_texture);
@@ -47,8 +46,6 @@ bool AudioTexture2DParameter::init() {
         printf("Error: OpenGL error in parameter %s\n", name);
         return false;
     }
-
-    printf("Texture location: %d\n", m_texture);
 
     // Unbind the texture
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -101,11 +98,9 @@ bool AudioTexture2DParameter::process_linked_params() {
     if (m_linked_parameter == nullptr) {
         // If not linked, then tie off
         linked_param = this;
-        printf("Output parameter %s is tied off\n", name);
     } else {
         //Check if the linked parameter is an AudioTexture2DParameter
         linked_param = dynamic_cast<const AudioTexture2DParameter*>(m_linked_parameter);
-        printf("Output parameter %s linked to passthrough parameter %s\n", name, linked_param->name);
     }
 
     if (linked_param == nullptr) {
@@ -136,8 +131,6 @@ bool AudioTexture2DParameter::process_linked_params() {
     // Draw the buffer
     GLenum draw_buffers[1] = { GL_COLOR_ATTACHMENT0 + m_render_stage_linked->get_color_attachment_count() };
     glDrawBuffers(1, draw_buffers);
-
-    printf("output parameter %s color attachment: %d\n", name, m_render_stage_linked->get_color_attachment_count());
 
     // Check for errors 
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);

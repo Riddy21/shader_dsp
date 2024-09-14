@@ -148,8 +148,16 @@ public:
         return m_active_texture;
     }
 
+    void set_texture_count(const GLuint count) {
+        m_active_texture = count;
+    }
+
     GLuint get_color_attachment_count() const {
         return m_color_attachment;
+    }
+
+    void set_color_attachment_count(const GLuint count) {
+        m_color_attachment = count;
     }
 
     GLuint get_shader_program() const {

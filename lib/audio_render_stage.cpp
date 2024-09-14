@@ -45,9 +45,6 @@ bool AudioRenderStage::compile_shader_program() {
         std::cerr << "Error compiling vertex shader: " << info_log << std::endl;
         return 0;
     }
-    printf("Compiled vertex shader\n");
-    printf("Vertex source: %s\n", vertex_source);
-
     // Compile the fragment shader
     glShaderSource(fragment_shader, 1, &fragment_source, NULL);
     glCompileShader(fragment_shader);
@@ -61,9 +58,6 @@ bool AudioRenderStage::compile_shader_program() {
         std::cerr << "Error compiling fragment shader: " << info_log << std::endl;
         return 0;
     }
-    printf("Compiled fragment shader\n");
-    printf("Fragment source: %s\n", fragment_source);
-
     // Create the shader program
     GLuint shader_program = glCreateProgram();
     glAttachShader(shader_program, vertex_shader);
@@ -79,21 +73,18 @@ bool AudioRenderStage::compile_shader_program() {
         std::cerr << "Error linking shader program: " << info_log << std::endl;
         return 0;
     }
-    printf("Linked shader program\n");
 
     // Delete the shaders
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
     m_shader_program = shader_program;
-    printf("Shader program: %d\n", m_shader_program);
 
     return true;
 }
 
 bool AudioRenderStage::initialize_framebuffer() {
     glGenFramebuffers(1, &m_framebuffer);
-    printf("Initialized framebuffer %d\n", m_framebuffer);
     if (m_framebuffer == 0) {
         std::cerr << "Error: Failed to generate framebuffer." << std::endl;
         return false;
@@ -125,12 +116,12 @@ bool AudioRenderStage::link_params() {
             printf("Error: Failed to process linked parameters for %s\n", param->name);
             return false;
         }
-        // Only increment if the parameter is an output
+        // Only increment color attachment if the parameter is an output
         if (param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
-            m_color_attachment++;
+            m_color_attachment ++;
         }
     }
-    m_color_attachment--; // Decrement the color attachment to the last one
+    m_color_attachment --; // Decrement to get the correct number of color attachments
     return true;
 }
 
@@ -138,7 +129,7 @@ void AudioRenderStage::render_stage() {
     m_active_texture = 0;
     for (auto &param : m_parameters) {
         param->render_parameter();
-        m_active_texture++;
+        m_active_texture ++;
     }
 
 }

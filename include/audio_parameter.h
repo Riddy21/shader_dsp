@@ -45,7 +45,7 @@ public:
         return m_value;
     }
 
-    void link_render_stage(const AudioRenderStage * render_stage) {
+    void link_render_stage(AudioRenderStage * render_stage) {
         m_render_stage_linked = render_stage;
     }
 
@@ -67,7 +67,7 @@ protected:
 
     std::unique_ptr<ParamData> m_data = nullptr;
     void * m_value = nullptr;
-    const AudioRenderStage * m_render_stage_linked = nullptr;
+    AudioRenderStage * m_render_stage_linked = nullptr;
     const AudioParameter * m_linked_parameter = nullptr;
 };
 
