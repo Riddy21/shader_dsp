@@ -62,8 +62,6 @@ void AudioTexture2DParameter::render_parameter() {
 
     if (connection_type == ConnectionType::INPUT) {
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_parameter_width, m_parameter_height, m_format, m_datatype, m_data->get_data());
-    } else if (connection_type == ConnectionType::PASSTHROUGH) {
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_parameter_width, m_parameter_height, m_format, m_datatype, nullptr);
     }
 }
 

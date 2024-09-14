@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstring>
+#include <string>
 #include "audio_renderer.h"
 #include "audio_render_stage.h"
 
@@ -30,8 +31,8 @@ bool AudioRenderStage::initialize_shader_stage() {
 }
 
 bool AudioRenderStage::initialize_shader_program() {
-    const GLchar * vertex_source = AudioRenderer::get_instance().m_vertex_source;
-    const GLchar * fragment_source = m_fragment_source;
+    const GLchar * vertex_source = AudioRenderer::get_instance().get_vertex_source();
+    const GLchar * fragment_source = get_fragment_source();
 
     // Create the vertex and fragment shaders
     GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
@@ -130,7 +131,7 @@ bool AudioRenderStage::bind_shader_stage() {
     return true;
 }
 
-void AudioRenderStage::render_render_stage() {
+void AudioRenderStage::render_render_stage(const unsigned int frame) {
     m_active_texture = 0;
     
     // Use the shader program of the stage
@@ -142,48 +143,15 @@ void AudioRenderStage::render_render_stage() {
 
     // Render parameters
     for (auto &param : m_parameters) {
+        // FIXME: Change to dict
+        if (std::string(param->name) == std::string("time")) {
+            param->set_value(&frame);
+        }
         param->render_parameter();
         m_active_texture ++;
     }
     
     // NOTE: Should unbind, but makes API a lot more convoluted
-}
-
-bool AudioRenderStage::update_fragment_source(GLchar const *fragment_source) {
-    // Check if fragment source contains all nessesary variables
-    // Check input parameters
-    for (auto &param : m_parameters) {
-        if (param->connection_type == AudioParameter::ConnectionType::INITIALIZATION) {
-            if (strstr(fragment_source, ("uniform sampler2D " + std::string(param->name)).c_str()) == nullptr) {
-                std::cerr << "Error: Fragment source does not contain initialization parameter " << param->name << std::endl;
-                return false;
-            }
-        }
-        if (param->connection_type == AudioParameter::ConnectionType::INPUT) {
-            if (strstr(fragment_source, ("uniform sampler2D " + std::string(param->name)).c_str()) == nullptr) {
-                std::cerr << "Error: Fragment source does not contain input parameter " << param->name << std::endl;
-                return false;
-            }
-        }
-        if (param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
-            if (strstr(fragment_source, param->name) == nullptr) {
-                std::cerr << "Error: Fragment source does not contain output parameter " << param->name << std::endl;
-                return false;
-            }
-        }
-    }
-
-    m_fragment_source = fragment_source;
-    return true;
-}
-
-bool AudioRenderStage::update_audio_buffer(const float *audio_buffer, const unsigned int buffer_size) {
-    if (buffer_size != m_frames_per_buffer * m_num_channels) {
-        printf("Error: Buffer size must be the same as the frames per buffer * num channels\n");
-        return false;
-    }
-    m_audio_buffer = audio_buffer;
-    return true;
 }
 
 bool AudioRenderStage::add_parameter(std::unique_ptr<AudioParameter> parameter) {

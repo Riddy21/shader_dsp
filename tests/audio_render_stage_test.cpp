@@ -36,4 +36,3 @@ TEST_CASE_METHOD(TestFixture, "AudioRendererStageTest_add_parameter") {
 
     render_stage.add_parameter(std::move(parameter1));
 }
-

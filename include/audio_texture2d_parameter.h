@@ -42,7 +42,7 @@ private:
     public:
         ParamFloatData(unsigned int size)
                 : m_data(new float[size]()) {}
-        virtual ~ParamFloatData() override { delete[] m_data; }
+        ~ParamFloatData() override { delete[] m_data; }
         void * get_data() const override { return m_data; }
     private:
         float * m_data;

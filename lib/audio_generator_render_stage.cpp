@@ -6,6 +6,7 @@
 
 #include "audio_wav.h"
 #include "audio_texture2d_parameter.h"
+#include "audio_int_parameter.h"
 #include "audio_generator_render_stage.h"
 
 AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
@@ -15,7 +16,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     : AudioRenderStage(frames_per_buffer, sample_rate, num_channels),
       m_audio_filepath(audio_filepath) {
         // Load the audio data filepath into the full_audio_data vector
-        m_full_audio_data = load_audio_data_from_file(audio_filepath);
+        auto m_full_audio_data = load_audio_data_from_file(audio_filepath);
 
         // Determine width and height based on MAX_TEXTURE_SIZE round to nearest multiple of MAX_TEXTURE_SIZE
         const unsigned int width = std::max((unsigned)MAX_TEXTURE_SIZE, m_frames_per_buffer * m_num_channels);
@@ -24,42 +25,32 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         // Fill the rest with zeros
         m_full_audio_data.resize(width * height, 0.0f);
 
-        m_full_audio_data_ptr = m_full_audio_data.data();
-
         // Add new parameter objects to the parameter list
-        auto beginning_audio_texture =
-            std::make_unique<AudioTexture2DParameter>("beginning_audio_texture",
+        auto full_audio_texture =
+            std::make_unique<AudioTexture2DParameter>("full_audio_data_texture",
                                   AudioParameter::ConnectionType::INITIALIZATION,
                                   width, height);
-        beginning_audio_texture->set_value(m_full_audio_data_ptr);
+        full_audio_texture->set_value(m_full_audio_data.data());
 
-        auto input_audio_texture =
-            std::make_unique<AudioTexture2DParameter>("input_audio_texture",
-                      AudioParameter::ConnectionType::INPUT,
-                      m_frames_per_buffer * m_num_channels, 1);
-        input_audio_texture->set_value(m_audio_buffer);
+        auto time_parameter =
+            std::make_unique<AudioIntParameter>("time",
+                                  AudioParameter::ConnectionType::INPUT);
+        int value = 2;
+        time_parameter->set_value(&value);
 
-        auto stream_audio_texture =
-            std::make_unique<AudioTexture2DParameter>("stream_audio_texture",
-                      AudioParameter::ConnectionType::PASSTHROUGH,
-                      m_frames_per_buffer * m_num_channels, 1);
-        
         auto output_audio_texture =
             std::make_unique<AudioTexture2DParameter>("output_audio_texture",
                       AudioParameter::ConnectionType::OUTPUT,
                       m_frames_per_buffer * m_num_channels, 1);
 
-        if (!this->add_parameter(std::move(beginning_audio_texture))) {
+        if (!this->add_parameter(std::move(full_audio_texture))) {
             std::cerr << "Failed to add beginning_audio_texture" << std::endl;
-        }
-        if (!this->add_parameter(std::move(input_audio_texture))) {
-            std::cerr << "Failed to add input_audio_texture" << std::endl;
-        }
-        if (!this->add_parameter(std::move(stream_audio_texture))) {
-            std::cerr << "Failed to add stream_audio_texture" << std::endl;
         }
         if (!this->add_parameter(std::move(output_audio_texture))) {
             std::cerr << "Failed to add output_audio_texture" << std::endl;
+        }
+        if (!this->add_parameter(std::move(time_parameter))) {
+            std::cerr << "Failed to add time_parameter" << std::endl;
         }
 }
 

@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "audio_parameter.h"
+#include "audio_int_parameter.h"
 #include "audio_texture2d_parameter.h"
 
 TEST_CASE("MakeUniqueTest") {
@@ -20,4 +21,10 @@ TEST_CASE("MakeUniqueTest") {
     // Cast to a 2D parameter
     auto audio_texture = dynamic_cast<AudioTexture2DParameter *>(audio_parameters[0].get())->get_texture();
     REQUIRE(audio_texture == 0);
+
+    auto time_parameter = std::make_unique<AudioIntParameter>("time",
+                                                              AudioParameter::ConnectionType::INPUT);
+    time_parameter->set_value(new int(19));
+
+    audio_parameters.push_back(std::move(time_parameter));
 }

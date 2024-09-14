@@ -155,12 +155,12 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Initialize the textures with data
 
-    render(0); // Render the first frame
+    render(m_frame_count++); // Render the first frame
     // Links to display and timer functions for updating audio data
     // Calculate the delay in milliseconds based on the sample rate
     int delay = buffer_size * num_channels * (1000.f / (float)sample_rate);
     // Set the timer function with the calculated delay
-    glutTimerFunc(delay, render_callback, 1);
+    glutTimerFunc(delay, render_callback, m_frame_count++);
     glutDisplayFunc(display_callback);
 
     m_initialized = true;
@@ -173,7 +173,6 @@ void AudioRenderer::calculate_frame_rate()
     // Calculate the frame rate
     static int previous_time = glutGet(GLUT_ELAPSED_TIME);
     int current_time = glutGet(GLUT_ELAPSED_TIME);
-    m_frame_count++;
 
     // Calculate the elapsed time
     int elapsed_time = current_time - previous_time;
@@ -187,12 +186,11 @@ void AudioRenderer::calculate_frame_rate()
         glutSetWindowTitle(title);
 
         // Reset the frame count and previous time
-        m_frame_count = 0;
         previous_time = current_time;
     }
 }
 
-void AudioRenderer::render(int value)
+void AudioRenderer::render(unsigned int frame)
 {
     // Clear the color of the window
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -200,7 +198,7 @@ void AudioRenderer::render(int value)
 
     for (int i = 0; i < (int)m_num_stages; i++) {
         // Render the stage
-        m_render_stages[i]->render_render_stage();
+        m_render_stages[i]->render_render_stage(frame);
 
         // Bind the vertex array and draw
         glBindVertexArray(m_VAO);
@@ -235,7 +233,7 @@ void AudioRenderer::render(int value)
     calculate_frame_rate(); // Calculate the frame rate
 
     // Set the timer function with the calculated delay
-    glutTimerFunc(delay, render_callback, 1);
+    glutTimerFunc(delay, render_callback, m_frame_count++);
 }
 
 void AudioRenderer::main_loop()

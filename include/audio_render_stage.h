@@ -34,20 +34,6 @@ public:
      */
     bool add_parameter(std::unique_ptr<AudioParameter> parameter);
 
-    // Update values
-    /**
-     * @brief Update the fragment source
-     * 
-     * This function updates the fragment source of the shader program
-     */
-    bool update_fragment_source(GLchar const * fragment_source);
-
-    /**
-     * @brief Update the audio buffer
-     * 
-     * This function updates the audio buffer of the render stage
-     */
-    bool update_audio_buffer(const float * audio_buffer, const unsigned int buffer_size);
 
     // Getters
     void set_texture_count(const GLuint count) {
@@ -80,28 +66,24 @@ protected:
     const unsigned int m_sample_rate;
     const unsigned int m_num_channels;
 
-    // Audio Data
-    // Initilize with 0 vector
-    const float * m_audio_buffer = new float[m_frames_per_buffer * m_num_channels]();
+    virtual GLchar const * get_fragment_source() const {
+        return R"glsl(
+            #version 300 es
+            precision highp float;
 
-    GLchar const * m_fragment_source = R"glsl(
-        #version 300 es
-        precision highp float;
+            in vec2 TexCoord;
 
-        in vec2 TexCoord;
+            uniform sampler2D input_audio_texture;
+            uniform sampler2D stream_audio_texture;
 
-        uniform sampler2D input_audio_texture;
-        uniform sampler2D beginning_audio_texture;
-        uniform sampler2D stream_audio_texture;
+            out vec4 output_audio_texture;
 
-        out vec4 output_audio_texture;
-
-        void main() {
-            output_audio_texture = texture(beginning_audio_texture, TexCoord * vec2(0.25, 0)) +
-                                   texture(input_audio_texture, TexCoord) +
-                                   texture(stream_audio_texture, TexCoord);
-        }
-    )glsl"; // Default shader source (Kept in files for the future versions)
+            void main() {
+                output_audio_texture = texture(input_audio_texture, TexCoord) +
+                                       texture(stream_audio_texture, TexCoord);
+            }
+        )glsl";
+    }
 
     /**
      * @brief Initializes the audio render stage.
@@ -120,6 +102,7 @@ private:
     GLuint m_framebuffer;
 
     // Indexs for keeping track of textures and color attachments
+    // FIXME: Move the color attachment to the parameter
     GLuint m_color_attachment = 0;
     GLuint m_active_texture = 0;
 
@@ -138,7 +121,7 @@ private:
      * 
      * This function is responsible for rendering the stage and all parameters
      */
-    void render_render_stage();
+    void render_render_stage(const unsigned int frame);
 
 
     /**

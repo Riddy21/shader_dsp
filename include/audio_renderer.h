@@ -21,7 +21,6 @@
  */
 class AudioRenderer {
 public:
-    friend class AudioRenderStage;
     /**
      * @brief Returns the singleton instance of AudioRenderer.
      * 
@@ -100,6 +99,22 @@ public:
         return m_render_stages[index].get();
     }
 
+    // Vertex Source code
+    const GLchar* get_vertex_source() const {
+        return R"glsl(
+            #version 300 es
+            precision highp float;
+            layout (location = 0) in vec2 aPos;
+            layout (location = 1) in vec2 aTexCoord;
+            out vec2 TexCoord;
+            void main()
+            {
+                gl_Position = vec4(aPos, 0.0, 1.0);
+                TexCoord = aTexCoord;
+            }
+        )glsl";
+    }
+
 private:
     static AudioRenderer * instance;
     // Private member functions
@@ -120,7 +135,7 @@ private:
     /**
      * @brief Renders one stage of the audio data through OpenGL
      */
-    void render(int value);
+    void render(unsigned int frame);
 
     /**
      * @brief Calculates the frame rate of the audio renderer
@@ -171,20 +186,6 @@ private:
     // Simplify this into one struct
     // FIXME: Convert this into a unique pointer
     std::vector<std::shared_ptr<AudioRenderStage>> m_render_stages;
-
-    // Vertex Source code
-    static constexpr GLchar const * m_vertex_source = R"glsl(
-        #version 300 es
-        precision highp float;
-        layout (location = 0) in vec2 aPos;
-        layout (location = 1) in vec2 aTexCoord;
-        out vec2 TexCoord;
-        void main()
-        {
-            gl_Position = vec4(aPos, 0.0, 1.0);
-            TexCoord = aTexCoord;
-        }
-    )glsl";
 
 };
 

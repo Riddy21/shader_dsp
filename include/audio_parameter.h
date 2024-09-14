@@ -68,7 +68,7 @@ protected:
         m_render_stage_linked = render_stage;
     }
 
-    std::unique_ptr<ParamData> m_data = nullptr;
+    std::unique_ptr<ParamData> m_data = nullptr; // Using unique pointer to cast to derived class
     void * m_value = nullptr;
     AudioRenderStage * m_render_stage_linked = nullptr;
     const AudioParameter * m_linked_parameter = nullptr;

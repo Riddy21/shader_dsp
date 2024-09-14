@@ -39,6 +39,17 @@ public:
 
     const char * m_audio_filepath; // Default audio file path
 
+    /**
+     * @brief Overrides the get_fragment_source function to provide the fragment shader source code.
+     * 
+     * This function returns the fragment shader source code as a string.
+     * 
+     * @return The fragment shader source code.
+     */
+    virtual const GLchar* get_fragment_source() const override {
+        return m_fragment_source;
+    }
+
 private:
     // Load audio file
     /**
@@ -48,14 +59,30 @@ private:
      */
     static std::vector<float> load_audio_data_from_file(const char * audio_filepath);
 
+    const GLchar * m_fragment_source = R"glsl(
+        #version 300 es
+        precision highp float;
+
+        in vec2 TexCoord;
+
+        uniform sampler2D full_audio_data_texture;
+
+        layout(std140) uniform TimeBuffer {
+            int time;
+        };
+
+        out vec4 output_audio_texture;
+
+        void main() {
+            // Use the time uniform to modify the texture coordinate
+            float timeFactor = float(time) * 0.25; // Adjust the factor as needed
+            vec2 modifiedTexCoord = TexCoord * vec2(timeFactor, 0.0);
+            output_audio_texture = texture(full_audio_data_texture, modifiedTexCoord);
+        }
+    )glsl";
+
     // controls
     unsigned int m_play_index = 0;
-    // Audio data
-    std::vector<float> m_full_audio_data = std::vector<float>();
-    const float * m_full_audio_data_ptr;
-
-    // Empty audio sound data
-    const std::vector<float> m_empty_audio_data = std::vector<float>(m_frames_per_buffer * m_num_channels, 0.0f);
 };
 
 #endif
