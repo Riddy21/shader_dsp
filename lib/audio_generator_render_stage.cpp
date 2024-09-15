@@ -20,7 +20,12 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
 
         // Determine width and height based on MAX_TEXTURE_SIZE round to nearest multiple of MAX_TEXTURE_SIZE
         const unsigned int width = std::max((unsigned)MAX_TEXTURE_SIZE, m_frames_per_buffer * m_num_channels);
-        const unsigned int height = m_full_audio_data.size() / MAX_TEXTURE_SIZE + 1;
+        const unsigned int height = m_full_audio_data.size() / MAX_TEXTURE_SIZE;
+
+        if (height == 0) {
+            std::cerr << "Audio data is too small to fill a texture" << std::endl;
+            exit(1);
+        }
 
         // Fill the rest with zeros
         m_full_audio_data.resize(width * height, 0.0f);
@@ -35,7 +40,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         auto time_parameter =
             std::make_unique<AudioIntParameter>("time",
                                   AudioParameter::ConnectionType::INPUT);
-        int value = 2;
+        int value = 0;
         time_parameter->set_value(&value);
 
         auto output_audio_texture =
@@ -84,7 +89,7 @@ std::vector<float> AudioGeneratorRenderStage::load_audio_data_from_file(const ch
     std::cout << "Data size: " << header.data_size << std::endl;
 
     // Read the audio data
-    std::vector<int16_t> data(header.data_size);
+    std::vector<int16_t> data(header.data_size/sizeof(int16_t));
     file.read((char *) data.data(), header.data_size);
 
     if (!file) {

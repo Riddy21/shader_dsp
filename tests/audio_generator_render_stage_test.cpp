@@ -8,7 +8,7 @@
 #include "audio_generator_render_stage.h"
 
 TEST_CASE("AudioGeneratorRenderStage") {
-    AudioGeneratorRenderStage audio_generator(512, 44100, 2, "media/sine.wav");
+    AudioGeneratorRenderStage audio_generator(512, 44100, 2, "media/test.wav");
     AudioPlayerOutput audio_driver(512, 44100, 2);
 
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
@@ -17,7 +17,7 @@ TEST_CASE("AudioGeneratorRenderStage") {
     // Open a thread to wait few sec and the shut it down
     std::thread t1([&audio_renderer, &audio_driver, &audio_generator](){
         // TODO: Add play and stop functions for later
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(10));
         //audio_generator.play();
         //std::this_thread::sleep_for(std::chrono::seconds(1));
         //audio_generator.stop();

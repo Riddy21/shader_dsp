@@ -75,9 +75,16 @@ private:
 
         void main() {
             // Use the time uniform to modify the texture coordinate
-            float timeFactor = float(time) * 0.25; // Adjust the factor as needed
-            vec2 modifiedTexCoord = TexCoord * vec2(timeFactor, 0.0);
-            output_audio_texture = texture(full_audio_data_texture, modifiedTexCoord);
+            ivec2 audio_size = textureSize(full_audio_data_texture, 0);
+            ivec2 buffer_size = ivec2(1024, 1);
+            ivec2 num_chunks = audio_size / buffer_size;
+            vec2 ratio = vec2(buffer_size) / vec2(audio_size);
+
+            ivec2 chunk_coord = ivec2(time / num_chunks.x, time % num_chunks.x);
+
+            vec2 modifiedTexCoord = vec2(TexCoord.x, TexCoord.y);
+
+            output_audio_texture = texture(full_audio_data_texture, modifiedTexCoord)*5.0;
         }
     )glsl";
 

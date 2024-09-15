@@ -170,24 +170,24 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
 void AudioRenderer::calculate_frame_rate()
 {
-    // Calculate the frame rate
-    static int previous_time = glutGet(GLUT_ELAPSED_TIME);
-    int current_time = glutGet(GLUT_ELAPSED_TIME);
+    static int frame_count = 0;
+    static double previous_time = 0.0;
+    static double fps = 0.0;
 
-    // Calculate the elapsed time
-    int elapsed_time = current_time - previous_time;
+    frame_count++;
+    double current_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0; // Get current time in seconds
+    double elapsed_time = current_time - previous_time;
 
-    // Print the frame rate every second
-    if (elapsed_time > 1000) {
-        float frame_rate = m_frame_count / (elapsed_time / 1000.f);
-        // Update the window title with the frame rate
-        char title[100];
-        sprintf(title, "Audio Processing (%.2f fps)", frame_rate);
-        glutSetWindowTitle(title);
-
-        // Reset the frame count and previous time
+    if (elapsed_time > 1.0) { // Update FPS every second
+        fps = frame_count / elapsed_time;
         previous_time = current_time;
+        frame_count = 0;
     }
+
+    // Display the FPS on the window title
+    char title[256];
+    sprintf(title, "Audio Processing - FPS: %.2f", fps);
+    glutSetWindowTitle(title);
 }
 
 void AudioRenderer::render(unsigned int frame)
