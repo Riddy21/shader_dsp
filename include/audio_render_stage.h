@@ -9,6 +9,7 @@
 #include "audio_parameter.h"
 
 class AudioParameter;
+class AudioRenderer;
 
 class AudioRenderStage {
 public:
@@ -34,6 +35,15 @@ public:
      */
     bool add_parameter(std::unique_ptr<AudioParameter> parameter);
 
+    /**
+     * @brief Find a parameter by name
+     * 
+     * This function finds a parameter by name
+     * 
+     * @param name The name of the parameter to find
+     * @return The parameter if found, nullptr otherwise.
+     */
+    AudioParameter * find_parameter(const char * name) const;
 
     // Getters
     void set_texture_count(const GLuint count) {
@@ -65,6 +75,9 @@ protected:
     const unsigned int m_frames_per_buffer;
     const unsigned int m_sample_rate;
     const unsigned int m_num_channels;
+    
+    // Link to the renderer
+    const AudioRenderer * m_renderer_link;
 
     virtual GLchar const * get_fragment_source() const {
         return R"glsl(
@@ -109,6 +122,11 @@ private:
     // Parameters
     std::vector<std::unique_ptr<AudioParameter>> m_parameters;
 
+    // Link to the renderer
+    void link_renderer(const AudioRenderer * renderer) {
+        m_renderer_link = renderer;
+    }
+
     /**
      * @brief Process linked parameters together
      * 
@@ -121,8 +139,7 @@ private:
      * 
      * This function is responsible for rendering the stage and all parameters
      */
-    void render_render_stage(const unsigned int frame);
-
+    void render_render_stage();
 
     /**
      * @brief Compile the shader program.

@@ -16,8 +16,12 @@ bool AudioRenderer::add_render_stage(AudioRenderStage& render_stage)
         return false;
     }
     // Add the render stage to the list of render stages
+    // FIXME: Change this to unique pointer
     m_render_stages.push_back(std::shared_ptr<AudioRenderStage>(&render_stage, [](AudioRenderStage*){}));
     m_num_stages = m_render_stages.size();
+
+    // link the render stage to the audio renderer
+    m_render_stages.back()->link_renderer(this);
 
     return true;
 }
@@ -147,6 +151,15 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         }
     }
 
+    // set the time parameter
+    for (auto& stage : m_render_stages) {
+        if (m_frame_time_parameter == nullptr) {
+            m_frame_time_parameter = stage->find_parameter("time");
+        } else {
+            break;
+        }
+    }
+
     // Create the quad
     if (!create_quad(m_VAO, m_VBO, m_PBO, num_channels, buffer_size)) {
         std::cerr << "Failed to create quad." << std::endl;
@@ -155,12 +168,12 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Initialize the textures with data
 
-    render(m_frame_count++); // Render the first frame
+    draw(m_frame_count++); // Render the first frame
     // Links to display and timer functions for updating audio data
     // Calculate the delay in milliseconds based on the sample rate
     int delay = buffer_size * num_channels * (1000.f / (float)sample_rate);
     // Set the timer function with the calculated delay
-    glutTimerFunc(delay, render_callback, m_frame_count++);
+    glutTimerFunc(delay, draw_callback, m_frame_count++);
     glutDisplayFunc(display_callback);
 
     m_initialized = true;
@@ -190,20 +203,38 @@ void AudioRenderer::calculate_frame_rate()
     glutSetWindowTitle(title);
 }
 
-void AudioRenderer::render(unsigned int frame)
+// FIXME: enable the render section as seperate from the draw section
+void AudioRenderer::render()
+{
+    // FIXME: mutex lock this section
+    for (int i = 0; i < (int)m_num_stages; i++) {
+        // Render the stage
+        m_render_stages[i]->render_render_stage();
+    }
+
+    // unlock the mutex
+}
+
+void AudioRenderer::draw(unsigned int frame)
 {
     // Clear the color of the window
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
+    glBindVertexArray(m_VAO);
+
+    // Set the time for the frame
+    m_frame_time_parameter->set_value(&frame);
+
     for (int i = 0; i < (int)m_num_stages; i++) {
         // Render the stage
-        m_render_stages[i]->render_render_stage(frame);
-
-        // Bind the vertex array and draw
-        glBindVertexArray(m_VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        m_render_stages[i]->render_render_stage();
     }
+    
+    // FIXME: mutex lock this section
+    // Bind the last stage to read the audio data
+    glUseProgram(m_render_stages[m_num_stages - 1]->get_shader_program());
+    glBindFramebuffer(GL_FRAMEBUFFER, m_render_stages[m_num_stages - 1]->get_framebuffer());
 
     // Bind the color attachment we are on
     glReadBuffer(GL_COLOR_ATTACHMENT0 + m_render_stages[m_num_stages - 1]->get_color_attachment_count()); // Change to the specific color attachment you want to read from
@@ -227,13 +258,15 @@ void AudioRenderer::render(unsigned int frame)
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
 
+    // FIXME:unlock the mutex
+
     // Calculate the delay in milliseconds based on the sample rate
     int delay = m_buffer_size * m_num_channels * (1000.f / (float)m_sample_rate);
 
     calculate_frame_rate(); // Calculate the frame rate
 
     // Set the timer function with the calculated delay
-    glutTimerFunc(delay, render_callback, m_frame_count++);
+    glutTimerFunc(delay, draw_callback, m_frame_count++);
 }
 
 void AudioRenderer::main_loop()

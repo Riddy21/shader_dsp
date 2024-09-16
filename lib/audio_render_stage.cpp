@@ -131,7 +131,7 @@ bool AudioRenderStage::bind_shader_stage() {
     return true;
 }
 
-void AudioRenderStage::render_render_stage(const unsigned int frame) {
+void AudioRenderStage::render_render_stage() {
     m_active_texture = 0;
     
     // Use the shader program of the stage
@@ -143,15 +143,17 @@ void AudioRenderStage::render_render_stage(const unsigned int frame) {
 
     // Render parameters
     for (auto &param : m_parameters) {
-        // FIXME: Change to dict
-        if (std::string(param->name) == std::string("time")) {
-            param->set_value(&frame);
-        }
         param->render_parameter();
         m_active_texture ++;
     }
+
+    glDrawArrays(GL_TRIANGLES, 0, 6);
     
-    // NOTE: Should unbind, but makes API a lot more convoluted
+    // unbind the framebuffer and texture and shader program
+    // FIXME: Should unbind, but need function to re-bind it again for final step
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //glBindTexture(GL_TEXTURE_2D, 0);
+    //glUseProgram(0);
 }
 
 bool AudioRenderStage::add_parameter(std::unique_ptr<AudioParameter> parameter) {
@@ -162,3 +164,12 @@ bool AudioRenderStage::add_parameter(std::unique_ptr<AudioParameter> parameter) 
     m_parameters.push_back(std::move(parameter));
     return true;
 }
+
+AudioParameter * AudioRenderStage::find_parameter(const char * name) const {
+    for (auto &param : m_parameters) {
+        if (std::string(param->name) == std::string(name)) {
+            return param.get();
+        }
+    }
+    return nullptr;
+}  

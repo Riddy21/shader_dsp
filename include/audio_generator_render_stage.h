@@ -89,7 +89,8 @@ private:
         }
 
         void main() {
-            float scaled_time = float(time) * 0.5;
+            // FIXME: There's still a bug in speed scaling
+            float scaled_time = float(time) * float(time) * 0.01;
             vec2 coord = translate_coord(TexCoord, scaled_time);
 
             vec4 audio_sample = texture(full_audio_data_texture, coord);

@@ -11,6 +11,10 @@
 #include "audio_buffer.h"
 #include "audio_render_stage.h"
 
+class AudioRenderStage;
+
+class AudioParameter;
+
 // TODO: Make this class so that the generator can run
 /**
  * @class AudioRenderer
@@ -66,7 +70,7 @@ public:
     static void main_loop();
 
     static void iterate() {
-        render_callback(0);
+        draw_callback(0);
     }
 
     /**
@@ -135,7 +139,12 @@ private:
     /**
      * @brief Renders one stage of the audio data through OpenGL
      */
-    void render(unsigned int frame);
+    void draw(unsigned int frame);
+
+    /**
+     * @brief Render a frame
+     */
+    void render();
 
     /**
      * @brief Calculates the frame rate of the audio renderer
@@ -143,10 +152,19 @@ private:
     void calculate_frame_rate();
 
     /**
+     * @brief Static callback function for drawing the audio data
+     * 
+     * @param arg The argument to pass to the draw function
+     */
+    static void draw_callback(int arg) {
+        instance->draw(arg);
+    }
+
+    /**
      * @brief Static callback function for rendering
      */
-    static void render_callback(int arg) {
-        instance->render(arg);
+    static void render_callback() {
+        instance->render();
     }
 
     /**
@@ -186,6 +204,8 @@ private:
     // Simplify this into one struct
     // FIXME: Convert this into a unique pointer
     std::vector<std::shared_ptr<AudioRenderStage>> m_render_stages;
+
+    AudioParameter * m_frame_time_parameter = nullptr;
 
 };
 
