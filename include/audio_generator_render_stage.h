@@ -62,41 +62,44 @@ private:
     const GLchar * m_fragment_source = R"glsl(
         #version 300 es
         precision highp float;
-        
+
         in vec2 TexCoord;
-        
+
         uniform sampler2D full_audio_data_texture;
-        
+
         layout(std140) uniform TimeBuffer {
             int time;
         };
-        
+
         out vec4 output_audio_texture;
 
-        vec2 chunkCoord(sampler2D source, vec2 coord) {
-            // Define the size of the audio data and the chunk
-            ivec2 audio_size = textureSize(source, 0);
+        vec2 translate_coord(vec2 coord, ivec2 audio_size) {
+            // Get the chunk size
             ivec2 chunk_size = ivec2(1024, 1);
-            // Calculate the number of chunks in the audio data
-            ivec2 num_chunks = audio_size / chunk_size;
-            // Determine the current chunk based on the frame number (time)
-            int current_chunk_index = time % (num_chunks.x * num_chunks.y);
-            // Calculate the coordinates of the current chunk
-            ivec2 chunk_coord = ivec2(current_chunk_index % num_chunks.x, current_chunk_index / num_chunks.x);
-            // Map the texture coordinates to the current chunk
-            return coord * vec2(chunk_size) / vec2(audio_size) + vec2(chunk_coord) * vec2(chunk_size) / vec2(audio_size);
+
+            int chunk_offset = time * chunk_size.x;
+
+            int total_offset = int(coord.x * float(chunk_size.x)) + chunk_offset;
+
+            ivec2 total_coord = ivec2(total_offset % audio_size.x, total_offset / audio_size.x);
+
+            // Comput normalized texture coordinates
+            return vec2(float(total_coord.x) / float(audio_size.x), float(total_coord.y) / float(audio_size.y) + coord.y / float(audio_size.y));
         }
 
         void main() {
-            vec2 coordinates = chunkCoord(full_audio_data_texture, TexCoord);
-        
-            // Sample the texture and output the result
-            output_audio_texture = texture(full_audio_data_texture, coordinates);
+            vec2 speed = vec2(1.0, 1.0);
+            vec2 time_corrected_coord = TexCoord * speed;
+            // FIXME: This speed transform is not entirely correct
+            ivec2 audio_size = ivec2(vec2(textureSize(full_audio_data_texture, 0)) / speed);
+            vec2 coord = translate_coord(time_corrected_coord, audio_size);
+
+            vec4 audio_sample = texture(full_audio_data_texture, coord);
+
+            // Output the result
+            output_audio_texture = audio_sample;
         }
     )glsl";
-
-    // controls
-    unsigned int m_play_index = 0;
 };
 
 #endif
