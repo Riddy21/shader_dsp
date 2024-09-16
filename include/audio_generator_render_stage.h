@@ -2,7 +2,7 @@
 #ifndef AUDIO_GENERATOR_H
 #define AUDIO_GENERATOR_H
 
-#define MAX_TEXTURE_SIZE 4096
+#define MAX_TEXTURE_SIZE 4096 + 1000
 
 #include "audio_render_stage.h"
 
@@ -73,26 +73,28 @@ private:
 
         out vec4 output_audio_texture;
 
-        vec2 translate_coord(vec2 coord, float frame_count) {
+        vec2 translate_coord(vec2 coord, float speed) {
             // Get the chunk size
             ivec2 audio_size = textureSize(full_audio_data_texture, 0);
-            ivec2 chunk_size = ivec2(1024, 1);
+            ivec2 chunk_size = ivec2(1024.0 * speed, 1);
 
-            int chunk_offset = int(frame_count) * chunk_size.x;
+            int chunk_offset = time * chunk_size.x;
 
             int total_offset = int(coord.x * float(chunk_size.x)) + chunk_offset;
 
-            ivec2 total_coord = ivec2(total_offset % audio_size.x, total_offset / audio_size.x);
+            ivec2 total_coord = ivec2(total_offset % audio_size.x,
+                                      total_offset / audio_size.x);
 
             // Comput normalized texture coordinates
-            return vec2(float(total_coord.x) / float(audio_size.x), float(total_coord.y) / float(audio_size.y) + coord.y / float(audio_size.y));
+            return vec2(float(total_coord.x) / float(audio_size.x),
+                        float(total_coord.y) / float(audio_size.y) + coord.y / float(audio_size.y));
         }
 
         void main() {
-            // FIXME: There's still a bug in speed scaling
-            float scaled_time = float(time) * float(time) * 0.01;
-            vec2 coord = translate_coord(TexCoord, scaled_time);
+            // Translate the texture coordinates
+            vec2 coord = translate_coord(TexCoord, 0.5);
 
+            // Get the audio sample
             vec4 audio_sample = texture(full_audio_data_texture, coord);
 
             // Output the result
