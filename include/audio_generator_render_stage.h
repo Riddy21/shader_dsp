@@ -73,11 +73,12 @@ private:
 
         out vec4 output_audio_texture;
 
-        vec2 translate_coord(vec2 coord, ivec2 audio_size) {
+        vec2 translate_coord(vec2 coord, float frame_count) {
             // Get the chunk size
+            ivec2 audio_size = textureSize(full_audio_data_texture, 0);
             ivec2 chunk_size = ivec2(1024, 1);
 
-            int chunk_offset = time * chunk_size.x;
+            int chunk_offset = int(frame_count) * chunk_size.x;
 
             int total_offset = int(coord.x * float(chunk_size.x)) + chunk_offset;
 
@@ -88,11 +89,8 @@ private:
         }
 
         void main() {
-            vec2 speed = vec2(1.0, 1.0);
-            vec2 time_corrected_coord = TexCoord * speed;
-            // FIXME: This speed transform is not entirely correct
-            ivec2 audio_size = ivec2(vec2(textureSize(full_audio_data_texture, 0)) / speed);
-            vec2 coord = translate_coord(time_corrected_coord, audio_size);
+            float scaled_time = float(time) * 0.5;
+            vec2 coord = translate_coord(TexCoord, scaled_time);
 
             vec4 audio_sample = texture(full_audio_data_texture, coord);
 
