@@ -62,29 +62,36 @@ private:
     const GLchar * m_fragment_source = R"glsl(
         #version 300 es
         precision highp float;
-
+        
         in vec2 TexCoord;
-
+        
         uniform sampler2D full_audio_data_texture;
-
+        
         layout(std140) uniform TimeBuffer {
             int time;
         };
-
+        
         out vec4 output_audio_texture;
 
+        vec2 chunkCoord(sampler2D source, vec2 coord) {
+            // Define the size of the audio data and the chunk
+            ivec2 audio_size = textureSize(source, 0);
+            ivec2 chunk_size = ivec2(1024, 1);
+            // Calculate the number of chunks in the audio data
+            ivec2 num_chunks = audio_size / chunk_size;
+            // Determine the current chunk based on the frame number (time)
+            int current_chunk_index = time % (num_chunks.x * num_chunks.y);
+            // Calculate the coordinates of the current chunk
+            ivec2 chunk_coord = ivec2(current_chunk_index % num_chunks.x, current_chunk_index / num_chunks.x);
+            // Map the texture coordinates to the current chunk
+            return coord * vec2(chunk_size) / vec2(audio_size) + vec2(chunk_coord) * vec2(chunk_size) / vec2(audio_size);
+        }
+
         void main() {
-            // Use the time uniform to modify the texture coordinate
-            ivec2 audio_size = textureSize(full_audio_data_texture, 0);
-            ivec2 buffer_size = ivec2(1024, 1);
-            ivec2 num_chunks = audio_size / buffer_size;
-            vec2 ratio = vec2(buffer_size) / vec2(audio_size);
-
-            ivec2 chunk_coord = ivec2(time / num_chunks.x, time % num_chunks.x);
-
-            vec2 modifiedTexCoord = vec2(TexCoord.x, TexCoord.y);
-
-            output_audio_texture = texture(full_audio_data_texture, modifiedTexCoord)*5.0;
+            vec2 coordinates = chunkCoord(full_audio_data_texture, TexCoord);
+        
+            // Sample the texture and output the result
+            output_audio_texture = texture(full_audio_data_texture, coordinates);
         }
     )glsl";
 

@@ -85,6 +85,7 @@ TEST_CASE("AudioRenderer") {
     REQUIRE(output_audio_texture->link(stream_audio_texture2.get()));
     REQUIRE(output_audio_texture2->link(stream_audio_texture4.get()));
     REQUIRE(render_stage2.add_parameter(std::move(input_audio_texture)));
+    REQUIRE(render_stage2.add_parameter(std::move(stream_audio_texture)));
     REQUIRE(render_stage2.add_parameter(std::move(output_audio_texture)));
     REQUIRE(render_stage3.add_parameter(std::move(input_audio_texture2)));
     REQUIRE(render_stage3.add_parameter(std::move(stream_audio_texture2)));
