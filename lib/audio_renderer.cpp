@@ -57,7 +57,6 @@ bool create_quad(GLuint &VAO, GLuint &VBO, GLuint &PBO, const unsigned int num_c
 
     // Generate Textures and Framebuffers
 
-    // FIXME: Use shader program to do this in a different function when infra is set up
     // Generate Buffer Objects
     glGenVertexArrays(1, &VAO);
     glGenBuffers(1, &VBO);
@@ -231,6 +230,7 @@ void AudioRenderer::render()
 
 void AudioRenderer::draw(unsigned int frame)
 {
+    // FIXME: Call this function not on a delay, but when the audio callback signals the next frame
     m_audio_data_mutex.lock(); // Lock the mutex
 
     // Set the time for the frame

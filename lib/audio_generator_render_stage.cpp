@@ -43,8 +43,6 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         int value = 0;
         time_parameter->set_value(&value);
 
-        // TODO: Add output parameter size based on frames per buffer
-
         auto output_audio_texture =
             std::make_unique<AudioTexture2DParameter>("output_audio_texture",
                       AudioParameter::ConnectionType::OUTPUT,

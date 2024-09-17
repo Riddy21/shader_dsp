@@ -150,7 +150,7 @@ void AudioRenderStage::render_render_stage() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     
     // unbind the framebuffer and texture and shader program
-    // FIXME: Should unbind, but need function to re-bind it again for final step
+    // FIXME: Need to find a better way to bind texture in render output
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     //glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);

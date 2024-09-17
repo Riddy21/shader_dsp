@@ -82,6 +82,7 @@ void AudioFileOutput::write_audio_callback(AudioFileOutput* audio_file_output) {
         }
 
         // Wait for a short time
+        // FIXME: Sync this with the audio buffer ready flag
         std::this_thread::sleep_for(std::chrono::milliseconds((int)(1000.0f/((double)audio_file_output->m_sample_rate/(double)audio_file_output->m_frames_per_buffer))));
     }
 }
@@ -91,7 +92,6 @@ bool AudioFileOutput::stop() {
         fprintf(stderr, "Error: File not open.\n");
         return false;
     }
-    // TODO: Stop writing audio data to the file
     m_is_running = false;
     return true;
 }
