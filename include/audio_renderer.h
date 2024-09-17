@@ -70,6 +70,7 @@ public:
     static void main_loop();
 
     static void iterate() {
+        render_callback();
         draw_callback(0);
     }
 
@@ -197,6 +198,9 @@ private:
 
     // Marking initialized
     bool m_initialized = false;
+
+    // Mutex for locking the audio data
+    std::mutex m_audio_data_mutex;
 
     // buffers for audio data
     std::vector<std::unique_ptr<AudioBuffer>> m_output_buffers = std::vector<std::unique_ptr<AudioBuffer>>(); // Output buffers

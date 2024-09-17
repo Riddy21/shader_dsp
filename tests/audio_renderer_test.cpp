@@ -5,6 +5,7 @@
 #include "audio_renderer.h"
 #include "audio_player_output.h"
 #include "audio_texture2d_parameter.h"
+#include "audio_int_parameter.h"
 
 TEST_CASE("AudioRenderer") {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
@@ -27,6 +28,11 @@ TEST_CASE("AudioRenderer") {
                               AudioParameter::ConnectionType::INPUT,
                               512 * 2, 1);
     REQUIRE(stream_audio_texture->set_value(empty_buffer));
+
+    auto time_param =
+        std::make_unique<AudioIntParameter>("time",
+                              AudioParameter::ConnectionType::INPUT);
+    REQUIRE(time_param->set_value(new int(0)));
 
     auto output_audio_texture =
         std::make_unique<AudioTexture2DParameter>("output_audio_texture",
@@ -85,6 +91,7 @@ TEST_CASE("AudioRenderer") {
     REQUIRE(output_audio_texture->link(stream_audio_texture2.get()));
     REQUIRE(output_audio_texture2->link(stream_audio_texture4.get()));
     REQUIRE(render_stage2.add_parameter(std::move(input_audio_texture)));
+    REQUIRE(render_stage2.add_parameter(std::move(time_param)));
     REQUIRE(render_stage2.add_parameter(std::move(stream_audio_texture)));
     REQUIRE(render_stage2.add_parameter(std::move(output_audio_texture)));
     REQUIRE(render_stage3.add_parameter(std::move(input_audio_texture2)));
@@ -105,6 +112,7 @@ TEST_CASE("AudioRenderer") {
 
     // Check the output buffer data
     AudioBuffer * output_buffer = audio_renderer.get_new_output_buffer();
+
 
     output_buffer->push(new float[512*2](), 512*2);
     audio_renderer.iterate();

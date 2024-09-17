@@ -151,9 +151,9 @@ void AudioRenderStage::render_render_stage() {
     
     // unbind the framebuffer and texture and shader program
     // FIXME: Should unbind, but need function to re-bind it again for final step
-    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     //glBindTexture(GL_TEXTURE_2D, 0);
-    //glUseProgram(0);
+    glUseProgram(0);
 }
 
 bool AudioRenderStage::add_parameter(std::unique_ptr<AudioParameter> parameter) {

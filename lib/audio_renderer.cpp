@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <cstring>
+#include <thread>
 
 #include "audio_renderer.h"
 
@@ -155,6 +156,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     for (auto& stage : m_render_stages) {
         if (m_frame_time_parameter == nullptr) {
             m_frame_time_parameter = stage->find_parameter("time");
+            printf("Found time parameter\n");
         } else {
             break;
         }
@@ -167,12 +169,16 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     }
 
     // Initialize the textures with data
-
+    render();
     draw(m_frame_count++); // Render the first frame
     // Links to display and timer functions for updating audio data
     // Calculate the delay in milliseconds based on the sample rate
-    int delay = buffer_size * num_channels * (1000.f / (float)sample_rate);
+    // FIXME: Instead of timer call, wait for audio callback to signal the next frame
+    float scale_factor = 0.99f;
+    int delay = (float)buffer_size * (float)num_channels * (float)(scale_factor * 1000.f / (float)sample_rate);
     // Set the timer function with the calculated delay
+
+    glutIdleFunc(render_callback);
     glutTimerFunc(delay, draw_callback, m_frame_count++);
     glutDisplayFunc(display_callback);
 
@@ -203,35 +209,36 @@ void AudioRenderer::calculate_frame_rate()
     glutSetWindowTitle(title);
 }
 
-// FIXME: enable the render section as seperate from the draw section
 void AudioRenderer::render()
 {
-    // FIXME: mutex lock this section
+    m_audio_data_mutex.lock(); // Lock the mutex
+
+    glBindVertexArray(m_VAO);
+
     for (int i = 0; i < (int)m_num_stages; i++) {
         // Render the stage
         m_render_stages[i]->render_render_stage();
     }
 
-    // unlock the mutex
+    glBindVertexArray(0);
+
+    m_audio_data_mutex.unlock(); // Unlock the mutex
+
+    calculate_frame_rate();
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
 void AudioRenderer::draw(unsigned int frame)
 {
-    // Clear the color of the window
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glBindVertexArray(m_VAO);
+    m_audio_data_mutex.lock(); // Lock the mutex
 
     // Set the time for the frame
     m_frame_time_parameter->set_value(&frame);
-
-    for (int i = 0; i < (int)m_num_stages; i++) {
-        // Render the stage
-        m_render_stages[i]->render_render_stage();
-    }
     
-    // FIXME: mutex lock this section
+    // Bind the vertex array
+    glBindVertexArray(m_VAO);
+
     // Bind the last stage to read the audio data
     glUseProgram(m_render_stages[m_num_stages - 1]->get_shader_program());
     glBindFramebuffer(GL_FRAMEBUFFER, m_render_stages[m_num_stages - 1]->get_framebuffer());
@@ -255,15 +262,15 @@ void AudioRenderer::draw(unsigned int frame)
 
     // Unbind everything
     glBindVertexArray(0);
-    glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
 
-    // FIXME:unlock the mutex
+    // unlock the mutex
+    m_audio_data_mutex.unlock();
 
     // Calculate the delay in milliseconds based on the sample rate
-    int delay = m_buffer_size * m_num_channels * (1000.f / (float)m_sample_rate);
-
-    calculate_frame_rate(); // Calculate the frame rate
+    // FIXME: Instead of timer call, wait for audio callback to signal the next frame
+    float scale_factor = 0.99f;
+    int delay = (float)m_buffer_size * (float)m_num_channels * (float)(scale_factor * 1000.f / (float)m_sample_rate);
 
     // Set the timer function with the calculated delay
     glutTimerFunc(delay, draw_callback, m_frame_count++);

@@ -92,7 +92,7 @@ private:
 
         void main() {
             // Translate the texture coordinates
-            vec2 coord = translate_coord(TexCoord, 0.5);
+            vec2 coord = translate_coord(TexCoord, 1.0);
 
             // Get the audio sample
             vec4 audio_sample = texture(full_audio_data_texture, coord);

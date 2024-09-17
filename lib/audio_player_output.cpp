@@ -2,6 +2,8 @@
 #include <cstring>
 #include <memory>
 #include <portaudio.h>
+#include <GL/glew.h>
+#include <GL/glut.h>
 
 #include "audio_player_output.h"
 
@@ -42,7 +44,7 @@ bool AudioPlayerOutput::open(PaDeviceIndex index) { PaStreamParameters outputPar
     // Set up output parameters
     outputParameters.channelCount = m_channels;
     outputParameters.sampleFormat = paFloat32;
-    outputParameters.suggestedLatency = 0.001;
+    outputParameters.suggestedLatency = 0.0;
     outputParameters.hostApiSpecificStreamInfo = NULL;
 
     // Set up the stream with the output parameters
@@ -139,6 +141,22 @@ int AudioPlayerOutput::audio_callback(const void *input_buffer, void *output_buf
     const float * buffer = driver->m_audio_buffer_link->pop();
     // Copy the audio buffer to the output buffer
     memcpy(out, buffer, frames_per_buffer * driver->m_channels * sizeof(float));
+
+    // Calculate frame rate
+    //static int frame_count = 0;
+    //static double previous_time = 0.0;
+    //static double fps = 0.0;
+
+    //frame_count++;
+    //double current_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0; // Get current time in seconds
+    //double elapsed_time = current_time - previous_time; // Calculate elapsed time
+
+    //if (elapsed_time > 1.0) { // If more than 1 second has elapsed
+    //    fps = frame_count / elapsed_time; // Calculate the frame rate
+    //    frame_count = 0; // Reset the frame count
+    //    previous_time = current_time; // Update the previous time
+    //}
+    //printf("Audio Output Frame rate: %f\n", fps); // Print the frame rate
 
     return paContinue;
 }
