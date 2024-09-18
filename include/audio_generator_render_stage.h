@@ -67,18 +67,22 @@ private:
 
         uniform sampler2D full_audio_data_texture;
 
-        layout(std140) uniform TimeBuffer {
-            int time;
+        layout(std140) uniform time {
+            int time_val;
+        };
+
+        layout(std140) uniform tone {
+            int tone_val;
         };
 
         out vec4 output_audio_texture;
 
-        vec2 translate_coord(vec2 coord, float speed) {
+        vec2 translate_coord(vec2 coord) {
             // Get the chunk size
             ivec2 audio_size = textureSize(full_audio_data_texture, 0);
-            ivec2 chunk_size = ivec2(1024.0 * speed, 1);
+            ivec2 chunk_size = ivec2(1024.0 * float(tone_val), 1);
 
-            int chunk_offset = time * chunk_size.x;
+            int chunk_offset = time_val * chunk_size.x;
 
             int total_offset = int(coord.x * float(chunk_size.x)) + chunk_offset;
 
@@ -92,7 +96,7 @@ private:
 
         void main() {
             // Translate the texture coordinates
-            vec2 coord = translate_coord(TexCoord, 1.0);
+            vec2 coord = translate_coord(TexCoord);
 
             // Get the audio sample
             vec4 audio_sample = texture(full_audio_data_texture, coord);

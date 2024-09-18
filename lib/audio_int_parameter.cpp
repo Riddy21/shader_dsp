@@ -18,16 +18,19 @@ bool AudioIntParameter::initialize_parameter() {
         if (m_data == nullptr) {
             printf("Warning: value is nullptr when declared as input or initialization in parameter %s\n", name);
         }
-        glBufferData(GL_UNIFORM_BUFFER, sizeof(int), m_data->get_data(), GL_DYNAMIC_COPY);
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(int), m_data->get_data(), GL_DYNAMIC_DRAW);
 
     } else if (connection_type == ConnectionType::INITIALIZATION) {
         // Allocate memory for the buffer and data
-        glBufferData(GL_UNIFORM_BUFFER, sizeof(int), m_data->get_data(), GL_STATIC_COPY);
+        glBufferData(GL_UNIFORM_BUFFER, sizeof(int), m_data->get_data(), GL_STATIC_DRAW);
     } else {
         // Output int parameters are not allowed
         printf("Error: output and passthrough int parameters are not allowed in parameter %s\n", name);
         return false;
     }
+
+    // Bind the buffer to the binding point
+    glBindBufferBase(GL_UNIFORM_BUFFER, m_binding_point, m_ubo);
 
     GLenum status = glGetError();
     if (status != GL_NO_ERROR) {
@@ -62,8 +65,6 @@ void AudioIntParameter::render_parameter() {
         return; // Do not need to render if output
     }
 
-    glUniform1i(glGetUniformLocation(m_render_stage_linked->get_shader_program(), name), m_render_stage_linked->get_texture_count());
-
     if (connection_type == ConnectionType::INPUT) {
         glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
         glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(int), m_data->get_data());
@@ -75,8 +76,14 @@ void AudioIntParameter::render_parameter() {
 bool AudioIntParameter::bind_parameter() {
     glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
 
-    // Bind the buffer to the binding point
-    glBindBufferBase(GL_UNIFORM_BUFFER, m_binding_point, m_ubo);
+    GLuint block_index = glGetUniformBlockIndex(m_render_stage_linked->get_shader_program(), name);
+
+    if (block_index == GL_INVALID_INDEX) {
+        printf("Error: Uniform block index not found in parameter %s\n", name);
+        return false;
+    }
+
+    glUniformBlockBinding(m_render_stage_linked->get_shader_program(), block_index, m_binding_point);
 
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 

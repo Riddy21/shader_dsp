@@ -43,6 +43,11 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         int value = 0;
         time_parameter->set_value(&value);
 
+        auto tone_parameter =
+            std::make_unique<AudioIntParameter>("tone",
+                                  AudioParameter::ConnectionType::INPUT);
+        tone_parameter->set_value(new int(2));
+
         auto output_audio_texture =
             std::make_unique<AudioTexture2DParameter>("output_audio_texture",
                       AudioParameter::ConnectionType::OUTPUT,
@@ -56,6 +61,9 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         }
         if (!this->add_parameter(std::move(time_parameter))) {
             std::cerr << "Failed to add time_parameter" << std::endl;
+        }
+        if (!this->add_parameter(std::move(tone_parameter))) {
+            std::cerr << "Failed to add tone_parameter" << std::endl;
         }
 }
 
