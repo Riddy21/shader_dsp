@@ -5,7 +5,7 @@
 #include "audio_renderer.h"
 #include "audio_player_output.h"
 #include "audio_texture2d_parameter.h"
-#include "audio_int_parameter.h"
+#include "audio_uniform_parameters.h"
 
 TEST_CASE("AudioRenderer") {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();

@@ -31,21 +31,21 @@ public:
         }
     }
 
-    // Setters
-    bool set_value(const void * value_ptr) override;
-
     // Getters
     GLuint get_texture() const { return m_texture; }
 
 private:
-    class ParamFloatData : public ParamData {
+    class ParamFloatArrayData : public ParamData {
     public:
-        ParamFloatData(unsigned int size)
-                : m_data(new float[size]()) {}
-        ~ParamFloatData() override { delete[] m_data; }
+        ParamFloatArrayData(unsigned int size)
+                : m_data(new float[size]()),
+                  m_size(size) {}
+        ~ParamFloatArrayData() override { delete[] m_data; }
         void * get_data() const override { return m_data; }
+        size_t get_size() const override { return sizeof(float) * m_size; }
     private:
         float * m_data;
+        int m_size;
     };
 
     bool initialize_parameter() override;
@@ -54,6 +54,9 @@ private:
 
     bool bind_parameter() override;
 
+    std::unique_ptr<ParamData> create_param_data() override {
+        return std::make_unique<ParamFloatArrayData>(m_parameter_width * m_parameter_height);
+    }
 
     GLuint m_texture;
     const GLuint m_parameter_width;

@@ -2,7 +2,7 @@
 #include <vector>
 
 #include "audio_parameter.h"
-#include "audio_int_parameter.h"
+#include "audio_uniform_parameters.h"
 #include "audio_texture2d_parameter.h"
 
 TEST_CASE("MakeUniqueTest") {

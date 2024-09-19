@@ -89,6 +89,10 @@ protected:
             uniform sampler2D input_audio_texture;
             uniform sampler2D stream_audio_texture;
 
+            layout(std140) uniform time {
+                int time_val;
+            };
+
             out vec4 output_audio_texture;
 
             void main() {

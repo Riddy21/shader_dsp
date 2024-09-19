@@ -35,7 +35,7 @@ public:
     }
 
     // Setters
-    virtual bool set_value(const void * value_ptr) = 0;
+    virtual bool set_value(const void * value_ptr);
 
     // Getters
     const void * const get_value() const {
@@ -50,6 +50,7 @@ protected:
     struct ParamData {
         virtual ~ParamData() = default;
         virtual void * get_data() const = 0;
+        virtual size_t get_size() const = 0;
     };
 
     AudioParameter(const char * name,
@@ -63,6 +64,8 @@ protected:
     virtual bool bind_parameter() = 0;
 
     virtual void render_parameter() = 0;
+
+    virtual std::unique_ptr<ParamData> create_param_data() = 0;
 
     void link_render_stage(AudioRenderStage * render_stage) {
         m_render_stage_linked = render_stage;

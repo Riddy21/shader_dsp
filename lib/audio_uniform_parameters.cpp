@@ -1,10 +1,10 @@
 #include <cstring>
 
-#include "audio_int_parameter.h"
+#include "audio_uniform_parameters.h"
 
-unsigned int AudioIntParameter::total_binding_points = 0;
+unsigned int AudioUniformParameter::total_binding_points = 0;
 
-bool AudioIntParameter::initialize_parameter() {
+bool AudioUniformParameter::initialize_parameter() {
 
     // Generate a buffer
     glGenBuffers(1, &m_ubo);
@@ -18,11 +18,11 @@ bool AudioIntParameter::initialize_parameter() {
         if (m_data == nullptr) {
             printf("Warning: value is nullptr when declared as input or initialization in parameter %s\n", name);
         }
-        glBufferData(GL_UNIFORM_BUFFER, sizeof(int), m_data->get_data(), GL_DYNAMIC_DRAW);
+        glBufferData(GL_UNIFORM_BUFFER, m_data->get_size(), m_data->get_data(), GL_DYNAMIC_DRAW);
 
     } else if (connection_type == ConnectionType::INITIALIZATION) {
         // Allocate memory for the buffer and data
-        glBufferData(GL_UNIFORM_BUFFER, sizeof(int), m_data->get_data(), GL_STATIC_DRAW);
+        glBufferData(GL_UNIFORM_BUFFER, m_data->get_size(), m_data->get_data(), GL_STATIC_DRAW);
     } else {
         // Output int parameters are not allowed
         printf("Error: output and passthrough int parameters are not allowed in parameter %s\n", name);
@@ -43,24 +43,7 @@ bool AudioIntParameter::initialize_parameter() {
     return true;
 }
 
-bool AudioIntParameter::set_value(const void * value_ptr) {
-    if (connection_type == ConnectionType::OUTPUT) {
-        printf("Error: Cannot set value for output parameter %s\n", name);
-        return false;
-    }
-    if (connection_type == ConnectionType::PASSTHROUGH) {
-        printf("Error: Cannot set value for passthrough parameter %s\n", name);
-        return false;
-    }
-
-    if (m_data == nullptr) {
-        m_data = std::make_unique<ParamIntData>();
-    }
-    std::memcpy(m_data->get_data(), value_ptr, sizeof(int));
-    return true;
-}
-
-void AudioIntParameter::render_parameter() {
+void AudioUniformParameter::render_parameter() {
     if (connection_type == ConnectionType::OUTPUT || connection_type == ConnectionType::PASSTHROUGH) {
         return; // Do not need to render if output
     }
@@ -73,7 +56,7 @@ void AudioIntParameter::render_parameter() {
 
 }
 
-bool AudioIntParameter::bind_parameter() {
+bool AudioUniformParameter::bind_parameter() {
     glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
 
     GLuint block_index = glGetUniformBlockIndex(m_render_stage_linked->get_shader_program(), name);

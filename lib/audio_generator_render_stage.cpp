@@ -6,7 +6,7 @@
 
 #include "audio_wav.h"
 #include "audio_texture2d_parameter.h"
-#include "audio_int_parameter.h"
+#include "audio_uniform_parameters.h"
 #include "audio_generator_render_stage.h"
 
 AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
@@ -44,9 +44,9 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         time_parameter->set_value(&value);
 
         auto tone_parameter =
-            std::make_unique<AudioIntParameter>("tone",
+            std::make_unique<AudioFloatParameter>("tone",
                                   AudioParameter::ConnectionType::INPUT);
-        tone_parameter->set_value(new int(2));
+        tone_parameter->set_value(new float(0.5f));
 
         auto output_audio_texture =
             std::make_unique<AudioTexture2DParameter>("output_audio_texture",

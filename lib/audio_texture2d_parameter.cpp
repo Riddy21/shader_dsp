@@ -65,27 +65,6 @@ void AudioTexture2DParameter::render_parameter() {
     }
 }
 
-bool AudioTexture2DParameter::set_value(const void * value_ptr) {
-    // Only allow setting value if the parameter is an input
-    if (connection_type == ConnectionType::PASSTHROUGH || connection_type == ConnectionType::OUTPUT) {
-        printf("Error: Cannot set value for parameter %s\n", name);
-        return false;
-    }
-
-    // Initialize m_value with enough memory
-    if (m_data == nullptr) {
-        m_data = std::make_unique<ParamFloatData>(m_parameter_width * m_parameter_height);
-    }
-
-    // Cast the value pointer to a float pointer
-    const float* float_value_ptr = static_cast<const float*>(value_ptr);
-
-    // Copy the value to m_value
-    std::memcpy(m_data->get_data(), float_value_ptr, m_parameter_width * m_parameter_height * sizeof(float));
-
-    return true;
-}
-
 bool AudioTexture2DParameter::bind_parameter() {
     // Pass if parameter is not an output or passthrough
     if (connection_type != ConnectionType::OUTPUT) {
