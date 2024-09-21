@@ -95,7 +95,7 @@ private:
 
             // Comput normalized texture coordinates
             return vec2(float(total_coord.x) / float(audio_size.x),
-                        3.0 * (float(total_coord.y) + 1.0/6.0 * coord.y) / float(audio_size.y));
+                        2.0 * (float(total_coord.y) + 0.25 * coord.y) / float(audio_size.y));
         }
 
         void main() {

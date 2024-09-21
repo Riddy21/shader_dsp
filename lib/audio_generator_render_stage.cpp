@@ -31,17 +31,17 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         full_audio_data.resize(width * height, 0.0f);
 
         // Buffer the full audio data
-        std::vector<float> buffered_full_audio_data(width * height * 3, 0.0f);
+        std::vector<float> buffered_full_audio_data(width * height * 2, 0.0f);
 
         for (unsigned int i = 0; i < height; i++) {
-            std::memcpy(&buffered_full_audio_data[i * width * 3], &full_audio_data[i * width], width * sizeof(float));
+            std::memcpy(&buffered_full_audio_data[i * width * 2], &full_audio_data[i * width], width * sizeof(float));
         }
 
         // Add new parameter objects to the parameter list
         auto full_audio_texture =
             std::make_unique<AudioTexture2DParameter>("full_audio_data_texture",
                                   AudioParameter::ConnectionType::INITIALIZATION,
-                                  width, height*3);
+                                  width, height*2);
         full_audio_texture->set_value(buffered_full_audio_data.data());
 
         auto time_parameter =
