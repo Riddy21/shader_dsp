@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "audio_render_stage.h"
+#include "audio_param_data.h"
 
 class AudioRenderStage; // Forward declaration
 
@@ -39,7 +40,7 @@ public:
 
     // Getters
     const void * const get_value() const {
-        return m_value;
+        return m_data->get_data();
     }
 
     bool is_connected() const {
@@ -47,12 +48,6 @@ public:
     }
 
 protected:
-    struct ParamData {
-        virtual ~ParamData() = default;
-        virtual void * get_data() const = 0;
-        virtual size_t get_size() const = 0;
-    };
-
     AudioParameter(const char * name,
                    ConnectionType connection_type)
         : name(name),    
@@ -72,7 +67,6 @@ protected:
     }
 
     std::unique_ptr<ParamData> m_data = nullptr; // Using unique pointer to cast to derived class
-    void * m_value = nullptr;
     AudioRenderStage * m_render_stage_linked = nullptr;
     const AudioParameter * m_linked_parameter = nullptr;
 };

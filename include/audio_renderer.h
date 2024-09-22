@@ -83,13 +83,24 @@ public:
     bool add_render_stage(AudioRenderStage & render_stage);
 
     /**
-     * @brief Adds a keyboard callback to the audio renderer.
+     * @brief Adds a keyboard down callback to the audio renderer.
      * 
      * @param callback The callback function to be added.
      * @return True if the callback is successfully added, false otherwise.
      */
-    bool add_keyboard_callback(void (*callback)(unsigned char, int, int)){
+    bool add_keyboard_down_callback(void (*callback)(unsigned char, int, int)){
         glutKeyboardFunc(callback);
+        return true;
+    }
+
+    /**
+     * @brief Adds a keyboard up callback to the audio renderer.
+     * 
+     * @param callback The callback function to be added.
+     * @return True if the callback is successfully added, false otherwise.
+     */
+    bool add_keyboard_up_callback(void (*callback)(unsigned char, int, int)){
+        glutKeyboardUpFunc(callback);
         return true;
     }
 

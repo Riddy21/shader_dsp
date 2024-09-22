@@ -5,7 +5,7 @@
 #include "audio_renderer.h"
 #include "audio_player_output.h"
 #include "audio_texture2d_parameter.h"
-#include "audio_uniform_parameters.h"
+#include "audio_uniform_buffer_parameters.h"
 
 TEST_CASE("AudioRenderer") {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
@@ -30,7 +30,7 @@ TEST_CASE("AudioRenderer") {
     REQUIRE(stream_audio_texture->set_value(empty_buffer));
 
     auto time_param =
-        std::make_unique<AudioIntParameter>("time",
+        std::make_unique<AudioIntBufferParameter>("time",
                               AudioParameter::ConnectionType::INPUT);
     REQUIRE(time_param->set_value(new int(0)));
 

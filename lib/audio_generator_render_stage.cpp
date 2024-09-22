@@ -6,6 +6,7 @@
 
 #include "audio_wav.h"
 #include "audio_texture2d_parameter.h"
+#include "audio_uniform_buffer_parameters.h"
 #include "audio_uniform_parameters.h"
 #include "audio_generator_render_stage.h"
 
@@ -45,20 +46,25 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         full_audio_texture->set_value(buffered_full_audio_data.data());
 
         auto time_parameter =
-            std::make_unique<AudioIntParameter>("time",
+            std::make_unique<AudioIntBufferParameter>("time",
                                   AudioParameter::ConnectionType::INPUT);
         int value = 0;
         time_parameter->set_value(&value);
+
+        auto play_position_parameter =
+            std::make_unique<AudioIntParameter>("play_position",
+                                  AudioParameter::ConnectionType::INPUT);
+        play_position_parameter->set_value(new int(0));
 
         auto tone_parameter =
             std::make_unique<AudioFloatParameter>("tone",
                                   AudioParameter::ConnectionType::INPUT);
         tone_parameter->set_value(new float(1.0f));
 
-        auto play_parameter =
-            std::make_unique<AudioIntParameter>("play",
+        auto gain_parameter =
+            std::make_unique<AudioFloatParameter>("gain",
                                   AudioParameter::ConnectionType::INPUT);
-        play_parameter->set_value(new int(0));
+        gain_parameter->set_value(new float(0.0f));
 
         auto output_audio_texture =
             std::make_unique<AudioTexture2DParameter>("output_audio_texture",
@@ -77,8 +83,11 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         if (!this->add_parameter(std::move(tone_parameter))) {
             std::cerr << "Failed to add tone_parameter" << std::endl;
         }
-        if (!this->add_parameter(std::move(play_parameter))) {
+        if (!this->add_parameter(std::move(gain_parameter))) {
             std::cerr << "Failed to add play_parameter" << std::endl;
+        }
+        if (!this->add_parameter(std::move(play_position_parameter))) {
+            std::cerr << "Failed to add play_position_parameter" << std::endl;
         }
 }
 

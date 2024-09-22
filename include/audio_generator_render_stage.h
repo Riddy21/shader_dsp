@@ -71,22 +71,20 @@ private:
             int time_val;
         };
 
-        layout(std140) uniform tone {
-            float tone_val;
-        };
+        uniform int play_position;
 
-        layout(std140) uniform play {
-            int play_val;
-        };
+        uniform float tone;
+
+        uniform float gain;
 
         out vec4 output_audio_texture;
 
         vec2 translate_coord(vec2 coord) {
             // Get the chunk size
             ivec2 audio_size = textureSize(full_audio_data_texture, 0);
-            ivec2 chunk_size = ivec2(1024.0 * tone_val, 1);
+            ivec2 chunk_size = ivec2(1024.0 * tone, 1);
 
-            int chunk_offset = time_val * chunk_size.x;
+            int chunk_offset = (time_val - play_position) * chunk_size.x;
 
             int total_offset = int(coord.x * float(chunk_size.x)) + chunk_offset;
 
@@ -106,7 +104,7 @@ private:
             vec4 audio_sample = texture(full_audio_data_texture, coord);
 
             // Output the result
-            output_audio_texture = audio_sample * float(play_val);
+            output_audio_texture = audio_sample * gain;
         }
     )glsl";
 };

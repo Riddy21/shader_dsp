@@ -35,18 +35,6 @@ public:
     GLuint get_texture() const { return m_texture; }
 
 private:
-    class ParamFloatArrayData : public ParamData {
-    public:
-        ParamFloatArrayData(unsigned int size)
-                : m_data(new float[size]()),
-                  m_size(size) {}
-        ~ParamFloatArrayData() override { delete[] m_data; }
-        void * get_data() const override { return m_data; }
-        size_t get_size() const override { return sizeof(float) * m_size; }
-    private:
-        float * m_data;
-        int m_size;
-    };
 
     bool initialize_parameter() override;
 

@@ -2,7 +2,7 @@
 #include <vector>
 
 #include "audio_parameter.h"
-#include "audio_uniform_parameters.h"
+#include "audio_uniform_buffer_parameters.h"
 #include "audio_texture2d_parameter.h"
 
 TEST_CASE("MakeUniqueTest") {
@@ -22,7 +22,7 @@ TEST_CASE("MakeUniqueTest") {
     auto audio_texture = dynamic_cast<AudioTexture2DParameter *>(audio_parameters[0].get())->get_texture();
     REQUIRE(audio_texture == 0);
 
-    auto time_parameter = std::make_unique<AudioIntParameter>("time",
+    auto time_parameter = std::make_unique<AudioIntBufferParameter>("time",
                                                               AudioParameter::ConnectionType::INPUT);
     time_parameter->set_value(new int(19));
 
