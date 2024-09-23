@@ -173,7 +173,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     // Links to display and timer functions for updating audio data
     // Calculate the delay in milliseconds based on the sample rate
     // FIXME: Instead of timer call, wait for audio callback to signal the next frame
-    float scale_factor = 0.99f;
+    float scale_factor = 0.5f;
     int delay = (float)buffer_size * (float)num_channels * (float)(scale_factor * 1000.f / (float)sample_rate);
     // Set the timer function with the calculated delay
 
@@ -269,7 +269,7 @@ void AudioRenderer::draw(unsigned int frame)
 
     // Calculate the delay in milliseconds based on the sample rate
     // FIXME: Instead of timer call, wait for audio callback to signal the next frame
-    float scale_factor = 0.99f;
+    float scale_factor = 0.50f;
     int delay = (float)m_buffer_size * (float)m_num_channels * (float)(scale_factor * 1000.f / (float)m_sample_rate);
 
     // Set the timer function with the calculated delay
