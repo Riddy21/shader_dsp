@@ -34,7 +34,7 @@ $(BIN_DIR)/% : $(SRC_DIR)/%.cpp $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -I $(INCLUDE_DIR) -o $@ $^ $(LDFLAGS)
 
 # Building the library object files
-$(OBJECT_DIR)/%.o : $(LIB_DIR)/%.cpp $(INCLUDE_DIR)/%.h
+$(OBJECT_DIR)/%.o : $(LIB_DIR)/%.cpp $(HEADERS)
 	mkdir -p $(OBJECT_DIR)
 	$(CXX) $(CXXFLAGS) -I $(INCLUDE_DIR) -c -o $@ $<
 
