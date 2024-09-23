@@ -60,6 +60,7 @@ private:
     }
 
     void set_uniform(GLint location) override {
+        printf("Setting uniform %s to %f\n", name, *static_cast<float *>(m_data->get_data()));
         glUniform1f(location, *static_cast<float *>(m_data->get_data()));
     }
 };
