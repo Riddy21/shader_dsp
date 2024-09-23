@@ -185,7 +185,6 @@ private:
     static void display_callback() {
         glutSwapBuffers(); // unlock framerate
         glutPostRedisplay();
-        printf("YO");
     }
 
     /**
