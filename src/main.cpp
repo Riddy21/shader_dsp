@@ -15,6 +15,8 @@ void key_down_callback(unsigned char key, int x, int y) {
     auto gain_param = audio_generator->find_parameter("gain");
     auto tone_param = audio_generator->find_parameter("tone");
 
+    printf("Key down: %c\n", key);
+
     if (key == 'q') {
         AudioRenderer::get_instance().terminate();
     } else if (key == 'a') {
@@ -30,6 +32,8 @@ void key_down_callback(unsigned char key, int x, int y) {
 void key_up_callback(unsigned char key, int x, int y) {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
     AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.get_render_stage(0);
+
+    printf("Key up: %c\n", key);
 
     auto gain_param = audio_generator->find_parameter("gain");
     auto tone_param = audio_generator->find_parameter("tone");
