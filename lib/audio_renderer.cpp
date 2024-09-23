@@ -167,8 +167,6 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         return false;
     }
 
-    printf("YO  \n");
-
     // Initialize the textures with data
     render();
     draw(m_frame_count++); // Render the first frame

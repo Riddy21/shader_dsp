@@ -53,7 +53,12 @@ int main(int argc, char** argv) {
     audio_renderer.add_render_stage(audio_generator);
 
     // Initialize the audio renderer
-    audio_renderer.init(512, 44100, 2);
+    if (audio_renderer.init(512, 44100, 2)) {
+        std::cout << "Audio renderer initialized successfully." << std::endl;
+    } else {
+        std::cerr << "Error: Audio renderer initialization failed." << std::endl;
+        return 1;
+    }
 
     // Add the keyboard callback to the audio renderer
     audio_renderer.add_keyboard_down_callback(key_down_callback);
