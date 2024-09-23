@@ -22,6 +22,7 @@ void key_down_callback(unsigned char key, int x, int y) {
     } else if (key == 'a') {
         gain_param->set_value(new float(1.0));
         tone_param->set_value(new float(0.75f));
+        printf("You pressed the 'a' key!\n");
     } else if (key == 's') {
         gain_param->set_value(new float(1.0));
         tone_param->set_value(new float(0.5f));
