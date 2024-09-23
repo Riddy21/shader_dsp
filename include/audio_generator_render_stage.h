@@ -2,7 +2,7 @@
 #ifndef AUDIO_GENERATOR_H
 #define AUDIO_GENERATOR_H
 
-#define MAX_TEXTURE_SIZE 4096 + 1000
+#define MAX_TEXTURE_SIZE 4096
 
 #include "audio_render_stage.h"
 
