@@ -250,6 +250,7 @@ void AudioRenderer::draw(unsigned int frame)
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
     const float * output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     if (output_buffer_data) {
+        printf("Output buffer data: %f\n", output_buffer_data[0]);
         push_data_to_all_output_buffers(output_buffer_data, m_buffer_size * m_num_channels);
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     }
