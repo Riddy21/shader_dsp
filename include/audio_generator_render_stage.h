@@ -2,7 +2,7 @@
 #ifndef AUDIO_GENERATOR_H
 #define AUDIO_GENERATOR_H
 
-#define MAX_TEXTURE_SIZE 4096
+#define MAX_TEXTURE_SIZE 4096 + 1000
 
 #include "audio_render_stage.h"
 
@@ -93,7 +93,9 @@ private:
 
             // Comput normalized texture coordinates
             return vec2(float(total_coord.x) / float(audio_size.x),
-                        2.0 * (float(total_coord.y) + 0.25 * coord.y) / float(audio_size.y));
+                        2.0 * (float(total_coord.y) + 0.25 * coord.y + 0.25) / float(audio_size.y));
+                        // For some reason, only the above line works for raspberry pi
+                        //2.0 * (float(total_coord.y) + 0.25 * coord.y) / float(audio_size.y));
         }
 
         void main() {
