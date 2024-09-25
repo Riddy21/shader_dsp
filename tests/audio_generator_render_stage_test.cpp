@@ -19,7 +19,6 @@ TEST_CASE("AudioGeneratorRenderStage") {
     auto position_param = audio_generator.find_parameter("play_position");
     auto time_param = audio_generator.find_parameter("time");
 
-    // FIXME: There is a tinyness to the sound when played at uneven intervals
     tone_param->set_value(new float(0.8f));
 
     // Open a thread to wait few sec and the shut it down
@@ -41,11 +40,13 @@ TEST_CASE("AudioGeneratorRenderStage") {
 
     REQUIRE(audio_renderer.init(512, 44100, 2));
     auto audio_buffer = audio_renderer.get_new_output_buffer();
-    audio_buffer->push(new float[512*2](), 512*2);
-    audio_buffer->push(new float[512*2](), 512*2);
     REQUIRE(audio_driver.set_buffer_link(audio_buffer));
     REQUIRE(audio_driver.open());
     REQUIRE(audio_driver.start());
+
+    audio_buffer->push(new float[512*2]());
+    audio_buffer->push(new float[512*2]());
+
     audio_renderer.main_loop();
 
     t1.detach();

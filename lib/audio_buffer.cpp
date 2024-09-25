@@ -33,13 +33,7 @@ void AudioBuffer::clear() {
 }
 
 void AudioBuffer::push(const float * buffer) {
-
-    // FIXME: I want pop to notify push and then push goes. 
-    //        push should be faster than pop, so it should always be waiting for pop.
-    //        But With this, push is always much slower than pop, why is that?
-    //        I'd expect it to be the same speed
-    //        I don't want pop to lock ever, because it needs to run at a pre-determined speed
-    //        I want push to lock until pop is ready, then push goes
+    this->wait();
 
     m_mutex.lock();
     // Have to copy because don't know if buffer is deallocated
@@ -49,8 +43,6 @@ void AudioBuffer::push(const float * buffer) {
     m_mutex.unlock();
 
     m_write_index = (m_write_index + 1) % m_max_size;
-
-    this->wait();
 
     // Calculate frame rate
     static int frame_count = 0;
@@ -104,7 +96,7 @@ const float * AudioBuffer::pop() {
         frame_count = 0; // Reset the frame count
         previous_time = current_time; // Update the previous time
     }
-    printf("Audio Output Frame rate: %f\n", fps); // Print the frame rate
+    //printf("Audio Output Frame rate: %f\n", fps); // Print the frame rate
 
     return buffer;
 }

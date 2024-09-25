@@ -136,7 +136,6 @@ int AudioPlayerOutput::audio_callback(const void *input_buffer, void *output_buf
     AudioPlayerOutput * driver = (AudioPlayerOutput *) user_data;
     float * out = (float *) output_buffer;
 
-    // FIXME: Notify buffer driver that we are ready for the next buffer
     const float * buffer = driver->m_audio_buffer_link->pop();
     // Copy the audio buffer to the output buffer
     memcpy(out, buffer, frames_per_buffer * driver->m_channels * sizeof(float));

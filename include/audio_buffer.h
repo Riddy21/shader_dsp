@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <mutex>
-#include <condition_variable>
+#include <thread>
 
 class AudioBuffer {
 public:
@@ -15,8 +15,13 @@ public:
     void clear();
     unsigned int get_size() { return m_circular_queue.size(); }
     unsigned int get_max_size() { return m_max_size; }
-    void notify() { m_condition.notify_one(); }
-    void wait() { std::unique_lock<std::mutex> lock(m_mutex); m_condition.wait(lock); }
+    void notify() { flag = true;}
+    void wait() {
+        while (!flag) {
+            std::this_thread::yield();
+        }
+        flag = false;
+    }
 
 private:
     std::vector<const float *> m_circular_queue;
@@ -25,7 +30,7 @@ private:
     const unsigned int m_buffer_size;
     const unsigned int m_max_size;
     std::mutex m_mutex;
-    std::condition_variable m_condition;
+    bool flag = false;
 };
 
 #endif // AUDIO_BUFFER_H

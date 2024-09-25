@@ -3,6 +3,7 @@
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 #include <GL/glut.h>
+#include <cstdlib>
 #include "audio_renderer.h"
 #include "audio_generator_render_stage.h"
 #include <audio_player_output.h>
@@ -43,8 +44,9 @@ void key_up_callback(unsigned char key, int x, int y) {
 }
 
 int main(int argc, char** argv) {
+    //system("sudo renice -18 $(pgrep audio_program)");
     // Create an audio generator render stage with sine wave
-    AudioGeneratorRenderStage audio_generator(512, 44100, 2, "media/sine.wav");
+    AudioGeneratorRenderStage audio_generator(1024, 44100, 2, "media/sine.wav");
 
     // Get the render program
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
@@ -53,14 +55,14 @@ int main(int argc, char** argv) {
     audio_renderer.add_render_stage(audio_generator);
 
     // Initialize the audio renderer
-    audio_renderer.init(512, 44100, 2);
+    audio_renderer.init(1024, 44100, 2);
 
     // Add the keyboard callback to the audio renderer
     audio_renderer.add_keyboard_down_callback(key_down_callback);
     audio_renderer.add_keyboard_up_callback(key_up_callback);
 
     // Make an output player
-    AudioPlayerOutput audio_player_output(512, 44100, 2);
+    AudioPlayerOutput audio_player_output(1024, 44100, 2);
 
     // Link it to the audio renderer
     auto audio_buffer = audio_renderer.get_new_output_buffer();
@@ -72,6 +74,9 @@ int main(int argc, char** argv) {
     audio_player_output.open();
     audio_player_output.start();
 
+    audio_buffer->push(new float[512*2]());
+    audio_buffer->push(new float[512*2]());
+    audio_buffer->push(new float[512*2]());
     audio_buffer->push(new float[512*2]());
 
     // Start the audio renderer main loop

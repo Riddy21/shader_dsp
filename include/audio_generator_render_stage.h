@@ -82,7 +82,8 @@ private:
         vec2 translate_coord(vec2 coord) {
             // Get the chunk size
             ivec2 audio_size = textureSize(full_audio_data_texture, 0);
-            ivec2 chunk_size = ivec2(1024.0 * tone, 1);
+            // FIXME: Pass this in as a parameter
+            ivec2 chunk_size = ivec2(1024.0 * 2.0 * tone, 1);
 
             int chunk_offset = (time_val - play_position) * chunk_size.x;
 
