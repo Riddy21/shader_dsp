@@ -191,9 +191,8 @@ private:
      * @brief Push data to all output buffers
      * 
      * @param data The data to push
-     * @param size The size of the data
      */
-    void push_data_to_all_output_buffers(const float * data, const unsigned int size);
+    void push_data_to_all_output_buffers(const float * data);
 
     // Private member variables
     GLuint m_VAO; // Vertex Array For holding vertex attribute configurations

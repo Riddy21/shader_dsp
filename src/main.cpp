@@ -64,7 +64,6 @@ int main(int argc, char** argv) {
 
     // Link it to the audio renderer
     auto audio_buffer = audio_renderer.get_new_output_buffer();
-    audio_buffer->push(new float[512*2](), 512*2);
 
     // Set the buffer link
     audio_player_output.set_buffer_link(audio_buffer);
@@ -72,6 +71,8 @@ int main(int argc, char** argv) {
     // Start the audio player
     audio_player_output.open();
     audio_player_output.start();
+
+    audio_buffer->push(new float[512*2]());
 
     // Start the audio renderer main loop
     audio_renderer.main_loop();

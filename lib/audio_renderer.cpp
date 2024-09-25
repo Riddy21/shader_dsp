@@ -178,7 +178,7 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     // Set the timer function with the calculated delay
 
     glutIdleFunc(render_callback);
-    glutTimerFunc(delay, draw_callback, m_frame_count++);
+    glutTimerFunc(0, draw_callback, m_frame_count++);
     glutDisplayFunc(display_callback);
 
     m_initialized = true;
@@ -250,7 +250,7 @@ void AudioRenderer::draw(unsigned int frame)
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
     const float * output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     if (output_buffer_data) {
-        push_data_to_all_output_buffers(output_buffer_data, m_buffer_size * m_num_channels);
+        push_data_to_all_output_buffers(output_buffer_data);
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     }
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
@@ -273,7 +273,7 @@ void AudioRenderer::draw(unsigned int frame)
     int delay = (float)m_buffer_size * (float)m_num_channels * (float)(scale_factor * 1000.f / (float)m_sample_rate);
 
     // Set the timer function with the calculated delay
-    glutTimerFunc(delay, draw_callback, m_frame_count++);
+    glutTimerFunc(0, draw_callback, m_frame_count++);
 
     // Calculate the frame rate
     calculate_frame_rate();
@@ -317,16 +317,16 @@ AudioRenderer::~AudioRenderer()
 AudioBuffer * AudioRenderer::get_new_output_buffer()
 {
     // Create a new output buffer
-    std::unique_ptr<AudioBuffer> output_buffer(new AudioBuffer(20));
+    std::unique_ptr<AudioBuffer> output_buffer(new AudioBuffer(20, m_num_channels * m_buffer_size));
     m_output_buffers.push_back(std::move(output_buffer));
     
     return m_output_buffers.back().get();
 }
 
-void AudioRenderer::push_data_to_all_output_buffers(const float * data, const unsigned int size)
+void AudioRenderer::push_data_to_all_output_buffers(const float * data)
 {
     // Push the data to all output buffers
     for (unsigned int i = 0; i < m_output_buffers.size(); i++) {
-        m_output_buffers[i]->push(data, size);
+        m_output_buffers[i]->push(data);
     }
 }

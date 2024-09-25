@@ -4,23 +4,28 @@
 
 #include <vector>
 #include <mutex>
+#include <condition_variable>
 
 class AudioBuffer {
 public:
-    AudioBuffer(const unsigned int max_size);
+    AudioBuffer(const unsigned int max_size, const unsigned int buffer_size);
     ~AudioBuffer();
-    void push(const float * buffer, const unsigned int buffer_size);
+    void push(const float * buffer);
     const float * pop();
     void clear();
     unsigned int get_size() { return m_circular_queue.size(); }
     unsigned int get_max_size() { return m_max_size; }
+    void notify() { m_condition.notify_one(); }
+    void wait() { std::unique_lock<std::mutex> lock(m_mutex); m_condition.wait(lock); }
 
 private:
     std::vector<const float *> m_circular_queue;
-    unsigned int m_max_size;
     unsigned int m_read_index = 0;
     unsigned int m_write_index = 0;
+    const unsigned int m_buffer_size;
+    const unsigned int m_max_size;
     std::mutex m_mutex;
+    std::condition_variable m_condition;
 };
 
 #endif // AUDIO_BUFFER_H
