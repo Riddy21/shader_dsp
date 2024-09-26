@@ -1,7 +1,7 @@
 # Variables
 CXX = g++
 CXXFLAGS = -g -Wall -std=c++20
-LDFLAGS = -lportaudio -lCatch2Main -lCatch2 -lGL -lGLEW -lglut -lpthread
+LDFLAGS = -lportaudio -lCatch2Main -lCatch2 -lGL -lGLEW -lglut -lpthread -ljack
 SRC_DIR = src
 LIB_DIR = lib
 INCLUDE_DIR = include
