@@ -218,7 +218,7 @@ void AudioRenderer::render()
 
     m_audio_data_mutex.unlock(); // Unlock the mutex
 
-    //calculate_frame_rate();
+    calculate_frame_rate();
 }
 
 void AudioRenderer::draw(unsigned int frame)
@@ -228,11 +228,12 @@ void AudioRenderer::draw(unsigned int frame)
     // Set the time for the frame
     m_frame_time_parameter->set_value(&frame);
     
+    // FIXME: Seperate the writing of PBOs from the timer function
     // Bind the vertex array
     glBindVertexArray(m_VAO);
 
     // Bind the last stage to read the audio data
-    glUseProgram(m_render_stages.back()->get_shader_program());
+    glUseProgram(m_render_stages[m_num_stages - 1]->get_shader_program());
     glBindFramebuffer(GL_FRAMEBUFFER, m_render_stages[m_num_stages - 1]->get_framebuffer());
 
     // Bind the color attachment we are on
@@ -243,34 +244,12 @@ void AudioRenderer::draw(unsigned int frame)
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
     const float * output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     if (output_buffer_data) {
-        // FIXME: Change the delay to be calculated based on the sample rate
+        // FIXME: Seperate the pushing of data to output buffers from the timer function
         push_data_to_all_output_buffers(output_buffer_data);
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     }
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
-    // Unbind everything
-    glBindVertexArray(0);
-    glUseProgram(0);
-
-    // unlock the mutex
-    m_audio_data_mutex.unlock();
-
-    // Set the timer function with the calculated delay
-    int delay = 1000 * m_buffer_size / m_sample_rate - 2;
-    glutTimerFunc(delay, draw_callback, m_frame_count++);
-
-    // Calculate the frame rate
-    calculate_frame_rate();
-}
-
-void AudioRenderer::display()
-{
-    m_audio_data_mutex.lock(); // Lock the mutex
-
-    glBindVertexArray(m_VAO);
-    // FIXME: This line should change to something better
-    glUseProgram(m_render_stages.back()->get_shader_program());
     // Display to screen
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -280,10 +259,14 @@ void AudioRenderer::display()
     glBindVertexArray(0);
     glUseProgram(0);
 
+    // unlock the mutex
     m_audio_data_mutex.unlock();
 
-    glutSwapBuffers(); // unlock framerate
-    glutPostRedisplay();
+    // Set the timer function with the calculated delay
+    glutTimerFunc(10, draw_callback, m_frame_count++);
+
+    // Calculate the frame rate
+    //calculate_frame_rate();
 }
 
 void AudioRenderer::main_loop()

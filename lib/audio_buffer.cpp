@@ -96,7 +96,7 @@ const float * AudioBuffer::pop() {
         frame_count = 0; // Reset the frame count
         previous_time = current_time; // Update the previous time
     }
-    printf("Audio Output Frame rate: %f\n", fps); // Print the frame rate
+    //printf("Audio Output Frame rate: %f\n", fps); // Print the frame rate
 
     return buffer;
 }

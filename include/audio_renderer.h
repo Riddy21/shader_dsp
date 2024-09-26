@@ -159,11 +159,6 @@ private:
     void render();
 
     /**
-     * @brief Display the frame
-     */
-    void display();
-
-    /**
      * @brief Calculates the frame rate of the audio renderer
      */
     void calculate_frame_rate();
@@ -188,7 +183,8 @@ private:
      * @brief Static callback function for displaying
      */
     static void display_callback() {
-        instance->display();
+        glutSwapBuffers(); // unlock framerate
+        glutPostRedisplay();
     }
 
     /**
