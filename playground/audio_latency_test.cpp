@@ -12,8 +12,8 @@ const int channels = 2;
 float audio_data_interleaved[frames_per_buffer*channels];
 float silence[frames_per_buffer*channels] = {0};
 
-AudioBuffer * audio_buffer = new AudioBuffer(1);
-AudioBuffer * audio_buffer2 = new AudioBuffer(1);
+AudioBuffer * audio_buffer = new AudioBuffer(1, frames_per_buffer*channels);
+AudioBuffer * audio_buffer2 = new AudioBuffer(1, frames_per_buffer*channels);
 
 // Initialize audio player output
 AudioPlayerOutput audio_player_output(frames_per_buffer, 44100, channels);
@@ -46,16 +46,17 @@ int main(int argc, char** argv) {
         audio_data_interleaved[i+1] = sin(((double)(i)/((double)channels*(double)frames_per_buffer)) * M_PI * 10.0);
     }
 
-    // Create audio buffer
-    audio_buffer->push(silence, frames_per_buffer*channels);
-    audio_buffer2->push(audio_data_interleaved, frames_per_buffer*channels);
-
     // Set the audio buffer link
     audio_player_output.set_buffer_link(audio_buffer);
 
     // Open the audio player output
     audio_player_output.open();
     audio_player_output.start();
+
+    // Create audio buffer
+    audio_buffer->push(silence);
+    audio_buffer2->push(audio_data_interleaved);
+
 
     glutKeyboardFunc(keyboard_callback);
     glutDisplayFunc([]() {

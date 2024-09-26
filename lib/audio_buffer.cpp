@@ -33,7 +33,7 @@ void AudioBuffer::clear() {
 }
 
 void AudioBuffer::push(const float * buffer) {
-    this->wait();
+    //this->wait();
 
     m_mutex.lock();
     // Have to copy because don't know if buffer is deallocated
