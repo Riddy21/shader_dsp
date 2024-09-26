@@ -24,8 +24,8 @@ TEST_CASE("AudioPlayerOutputTest") {
     }
 
     // Create audio buffer
-    AudioBuffer * audio_buffer = new AudioBuffer(1);
-    audio_buffer->push(audio_data_interleaved, frames_per_buffer*channels);
+    AudioBuffer * audio_buffer = new AudioBuffer(1, frames_per_buffer*channels);
+    audio_buffer->push(audio_data_interleaved);
 
     // Create the audio driver
     AudioPlayerOutput audio_driver(frames_per_buffer, 44100, channels);

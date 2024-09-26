@@ -33,9 +33,9 @@ TEST_CASE("AudioGeneratorRenderStage") {
         play_param->set_value(new float(1.0f));
         std::this_thread::sleep_for(std::chrono::seconds(5));
         play_param->set_value(new float(0.0f));
-        audio_driver.stop();
-        audio_driver.close();
         audio_renderer.terminate();
+        //audio_driver.stop();
+        //audio_driver.close();
     });
 
     REQUIRE(audio_renderer.init(512, 44100, 2));

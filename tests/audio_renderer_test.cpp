@@ -114,9 +114,9 @@ TEST_CASE("AudioRenderer") {
     AudioBuffer * output_buffer = audio_renderer.get_new_output_buffer();
 
 
-    output_buffer->push(new float[512*2](), 512*2);
+    output_buffer->push(new float[512*2]());
     audio_renderer.iterate();
-    output_buffer->push(new float[512*2](), 512*2); // Need at least one more in buffer
+    output_buffer->push(new float[512*2]()); // Need at least one more in buffer
 
     auto buffer = output_buffer->pop();
     for (int j = 0; j < 512*2; j++) {

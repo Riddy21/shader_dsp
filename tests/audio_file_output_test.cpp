@@ -22,8 +22,8 @@ TEST_CASE("AudioFileOutputTest") {
     }
 
     // Create audio buffer
-    AudioBuffer * audio_buffer = new AudioBuffer(1);
-    audio_buffer->push(audio_data_interleaved, frames_per_buffer*channels);
+    AudioBuffer * audio_buffer = new AudioBuffer(1, frames_per_buffer*channels);
+    audio_buffer->push(audio_data_interleaved);
 
     AudioFileOutput audio_file_output(512, 44100, 2, "build/tests/output.wav");
     REQUIRE(audio_file_output.set_buffer_link(audio_buffer));
