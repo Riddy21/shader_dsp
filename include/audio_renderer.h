@@ -71,7 +71,6 @@ public:
 
     static void iterate() {
         render_callback();
-        draw_callback(0);
     }
 
     /**
@@ -149,11 +148,6 @@ private:
     ~AudioRenderer();
 
     /**
-     * @brief Renders one stage of the audio data through OpenGL
-     */
-    void draw(unsigned int frame);
-
-    /**
      * @brief Render a frame
      */
     void render();
@@ -162,15 +156,6 @@ private:
      * @brief Calculates the frame rate of the audio renderer
      */
     void calculate_frame_rate();
-
-    /**
-     * @brief Static callback function for drawing the audio data
-     * 
-     * @param arg The argument to pass to the draw function
-     */
-    static void draw_callback(int arg) {
-        instance->draw(arg);
-    }
 
     /**
      * @brief Static callback function for rendering

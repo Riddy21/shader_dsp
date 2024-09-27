@@ -169,11 +169,9 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     // Initialize the textures with data
     render();
-    draw(m_frame_count++); // Render the first frame
 
     // Links to display and timer functions for updating audio data
     glutIdleFunc(render_callback);
-    glutTimerFunc(0, draw_callback, m_frame_count++);
     glutDisplayFunc(display_callback);
 
     m_initialized = true;
@@ -205,7 +203,9 @@ void AudioRenderer::calculate_frame_rate()
 
 void AudioRenderer::render()
 {
-    m_audio_data_mutex.lock(); // Lock the mutex
+    // Set the time for the frame
+    m_frame_time_parameter->set_value(&m_frame_count);
+    m_frame_count++;
 
     glBindVertexArray(m_VAO);
 
@@ -213,24 +213,7 @@ void AudioRenderer::render()
         // Render the stage
         m_render_stages[i]->render_render_stage();
     }
-
-    glBindVertexArray(0);
-
-    m_audio_data_mutex.unlock(); // Unlock the mutex
-
-    calculate_frame_rate();
-}
-
-void AudioRenderer::draw(unsigned int frame)
-{
-    m_audio_data_mutex.lock(); // Lock the mutex
-
-    // Set the time for the frame
-    m_frame_time_parameter->set_value(&frame);
     
-    // FIXME: Seperate the writing of PBOs from the timer function
-    // Bind the vertex array
-    glBindVertexArray(m_VAO);
 
     // Bind the last stage to read the audio data
     glUseProgram(m_render_stages[m_num_stages - 1]->get_shader_program());
@@ -240,11 +223,10 @@ void AudioRenderer::draw(unsigned int frame)
     glReadBuffer(GL_COLOR_ATTACHMENT0 + m_render_stages[m_num_stages - 1]->get_color_attachment_count()); // Change to the specific color attachment you want to read from
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
-    // TODO: Current Frame buffers dependent on size of the screen, need to work without a screen
+
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
     const float * output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     if (output_buffer_data) {
-        // FIXME: Seperate the pushing of data to output buffers from the timer function
         push_data_to_all_output_buffers(output_buffer_data);
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     }
@@ -259,14 +241,7 @@ void AudioRenderer::draw(unsigned int frame)
     glBindVertexArray(0);
     glUseProgram(0);
 
-    // unlock the mutex
-    m_audio_data_mutex.unlock();
-
-    // Set the timer function with the calculated delay
-    glutTimerFunc(10, draw_callback, m_frame_count++);
-
-    // Calculate the frame rate
-    //calculate_frame_rate();
+    calculate_frame_rate();
 }
 
 void AudioRenderer::main_loop()
