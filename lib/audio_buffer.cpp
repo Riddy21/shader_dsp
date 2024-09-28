@@ -32,8 +32,10 @@ void AudioBuffer::clear() {
     m_circular_queue.clear();
 }
 
-void AudioBuffer::push(const float * buffer) {
-    this->wait();
+void AudioBuffer::push(const float * buffer, const bool quiet) {
+    if (!quiet) {
+        this->wait();
+    }
 
     m_mutex.lock();
     // Have to copy because don't know if buffer is deallocated
@@ -62,8 +64,10 @@ void AudioBuffer::push(const float * buffer) {
 
 }
 
-const float * AudioBuffer::pop() {
-    this->notify();
+const float * AudioBuffer::pop(const bool quiet) {
+    if (!quiet) {
+        this->notify();
+    }
 
     m_mutex.lock();
     const float * buffer = m_circular_queue[m_read_index];

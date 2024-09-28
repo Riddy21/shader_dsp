@@ -102,6 +102,7 @@ TEST_CASE("AudioRenderer") {
     REQUIRE(render_stage5.add_parameter(std::move(output_audio_texture4)));
 
     REQUIRE(audio_renderer.init(512, 44100, 2));
+    audio_renderer.set_testing_mode(true);
 
     // Open a thread to wait 1 sec and the shut it down
     std::thread t1([&audio_renderer](){
@@ -114,11 +115,11 @@ TEST_CASE("AudioRenderer") {
     AudioBuffer * output_buffer = audio_renderer.get_new_output_buffer();
 
 
-    output_buffer->push(new float[512*2]());
+    output_buffer->push(new float[512*2](), true);
     audio_renderer.iterate();
-    output_buffer->push(new float[512*2]()); // Need at least one more in buffer
+    output_buffer->push(new float[512*2](), true); // Need at least one more in buffer
 
-    auto buffer = output_buffer->pop();
+    auto buffer = output_buffer->pop(true);
     for (int j = 0; j < 512*2; j++) {
         REQUIRE(buffer[j] == Catch::Approx(0.0f));
     }

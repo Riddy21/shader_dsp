@@ -292,6 +292,6 @@ void AudioRenderer::push_data_to_all_output_buffers(const float * data)
 {
     // Push the data to all output buffers
     for (unsigned int i = 0; i < m_output_buffers.size(); i++) {
-        m_output_buffers[i]->push(data);
+        m_output_buffers[i]->push(data, m_testing_mode);
     }
 }

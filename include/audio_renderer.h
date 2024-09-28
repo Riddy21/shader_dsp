@@ -110,6 +110,10 @@ public:
      */
     AudioBuffer * get_new_output_buffer();
 
+    void set_testing_mode(bool testing_mode) {
+        m_testing_mode = testing_mode;
+    }
+
     AudioRenderStage * get_render_stage(const unsigned int index) {
         return m_render_stages[index].get();
     }
@@ -190,6 +194,8 @@ private:
     unsigned int m_sample_rate; // Sample rate of audio data
 
     unsigned int m_frame_count = 0; // Frame count for calculating frame rate
+
+    bool m_testing_mode;
 
     // Marking initialized
     bool m_initialized = false;

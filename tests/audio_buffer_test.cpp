@@ -13,12 +13,12 @@ TEST_CASE("AudioQueue_push_pop") {
     // Push 10 buffers
     for (int i = 0; i < 10; i++) {
         std::vector<float> buffer(1, (float)i);
-        audio_queue.push(buffer.data());
+        audio_queue.push(buffer.data(), true);
     }
 
     // Pop 10 buffers
     for (int i = 0; i < 10; i++) {
-        const float * buffer = audio_queue.pop();
+        const float * buffer = audio_queue.pop(true);
         if (i != 0) {
             REQUIRE((unsigned)buffer[0] == (unsigned)i);
         }
@@ -32,12 +32,12 @@ TEST_CASE("AudioQueue_push_underflow") {
     // Push 5 buffers
     for (int i = 0; i < 15; i++) {
         std::vector<float> buffer(1, (float)i);
-        audio_queue.push(buffer.data());
+        audio_queue.push(buffer.data(), true);
     }
 
     // Pop 10 buffers
     for (int i = 0; i < 10; i++) {
-        const float * buffer = audio_queue.pop();
+        const float * buffer = audio_queue.pop(true);
         if (i == 0) {
         }
         else if (i < 5) {
@@ -58,7 +58,7 @@ TEST_CASE("AudioQueue_push_pop_threaded") {
             // Sleep for a random time
             std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
             std::vector<float> buffer(1, (float)i);
-            audio_queue.push(buffer.data());
+            audio_queue.push(buffer.data(), true);
         }
     });
 
@@ -68,7 +68,7 @@ TEST_CASE("AudioQueue_push_pop_threaded") {
         for (int i = 0; i < 100; i++) {
             // Sleep for a random time
             std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 10));
-            const float * buffer = audio_queue.pop();
+            const float * buffer = audio_queue.pop(true);
             REQUIRE((unsigned)buffer[0] == (unsigned)i);
         }
     });

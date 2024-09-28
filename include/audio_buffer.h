@@ -10,8 +10,8 @@ class AudioBuffer {
 public:
     AudioBuffer(const unsigned int max_size, const unsigned int buffer_size);
     ~AudioBuffer();
-    void push(const float * buffer);
-    const float * pop();
+    void push(const float * buffer, const bool quiet = false);
+    const float * pop(const bool quiet = false);
     void clear();
     unsigned int get_size() { return m_circular_queue.size(); }
     unsigned int get_max_size() { return m_max_size; }
