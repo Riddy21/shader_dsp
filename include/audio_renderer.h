@@ -183,6 +183,10 @@ private:
      */
     void push_data_to_all_output_buffers(const float * data);
 
+    bool initialize_time_parameters();
+
+    void set_all_time_parameters(const unsigned int time);
+
     // Private member variables
     GLuint m_VAO; // Vertex Array For holding vertex attribute configurations
     GLuint m_VBO; // Vertex Array buffer For holding vertex data
@@ -210,7 +214,7 @@ private:
     // FIXME: Convert this into a unique pointer
     std::vector<std::shared_ptr<AudioRenderStage>> m_render_stages;
 
-    AudioParameter * m_frame_time_parameter = nullptr;
+    std::vector<AudioParameter *> m_frame_time_parameters;
 
 };
 

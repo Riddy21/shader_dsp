@@ -45,12 +45,11 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                                   width, height*2);
         full_audio_texture->set_value(buffered_full_audio_data.data());
 
-        // FIXME: This doesn't work for multiple shader stages
+        // TODO: Make time a global parameter, not a stage parameter
         auto time_parameter =
-            std::make_unique<AudioIntBufferParameter>("time",
+            std::make_unique<AudioIntParameter>("time",
                                   AudioParameter::ConnectionType::INPUT);
-        int value = 0;
-        time_parameter->set_value(&value);
+        time_parameter->set_value(new int(0));
 
         auto play_position_parameter =
             std::make_unique<AudioIntParameter>("play_position",

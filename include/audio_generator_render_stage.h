@@ -69,9 +69,7 @@ private:
 
         uniform sampler2D stream_audio_texture;
 
-        layout(std140) uniform time {
-            int time_val;
-        };
+        uniform int time;
 
         uniform int play_position;
 
@@ -87,7 +85,7 @@ private:
             // FIXME: Pass this in as a parameter
             ivec2 chunk_size = ivec2(1024.0 * tone, 1);
 
-            int chunk_offset = (time_val - play_position) * chunk_size.x;
+            int chunk_offset = (time - play_position) * chunk_size.x;
 
             int total_offset = int(coord.x * float(chunk_size.x)) + chunk_offset;
 

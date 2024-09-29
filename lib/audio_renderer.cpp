@@ -151,14 +151,10 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
         }
     }
 
-    // set the time parameter
-    for (auto& stage : m_render_stages) {
-        if (m_frame_time_parameter == nullptr) {
-            m_frame_time_parameter = stage->find_parameter("time");
-            printf("Found time parameter\n");
-        } else {
-            break;
-        }
+    // Find the time parameters
+    if (!initialize_time_parameters()) {
+        std::cerr << "Failed to initialize time parameters." << std::endl;
+        return false;
     }
 
     // Create the quad
@@ -204,8 +200,7 @@ void AudioRenderer::calculate_frame_rate()
 void AudioRenderer::render()
 {
     // Set the time for the frame
-    m_frame_time_parameter->set_value(&m_frame_count);
-    m_frame_count++;
+    set_all_time_parameters(m_frame_count++);
 
     glBindVertexArray(m_VAO);
 
@@ -293,5 +288,29 @@ void AudioRenderer::push_data_to_all_output_buffers(const float * data)
     // Push the data to all output buffers
     for (unsigned int i = 0; i < m_output_buffers.size(); i++) {
         m_output_buffers[i]->push(data, m_testing_mode);
+    }
+}
+
+bool AudioRenderer::initialize_time_parameters()
+{
+    // Initialize the time parameters
+    unsigned int counter = 0;
+    for (auto& stage : m_render_stages) {
+        auto time_param = stage->find_parameter("time");
+        if (time_param == nullptr) {
+            printf("Error: Time parameter not found in render stage %d\n", counter);
+            return false;
+        }
+        m_frame_time_parameters.push_back(time_param);
+        counter ++;
+    }
+    return true;
+}
+
+void AudioRenderer::set_all_time_parameters(const unsigned int time)
+{
+    // Set the time parameter for all render stages
+    for (auto& param : m_frame_time_parameters) {
+        param->set_value(&time);
     }
 }
