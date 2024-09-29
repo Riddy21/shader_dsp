@@ -45,6 +45,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                                   width, height*2);
         full_audio_texture->set_value(buffered_full_audio_data.data());
 
+        // FIXME: This doesn't work for multiple shader stages
         auto time_parameter =
             std::make_unique<AudioIntBufferParameter>("time",
                                   AudioParameter::ConnectionType::INPUT);
@@ -55,6 +56,11 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
             std::make_unique<AudioIntParameter>("play_position",
                                   AudioParameter::ConnectionType::INPUT);
         play_position_parameter->set_value(new int(0));
+
+        auto stream_audio_texture = 
+            std::make_unique<AudioTexture2DParameter>("stream_audio_texture",
+                                  AudioParameter::ConnectionType::PASSTHROUGH,
+                                  m_frames_per_buffer * m_num_channels, 1);
 
         auto tone_parameter =
             std::make_unique<AudioFloatParameter>("tone",
@@ -76,6 +82,9 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         }
         if (!this->add_parameter(std::move(output_audio_texture))) {
             std::cerr << "Failed to add output_audio_texture" << std::endl;
+        }
+        if (!this->add_parameter(std::move(stream_audio_texture))) {
+            std::cerr << "Failed to add stream_audio_texture" << std::endl;
         }
         if (!this->add_parameter(std::move(time_parameter))) {
             std::cerr << "Failed to add time_parameter" << std::endl;

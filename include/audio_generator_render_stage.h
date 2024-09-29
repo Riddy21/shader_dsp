@@ -67,6 +67,8 @@ private:
 
         uniform sampler2D full_audio_data_texture;
 
+        uniform sampler2D stream_audio_texture;
+
         layout(std140) uniform time {
             int time_val;
         };
@@ -107,7 +109,7 @@ private:
             vec4 audio_sample = texture(full_audio_data_texture, coord);
 
             // Output the result
-            output_audio_texture = audio_sample * gain;
+            output_audio_texture = audio_sample * gain + texture(stream_audio_texture, TexCoord);
         }
     )glsl";
 };
