@@ -10,7 +10,7 @@
 
 AudioRenderer * AudioRenderer::instance = nullptr;
 
-bool AudioRenderer::add_render_stage(AudioRenderStage& render_stage)
+bool AudioRenderer::add_render_stage(std::unique_ptr<AudioRenderStage> render_stage)
 {
     if (m_initialized) {
         std::cerr << "Error: Cannot add render stage after initialization." << std::endl;
@@ -18,7 +18,7 @@ bool AudioRenderer::add_render_stage(AudioRenderStage& render_stage)
     }
     // Add the render stage to the list of render stages
     // FIXME: Change this to unique pointer
-    m_render_stages.push_back(std::shared_ptr<AudioRenderStage>(&render_stage, [](AudioRenderStage*){}));
+    m_render_stages.push_back(std::move(render_stage));
     m_num_stages = m_render_stages.size();
 
     // link the render stage to the audio renderer

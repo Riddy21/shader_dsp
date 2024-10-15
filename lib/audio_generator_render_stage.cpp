@@ -76,6 +76,13 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                       AudioParameter::ConnectionType::OUTPUT,
                       m_frames_per_buffer * m_num_channels, 1);
 
+        auto buffer_size =
+            std::make_unique<AudioIntParameter>("buffer_size",
+                      AudioParameter::ConnectionType::INITIALIZATION);
+        buffer_size->set_value(new int(m_frames_per_buffer*m_num_channels));
+
+        // TODO: Add parameter for loop
+
         if (!this->add_parameter(std::move(full_audio_texture))) {
             std::cerr << "Failed to add beginning_audio_texture" << std::endl;
         }
@@ -96,6 +103,9 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         }
         if (!this->add_parameter(std::move(play_position_parameter))) {
             std::cerr << "Failed to add play_position_parameter" << std::endl;
+        }
+        if (!this->add_parameter(std::move(buffer_size))) {
+            std::cerr << "Failed to add buffer_size" << std::endl;
         }
 }
 

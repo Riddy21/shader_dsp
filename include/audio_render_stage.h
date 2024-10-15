@@ -20,7 +20,8 @@ public:
                      const unsigned int num_channels)
         : m_frames_per_buffer(frames_per_buffer),
           m_sample_rate(sample_rate),
-          m_num_channels(num_channels) {}
+          m_num_channels(num_channels),
+          gid(generate_id()) {}
 
     // Destructor
     ~AudioRenderStage();
@@ -69,6 +70,9 @@ public:
     GLuint get_framebuffer() const {
         return m_framebuffer;
     }
+
+    const unsigned int gid;    
+
 protected:
 
     // Settings
@@ -165,6 +169,11 @@ private:
      * This function is responsible for initializing the framebuffer.
      */
     bool initialize_framebuffer();
+
+    unsigned int generate_id() {
+        static unsigned int id = 0;
+        return id++;
+    }
 };
 
 #endif // AUDIO_RENDER_STAGE_H

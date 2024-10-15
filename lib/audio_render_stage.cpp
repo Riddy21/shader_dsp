@@ -166,6 +166,7 @@ bool AudioRenderStage::add_parameter(std::unique_ptr<AudioParameter> parameter) 
 }
 
 AudioParameter * AudioRenderStage::find_parameter(const char * name) const {
+    // FIXME: Convert this to a map
     for (auto &param : m_parameters) {
         if (std::string(param->name) == std::string(name)) {
             return param.get();

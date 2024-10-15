@@ -77,15 +77,19 @@ private:
 
         uniform float gain;
 
+        uniform int buffer_size;
+
         out vec4 output_audio_texture;
 
         vec2 translate_coord(vec2 coord) {
             // Get the chunk size
             ivec2 audio_size = textureSize(full_audio_data_texture, 0);
-            // FIXME: Pass this in as a parameter
-            ivec2 chunk_size = ivec2(1024.0 * tone, 1);
 
-            int chunk_offset = (time - play_position) * chunk_size.x;
+            int total_audio_size = audio_size.x * audio_size.y / 2; // divide by 2 because spacing
+
+            ivec2 chunk_size = ivec2(float(buffer_size) * tone, 1);
+
+            int chunk_offset = (time - play_position) * chunk_size.x % total_audio_size;
 
             int total_offset = int(coord.x * float(chunk_size.x)) + chunk_offset;
 

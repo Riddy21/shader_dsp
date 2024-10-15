@@ -79,7 +79,7 @@ public:
      * @param render_stage The render stage to be added.
      * @return True if the render stage is successfully added, false otherwise.
      */
-    bool add_render_stage(AudioRenderStage & render_stage);
+    bool add_render_stage(std::unique_ptr<AudioRenderStage> render_stage);
 
     /**
      * @brief Adds a keyboard down callback to the audio renderer.
@@ -114,8 +114,12 @@ public:
         m_testing_mode = testing_mode;
     }
 
-    AudioRenderStage * get_render_stage(const unsigned int index) {
-        return m_render_stages[index].get();
+    AudioRenderStage * find_render_stage(const unsigned int gid) {
+        for (auto &stage : m_render_stages) {
+            if (stage->gid == gid) {
+                return stage.get();
+            }
+        }
     }
 
     // Vertex Source code
@@ -212,7 +216,7 @@ private:
 
     // Simplify this into one struct
     // FIXME: Convert this into a unique pointer
-    std::vector<std::shared_ptr<AudioRenderStage>> m_render_stages;
+    std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages;
 
     std::vector<AudioParameter *> m_frame_time_parameters;
 

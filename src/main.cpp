@@ -8,6 +8,9 @@
 #include "audio_generator_render_stage.h"
 #include <audio_player_output.h>
 
+float middle_c = 1.214879f;
+float semi_tone = 1.059463f;
+
 // Function to handle key press events
 void key_down_callback(unsigned char key, int x, int y) {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
@@ -15,35 +18,34 @@ void key_down_callback(unsigned char key, int x, int y) {
     if (key == 'q') {
         AudioRenderer::get_instance().terminate();
     } else if (key == 'a') {
-        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.get_render_stage(0);
-
+        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.find_render_stage(0);
         auto gain_param = audio_generator->find_parameter("gain");
         auto tone_param = audio_generator->find_parameter("tone");
         auto play_param = audio_generator->find_parameter("play_position");
         auto time_param = audio_generator->find_parameter("time");
         play_param->set_value(time_param->get_value());
-        gain_param->set_value(new float(0.3));
-        tone_param->set_value(new float(0.5f));
+        gain_param->set_value(new float(0.3f));
+        tone_param->set_value(new float(middle_c));
     } else if (key == 's') {
-        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.get_render_stage(1);
+        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.find_render_stage(1);
 
         auto gain_param = audio_generator->find_parameter("gain");
         auto tone_param = audio_generator->find_parameter("tone");
         auto play_param = audio_generator->find_parameter("play_position");
         auto time_param = audio_generator->find_parameter("time");
         play_param->set_value(time_param->get_value());
-        gain_param->set_value(new float(0.3));
-        tone_param->set_value(new float(1.1f));
+        gain_param->set_value(new float(0.3f));
+        tone_param->set_value(new float(middle_c * semi_tone));
     } else if (key == 'd') {
-        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.get_render_stage(2);
+        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.find_render_stage(2);
 
         auto gain_param = audio_generator->find_parameter("gain");
         auto tone_param = audio_generator->find_parameter("tone");
         auto play_param = audio_generator->find_parameter("play_position");
         auto time_param = audio_generator->find_parameter("time");
         play_param->set_value(time_param->get_value());
-        gain_param->set_value(new float(0.3));
-        tone_param->set_value(new float(1.5f));
+        gain_param->set_value(new float(0.3f));
+        tone_param->set_value(new float(middle_c * semi_tone * semi_tone));
     }
 }
 
@@ -52,21 +54,21 @@ void key_up_callback(unsigned char key, int x, int y) {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
 
     if (key == 'a') {
-        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.get_render_stage(0);
+        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.find_render_stage(0);
 
         auto gain_param = audio_generator->find_parameter("gain");
         auto tone_param = audio_generator->find_parameter("tone");
         gain_param->set_value(new float(0.0));
         tone_param->set_value(new float(0.0f));
     } else if (key == 's') {
-        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.get_render_stage(1);
+        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.find_render_stage(1);
 
         auto gain_param = audio_generator->find_parameter("gain");
         auto tone_param = audio_generator->find_parameter("tone");
         gain_param->set_value(new float(0.0));
         tone_param->set_value(new float(0.0f));
     } else if (key == 'd') {
-        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.get_render_stage(2);
+        AudioGeneratorRenderStage * audio_generator = (AudioGeneratorRenderStage *)audio_renderer.find_render_stage(2);
 
         auto gain_param = audio_generator->find_parameter("gain");
         auto tone_param = audio_generator->find_parameter("tone");
@@ -79,15 +81,18 @@ void key_up_callback(unsigned char key, int x, int y) {
 int main(int argc, char** argv) {
     //system("sudo renice -18 $(pgrep audio_program)");
     // Create an audio generator render stage with sine wave
-    AudioGeneratorRenderStage key_a(512, 44100, 2, "media/sine.wav");
-    AudioGeneratorRenderStage key_s(512, 44100, 2, "media/sine.wav");
-    AudioGeneratorRenderStage key_d(512, 44100, 2, "media/sine.wav");
+    auto key_a =
+        std::make_unique<AudioGeneratorRenderStage>(512, 44100, 2, "media/sine.wav");
+    auto key_s =
+        std::make_unique<AudioGeneratorRenderStage>(512, 44100, 2, "media/sine.wav");
+    auto key_d =
+        std::make_unique<AudioGeneratorRenderStage>(512, 44100, 2, "media/sine.wav");
 
     // Link render stages
-    auto output_audio_texture = key_a.find_parameter("output_audio_texture");
-    auto stream_audio_texture = key_s.find_parameter("stream_audio_texture");
-    auto output_audio_texture2 = key_s.find_parameter("output_audio_texture");
-    auto stream_audio_texture2 = key_d.find_parameter("stream_audio_texture");
+    auto output_audio_texture = key_a->find_parameter("output_audio_texture");
+    auto stream_audio_texture = key_s->find_parameter("stream_audio_texture");
+    auto output_audio_texture2 = key_s->find_parameter("output_audio_texture");
+    auto stream_audio_texture2 = key_d->find_parameter("stream_audio_texture");
 
     output_audio_texture->link(stream_audio_texture);
     output_audio_texture2->link(stream_audio_texture2);
@@ -96,9 +101,9 @@ int main(int argc, char** argv) {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
 
     // Add the audio generator render stage to the audio renderer
-    audio_renderer.add_render_stage(key_a);
-    audio_renderer.add_render_stage(key_s);
-    audio_renderer.add_render_stage(key_d);
+    audio_renderer.add_render_stage(std::move(key_a));
+    audio_renderer.add_render_stage(std::move(key_s));
+    audio_renderer.add_render_stage(std::move(key_d));
 
     // Initialize the audio renderer
     audio_renderer.init(512, 44100, 2);

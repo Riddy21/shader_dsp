@@ -5,12 +5,12 @@
 #include "audio_renderer.h"
 #include "audio_player_output.h"
 #include "audio_texture2d_parameter.h"
-#include "audio_uniform_buffer_parameters.h"
+#include "audio_uniform_parameters.h"
 
 TEST_CASE("AudioRenderer") {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
     
-    AudioRenderStage render_stage2 = AudioRenderStage(512, 44100, 2);
+    auto render_stage2 = std::make_unique<AudioRenderStage>(512, 44100, 2);
     float * audio_buffer = new float[512*2]();
     std::fill_n(audio_buffer, 512*2, -0.1f);
 
@@ -30,7 +30,7 @@ TEST_CASE("AudioRenderer") {
     REQUIRE(stream_audio_texture->set_value(empty_buffer));
 
     auto time_param =
-        std::make_unique<AudioIntBufferParameter>("time",
+        std::make_unique<AudioIntParameter>("time",
                               AudioParameter::ConnectionType::INPUT);
     REQUIRE(time_param->set_value(new int(0)));
 
@@ -39,9 +39,7 @@ TEST_CASE("AudioRenderer") {
                               AudioParameter::ConnectionType::OUTPUT,
                               512 * 2, 1);
 
-    audio_renderer.add_render_stage(render_stage2);
-
-    AudioRenderStage render_stage3 = AudioRenderStage(512, 44100, 2);
+    auto render_stage3 = std::make_unique<AudioRenderStage>(512, 44100, 2);
     float * audio_buffer2 = new float[512*2]();
     std::fill_n(audio_buffer2, 512*2, -0.2f);
 
@@ -56,15 +54,19 @@ TEST_CASE("AudioRenderer") {
         std::make_unique<AudioTexture2DParameter>("stream_audio_texture",
                               AudioParameter::ConnectionType::PASSTHROUGH,
                               512 * 2, 1);
+ 
+    auto time_param2 =
+        std::make_unique<AudioIntParameter>("time",
+                              AudioParameter::ConnectionType::INPUT);
+    REQUIRE(time_param2->set_value(new int(0)));
+
     
     auto output_audio_texture2 =
         std::make_unique<AudioTexture2DParameter>("output_audio_texture",
                               AudioParameter::ConnectionType::OUTPUT,
                               512 * 2, 1);
 
-    audio_renderer.add_render_stage(render_stage3);
-
-    AudioRenderStage render_stage5 = AudioRenderStage(512, 44100, 2);
+    auto render_stage5 = std::make_unique<AudioRenderStage>(512, 44100, 2);
     float * audio_buffer4 = new float[512*2]();
     std::fill_n(audio_buffer4, 512*2, -0.3f);
 
@@ -79,6 +81,12 @@ TEST_CASE("AudioRenderer") {
         std::make_unique<AudioTexture2DParameter>("stream_audio_texture",
                               AudioParameter::ConnectionType::PASSTHROUGH,
                               512 * 2, 1);
+
+    auto time_param4 =
+        std::make_unique<AudioIntParameter>("time",
+                              AudioParameter::ConnectionType::INPUT);
+    REQUIRE(time_param4->set_value(new int(0)));
+
     
     auto output_audio_texture4 =
         std::make_unique<AudioTexture2DParameter>("output_audio_texture",
@@ -86,20 +94,24 @@ TEST_CASE("AudioRenderer") {
                               512 * 2, 1);
 
 
-    audio_renderer.add_render_stage(render_stage5);
-
     REQUIRE(output_audio_texture->link(stream_audio_texture2.get()));
     REQUIRE(output_audio_texture2->link(stream_audio_texture4.get()));
-    REQUIRE(render_stage2.add_parameter(std::move(input_audio_texture)));
-    REQUIRE(render_stage2.add_parameter(std::move(time_param)));
-    REQUIRE(render_stage2.add_parameter(std::move(stream_audio_texture)));
-    REQUIRE(render_stage2.add_parameter(std::move(output_audio_texture)));
-    REQUIRE(render_stage3.add_parameter(std::move(input_audio_texture2)));
-    REQUIRE(render_stage3.add_parameter(std::move(stream_audio_texture2)));
-    REQUIRE(render_stage3.add_parameter(std::move(output_audio_texture2)));
-    REQUIRE(render_stage5.add_parameter(std::move(input_audio_texture4)));
-    REQUIRE(render_stage5.add_parameter(std::move(stream_audio_texture4)));
-    REQUIRE(render_stage5.add_parameter(std::move(output_audio_texture4)));
+    REQUIRE(render_stage2->add_parameter(std::move(input_audio_texture)));
+    REQUIRE(render_stage2->add_parameter(std::move(time_param)));
+    REQUIRE(render_stage2->add_parameter(std::move(stream_audio_texture)));
+    REQUIRE(render_stage2->add_parameter(std::move(output_audio_texture)));
+    REQUIRE(render_stage3->add_parameter(std::move(time_param2)));
+    REQUIRE(render_stage3->add_parameter(std::move(input_audio_texture2)));
+    REQUIRE(render_stage3->add_parameter(std::move(stream_audio_texture2)));
+    REQUIRE(render_stage3->add_parameter(std::move(output_audio_texture2)));
+    REQUIRE(render_stage5->add_parameter(std::move(time_param4)));
+    REQUIRE(render_stage5->add_parameter(std::move(input_audio_texture4)));
+    REQUIRE(render_stage5->add_parameter(std::move(stream_audio_texture4)));
+    REQUIRE(render_stage5->add_parameter(std::move(output_audio_texture4)));
+
+    audio_renderer.add_render_stage(std::move(render_stage2));
+    audio_renderer.add_render_stage(std::move(render_stage3));
+    audio_renderer.add_render_stage(std::move(render_stage5));
 
     REQUIRE(audio_renderer.init(512, 44100, 2));
     audio_renderer.set_testing_mode(true);
