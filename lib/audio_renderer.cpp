@@ -17,13 +17,22 @@ bool AudioRenderer::add_render_stage(std::unique_ptr<AudioRenderStage> render_st
         return false;
     }
     // Add the render stage to the list of render stages
-    // FIXME: Change this to unique pointer
     m_render_stages.push_back(std::move(render_stage));
     m_num_stages = m_render_stages.size();
 
     // link the render stage to the audio renderer
     m_render_stages.back()->link_renderer(this);
 
+    // Link the render stage to the previous render stage by finding the stream_audio_texture
+    if (m_num_stages > 1) {
+        // TODO: Encapsulate this in a function or class
+        // FIXME: Enforce the requirement of an output_audio_texture and a stream_audio_texture
+        auto output_audio_texture = m_render_stages[m_num_stages - 2]->find_parameter("output_audio_texture");
+        auto stream_audio_texture = m_render_stages[m_num_stages - 1]->find_parameter("stream_audio_texture");
+        output_audio_texture->link(stream_audio_texture);
+    }
+
+    
     return true;
 }
 
@@ -272,6 +281,9 @@ AudioRenderer::~AudioRenderer()
         std::cerr << "Failed to clean up OpenGL context." << std::endl;
     }
     m_output_buffers.clear();
+
+    // Delete the render stages
+    m_render_stages.clear();
 }
 
 AudioBuffer * AudioRenderer::get_new_output_buffer()
@@ -313,4 +325,15 @@ void AudioRenderer::set_all_time_parameters(const unsigned int time)
     for (auto& param : m_frame_time_parameters) {
         param->set_value(&time);
     }
+}
+
+AudioRenderStage * AudioRenderer::find_render_stage(const unsigned int gid) {
+    for (auto &stage : m_render_stages) {
+        if (stage->gid == gid) {
+            printf("Found render stage %d\n", gid);
+            return stage.get();
+        }
+    }
+    printf("Error: Render stage not found\n");
+    return nullptr;
 }

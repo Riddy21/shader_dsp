@@ -82,28 +82,6 @@ public:
     bool add_render_stage(std::unique_ptr<AudioRenderStage> render_stage);
 
     /**
-     * @brief Adds a keyboard down callback to the audio renderer.
-     * 
-     * @param callback The callback function to be added.
-     * @return True if the callback is successfully added, false otherwise.
-     */
-    bool add_keyboard_down_callback(void (*callback)(unsigned char, int, int)){
-        glutKeyboardFunc(callback);
-        return true;
-    }
-
-    /**
-     * @brief Adds a keyboard up callback to the audio renderer.
-     * 
-     * @param callback The callback function to be added.
-     * @return True if the callback is successfully added, false otherwise.
-     */
-    bool add_keyboard_up_callback(void (*callback)(unsigned char, int, int)){
-        glutKeyboardUpFunc(callback);
-        return true;
-    }
-
-    /**
      * @brief Returns a new output buffer for the audio renderer
      * 
      * @return The output buffer data.
@@ -114,13 +92,7 @@ public:
         m_testing_mode = testing_mode;
     }
 
-    AudioRenderStage * find_render_stage(const unsigned int gid) {
-        for (auto &stage : m_render_stages) {
-            if (stage->gid == gid) {
-                return stage.get();
-            }
-        }
-    }
+    AudioRenderStage * find_render_stage(const unsigned int gid);
 
     // Vertex Source code
     const GLchar* get_vertex_source() const {
@@ -136,6 +108,10 @@ public:
                 TexCoord = aTexCoord;
             }
         )glsl";
+    }
+
+    bool is_initialized() {
+        return m_initialized;
     }
 
 private:

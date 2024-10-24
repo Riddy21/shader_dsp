@@ -36,6 +36,7 @@ public:
     }
 
     // Setters
+    // TODO: Make this mulitple types
     virtual bool set_value(const void * value_ptr);
 
     // Getters

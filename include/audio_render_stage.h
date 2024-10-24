@@ -18,10 +18,10 @@ public:
     AudioRenderStage(const unsigned int frames_per_buffer,
                      const unsigned int sample_rate,
                      const unsigned int num_channels)
-        : m_frames_per_buffer(frames_per_buffer),
+        : gid(generate_id()),
+          m_frames_per_buffer(frames_per_buffer),
           m_sample_rate(sample_rate),
-          m_num_channels(num_channels),
-          gid(generate_id()) {}
+          m_num_channels(num_channels) {}
 
     // Destructor
     ~AudioRenderStage();
@@ -74,7 +74,6 @@ public:
     const unsigned int gid;    
 
 protected:
-
     // Settings
     const unsigned int m_frames_per_buffer;
     const unsigned int m_sample_rate;
