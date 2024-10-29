@@ -114,6 +114,24 @@ public:
         return m_initialized;
     }
 
+    const unsigned int get_sample_rate() {
+        return m_sample_rate;
+    }
+
+    const unsigned int get_buffer_size() {
+        return m_buffer_size;
+    }
+
+    const unsigned int get_num_channels() {
+        return m_num_channels;
+    }
+
+    void increment_time_parameters();
+
+    std::mutex & get_mutex() {
+        return m_audio_data_mutex;
+    }
+
 private:
     static AudioRenderer * instance;
     // Private member functions
@@ -164,8 +182,6 @@ private:
     void push_data_to_all_output_buffers(const float * data);
 
     bool initialize_time_parameters();
-
-    void set_all_time_parameters(const unsigned int time);
 
     // Private member variables
     GLuint m_VAO; // Vertex Array For holding vertex attribute configurations

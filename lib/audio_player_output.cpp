@@ -2,6 +2,7 @@
 #include <cstring>
 #include <memory>
 #include <portaudio.h>
+#include <GL/glut.h>
 
 #include "audio_player_output.h"
 
@@ -42,7 +43,7 @@ bool AudioPlayerOutput::open(PaDeviceIndex index) { PaStreamParameters outputPar
     // Set up output parameters
     outputParameters.channelCount = m_channels;
     outputParameters.sampleFormat = paFloat32;
-    outputParameters.suggestedLatency = 0.0;
+    outputParameters.suggestedLatency = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
     outputParameters.hostApiSpecificStreamInfo = NULL;
 
     // Set up the stream with the output parameters
@@ -137,6 +138,22 @@ int AudioPlayerOutput::audio_callback(const void *input_buffer, void *output_buf
     float * out = (float *) output_buffer;
 
     const float * buffer = driver->m_audio_buffer_link->pop();
+
+    // Check if the buffer has all one single number
+    //bool all_same = true;
+    //for (unsigned int i = 2; i < frames_per_buffer * driver->m_channels; i++) {
+    //    if (buffer[i] != buffer[i-1]) {
+    //        all_same = false;
+    //        printf("%d %d\n", i, i-1);
+    //        printf("%f %f\n", buffer[i], buffer[i-1]);
+    //        break;
+    //    }
+    //}
+    //for (unsigned int i = 0; i < 10; i++) {
+    //    printf("%f ", buffer[i]);
+    //}
+    //printf("\n\n\n");
+
     // Copy the audio buffer to the output buffer
     memcpy(out, buffer, frames_per_buffer * driver->m_channels * sizeof(float));
 

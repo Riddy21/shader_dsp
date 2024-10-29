@@ -181,6 +181,20 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     m_initialized = true;
 
+    // Start clock thread here
+    //std::thread t1([&](){
+    //    while (true) {
+    //        auto next_frame_time = std::chrono::steady_clock::now() + std::chrono::microseconds(1000*1000*m_buffer_size/m_sample_rate);
+    //        std::this_thread::sleep_until(next_frame_time);
+    //        m_audio_data_mutex.lock();
+    //        increment_time_parameters();
+    //        printf("\nIncrementing time parameters\n");
+    //        m_audio_data_mutex.unlock();
+    //    }
+    //});
+
+    //t1.detach();
+
     return true;
 }
 
@@ -208,9 +222,9 @@ void AudioRenderer::calculate_frame_rate()
 
 void AudioRenderer::render()
 {
-    // Set the time for the frame
-    set_all_time_parameters(m_frame_count++);
+    m_audio_data_mutex.lock();
 
+    //increment_time_parameters();
     glBindVertexArray(m_VAO);
 
     for (int i = 0; i < (int)m_num_stages; i++) {
@@ -246,6 +260,7 @@ void AudioRenderer::render()
     glUseProgram(0);
 
     calculate_frame_rate();
+    m_audio_data_mutex.unlock();
 }
 
 void AudioRenderer::main_loop()
@@ -299,7 +314,8 @@ void AudioRenderer::push_data_to_all_output_buffers(const float * data)
 {
     // Push the data to all output buffers
     for (unsigned int i = 0; i < m_output_buffers.size(); i++) {
-        m_output_buffers[i]->push(data, m_testing_mode);
+        //m_output_buffers[i]->push(data, m_testing_mode);
+        m_output_buffers[i]->update(data);
     }
 }
 
@@ -319,11 +335,12 @@ bool AudioRenderer::initialize_time_parameters()
     return true;
 }
 
-void AudioRenderer::set_all_time_parameters(const unsigned int time)
+void AudioRenderer::increment_time_parameters()
 {
+    m_frame_count++;
     // Set the time parameter for all render stages
     for (auto& param : m_frame_time_parameters) {
-        param->set_value(&time);
+        param->set_value(&m_frame_count);
     }
 }
 

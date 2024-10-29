@@ -4,6 +4,7 @@
 
 #include "audio_renderer.h"
 #include "audio_player_output.h"
+#include "audio_file_output.h"
 #include "audio_texture2d_parameter.h"
 #include "audio_uniform_parameters.h"
 

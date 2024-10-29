@@ -6,6 +6,7 @@
 PianoKey::PianoKey(const unsigned char key, const char * audio_file_path) : Key(key) {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
 
+    // Replace numbers with config object or something
     auto audio_generator = std::make_unique<AudioGeneratorRenderStage>(512, 44100, 2, audio_file_path);
 
     auto gid = audio_generator->gid;
