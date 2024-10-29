@@ -53,7 +53,7 @@ bool AudioPlayerOutput::open(PaDeviceIndex index) { PaStreamParameters outputPar
         m_sample_rate,
         m_frames_per_buffer,
         paClipOff,
-        AudioPlayerOutput::audio_callback,
+        NULL,
         this
     );
     if (err != paNoError) {
@@ -84,6 +84,11 @@ bool AudioPlayerOutput::start() {
         error(err);
         return false;
     }
+    m_is_running = true;
+
+    std::thread t1(write_audio_callback, this);
+    t1.detach();
+
     printf("Started stream.\n");
     return true;
 }
@@ -130,15 +135,20 @@ void AudioPlayerOutput::error(PaError err) {
     Pa_Terminate();
 }
 
-int AudioPlayerOutput::audio_callback(const void *input_buffer, void *output_buffer,
-                                unsigned long frames_per_buffer, const PaStreamCallbackTimeInfo *time_info,
-                                PaStreamCallbackFlags status_flags, void *user_data) {
-    AudioPlayerOutput * driver = (AudioPlayerOutput *) user_data;
-    float * out = (float *) output_buffer;
+void AudioPlayerOutput::write_audio_callback(AudioPlayerOutput* audio_player_output) {
+    while (audio_player_output->m_is_running) {
+        // Write audio data to the file
+        auto audio_buffer = audio_player_output->m_audio_buffer_link->pop();
 
-    const float * buffer = driver->m_audio_buffer_link->pop();
-    // Copy the audio buffer to the output buffer
-    memcpy(out, buffer, frames_per_buffer * driver->m_channels * sizeof(float));
+        auto err = Pa_WriteStream(audio_player_output->m_stream, audio_buffer, audio_player_output->m_frames_per_buffer);
+        if (err != paNoError) {
+            if (err == paOutputUnderflowed) {
+                fprintf(stderr, "Output underflowed.\n");
+            } else {
+                error(err);
+                break;
+            }
+        }
 
-    return paContinue;
+    }
 }

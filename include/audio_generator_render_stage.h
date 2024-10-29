@@ -89,7 +89,8 @@ private:
 
             ivec2 chunk_size = ivec2(float(buffer_size) * tone, 1);
 
-            int chunk_offset = (time - play_position) * chunk_size.x % total_audio_size;
+            //int chunk_offset = (time - play_position) * chunk_size.x % total_audio_size; // repeat
+            int chunk_offset = (time - play_position) * chunk_size.x; // no repeat
 
             int total_offset = int(coord.x * float(chunk_size.x)) + chunk_offset;
 

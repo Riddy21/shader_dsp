@@ -62,9 +62,14 @@ private:
     static int audio_callback(const void *input_buffer, void *output_buffer,
                               unsigned long frames_per_buffer, const PaStreamCallbackTimeInfo *time_info,
                               PaStreamCallbackFlags status_flags, void *user_data);
+
+
+    static void write_audio_callback(AudioPlayerOutput* audio_player_output);
+    
     static void error(PaError err);
 
     PaStream *m_stream;
+    bool m_is_running = false;
 };
 
 #endif
