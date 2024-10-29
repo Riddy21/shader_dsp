@@ -231,7 +231,8 @@ void AudioRenderer::render()
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
     const float * output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
     if (output_buffer_data) {
-        push_data_to_all_output_buffers(output_buffer_data);
+        //push_data_to_all_output_buffers(output_buffer_data);
+        push_to_audio_player(output_buffer_data);
         glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     }
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
@@ -301,6 +302,17 @@ void AudioRenderer::push_data_to_all_output_buffers(const float * data)
     for (unsigned int i = 0; i < m_output_buffers.size(); i++) {
         m_output_buffers[i]->push(data, m_testing_mode);
     }
+}
+
+void AudioRenderer::push_to_audio_player(const float * data)
+{
+    if (m_audio_player_output == nullptr) {
+        printf("Error: Audio player output not linked.\n");
+        return;
+    }
+    // Push the data to the audio player
+    m_audio_player_output->write_audio(data);
+    printf("Pushed data to audio player.\n");
 }
 
 bool AudioRenderer::initialize_time_parameters()

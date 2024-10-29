@@ -14,7 +14,7 @@ float middle_c = 1.214879f;
 float semi_tone = 1.059463f;
 
 int main(int argc, char** argv) {
-    system("sudo renice -18 $(pgrep audio_program)");
+    //system("sudo renice -18 $(pgrep audio_program)");
 
     // Get the render program
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
@@ -40,6 +40,8 @@ int main(int argc, char** argv) {
 
     // Link it to the audio renderer
     auto audio_buffer = audio_renderer.get_new_output_buffer();
+
+    audio_renderer.link_audio_player_output(audio_player_output);
 
     // Set the buffer link
     audio_player_output.set_buffer_link(audio_buffer);

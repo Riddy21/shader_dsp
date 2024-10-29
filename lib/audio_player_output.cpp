@@ -42,7 +42,7 @@ bool AudioPlayerOutput::open(PaDeviceIndex index) { PaStreamParameters outputPar
     // Set up output parameters
     outputParameters.channelCount = m_channels;
     outputParameters.sampleFormat = paFloat32;
-    outputParameters.suggestedLatency = 0.0;
+    outputParameters.suggestedLatency = Pa_GetDeviceInfo(outputParameters.device)->defaultLowOutputLatency;
     outputParameters.hostApiSpecificStreamInfo = NULL;
 
     // Set up the stream with the output parameters
@@ -53,8 +53,8 @@ bool AudioPlayerOutput::open(PaDeviceIndex index) { PaStreamParameters outputPar
         m_sample_rate,
         m_frames_per_buffer,
         paClipOff,
-        AudioPlayerOutput::audio_callback,
-        this
+        NULL,
+        NULL
     );
     if (err != paNoError) {
         error(err);
@@ -84,6 +84,13 @@ bool AudioPlayerOutput::start() {
         error(err);
         return false;
     }
+
+    // Start a thread to write audio data to stream
+    m_is_running = true;
+
+    std::thread t1(write_audio_callback, this);
+    t1.detach();
+    
     printf("Started stream.\n");
     return true;
 }
@@ -130,6 +137,21 @@ void AudioPlayerOutput::error(PaError err) {
     Pa_Terminate();
 }
 
+void AudioPlayerOutput::write_audio_callback(AudioPlayerOutput* audio_player_output) {
+    // Write audio data to the stream
+    while (audio_player_output->m_is_running) {
+        PaError err = Pa_WriteStream(audio_player_output->m_stream, audio_player_output->m_audio_buffer_link->pop(), audio_player_output->m_frames_per_buffer);
+        if (err != paNoError) {
+            if (err == paOutputUnderflowed) {
+                fprintf(stderr, "Output underflowed.\n");
+            } else {
+                error(err);
+                break;
+            }
+        }
+    }
+}
+
 int AudioPlayerOutput::audio_callback(const void *input_buffer, void *output_buffer,
                                 unsigned long frames_per_buffer, const PaStreamCallbackTimeInfo *time_info,
                                 PaStreamCallbackFlags status_flags, void *user_data) {
@@ -141,4 +163,16 @@ int AudioPlayerOutput::audio_callback(const void *input_buffer, void *output_buf
     memcpy(out, buffer, frames_per_buffer * driver->m_channels * sizeof(float));
 
     return paContinue;
+}
+
+void AudioPlayerOutput::write_audio(const float * buffer) {
+    PaError err = Pa_WriteStream(m_stream, buffer, m_frames_per_buffer);
+    if (err != paNoError) {
+        if (err == paOutputUnderflowed) {
+            fprintf(stderr, "Output underflowed.\n");
+        } else {
+            error(err);
+            //return;
+        }
+    }
 }

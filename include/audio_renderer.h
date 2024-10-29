@@ -10,6 +10,7 @@
 
 #include "audio_buffer.h"
 #include "audio_render_stage.h"
+#include "audio_player_output.h"
 
 class AudioRenderStage;
 
@@ -114,6 +115,14 @@ public:
         return m_initialized;
     }
 
+    void link_audio_player_output(AudioPlayerOutput & audio_player_output) {
+        std::thread t1([&](){
+            std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+            m_audio_player_output = &audio_player_output;
+        });
+        t1.detach();
+    }
+
 private:
     static AudioRenderer * instance;
     // Private member functions
@@ -163,6 +172,8 @@ private:
      */
     void push_data_to_all_output_buffers(const float * data);
 
+    void push_to_audio_player(const float * data);
+
     bool initialize_time_parameters();
 
     void set_all_time_parameters(const unsigned int time);
@@ -186,6 +197,8 @@ private:
 
     // Mutex for locking the audio data
     std::mutex m_audio_data_mutex;
+
+    AudioPlayerOutput * m_audio_player_output;
 
     // buffers for audio data
     std::vector<std::unique_ptr<AudioBuffer>> m_output_buffers = std::vector<std::unique_ptr<AudioBuffer>>(); // Output buffers
