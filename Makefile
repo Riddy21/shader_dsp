@@ -22,6 +22,9 @@ TARGETS = $(addprefix $(BIN_DIR)/, $(TARGET_NAMES))
 LIB_SOURCES = $(wildcard $(LIB_DIR)/*.cpp)
 HEADERS = $(wildcard $(INCLUDE_DIR)/*.h)
 OBJECTS = $(patsubst $(LIB_DIR)/%.cpp, $(OBJECT_DIR)/%.o, $(LIB_SOURCES))
+DEPS = $(OBJECTS:.o=.d)
+
+CXXFLAGS += -MMD -MP
 
 .SECONADY : $(OBJECTS)
 
@@ -34,7 +37,7 @@ $(BIN_DIR)/% : $(SRC_DIR)/%.cpp $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -I $(INCLUDE_DIR) -o $@ $^ $(LDFLAGS)
 
 # Building the library object files
-$(OBJECT_DIR)/%.o : $(LIB_DIR)/%.cpp $(INCLUDE_DIR)/%.h
+$(OBJECT_DIR)/%.o : $(LIB_DIR)/%.cpp $(HEADERS)
 	mkdir -p $(OBJECT_DIR)
 	$(CXX) $(CXXFLAGS) -I $(INCLUDE_DIR) -c -o $@ $<
 
@@ -50,5 +53,7 @@ $(PLAYGROUND_EXE_DIR)/% : $(PLAYGROUND_DIR)/%.cpp $(OBJECTS)
 
 clean :
 	rm -rf $(BUILD_DIR)
+
+-include $(DEPS)
 
 PHONY : all clean test
