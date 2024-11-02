@@ -24,7 +24,7 @@ void AudioSwapBuffer::swap_buffers() {
     std::swap(m_read_buffer, m_write_buffer);
 }
 
-void AudioSwapBuffer::write_buffer(const float * buffer, const bool quiet) {
+void AudioSwapBuffer::write_buffer(const float * buffer) {
     std::lock_guard<std::mutex> lock(m_mutex);
     std::copy(buffer, buffer + m_buffer_size, m_write_buffer);
 }

@@ -12,7 +12,7 @@ public:
     ~AudioSwapBuffer();
     void clear();
     void swap_buffers();
-    void write_buffer(const float * buffer, const bool quiet = false);
+    void write_buffer(const float * buffer);
     const float * read_buffer();
     void notify() { m_flag = true;}
     void wait() {

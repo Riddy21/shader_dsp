@@ -9,6 +9,7 @@
 #include <GL/glut.h>
 
 #include "audio_buffer.h"
+#include "audio_swap_buffer.h"
 #include "audio_render_stage.h"
 
 class AudioRenderStage;
@@ -86,7 +87,7 @@ public:
      * 
      * @return The output buffer data.
      */
-    AudioBuffer * get_new_output_buffer();
+    AudioSwapBuffer * get_new_output_buffer();
 
     void set_testing_mode(bool testing_mode) {
         m_testing_mode = testing_mode;
@@ -112,6 +113,10 @@ public:
 
     bool is_initialized() {
         return m_initialized;
+    }
+
+    void increment_frame_count() {
+        m_frame_count++;
     }
 
 private:
@@ -188,7 +193,7 @@ private:
     std::mutex m_audio_data_mutex;
 
     // buffers for audio data
-    std::vector<std::unique_ptr<AudioBuffer>> m_output_buffers = std::vector<std::unique_ptr<AudioBuffer>>(); // Output buffers
+    std::vector<std::unique_ptr<AudioSwapBuffer>> m_output_buffers = std::vector<std::unique_ptr<AudioSwapBuffer>>(); // Output buffers
 
     // Simplify this into one struct
     // FIXME: Convert this into a unique pointer

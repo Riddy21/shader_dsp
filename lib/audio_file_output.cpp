@@ -73,7 +73,8 @@ void AudioFileOutput::write_audio_callback(AudioFileOutput* audio_file_output) {
     }
     while (audio_file_output->m_is_running) {
         // Write audio data to the file
-        auto audio_buffer = audio_file_output->m_audio_buffer_link->pop();
+        audio_file_output->m_audio_buffer_link->swap_buffers();
+        auto audio_buffer = audio_file_output->m_audio_buffer_link->read_buffer();
 
         for (unsigned i = 0; i < audio_file_output->m_frames_per_buffer*audio_file_output->m_channels; i++) {
             // convert float to int16_t

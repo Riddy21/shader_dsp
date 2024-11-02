@@ -4,6 +4,7 @@
 #include <portaudio.h>
 
 #include "audio_player_output.h"
+#include "audio_renderer.h"
 
 
 AudioPlayerOutput::~AudioPlayerOutput() {
@@ -136,9 +137,12 @@ void AudioPlayerOutput::error(PaError err) {
 }
 
 void AudioPlayerOutput::write_audio_callback(AudioPlayerOutput* audio_player_output) {
+    auto & audio_renderer = AudioRenderer::get_instance();
     while (audio_player_output->m_is_running) {
         // Write audio data to the file
-        auto audio_buffer = audio_player_output->m_audio_buffer_link->pop();
+        audio_player_output->m_audio_buffer_link->swap_buffers();
+        auto audio_buffer = audio_player_output->m_audio_buffer_link->read_buffer();
+        audio_renderer.increment_frame_count();
 
         auto err = Pa_WriteStream(audio_player_output->m_stream, audio_buffer, audio_player_output->m_frames_per_buffer);
         if (err != paNoError) {
