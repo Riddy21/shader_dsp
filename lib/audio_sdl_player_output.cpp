@@ -98,9 +98,7 @@ void AudioSDLPlayerOutput::audio_callback(void* userdata, Uint8* stream, int len
         return;
     }
 
-    audio_player_output->m_audio_buffer_link->swap_buffers();
-    auto audio_buffer = audio_player_output->m_audio_buffer_link->read_buffer();
-    audio_renderer.increment_frame_count();
+    auto audio_buffer = audio_player_output->m_audio_buffer_link->pop();
 
     std::memcpy(stream, audio_buffer, len);
 }
