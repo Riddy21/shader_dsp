@@ -286,10 +286,10 @@ AudioRenderer::~AudioRenderer()
     m_render_stages.clear();
 }
 
-AudioSwapBuffer * AudioRenderer::get_new_output_buffer()
+AudioBuffer * AudioRenderer::get_new_output_buffer()
 {
     // Create a new output buffer
-    std::unique_ptr<AudioSwapBuffer> output_buffer(new AudioSwapBuffer(m_num_channels * m_buffer_size));
+    std::unique_ptr<AudioBuffer> output_buffer(new AudioBuffer(10, m_num_channels * m_buffer_size));
     m_output_buffers.push_back(std::move(output_buffer));
     
     return m_output_buffers.back().get();
@@ -299,7 +299,7 @@ void AudioRenderer::push_data_to_all_output_buffers(const float * data)
 {
     // Push the data to all output buffers
     for (unsigned int i = 0; i < m_output_buffers.size(); i++) {
-        m_output_buffers[i]->write_buffer(data);
+        m_output_buffers[i]->update(data);
     }
 }
 

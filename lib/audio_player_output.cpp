@@ -140,11 +140,16 @@ void AudioPlayerOutput::write_audio_callback(AudioPlayerOutput* audio_player_out
     auto & audio_renderer = AudioRenderer::get_instance();
     while (audio_player_output->m_is_running) {
         // Write audio data to the file
-        audio_player_output->m_audio_buffer_link->swap_buffers();
-        auto audio_buffer = audio_player_output->m_audio_buffer_link->read_buffer();
+        audio_player_output->m_audio_buffer_link->increment_write_index();
+        auto audio_buffer = audio_player_output->m_audio_buffer_link->pop();
         audio_renderer.increment_frame_count();
 
         auto err = Pa_WriteStream(audio_player_output->m_stream, audio_buffer, audio_player_output->m_frames_per_buffer);
+
+        for (unsigned i = 0; i < 10; i++) {
+            printf("%f ", audio_buffer[i]);
+        }
+        printf("\n\n");
 
         if (err != paNoError) {
             if (err == paOutputUnderflowed) {

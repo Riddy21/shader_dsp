@@ -3,6 +3,7 @@
 #define AUDIO_OUTPUT_H
 
 #include <memory>
+#include "audio_buffer.h"
 #include "audio_swap_buffer.h"
 
 /**
@@ -38,7 +39,7 @@ public:
      * @param buffer_vector The buffer to link to the audio driver.
      * @return True if the buffer was linked successfully, false otherwise.
     */
-    bool set_buffer_link(AudioSwapBuffer * buffer) {
+    bool set_buffer_link(AudioBuffer * buffer) {
         m_audio_buffer_link = buffer;
         return true;
     }
@@ -62,7 +63,7 @@ protected:
     const unsigned m_channels; // The number of channels of the audio output device
     const unsigned m_frames_per_buffer; // The number of frames per buffer of the audio output device
 
-    AudioSwapBuffer * m_audio_buffer_link = nullptr; // A link to an audio buffer for storing audio data
+    AudioBuffer * m_audio_buffer_link = nullptr; // A link to an audio buffer for storing audio data
 };
 
 #endif // AUDIO_OUTPUT_H

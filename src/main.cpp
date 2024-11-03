@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
     float tone = middle_c;
 
     for (size_t i = 0; i < keys.size(); ++i) {
-        auto key = std::make_unique<PianoKey>(keys[i], "media/sine.wav");
+        auto key = std::make_unique<PianoKey>(keys[i], "media/fade.wav");
         key->set_gain(0.3f);
         key->set_tone(tone);
         keyboard.add_key(std::move(key));
@@ -42,6 +42,10 @@ int main(int argc, char** argv) {
 
     // Link it to the audio renderer
     auto audio_buffer = audio_renderer.get_new_output_buffer();
+
+    audio_buffer->push(new float[512*2], true);
+    audio_buffer->push(new float[512*2], true);
+    audio_buffer->push(new float[512*2], true);
 
     // Set the buffer link
     audio_player_output.set_buffer_link(audio_buffer);

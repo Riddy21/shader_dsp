@@ -76,8 +76,8 @@ void AudioFileOutput::write_audio_callback(AudioFileOutput* audio_file_output) {
     auto & audio_renderer = AudioRenderer::get_instance();
     while (audio_file_output->m_is_running) {
         // Write audio data to the file
-        audio_file_output->m_audio_buffer_link->swap_buffers();
-        auto audio_buffer = audio_file_output->m_audio_buffer_link->read_buffer();
+        audio_file_output->m_audio_buffer_link->increment_write_index();
+        auto audio_buffer = audio_file_output->m_audio_buffer_link->pop();
         audio_renderer.increment_frame_count();
 
         for (unsigned i = 0; i < audio_file_output->m_frames_per_buffer*audio_file_output->m_channels; i++) {

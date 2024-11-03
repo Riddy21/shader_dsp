@@ -87,7 +87,7 @@ public:
      * 
      * @return The output buffer data.
      */
-    AudioSwapBuffer * get_new_output_buffer();
+    AudioBuffer * get_new_output_buffer();
 
     void set_testing_mode(bool testing_mode) {
         m_testing_mode = testing_mode;
@@ -193,7 +193,7 @@ private:
     std::mutex m_audio_data_mutex;
 
     // buffers for audio data
-    std::vector<std::unique_ptr<AudioSwapBuffer>> m_output_buffers = std::vector<std::unique_ptr<AudioSwapBuffer>>(); // Output buffers
+    std::vector<std::unique_ptr<AudioBuffer>> m_output_buffers = std::vector<std::unique_ptr<AudioBuffer>>(); // Output buffers
 
     // Simplify this into one struct
     // FIXME: Convert this into a unique pointer
