@@ -145,6 +145,7 @@ void AudioPlayerOutput::write_audio_callback(AudioPlayerOutput* audio_player_out
         audio_renderer.increment_frame_count();
 
         auto err = Pa_WriteStream(audio_player_output->m_stream, audio_buffer, audio_player_output->m_frames_per_buffer);
+
         if (err != paNoError) {
             if (err == paOutputUnderflowed) {
                 fprintf(stderr, "Output underflowed.\n");
@@ -153,6 +154,5 @@ void AudioPlayerOutput::write_audio_callback(AudioPlayerOutput* audio_player_out
                 break;
             }
         }
-
     }
 }
