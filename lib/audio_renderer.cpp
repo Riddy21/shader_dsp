@@ -181,6 +181,20 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     m_initialized = true;
 
+    // Timer loop for incrementing frame count
+    std::thread thread = std::thread([this]() {
+        while (true) {
+            // Push the data to all output buffers
+            for (unsigned int i = 0; i < m_output_buffers.size(); i++) {
+                m_output_buffers[i]->increment_write_index();
+            }
+            increment_frame_count();
+            std::this_thread::sleep_for(std::chrono::microseconds(1000000 * m_buffer_size / m_sample_rate - 150));
+        }
+    });
+
+    thread.detach();
+
     return true;
 }
 
