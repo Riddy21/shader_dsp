@@ -1,0 +1,10 @@
+build/
+
+# Mac OS files to ignore
+.DS_Store
+
+#VS Code files to ignore
+.vscode/
+
+# Vim swap files
+.*.swp
