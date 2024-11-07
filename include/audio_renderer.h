@@ -9,6 +9,7 @@
 #include <GL/glut.h>
 
 #include "audio_buffer.h"
+#include "audio_swap_buffer.h"
 #include "audio_render_stage.h"
 
 class AudioRenderStage;
@@ -112,6 +113,10 @@ public:
 
     bool is_initialized() {
         return m_initialized;
+    }
+
+    void increment_frame_count() {
+        m_frame_count++;
     }
 
 private:

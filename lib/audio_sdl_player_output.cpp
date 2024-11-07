@@ -92,7 +92,6 @@ void AudioSDLPlayerOutput::sleep(const unsigned seconds) {
 
 void AudioSDLPlayerOutput::audio_callback(void* userdata, Uint8* stream, int len) {
     AudioSDLPlayerOutput* audio_player_output = static_cast<AudioSDLPlayerOutput*>(userdata);
-    auto& audio_renderer = AudioRenderer::get_instance();
 
     if (!audio_player_output->m_is_running) {
         return;

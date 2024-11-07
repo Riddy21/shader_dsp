@@ -8,6 +8,7 @@
 #include "audio_generator_render_stage.h"
 #include "audio_player_output.h"
 #include "audio_sdl_player_output.h"
+#include "audio_file_output.h"
 #include "keyboard.h"
 #include "key.h"
 
@@ -37,10 +38,15 @@ int main(int argc, char** argv) {
     keyboard.initialize();
 
     // Make an output player
+    //AudioFileOutput audio_player_output(512, 44100, 2, "output.wav");
+    //AudioPlayerOutput audio_player_output(512, 44100, 2);
     AudioSDLPlayerOutput audio_player_output(512, 44100, 2);
 
     // Link it to the audio renderer
     auto audio_buffer = audio_renderer.get_new_output_buffer();
+
+    audio_buffer->push(new float[512*2], true);
+    audio_buffer->push(new float[512*2], true);
 
     // Set the buffer link
     audio_player_output.set_buffer_link(audio_buffer);

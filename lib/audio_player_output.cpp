@@ -4,6 +4,7 @@
 #include <portaudio.h>
 
 #include "audio_player_output.h"
+#include "audio_renderer.h"
 
 
 AudioPlayerOutput::~AudioPlayerOutput() {
@@ -141,6 +142,7 @@ void AudioPlayerOutput::write_audio_callback(AudioPlayerOutput* audio_player_out
         auto audio_buffer = audio_player_output->m_audio_buffer_link->pop();
 
         auto err = Pa_WriteStream(audio_player_output->m_stream, audio_buffer, audio_player_output->m_frames_per_buffer);
+
         if (err != paNoError) {
             if (err == paOutputUnderflowed) {
                 fprintf(stderr, "Output underflowed.\n");
@@ -149,6 +151,5 @@ void AudioPlayerOutput::write_audio_callback(AudioPlayerOutput* audio_player_out
                 break;
             }
         }
-
     }
 }

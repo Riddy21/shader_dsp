@@ -1,8 +1,10 @@
 #include <fstream>
 #include <thread>
+#include <cstring>
 
 #include "audio_wav.h"
 #include "audio_file_output.h"
+#include "audio_renderer.h"
 
 AudioFileOutput::~AudioFileOutput() {
 }
@@ -71,9 +73,12 @@ void AudioFileOutput::write_audio_callback(AudioFileOutput* audio_file_output) {
         fprintf(stderr, "Error: File not open.\n");
         return;
     }
+    auto & audio_renderer = AudioRenderer::get_instance();
     while (audio_file_output->m_is_running) {
         // Write audio data to the file
+        audio_file_output->m_audio_buffer_link->increment_write_index();
         auto audio_buffer = audio_file_output->m_audio_buffer_link->pop();
+        audio_renderer.increment_frame_count();
 
         for (unsigned i = 0; i < audio_file_output->m_frames_per_buffer*audio_file_output->m_channels; i++) {
             // convert float to int16_t
@@ -82,8 +87,7 @@ void AudioFileOutput::write_audio_callback(AudioFileOutput* audio_file_output) {
         }
 
         // Wait for a short time
-        // FIXME: Sync this with the audio buffer ready flag
-        std::this_thread::sleep_for(std::chrono::milliseconds((int)(1000.0f/((double)audio_file_output->m_sample_rate/(double)audio_file_output->m_frames_per_buffer))));
+        std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::milliseconds((int)(1000.0f/((double)audio_file_output->m_sample_rate/(double)audio_file_output->m_frames_per_buffer))));
     }
 }
 

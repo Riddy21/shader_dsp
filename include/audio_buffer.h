@@ -12,6 +12,8 @@ public:
     ~AudioBuffer();
     void push(const float * buffer, const bool quiet = false);
     const float * pop(const bool quiet = false);
+    void update(const float * buffer);
+    void increment_write_index();
     void clear();
     unsigned int get_size() { return m_circular_queue.size(); }
     unsigned int get_max_size() { return m_max_size; }
@@ -29,6 +31,7 @@ private:
     unsigned int m_write_index = 0;
     const unsigned int m_buffer_size;
     const unsigned int m_max_size;
+    unsigned int m_num_elements = 0;
     std::mutex m_mutex;
     bool flag = false;
 };
