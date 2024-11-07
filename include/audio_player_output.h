@@ -32,13 +32,13 @@ public:
      * @param index The index of the audio device to open, -1 for default device.
      * @return True if the audio stream was opened successfully, false otherwise.
     */
-    bool open(PaDeviceIndex index=-1);
+    bool open() override;
     /**
      * Start the audio stream.
      * 
      * @return True if the audio stream was started successfully, false otherwise.
     */
-    bool start();
+    bool start() override;
     /**
      * Sleep for a given number of seconds.
      * 
@@ -50,13 +50,13 @@ public:
      * 
      * @return True if the audio stream was stopped successfully, false otherwise.
     */
-    bool stop();
+    bool stop() override;
     /**
      * Close the audio stream.
      * 
      * @return True if the audio stream was closed successfully, false otherwise.
     */
-    bool close();
+    bool close() override;
 
 private:
     static int audio_callback(const void *input_buffer, void *output_buffer,

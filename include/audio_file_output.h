@@ -31,28 +31,28 @@ public:
      * 
      * @return True if the audio file was opened successfully, false otherwise.
      */
-    bool open();
+    bool open() override;
 
     /**
      * Starts writing audio data to the file.
      * 
      * @return True if the audio file writer was started successfully, false otherwise.
      */
-    bool start();
+    bool start() override;
 
     /**
      * Stops writing audio data to the file.
      * 
      * @return True if the audio file writer was stopped successfully, false otherwise.
      */
-    bool stop();
+    bool stop() override;
 
     /**
      * Closes the audio file writer and saves the audio data.
      * 
      * @return True if the audio file writer was closed successfully, false otherwise.
      */
-    bool close();
+    bool close() override;
 
 private:
     std::string m_filename;

@@ -34,22 +34,16 @@ void AudioBuffer::clear() {
 }
 
 void AudioBuffer::update(const float * buffer) {
-    //std::lock_guard<std::mutex> lock(m_mutex);
     // Just update the buffer at the write index
     memcpy((void *)m_circular_queue[m_write_index], buffer, m_buffer_size * sizeof(float));
 }
 
 void AudioBuffer::increment_write_index() {
-    //std::lock_guard<std::mutex> lock(m_mutex);
     m_write_index = (m_write_index + 1) % m_max_size;
     m_num_elements++;
 }
 
 void AudioBuffer::push(const float * buffer, const bool quiet) {
-    if (!quiet) {
-        this->wait();
-    }
-
     update(buffer);
     increment_write_index();
 
@@ -74,11 +68,6 @@ void AudioBuffer::push(const float * buffer, const bool quiet) {
 }
 
 const float * AudioBuffer::pop(const bool quiet) {
-    if (!quiet) {
-        this->notify();
-    }
-    //std::lock_guard<std::mutex> lock(m_mutex);
-
     const float * buffer = m_circular_queue[m_read_index];
 
     // If the num elements gets below 1 don't increment read_index
@@ -90,7 +79,7 @@ const float * AudioBuffer::pop(const bool quiet) {
         m_num_elements--;
     }
 
-    printf("Pop num elements: %u\n", m_num_elements);
+    //printf("Pop num elements: %u\n", m_num_elements);
 
     // Calculate frame rate
     //static int frame_count = 0;

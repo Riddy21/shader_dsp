@@ -33,34 +33,29 @@ int main(int argc, char** argv) {
         tone *= semi_tone;
     }
 
-    // Initialize the audio renderer
-    audio_renderer.init(512, 44100, 2);
-    keyboard.initialize();
-
     // Make an output player
     //AudioFileOutput audio_player_output(512, 44100, 2, "output.wav");
     //AudioPlayerOutput audio_player_output(512, 44100, 2);
-    AudioSDLPlayerOutput audio_player_output(512, 44100, 2);
+    auto audio_player_output = std::make_unique<AudioSDLPlayerOutput>(512, 44100, 2);
 
-    // Link it to the audio renderer
-    auto audio_buffer = audio_renderer.get_new_output_buffer();
+    // Initialize the audio renderer
+    audio_renderer.initialize(512, 44100, 2);
+    keyboard.initialize();
 
-    audio_buffer->push(new float[512*2], true);
-    audio_buffer->push(new float[512*2], true);
+    audio_renderer.add_render_output(std::move(audio_player_output));
 
-    // Set the buffer link
-    audio_player_output.set_buffer_link(audio_buffer);
+    auto player = audio_renderer.find_render_output(0);
 
-    // Start the audio player
-    audio_player_output.open();
-    audio_player_output.start();
+    player->open();
+    player->start();
 
     // Start the audio renderer main loop
-    audio_renderer.main_loop();
+    audio_renderer.start_main_loop();
 
-    // Terminate the audio renderer
-    audio_player_output.stop();
-    audio_player_output.close();
+    player->stop();
+    player->close();
+
+    audio_renderer.terminate();
 
     return 0;
 }

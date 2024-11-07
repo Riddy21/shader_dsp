@@ -7,16 +7,16 @@
 #include <mutex>
 #include <GL/glew.h>
 #include <GL/glut.h>
+#include <atomic>
 
 #include "audio_buffer.h"
-#include "audio_swap_buffer.h"
 #include "audio_render_stage.h"
+#include "audio_output.h"
+#include "audio_parameter.h"
 
 class AudioRenderStage;
-
 class AudioParameter;
 
-// TODO: Make this class so that the generator can run
 /**
  * @class AudioRenderer
  * @brief The AudioRenderer class is responsible for rendering audio data.
@@ -42,14 +42,21 @@ public:
     AudioRenderer(AudioRenderer const&) = delete;
     void operator=(AudioRenderer const&) = delete;
 
+// -------------Main Loop Functions----------------
     /**
-     * @brief Initializes the audio renderer with the specified buffer size and number of channels.
+     * @brief Initializes the audio renderer with the specified buffer size, sample rate, and number of channels.
      * 
      * @param buffer_size The size of the audio data buffer.
+     * @param sample_rate The sample rate of the audio data.
      * @param num_channels The number of audio channels.
      * @return True if initialization is successful, false otherwise.
      */
-    bool init(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels);
+    bool initialize(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels);
+
+    /**
+     * @brief Starts the main loop of the audio renderer.
+     */
+    void start_main_loop();
 
     /**
      * @brief Terminates the audio renderer.
@@ -65,15 +72,11 @@ public:
      */
     bool cleanup();
 
-    /**
-     * @brief Main loop for the audio renderer.
-     */
-    static void main_loop();
-
     static void iterate() {
         render_callback();
     }
 
+// -------------Add Functions----------------
     /**
      * @brief Adds a render stage to the audio renderer.
      * 
@@ -83,19 +86,41 @@ public:
     bool add_render_stage(std::unique_ptr<AudioRenderStage> render_stage);
 
     /**
-     * @brief Returns a new output buffer for the audio renderer
+     * @brief Adds an output link to the audio renderer.
      * 
-     * @return The output buffer data.
+     * @param output_link The output link to be added.
+     * @return True if the output link is successfully added, false otherwise.
      */
-    AudioBuffer * get_new_output_buffer();
+    bool add_render_output(std::unique_ptr<AudioOutput> output_link);
 
+// -------------Setters----------------
+    /**
+     * @brief Sets the testing mode for the audio renderer.
+     * 
+     * @param testing_mode The testing mode flag.
+     */
     void set_testing_mode(bool testing_mode) {
         m_testing_mode = testing_mode;
     }
 
+// -------------Getters----------------
+
+    /**
+     * @brief Finds a render stage by its global ID.
+     * 
+     * @param gid The global ID of the render stage.
+     * @return The render stage if found, nullptr otherwise.
+     */
     AudioRenderStage * find_render_stage(const unsigned int gid);
 
-    // Vertex Source code
+    AudioOutput * find_render_output(const unsigned int gid);
+
+// FIXME: Put this in a seperate file
+    /**
+     * @brief Returns the vertex shader source code.
+     * 
+     * @return The vertex shader source code.
+     */
     const GLchar* get_vertex_source() const {
         return R"glsl(
             #version 300 es
@@ -111,17 +136,19 @@ public:
         )glsl";
     }
 
+    /**
+     * @brief Checks if the audio renderer is initialized.
+     * 
+     * @return True if the audio renderer is initialized, false otherwise.
+     */
     bool is_initialized() {
         return m_initialized;
     }
 
-    void increment_frame_count() {
-        m_frame_count++;
-    }
-
 private:
     static AudioRenderer * instance;
-    // Private member functions
+
+// -------------Main Loop Functions----------------
     /**
      * @brief Constructs an AudioRenderer object.
      * 
@@ -136,25 +163,36 @@ private:
      */
     ~AudioRenderer();
 
+// -------------Render Functions----------------
     /**
-     * @brief Render a frame
+     * @brief Renders a frame.
      */
     void render();
 
+// -------------Helper Functions----------------
     /**
-     * @brief Calculates the frame rate of the audio renderer
+     * @brief Calculates the frame rate of the audio renderer.
      */
     void calculate_frame_rate();
 
     /**
-     * @brief Static callback function for rendering
+     * @brief Pushes data to all output buffers.
+     * 
+     * @param data The data to push.
+     */
+    void push_data_to_all_output_buffers(const float * data);
+
+
+// -------------Callback Functions----------------
+    /**
+     * @brief Static callback function for rendering.
      */
     static void render_callback() {
         instance->render();
     }
 
     /**
-     * @brief Static callback function for displaying
+     * @brief Static callback function for displaying.
      */
     static void display_callback() {
         glutSwapBuffers(); // unlock framerate
@@ -162,20 +200,29 @@ private:
     }
 
     /**
-     * @brief Push data to all output buffers
-     * 
-     * @param data The data to push
+     * @brief Timer callback function for updating audio data.
      */
-    void push_data_to_all_output_buffers(const float * data);
+    void time_callback();
 
+//-------------Initialization Functions----------------
+
+    /**
+     * @brief Initializes the time parameters for the render stages.
+     * 
+     * @return True if initialization is successful, false otherwise.
+     */
     bool initialize_time_parameters();
 
+    /**
+     * @brief Sets the time parameter for all render stages.
+     * 
+     * @param time The time value to set.
+     */
     void set_all_time_parameters(const unsigned int time);
 
-    // Private member variables
-    GLuint m_VAO; // Vertex Array For holding vertex attribute configurations
-    GLuint m_VBO; // Vertex Array buffer For holding vertex data
-    GLuint m_PBO; // Pixel buffer object for inputting and outputting to screen
+    GLuint m_VAO; // Vertex Array Object for holding vertex attribute configurations
+    GLuint m_VBO; // Vertex Buffer Object for holding vertex data
+    GLuint m_PBO; // Pixel Buffer Object for inputting and outputting to screen
 
     unsigned int m_num_stages; // Number of audio buffers
     unsigned int m_buffer_size; // Size of audio data
@@ -184,22 +231,20 @@ private:
 
     unsigned int m_frame_count = 0; // Frame count for calculating frame rate
 
-    bool m_testing_mode;
+    bool m_testing_mode; // Flag for testing mode
 
-    // Marking initialized
-    bool m_initialized = false;
+    std::atomic<bool> m_running; // Flag to control the loop
 
-    // Mutex for locking the audio data
-    std::mutex m_audio_data_mutex;
+    bool m_initialized = false; // Flag to mark initialization
 
-    // buffers for audio data
-    std::vector<std::unique_ptr<AudioBuffer>> m_output_buffers = std::vector<std::unique_ptr<AudioBuffer>>(); // Output buffers
-
-    // Simplify this into one struct
-    // FIXME: Convert this into a unique pointer
-    std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages;
-
-    std::vector<AudioParameter *> m_frame_time_parameters;
+    struct BufferLink {
+        unsigned int gid;
+        std::unique_ptr<AudioOutput> output_link;
+        std::unique_ptr<AudioBuffer> buffer_link;
+    };
+    std::vector<BufferLink> m_output_links; // Output links
+    std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages; // Render stages
+    std::vector<AudioParameter *> m_frame_time_parameters; // Time parameters for render stages
 
 };
 

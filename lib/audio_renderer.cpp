@@ -36,6 +36,22 @@ bool AudioRenderer::add_render_stage(std::unique_ptr<AudioRenderStage> render_st
     return true;
 }
 
+bool AudioRenderer::add_render_output(std::unique_ptr<AudioOutput> output_link)
+{
+    // Add the output link to the list of output links
+    BufferLink buffer_link;
+    buffer_link.gid = output_link->gid;
+    buffer_link.output_link = std::move(output_link);
+    // FIXME: Change 10 to a constant
+    buffer_link.buffer_link = std::make_unique<AudioBuffer>(10, m_buffer_size*m_num_channels);
+
+    // Link the output to the buffer
+    buffer_link.output_link->set_buffer_link(buffer_link.buffer_link.get());
+
+    m_output_links.push_back(std::move(buffer_link));
+    return true;
+}
+
 void initialize_glut(unsigned int window_width, unsigned int window_height) {
     printf("Initializing GLUT\n");
 
@@ -103,7 +119,7 @@ bool create_quad(GLuint &VAO, GLuint &VBO, GLuint &PBO, const unsigned int num_c
     return true;
 }
 
-bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels) {
+bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels) {
     if (m_initialized) {
         std::cerr << "Error: Audio renderer already initialized." << std::endl;
         return false;
@@ -124,7 +140,8 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
     
     // Initialize GLEW
     GLenum glewInitResult = glewInit();
-    if (glewInitResult != GLEW_OK) {        std::cerr << "Failed to initialize GLEW: " << glewGetErrorString(glewInitResult) << std::endl;
+    if (glewInitResult != GLEW_OK) {
+        std::cerr << "Failed to initialize GLEW: " << glewGetErrorString(glewInitResult) << std::endl;
         return false;
     }
 
@@ -181,19 +198,51 @@ bool AudioRenderer::init(const unsigned int buffer_size, const unsigned int samp
 
     m_initialized = true;
 
-    // Timer loop for incrementing frame count
-    std::thread thread = std::thread([this]() {
-        while (true) {
-            // Push the data to all output buffers
-            for (unsigned int i = 0; i < m_output_buffers.size(); i++) {
-                m_output_buffers[i]->increment_write_index();
-            }
-            increment_frame_count();
-            std::this_thread::sleep_for(std::chrono::microseconds(1000000 * m_buffer_size / m_sample_rate - 150));
-        }
-    });
+    return true;
+}
 
-    thread.detach();
+void AudioRenderer::start_main_loop() {
+    if (m_initialized) {
+        m_running = true;
+
+        // Timer loop for incrementing frame count
+        std::thread thread = std::thread([this]() {
+            while (m_running) {
+                time_callback();
+            }
+        });
+
+        thread.detach();
+
+        glutMainLoop();
+    }
+}
+void AudioRenderer::time_callback() {
+    // Push the data to all output buffers
+    for (unsigned int i = 0; i < m_output_links.size(); i++) {
+        m_output_links[i].buffer_link->increment_write_index();
+    }
+    m_frame_count++;
+    std::this_thread::sleep_for(std::chrono::microseconds(1000000 * m_buffer_size / m_sample_rate - 150));
+}
+
+bool AudioRenderer::terminate() {
+    // Stop the loop
+    m_running = false;
+
+    // Terminate the OpenGL context
+    glutLeaveMainLoop();
+    //glutDestroyWindow(glutGetWindow()); // Don't need this
+
+    // Clean up the OpenGL context
+    if (!cleanup()) {
+        std::cerr << "Failed to clean up OpenGL context." << std::endl;
+        return false;
+    }
+    m_output_links.clear();
+
+    // Delete the render stages
+    m_render_stages.clear();
 
     return true;
 }
@@ -262,11 +311,6 @@ void AudioRenderer::render()
     calculate_frame_rate();
 }
 
-void AudioRenderer::main_loop()
-{
-    glutMainLoop();
-}
-
 bool AudioRenderer::cleanup()
 {
     // Delete the vertex array and buffer
@@ -279,41 +323,23 @@ bool AudioRenderer::cleanup()
     return true;
 }
 
-bool AudioRenderer::terminate()
-{
-    // Terminate the OpenGL context
-    glutLeaveMainLoop();
-    //glutDestroyWindow(glutGetWindow()); // Don't need this
-
-    return true;
-}
-
 AudioRenderer::~AudioRenderer()
 {
     // Clean up the OpenGL context
     if (!cleanup()) {
         std::cerr << "Failed to clean up OpenGL context." << std::endl;
     }
-    m_output_buffers.clear();
+    m_output_links.clear();
 
     // Delete the render stages
     m_render_stages.clear();
 }
 
-AudioBuffer * AudioRenderer::get_new_output_buffer()
-{
-    // Create a new output buffer
-    std::unique_ptr<AudioBuffer> output_buffer(new AudioBuffer(10, m_num_channels * m_buffer_size));
-    m_output_buffers.push_back(std::move(output_buffer));
-    
-    return m_output_buffers.back().get();
-}
-
 void AudioRenderer::push_data_to_all_output_buffers(const float * data)
 {
     // Push the data to all output buffers
-    for (unsigned int i = 0; i < m_output_buffers.size(); i++) {
-        m_output_buffers[i]->update(data);
+    for (unsigned int i = 0; i < m_output_links.size(); i++) {
+        m_output_links[i].buffer_link->update(data);
     }
 }
 
@@ -349,5 +375,16 @@ AudioRenderStage * AudioRenderer::find_render_stage(const unsigned int gid) {
         }
     }
     printf("Error: Render stage not found\n");
+    return nullptr;
+}
+
+AudioOutput * AudioRenderer::find_render_output(const unsigned int gid) {
+    for (auto &output : m_output_links) {
+        if (output.gid == gid) {
+            printf("Found output link %d\n", gid);
+            return output.output_link.get();
+        }
+    }
+    printf("Error: Output link not found\n");
     return nullptr;
 }

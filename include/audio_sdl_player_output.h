@@ -32,13 +32,13 @@ public:
      * @param device_name The name of the audio device to open, nullptr for default device.
      * @return True if the audio stream was opened successfully, false otherwise.
     */
-    bool open(const char* device_name = nullptr);
+    bool open() override;
     /**
      * Start the audio stream.
      * 
      * @return True if the audio stream was started successfully, false otherwise.
     */
-    bool start();
+    bool start() override;
     /**
      * Sleep for a given number of seconds.
      * 
@@ -50,13 +50,13 @@ public:
      * 
      * @return True if the audio stream was stopped successfully, false otherwise.
     */
-    bool stop();
+    bool stop() override;
     /**
      * Close the audio stream.
      * 
      * @return True if the audio stream was closed successfully, false otherwise.
     */
-    bool close();
+    bool close() override;
 
 private:
     static void audio_callback(void* userdata, Uint8* stream, int len);

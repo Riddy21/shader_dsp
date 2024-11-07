@@ -11,7 +11,8 @@ AudioSDLPlayerOutput::~AudioSDLPlayerOutput() {
     SDL_Quit();
 }
 
-bool AudioSDLPlayerOutput::open(const char* device_name) {
+bool AudioSDLPlayerOutput::open() {
+    const char* device_name = nullptr;
     if (SDL_Init(SDL_INIT_AUDIO) < 0) {
         error(SDL_GetError());
         return false;

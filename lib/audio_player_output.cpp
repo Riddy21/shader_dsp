@@ -11,8 +11,10 @@ AudioPlayerOutput::~AudioPlayerOutput() {
     Pa_Terminate();
 }
 
-bool AudioPlayerOutput::open(PaDeviceIndex index) { PaStreamParameters outputParameters;
+bool AudioPlayerOutput::open() {
+    PaStreamParameters outputParameters;
     PaError err;
+    PaDeviceIndex index = -1;
 
     // Initialize PortAudio
     err = Pa_Initialize();
