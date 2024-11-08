@@ -1,6 +1,5 @@
 #include <SDL2/SDL.h>
 #include <GL/glut.h>
-#include <GL/freeglut.h>
 #include <cmath>
 #include <iostream>
 #include <chrono>
@@ -47,7 +46,6 @@ void handleKeypress(unsigned char key, int x, int y) {
             std::cout << "Reset to Frequency: " << frequency << " Hz, Amplitude: " << amplitude << "\n";
             break;
         case 27: // ESC key to exit
-            glutLeaveMainLoop();
             break;
     }
 }
@@ -65,7 +63,6 @@ void audioPlaybackLoop() {
     int bytesToWrite = bufferSize * sizeof(int16_t);
     if (SDL_QueueAudio(1, buffer, bytesToWrite) < 0) {
         std::cerr << "Failed to queue audio: " << SDL_GetError() << std::endl;
-        glutLeaveMainLoop();
     }
 
     // Sleep to control the timing of playback
