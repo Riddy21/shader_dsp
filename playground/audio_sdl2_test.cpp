@@ -42,7 +42,8 @@ void audioPlaybackLoop() {
         }
 
         // Sleep to control the timing of playback
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000 * bufferSize / SAMPLE_RATE));
+        auto nextFrameTime = std::chrono::high_resolution_clock::now() + std::chrono::microseconds(1000000 * bufferSize / SAMPLE_RATE);
+        std::this_thread::sleep_until(nextFrameTime);
     }
 }
 
