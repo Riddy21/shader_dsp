@@ -10,6 +10,7 @@
 const int SAMPLE_RATE = 48000;       // Samples per second
 const int INITIAL_AMPLITUDE = 28000; // Initial amplitude of the sine wave
 const int INITIAL_FREQUENCY = 440;   // Initial frequency of the sine wave (A4 note)
+const int BUFFER_SIZE = 512;         // SDL buffer size
 
 std::atomic<int> amplitude(INITIAL_AMPLITUDE);
 std::atomic<double> frequency(INITIAL_FREQUENCY);
@@ -27,23 +28,22 @@ void fillAudioBuffer(int16_t *buffer, int bufferLength, double freq, int amp) {
 
 // Audio playback function for the separate thread
 void audioPlaybackLoop() {
-    const int bufferSize = 512;
-    int16_t buffer[bufferSize];
+    int16_t buffer[BUFFER_SIZE];
 
     while (running) {
-        // Fill the buffer with the latest frequency and amplitude values
-        fillAudioBuffer(buffer, bufferSize, frequency.load(), amplitude.load());
-
-        // Queue audio to SDL
-        int bytesToWrite = bufferSize * sizeof(int16_t);
-        if (SDL_QueueAudio(1, buffer, bytesToWrite) < 0) {
-            std::cerr << "Failed to queue audio: " << SDL_GetError() << std::endl;
-            break;
+        // Check the queued audio size
+        if (SDL_GetQueuedAudioSize(1) < 2 * BUFFER_SIZE * sizeof(int16_t)) {
+            // If there’s enough room in SDL’s audio queue, fill and queue more audio data
+            fillAudioBuffer(buffer, BUFFER_SIZE, frequency.load(), amplitude.load());
+            int bytesToWrite = BUFFER_SIZE * sizeof(int16_t);
+            if (SDL_QueueAudio(1, buffer, bytesToWrite) < 0) {
+                std::cerr << "Failed to queue audio: " << SDL_GetError() << std::endl;
+                break;
+            }
+        } else {
+            // Sleep briefly if the buffer is already full, to avoid busy-waiting
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-
-        // Sleep to control the timing of playback
-        auto nextFrameTime = std::chrono::high_resolution_clock::now() + std::chrono::microseconds(1000000 * bufferSize / SAMPLE_RATE);
-        std::this_thread::sleep_until(nextFrameTime);
     }
 }
 
@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
     audioSpec.freq = SAMPLE_RATE;
     audioSpec.format = AUDIO_S16SYS;
     audioSpec.channels = 1;
-    audioSpec.samples = 512;
+    audioSpec.samples = BUFFER_SIZE;
     audioSpec.callback = nullptr;
 
     // Open the audio device
