@@ -137,6 +137,7 @@ void AudioPlayerOutput::error(PaError err) {
 }
 
 void AudioPlayerOutput::write_audio_callback(AudioPlayerOutput* audio_player_output) {
+    // FIXME: Centralize this timing loop to be the only timer loop in the program
     while (audio_player_output->m_is_running) {
         // Write audio data to the file
         auto audio_buffer = audio_player_output->m_audio_buffer_link->pop();
