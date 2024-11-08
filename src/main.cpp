@@ -37,23 +37,30 @@ int main(int argc, char** argv) {
     //AudioFileOutput audio_player_output(512, 44100, 2, "output.wav");
     //AudioPlayerOutput audio_player_output(512, 44100, 2);
     auto audio_player_output = std::make_unique<AudioSDLPlayerOutput>(512, 44100, 2);
+    auto audio_file_output = std::make_unique<AudioFileOutput>(512, 44100, 2, "output.wav");
 
     // Initialize the audio renderer
     audio_renderer.initialize(512, 44100, 2);
     keyboard.initialize();
 
     audio_renderer.add_render_output(std::move(audio_player_output));
+    audio_renderer.add_render_output(std::move(audio_file_output));
 
     auto player = audio_renderer.find_render_output(0);
+    auto file = audio_renderer.find_render_output(1);
 
     player->open();
     player->start();
+    file->open();
+    file->start();
 
     // Start the audio renderer main loop
     audio_renderer.start_main_loop();
 
     player->stop();
     player->close();
+    file->stop();
+    file->close();
 
     audio_renderer.terminate();
 

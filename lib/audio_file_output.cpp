@@ -82,10 +82,11 @@ void AudioFileOutput::write_audio_callback(AudioFileOutput* audio_file_output) {
             audio_file_output->m_file.write((char *) &sample, sizeof(int16_t));
         }
 
-        // Wait for a short time
-        std::this_thread::sleep_until(std::chrono::steady_clock::now() + std::chrono::milliseconds((int)(1000.0f/((double)audio_file_output->m_sample_rate/(double)audio_file_output->m_frames_per_buffer))));
-
         audio_file_output->update_latency();
+        // Wait for a short time
+        std::this_thread::sleep_until(std::chrono::high_resolution_clock::now() + 
+                                      std::chrono::microseconds(1000000 * audio_file_output->m_frames_per_buffer / audio_file_output->m_sample_rate));
+
     }
 }
 

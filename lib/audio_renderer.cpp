@@ -226,17 +226,18 @@ void AudioRenderer::time_callback() {
     for (unsigned int i = 0; i < m_output_links.size(); i++) {
         m_output_links[i].buffer_link->increment_write_index();
         avg_latency += m_output_links[i].output_link->get_latency();
+        printf("Latency: %d\n", m_output_links[i].output_link->get_latency());
     }
     avg_latency /= m_output_links.size();
     m_frame_count++;
-    //printf("Avg latency: %d\n", avg_latency);
-    //printf("real latency: %d\n", 1000000 * m_buffer_size / m_sample_rate + 141);
+    printf("Avg latency: %d\n", avg_latency);
+    printf("real latency: %d\n", 1000000 * m_buffer_size / m_sample_rate);
     //std::this_thread::sleep_until(std::chrono::high_resolution_clock::now() +
     //                              std::chrono::microseconds(1000000 * m_buffer_size / m_sample_rate) -
     //                              std::chrono::microseconds(141));
     std::this_thread::sleep_until(std::chrono::high_resolution_clock::now() +
                                   std::chrono::microseconds(avg_latency) -
-                                  std::chrono::microseconds(10));
+                                  std::chrono::microseconds(141));
 }
 
 bool AudioRenderer::terminate() {

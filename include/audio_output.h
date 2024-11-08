@@ -90,6 +90,8 @@ protected:
     const unsigned m_channels; // The number of channels of the audio output device
     const unsigned m_frames_per_buffer; // The number of frames per buffer of the audio output device
     unsigned m_latency = 0; // The average latency of the audio output device in microseconds
+    unsigned m_frame_count = 0; // The frame count for calculating the frame rate
+    std::chrono::high_resolution_clock::time_point m_previous_time; // The previous time for calculating the latency
 
     AudioBuffer * m_audio_buffer_link = nullptr; // A link to an audio buffer for storing audio data
 
