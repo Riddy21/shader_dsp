@@ -91,7 +91,7 @@ public:
      * @param output_link The output link to be added.
      * @return True if the output link is successfully added, false otherwise.
      */
-    bool add_render_output(std::unique_ptr<AudioOutput> output_link);
+    bool add_render_output(std::unique_ptr<AudioOutputNew> output_link);
 
 // -------------Setters----------------
     /**
@@ -113,7 +113,7 @@ public:
      */
     AudioRenderStage * find_render_stage(const unsigned int gid);
 
-    AudioOutput * find_render_output(const unsigned int gid);
+    AudioOutputNew * find_render_output(const unsigned int gid);
 
 // FIXME: Put this in a seperate file
     /**
@@ -199,11 +199,6 @@ private:
         glutPostRedisplay();
     }
 
-    /**
-     * @brief Timer callback function for updating audio data.
-     */
-    void time_callback();
-
 //-------------Initialization Functions----------------
 
     /**
@@ -237,12 +232,7 @@ private:
 
     bool m_initialized = false; // Flag to mark initialization
 
-    struct BufferLink {
-        unsigned int gid;
-        std::unique_ptr<AudioOutput> output_link;
-        std::unique_ptr<AudioBuffer> buffer_link;
-    };
-    std::vector<BufferLink> m_output_links; // Output links
+    std::vector<std::unique_ptr<AudioOutputNew>> m_render_outputs; // Render outputs
     std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages; // Render stages
     std::vector<AudioParameter *> m_frame_time_parameters; // Time parameters for render stages
 

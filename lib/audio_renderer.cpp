@@ -37,21 +37,10 @@ bool AudioRenderer::add_render_stage(std::unique_ptr<AudioRenderStage> render_st
     return true;
 }
 
-bool AudioRenderer::add_render_output(std::unique_ptr<AudioOutput> output_link)
+bool AudioRenderer::add_render_output(std::unique_ptr<AudioOutputNew> output_link)
 {
-    // Add the output link to the list of output links
-    BufferLink buffer_link;
-    buffer_link.gid = output_link->gid;
-    buffer_link.output_link = std::move(output_link);
-    // FIXME: Change to a constant
-    buffer_link.buffer_link = std::make_unique<AudioBuffer>(5, m_buffer_size*m_num_channels);
+    m_render_outputs.push_back(std::move(output_link));
 
-    // Link the output to the buffer
-    buffer_link.output_link->set_buffer_link(buffer_link.buffer_link.get());
-
-    // Add 2 buffers to the buffer link
-
-    m_output_links.push_back(std::move(buffer_link));
     return true;
 }
 
@@ -208,36 +197,8 @@ void AudioRenderer::start_main_loop() {
     if (m_initialized) {
         m_running = true;
 
-        // Timer loop for incrementing frame count
-        std::thread thread = std::thread([this]() {
-            while (m_running) {
-                time_callback();
-            }
-        });
-
-        thread.detach();
-
         glutMainLoop();
     }
-}
-void AudioRenderer::time_callback() {
-    // Go to next frame in buffer
-    int avg_latency = 0;
-    for (unsigned int i = 0; i < m_output_links.size(); i++) {
-        m_output_links[i].buffer_link->increment_write_index();
-        avg_latency += m_output_links[i].output_link->get_latency();
-        printf("Latency: %d\n", m_output_links[i].output_link->get_latency());
-    }
-    avg_latency /= m_output_links.size();
-    m_frame_count++;
-    printf("Avg latency: %d\n", avg_latency);
-    printf("real latency: %d\n", 1000000 * m_buffer_size / m_sample_rate);
-    //std::this_thread::sleep_until(std::chrono::high_resolution_clock::now() +
-    //                              std::chrono::microseconds(1000000 * m_buffer_size / m_sample_rate) -
-    //                              std::chrono::microseconds(141));
-    std::this_thread::sleep_until(std::chrono::high_resolution_clock::now() +
-                                  std::chrono::microseconds(avg_latency) -
-                                  std::chrono::microseconds(141));
 }
 
 bool AudioRenderer::terminate() {
@@ -253,7 +214,7 @@ bool AudioRenderer::terminate() {
         std::cerr << "Failed to clean up OpenGL context." << std::endl;
         return false;
     }
-    m_output_links.clear();
+    m_render_outputs.clear();
 
     // Delete the render stages
     m_render_stages.clear();
@@ -343,7 +304,7 @@ AudioRenderer::~AudioRenderer()
     if (!cleanup()) {
         std::cerr << "Failed to clean up OpenGL context." << std::endl;
     }
-    m_output_links.clear();
+    m_render_outputs.clear();
 
     // Delete the render stages
     m_render_stages.clear();
@@ -351,9 +312,10 @@ AudioRenderer::~AudioRenderer()
 
 void AudioRenderer::push_data_to_all_output_buffers(const float * data)
 {
-    // Push the data to all output buffers
-    for (unsigned int i = 0; i < m_output_links.size(); i++) {
-        m_output_links[i].buffer_link->update(data);
+    for (auto& output : m_render_outputs) {
+        if (output->is_ready()) {
+            output->push(data);
+        }
     }
 }
 
@@ -392,11 +354,11 @@ AudioRenderStage * AudioRenderer::find_render_stage(const unsigned int gid) {
     return nullptr;
 }
 
-AudioOutput * AudioRenderer::find_render_output(const unsigned int gid) {
-    for (auto &output : m_output_links) {
-        if (output.gid == gid) {
+AudioOutputNew * AudioRenderer::find_render_output(const unsigned int gid) {
+    for (auto &output : m_render_outputs) {
+        if (output->gid == gid) {
             printf("Found output link %d\n", gid);
-            return output.output_link.get();
+            return output.get();
         }
     }
     printf("Error: Output link not found\n");
