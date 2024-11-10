@@ -37,14 +37,14 @@ bool AudioRenderer::add_render_stage(std::unique_ptr<AudioRenderStage> render_st
     return true;
 }
 
-bool AudioRenderer::add_render_output(std::unique_ptr<AudioOutputNew> output_link)
+bool AudioRenderer::add_render_output(std::unique_ptr<AudioOutput> output_link)
 {
     m_render_outputs.push_back(std::move(output_link));
 
     return true;
 }
 
-void initialize_glut(unsigned int window_width, unsigned int window_height) {
+bool AudioRenderer::initialize_glut(unsigned int window_width, unsigned int window_height) {
     printf("Initializing GLUT\n");
 
     int argc = 0;
@@ -58,9 +58,15 @@ void initialize_glut(unsigned int window_width, unsigned int window_height) {
     glutCreateWindow("Audio Processing");
     // Set the window close action to continue execution
     glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
+
+    if (glewInit() != GLEW_OK) {
+        std::cerr << "Failed to initialize GLEW" << std::endl;
+        return false;
+    }
+    return true;
 }
 
-bool create_quad(GLuint &VAO, GLuint &VBO, GLuint &PBO, const unsigned int num_channels, const unsigned int buffer_size) {
+bool AudioRenderer::initialize_quad(GLuint &VAO, GLuint &VBO, GLuint &PBO, const unsigned int num_channels, const unsigned int buffer_size) {
     // Just a default set of vertices to cover the screen
     GLfloat vertices[] = {
         // Position    Texcoords
@@ -176,7 +182,7 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     }
 
     // Create the quad
-    if (!create_quad(m_VAO, m_VBO, m_PBO, num_channels, buffer_size)) {
+    if (!initialize_quad(m_VAO, m_VBO, m_PBO, num_channels, buffer_size)) {
         std::cerr << "Failed to create quad." << std::endl;
         return false;
     }
@@ -264,14 +270,15 @@ void AudioRenderer::render()
     // Bind the color attachment we are on
     glReadBuffer(GL_COLOR_ATTACHMENT0 + m_render_stages[m_num_stages - 1]->get_color_attachment_count()); // Change to the specific color attachment you want to read from
 
+    // Bind the pixel buffer object
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
 
     glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
     const float * output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-    if (output_buffer_data) {
-        push_data_to_all_output_buffers(output_buffer_data);
-        glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-    }
+
+    push_to_output_buffers(output_buffer_data);
+
+    glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
     // Display to screen
@@ -310,12 +317,24 @@ AudioRenderer::~AudioRenderer()
     m_render_stages.clear();
 }
 
-void AudioRenderer::push_data_to_all_output_buffers(const float * data)
+void AudioRenderer::push_to_output_buffers(const float * data)
 {
+    if (m_render_outputs.size() == 0) {
+        return;
+    }
+
+    if (m_lead_output == nullptr) {
+        m_lead_output = m_render_outputs[0].get();
+    }
+
+    if (!m_lead_output->is_ready()) {
+        return;
+    }
+
+    m_frame_count++;
+
     for (auto& output : m_render_outputs) {
-        if (output->is_ready()) {
-            output->push(data);
-        }
+        output->push(data);
     }
 }
 
@@ -354,7 +373,7 @@ AudioRenderStage * AudioRenderer::find_render_stage(const unsigned int gid) {
     return nullptr;
 }
 
-AudioOutputNew * AudioRenderer::find_render_output(const unsigned int gid) {
+AudioOutput * AudioRenderer::find_render_output(const unsigned int gid) {
     for (auto &output : m_render_outputs) {
         if (output->gid == gid) {
             printf("Found output link %d\n", gid);

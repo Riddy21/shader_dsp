@@ -21,7 +21,7 @@ void writer_thread(AudioSwapBuffer& buffer, const unsigned int buffer_size, std:
             std::this_thread::sleep_for(std::chrono::microseconds(200));
         }
 
-        buffer.write_buffer(data, false);
+        buffer.write_buffer(data);
 
         writer_frames++;
 

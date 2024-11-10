@@ -56,7 +56,7 @@ void audioPlaybackLoop() {
 void handleKeypress(unsigned char key, int x, int y) {
     switch (key) {
         case 'w':  // Increase frequency
-            frequency += 10.0f;
+            frequency.store(frequency.load() + 10.0f);
             std::cout << "Frequency: " << frequency.load() << " Hz\n";
             break;
         case 's':  // Decrease frequency

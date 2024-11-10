@@ -1,157 +1,107 @@
 #include <stdio.h>
 #include <cstring>
 #include <memory>
-#include <portaudio.h>
+#include <SDL2/SDL.h>
 
 #include "audio_player_output.h"
 
-AudioPlayerOutput::~AudioPlayerOutput() {
-    Pa_Terminate();
-}
-
 bool AudioPlayerOutput::open() {
-    PaStreamParameters outputParameters;
-    PaError err;
-    PaDeviceIndex index = -1;
-
-    // Initialize PortAudio
-    err = Pa_Initialize();
-    if (err != paNoError) {
-        error(err);
-    }
-
-    // Set up output stream with default device
-    if (index == -1) {
-        index = Pa_GetDefaultOutputDevice();
-    }
-
-    //// Get all the audio devices
-    //int numDevices = Pa_GetDeviceCount();
-    //for (int i = 0; i < numDevices; i++) {
-    //    const PaDeviceInfo *deviceInfo;
-    //    deviceInfo = Pa_GetDeviceInfo(i);
-    //    printf("Device %d: %s\n", i, deviceInfo->name);
-    //    printf("Audio API: %s\n", Pa_GetHostApiInfo(deviceInfo->hostApi)->name);
-    //}
-
-    outputParameters.device = index;
-    if (outputParameters.device == paNoDevice) {
-        fprintf(stderr, "Error: No default output device.\n");
+    const char* device_name = nullptr;
+    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
+        error(SDL_GetError());
         return false;
     }
 
-    // Set up output parameters
-    outputParameters.channelCount = m_channels;
-    outputParameters.sampleFormat = paFloat32;
-    outputParameters.suggestedLatency = 0.0;
-    outputParameters.hostApiSpecificStreamInfo = NULL;
+    SDL_AudioSpec desired_spec;
+    SDL_AudioSpec obtained_spec;
+    desired_spec.freq = m_sample_rate;
+    desired_spec.format = AUDIO_F32SYS;
+    desired_spec.channels = m_channels;
+    desired_spec.samples = m_frames_per_buffer;
+    desired_spec.callback = nullptr;
 
-    // Set up the stream with the output parameters
-    err = Pa_OpenStream(
-        &m_stream,
-        NULL,
-        &outputParameters,
-        m_sample_rate,
-        m_frames_per_buffer,
-        paClipOff,
-        NULL,
-        this
-    );
-    if (err != paNoError) {
-        error(err);
+    m_device_id = SDL_OpenAudioDevice(device_name, 0, &desired_spec, &obtained_spec, 0);
+    if (m_device_id == 0) {
+        error(SDL_GetError());
         return false;
     }
-    printf("Opened stream with device: %s\n", Pa_GetDeviceInfo(outputParameters.device)->name);
-    printf("Sample rate: %d\n", m_sample_rate);
-    printf("Frames per buffer: %d\n", m_frames_per_buffer);
-    printf("Channels: %d\n", m_channels);
-    printf("Latency: %f\n", outputParameters.suggestedLatency);
+
+    printf("Opened audio device: %s\n", device_name ? device_name : "default");
+    printf("Sample rate: %d\n", obtained_spec.freq);
+    printf("Frames per buffer: %d\n", obtained_spec.samples);
+    printf("Channels: %d\n", obtained_spec.channels);
+
     return true;
 }
 
 bool AudioPlayerOutput::start() {
-    if (m_stream == 0) {
-        fprintf(stderr, "Error: Stream not open.\n");
-        return false;
-    }
-    // Check that all the channels have been linked
-    if (m_audio_buffer_link == nullptr) {
-        fprintf(stderr, "Error: Buffer not linked.\n");
-        return false;
-    }
-    // Start the stream
-    PaError err = Pa_StartStream(m_stream);
-    if (err != paNoError) {
-        error(err);
+    if (m_device_id == 0) {
+        fprintf(stderr, "Error: Device not open.\n");
         return false;
     }
     m_is_running = true;
-
-    std::thread t1(write_audio_callback, this);
-    t1.detach();
-
-    printf("Started stream.\n");
+    SDL_PauseAudioDevice(m_device_id, 0);
+    printf("Started audio device.\n");
     return true;
 }
 
+void AudioPlayerOutput::error(const char* message) {
+    fprintf(stderr, "SDL error: %s\n", message);
+    SDL_Quit();
+}
+
+AudioPlayerOutput::~AudioPlayerOutput() {
+    SDL_CloseAudioDevice(m_device_id);
+    SDL_Quit();
+}
+
+bool AudioPlayerOutput::is_ready() {
+    // Check if the audio device is running
+    if (!m_is_running) {
+        return false;
+    // Check if the queued audio size is less than the buffer size
+    } else if (SDL_GetQueuedAudioSize(m_device_id) >= 2 * m_frames_per_buffer * m_channels * sizeof(float)) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+void AudioPlayerOutput::push(const float * data) {
+    // Check if the audio device is running
+    if (!m_is_running) {
+        return;
+    }
+
+    int bytesToWrite = m_frames_per_buffer * m_channels * sizeof(float);
+    if (SDL_QueueAudio(m_device_id, data, bytesToWrite) < 0) {
+        error(SDL_GetError());
+    }
+}
+
 bool AudioPlayerOutput::stop() {
-    if (m_stream == 0) {
-        fprintf(stderr, "Error: Stream not open.\n");
+    if (m_device_id == 0) {
+        fprintf(stderr, "Error: Device not open.\n");
         return false;
     }
-    // Stop the stream
-    PaError err = Pa_StopStream(m_stream);
-    if (err != paNoError) {
-        error(err);
-        return false;
-    }
-    printf("Stopped stream.\n");
+
+    SDL_PauseAudioDevice(m_device_id, 1);
+    m_is_running = false;
+
+    printf("Stopped audio device.\n");
     return true;
 }
 
 bool AudioPlayerOutput::close() {
-    if (m_stream == 0) {
-        fprintf(stderr, "Error: Stream not open.\n");
+    if (m_device_id == 0) {
+        fprintf(stderr, "Error: Device not open.\n");
         return false;
     }
-    // Close the stream
-    PaError err = Pa_CloseStream(m_stream);
-    if (err != paNoError) {
-        error(err);
-        return false;
-    }
-    printf("Closed stream.\n");
+
+    SDL_CloseAudioDevice(m_device_id);
+    m_device_id = 0;
+
+    printf("Closed audio device.\n");
     return true;
 }
 
-void AudioPlayerOutput::sleep(const unsigned seconds) {
-    printf("Sleeping for %d seconds.\n", seconds);
-    Pa_Sleep(1000*seconds);
-}
-
-void AudioPlayerOutput::error(PaError err) {
-    fprintf(stderr, "portaudio error: %s\n", Pa_GetErrorText(err));
-    fprintf(stderr, "error number: %d\n", err);
-    fprintf(stderr, "error message: %s\n", Pa_GetErrorText(err));
-    Pa_Terminate();
-}
-
-void AudioPlayerOutput::write_audio_callback(AudioPlayerOutput* audio_player_output) {
-    // FIXME: Centralize this timing loop to be the only timer loop in the program
-    while (audio_player_output->m_is_running) {
-        // Write audio data to the file
-        auto audio_buffer = audio_player_output->m_audio_buffer_link->pop();
-
-        auto err = Pa_WriteStream(audio_player_output->m_stream, audio_buffer, audio_player_output->m_frames_per_buffer);
-
-        if (err != paNoError) {
-            if (err == paOutputUnderflowed) {
-                fprintf(stderr, "Output underflowed.\n");
-            } else {
-                error(err);
-                break;
-            }
-        }
-        audio_player_output->update_latency();
-    }
-}

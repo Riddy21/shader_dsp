@@ -1,38 +1,55 @@
 #include <catch2/catch_all.hpp>
-
-#include <iostream>
 #include <cmath>
-#include <vector>
-#include <mutex>
-
+#include <iostream>
+#include <thread>
+#include <atomic>
+#include <chrono>
 #include "audio_player_output.h"
-#include "audio_buffer.h"
 
-TEST_CASE("AudioPlayerOutputTest") {
-    std::cout << "Hello, World!" << std::endl;
+const int SAMPLE_RATE = 44100;
+const float INITIAL_AMPLITUDE = 0.5f;
+const float INITIAL_FREQUENCY = 440.0f;
+const int BUFFER_SIZE = 512;
 
-    int frames_per_buffer = 512;
-    int channels = 2;
+std::atomic<float> amplitude(INITIAL_AMPLITUDE);
+std::atomic<float> frequency(INITIAL_FREQUENCY);
+std::atomic<bool> running(true);
 
-    // Generate the audio data
-    float audio_data_interleaved[frames_per_buffer*channels];
+int sampleIndex = 0;
 
-    // Generate sine wave for both channels
-    for (int i = 0; i < frames_per_buffer*channels; i=i+channels) {
-        audio_data_interleaved[i] = sin(((double)(i)/((double)channels*(double)frames_per_buffer)) * M_PI * 10.0);
-        audio_data_interleaved[i+1] = sin(((double)(i)/((double)channels*(double)frames_per_buffer)) * M_PI * 10.0);
+void fillAudioBuffer(float *buffer, int bufferLength, float freq, float amp) {
+    for (int i = 0; i < bufferLength; i += 2) {
+        float sample = amp * std::sin(2.0f * M_PI * freq * sampleIndex / SAMPLE_RATE);
+        buffer[i] = sample;
+        buffer[i + 1] = sample;
+        ++sampleIndex;
     }
+}
 
-    // Create audio buffer
-    AudioBuffer * audio_buffer = new AudioBuffer(1, frames_per_buffer*channels);
-    audio_buffer->push(audio_data_interleaved, true);
+void audioPlaybackLoop(AudioPlayerOutput& audioOutput) {
+    float buffer[BUFFER_SIZE * 2];
 
-    // Create the audio driver
-    AudioPlayerOutput audio_driver(frames_per_buffer, 44100, channels);
-    REQUIRE(audio_driver.set_buffer_link(audio_buffer));
-    REQUIRE(audio_driver.open());
-    REQUIRE(audio_driver.start());
-    audio_driver.sleep(1);
-    REQUIRE(audio_driver.stop());
-    REQUIRE(audio_driver.close());
+    while (running) {
+        if (audioOutput.is_ready()) {
+            fillAudioBuffer(buffer, BUFFER_SIZE * 2, frequency.load(), amplitude.load());
+            audioOutput.push(buffer);
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    }
+}
+
+TEST_CASE("AudioSDLOutputNewTest") {
+    AudioPlayerOutput audioOutput(BUFFER_SIZE, SAMPLE_RATE, 2);
+    REQUIRE(audioOutput.open() == true);
+    REQUIRE(audioOutput.start() == true);
+
+    std::thread audioThread(audioPlaybackLoop, std::ref(audioOutput));
+
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    running = false;
+    audioThread.join();
+
+    REQUIRE(audioOutput.stop() == true);
+    REQUIRE(audioOutput.close() == true);
 }

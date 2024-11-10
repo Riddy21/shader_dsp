@@ -54,6 +54,15 @@ public:
     bool initialize(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels);
 
     /**
+     * @brief Checks if the audio renderer is initialized.
+     * 
+     * @return True if the audio renderer is initialized, false otherwise.
+     */
+    bool is_initialized() {
+        return m_initialized;
+    }
+
+    /**
      * @brief Starts the main loop of the audio renderer.
      */
     void start_main_loop();
@@ -91,16 +100,17 @@ public:
      * @param output_link The output link to be added.
      * @return True if the output link is successfully added, false otherwise.
      */
-    bool add_render_output(std::unique_ptr<AudioOutputNew> output_link);
+    bool add_render_output(std::unique_ptr<AudioOutput> output_link);
 
 // -------------Setters----------------
     /**
-     * @brief Sets the testing mode for the audio renderer.
+     * @brief The lead output is the output device that sets the timing for the audio renderer.
+     *        This function sets the lead output device.
      * 
-     * @param testing_mode The testing mode flag.
+     * @param gid The global ID of the lead output device.
      */
-    void set_testing_mode(bool testing_mode) {
-        m_testing_mode = testing_mode;
+    void set_lead_output(const unsigned int gid) {
+        m_lead_output = m_render_outputs[gid].get();
     }
 
 // -------------Getters----------------
@@ -113,9 +123,9 @@ public:
      */
     AudioRenderStage * find_render_stage(const unsigned int gid);
 
-    AudioOutputNew * find_render_output(const unsigned int gid);
+    AudioOutput * find_render_output(const unsigned int gid);
 
-// FIXME: Put this in a seperate file
+    // FIXME: Put this in a seperate file
     /**
      * @brief Returns the vertex shader source code.
      * 
@@ -136,14 +146,6 @@ public:
         )glsl";
     }
 
-    /**
-     * @brief Checks if the audio renderer is initialized.
-     * 
-     * @return True if the audio renderer is initialized, false otherwise.
-     */
-    bool is_initialized() {
-        return m_initialized;
-    }
 
 private:
     static AudioRenderer * instance;
@@ -171,6 +173,13 @@ private:
 
 // -------------Helper Functions----------------
     /**
+     * @brief Sets the time parameter for all render stages.
+     * 
+     * @param time The time value to set.
+     */
+    void set_all_time_parameters(const unsigned int time);
+
+    /**
      * @brief Calculates the frame rate of the audio renderer.
      */
     void calculate_frame_rate();
@@ -180,7 +189,7 @@ private:
      * 
      * @param data The data to push.
      */
-    void push_data_to_all_output_buffers(const float * data);
+    void push_to_output_buffers(const float * data);
 
 
 // -------------Callback Functions----------------
@@ -199,8 +208,7 @@ private:
         glutPostRedisplay();
     }
 
-//-------------Initialization Functions----------------
-
+// -------------Initialization Functions----------------
     /**
      * @brief Initializes the time parameters for the render stages.
      * 
@@ -209,11 +217,25 @@ private:
     bool initialize_time_parameters();
 
     /**
-     * @brief Sets the time parameter for all render stages.
+     * @brief Initializes the OpenGL context.
      * 
-     * @param time The time value to set.
+     * @param window_width The width of the window.
+     * @param window_height The height of the window.
+     * @return True if initialization is successful, false otherwise.
      */
-    void set_all_time_parameters(const unsigned int time);
+    bool initialize_glut(unsigned int window_width, unsigned int window_height);
+
+    /**
+     * @brief Initializes the quad for rendering.
+     * 
+     * @param VAO The Vertex Array Object.
+     * @param VBO The Vertex Buffer Object.
+     * @param PBO The Pixel Buffer Object.
+     * @param num_channels The number of audio channels.
+     * @param buffer_size The size of the audio data buffer.
+     * @return True if initialization is successful, false otherwise.
+     */
+    bool initialize_quad(GLuint &VAO, GLuint &VBO, GLuint &PBO, const unsigned int num_channels, const unsigned int buffer_size);
 
     GLuint m_VAO; // Vertex Array Object for holding vertex attribute configurations
     GLuint m_VBO; // Vertex Buffer Object for holding vertex data
@@ -225,14 +247,13 @@ private:
     unsigned int m_sample_rate; // Sample rate of audio data
 
     unsigned int m_frame_count = 0; // Frame count for calculating frame rate
-
-    bool m_testing_mode; // Flag for testing mode
+    AudioOutput * m_lead_output = nullptr; // Lead output for frame rate calculation
 
     std::atomic<bool> m_running; // Flag to control the loop
 
     bool m_initialized = false; // Flag to mark initialization
 
-    std::vector<std::unique_ptr<AudioOutputNew>> m_render_outputs; // Render outputs
+    std::vector<std::unique_ptr<AudioOutput>> m_render_outputs; // Render outputs
     std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages; // Render stages
     std::vector<AudioParameter *> m_frame_time_parameters; // Time parameters for render stages
 

@@ -1,10 +1,10 @@
 #pragma once
-#ifndef AUDIO_DRIVER_H
-#define AUDIO_DRIVER_H
+#ifndef AUDIO_SDL_PLAYER_OUTPUT_H
+#define AUDIO_SDL_PLAYER_OUTPUT_H
 
 #include <vector>
 #include <mutex>
-#include <portaudio.h>
+#include <SDL2/SDL.h>
 #include <memory>
 
 #include "audio_buffer.h"
@@ -13,62 +13,64 @@
 class AudioPlayerOutput : public AudioOutput {
 public:
     /**
-     * Constructor for the AudioDriver class.
+     * Constructor for the AudioSDLOutputNew class.
      * 
-     * @param sample_rate The sample rate of the audio stream.
      * @param frames_per_buffer The number of frames per buffer.
+     * @param sample_rate The sample rate of the audio stream.
      * @param channels The number of channels in the audio stream.
     */
     AudioPlayerOutput(const unsigned frames_per_buffer, const unsigned sample_rate, const unsigned channels) : 
         AudioOutput(frames_per_buffer, sample_rate, channels),
-        m_stream(0) {}
+        m_device_id(0) {}
     /**
-     * Destructor for the AudioDriver class.
+     * Destructor for the AudioSDLOutputNew class.
     */
     ~AudioPlayerOutput();
     /**
-     * Open the audio stream.
+     * Check if the audio output device is ready.
      * 
-     * @param index The index of the audio device to open, -1 for default device.
-     * @return True if the audio stream was opened successfully, false otherwise.
+     * @return True if the audio output device is ready, false otherwise.
+    */
+    bool is_ready() override;
+    /**
+     * Push audio data to the audio output device.
+     * 
+     * @param data The audio data to push.
+    */
+    void push(const float * data) override;
+    // TODO: Add device selection and error handling
+    /**
+     * Open the audio output device.
+     * 
+     * @return True if the audio output device was opened successfully, false otherwise.
     */
     bool open() override;
     /**
-     * Start the audio stream.
+     * Start the audio output device.
      * 
-     * @return True if the audio stream was started successfully, false otherwise.
+     * @return True if the audio output device was started successfully, false otherwise.
     */
     bool start() override;
     /**
-     * Sleep for a given number of seconds.
+     * Stop the audio output device.
      * 
-     * @param seconds The number of seconds to sleep.
-    */
-    void sleep(const unsigned seconds);
-    /**
-     * Stop the audio stream.
-     * 
-     * @return True if the audio stream was stopped successfully, false otherwise.
+     * @return True if the audio output device was stopped successfully, false otherwise.
     */
     bool stop() override;
     /**
-     * Close the audio stream.
+     * Close the audio output device.
      * 
-     * @return True if the audio stream was closed successfully, false otherwise.
+     * @return True if the audio output device was closed successfully, false otherwise.
     */
     bool close() override;
 
 private:
-    static int audio_callback(const void *input_buffer, void *output_buffer,
-                              unsigned long frames_per_buffer, const PaStreamCallbackTimeInfo *time_info,
-                              PaStreamCallbackFlags status_flags, void *user_data);
+    /**
+     * Error handling function.
+     */
+    static void error(const char* message);
 
-
-    static void write_audio_callback(AudioPlayerOutput* audio_player_output);
-    
-    static void error(PaError err);
-
-    PaStream *m_stream;
+    SDL_AudioDeviceID m_device_id;
     bool m_is_running = false;
 };
 

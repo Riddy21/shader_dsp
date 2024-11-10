@@ -21,10 +21,25 @@ public:
                     const std::string filename) : 
         AudioOutput(frames_per_buffer, sample_rate, channels),
         m_filename(filename) {}
+
     /**
      * Destroys the AudioFileOutput object.
      */
     ~AudioFileOutput();
+
+    /**
+     * Checks if the audio file is ready for writing.
+     * 
+     * @return True if the audio file is ready for writing, false otherwise.
+     */
+    bool is_ready() override;
+
+    /**
+     * Writes audio data to the file.
+     * 
+     * @param data The audio data to write.
+     */
+    void push(const float * data) override;
 
     /**
      * Opens the file for writing audio data.
@@ -59,8 +74,6 @@ private:
     std::ofstream m_file;
     bool m_is_running = false;
     WAVHeader m_header;
-
-    static void write_audio_callback(AudioFileOutput* audio_file_output);
 };
 
 #endif // AUDIO_FILE_OUTPUT_H

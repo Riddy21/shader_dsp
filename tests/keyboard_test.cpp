@@ -33,7 +33,7 @@ TEST_CASE("KeybaordTest") {
         audio_renderer.terminate();
     });
 
-    REQUIRE(audio_renderer.init(512, 44100, 2));
+    REQUIRE(audio_renderer.inititialize(512, 44100, 2));
     REQUIRE(keyboard.initialize());
 
     REQUIRE(audio_driver.set_buffer_link(audio_renderer.get_new_output_buffer()));

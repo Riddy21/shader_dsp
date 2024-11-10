@@ -5,9 +5,6 @@
 #include "audio_wav.h"
 #include "audio_file_output.h"
 
-AudioFileOutput::~AudioFileOutput() {
-}
-
 bool AudioFileOutput::open() {
     // Open file from m_filename
     m_file = std::ofstream(m_filename, std::ios::binary);
@@ -59,34 +56,24 @@ bool AudioFileOutput::start() {
 
     m_is_running = true;
 
-    // Start a thread to write audio data to the file
-    std::thread t1(write_audio_callback, this);
-    t1.detach();
-
     return true;
 }
 
-void AudioFileOutput::write_audio_callback(AudioFileOutput* audio_file_output) {
+void AudioFileOutput::push(const float * data) {
     // Write audio data to the file
-    if (!audio_file_output->m_file.is_open()) {
+    if (!m_file.is_open()) {
         fprintf(stderr, "Error: File not open.\n");
         return;
     }
-    while (audio_file_output->m_is_running) {
-        // Write audio data to the file
-        auto audio_buffer = audio_file_output->m_audio_buffer_link->pop();
 
-        for (unsigned i = 0; i < audio_file_output->m_frames_per_buffer*audio_file_output->m_channels; i++) {
-            // convert float to int16_t
-            int16_t sample = (int16_t)(audio_buffer[i] * 32760.0f);
-            audio_file_output->m_file.write((char *) &sample, sizeof(int16_t));
-        }
+    if (!m_is_running) {
+        return;
+    }
 
-        audio_file_output->update_latency();
-        // Wait for a short time
-        std::this_thread::sleep_until(std::chrono::high_resolution_clock::now() + 
-                                      std::chrono::microseconds(1000000 * audio_file_output->m_frames_per_buffer / audio_file_output->m_sample_rate));
-
+    for (unsigned i = 0; i < m_frames_per_buffer*m_channels; i++) {
+        // convert float to int16_t
+        int16_t sample = (int16_t)(data[i] * 32760.0f);
+        m_file.write((char *) &sample, sizeof(int16_t));
     }
 }
 
@@ -97,4 +84,31 @@ bool AudioFileOutput::stop() {
     }
     m_is_running = false;
     return true;
+}
+
+bool AudioFileOutput::is_ready() {
+    // Audio is only ready for writing once every
+    static auto last_check = std::chrono::high_resolution_clock::now();
+    auto now = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(now - last_check).count();
+
+    if (duration < 1000000 * m_frames_per_buffer / m_sample_rate) {
+        return false;
+    }
+
+    last_check = now;
+
+    // Check if the audio file is ready for writing
+    if (!m_file.is_open()) {
+        return false;
+    } else if (!m_is_running) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+AudioFileOutput::~AudioFileOutput() {
+    // Close the file
+    close();
 }

@@ -7,7 +7,6 @@
 #include "audio_renderer.h"
 #include "audio_generator_render_stage.h"
 #include "audio_player_output.h"
-#include "audio_sdl_player_output.h"
 #include "audio_file_output.h"
 #include "keyboard.h"
 #include "key.h"
@@ -34,9 +33,7 @@ int main(int argc, char** argv) {
     }
 
     // Make an output player
-    //AudioFileOutput audio_player_output(512, 44100, 2, "output.wav");
-    //AudioPlayerOutput audio_player_output(512, 44100, 2);
-    auto audio_player_output = std::make_unique<AudioSDLPlayerOutput>(512, 44100, 2);
+    auto audio_player_output = std::make_unique<AudioPlayerOutput>(512, 44100, 2);
     auto audio_file_output = std::make_unique<AudioFileOutput>(512, 44100, 2, "output.wav");
 
     // Initialize the audio renderer
@@ -48,6 +45,8 @@ int main(int argc, char** argv) {
 
     auto player = audio_renderer.find_render_output(0);
     auto file = audio_renderer.find_render_output(1);
+
+    audio_renderer.set_lead_output(0);
 
     player->open();
     player->start();
