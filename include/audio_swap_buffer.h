@@ -25,11 +25,11 @@ public:
 private:
     bool m_flag = false;
     std::mutex m_mutex;
+    const int m_buffer_size;
     float * m_buffer_a;
     float * m_buffer_b;
     float * m_read_buffer;
     float * m_write_buffer;
-    const int m_buffer_size;
 };
 
 #endif // AUDIO_SWAP_BUFFER_H

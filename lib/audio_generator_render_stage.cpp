@@ -40,71 +40,71 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
 
         // Add new parameter objects to the parameter list
         auto full_audio_texture =
-            std::make_unique<AudioTexture2DParameter>("full_audio_data_texture",
+            new AudioTexture2DParameter("full_audio_data_texture",
                                   AudioParameter::ConnectionType::INITIALIZATION,
                                   width, height*2);
         full_audio_texture->set_value(buffered_full_audio_data.data());
 
         // TODO: Make time a global parameter, not a stage parameter
         auto time_parameter =
-            std::make_unique<AudioIntParameter>("time",
+            new AudioIntParameter("time",
                                   AudioParameter::ConnectionType::INPUT);
         time_parameter->set_value(new int(0));
 
         auto play_position_parameter =
-            std::make_unique<AudioIntParameter>("play_position",
+            new AudioIntParameter("play_position",
                                   AudioParameter::ConnectionType::INPUT);
         play_position_parameter->set_value(new int(0));
 
         auto stream_audio_texture = 
-            std::make_unique<AudioTexture2DParameter>("stream_audio_texture",
+            new AudioTexture2DParameter("stream_audio_texture",
                                   AudioParameter::ConnectionType::PASSTHROUGH,
                                   m_frames_per_buffer * m_num_channels, 1);
 
         auto tone_parameter =
-            std::make_unique<AudioFloatParameter>("tone",
+            new AudioFloatParameter("tone",
                                   AudioParameter::ConnectionType::INPUT);
         tone_parameter->set_value(new float(1.0f));
 
         auto gain_parameter =
-            std::make_unique<AudioFloatParameter>("gain",
+            new AudioFloatParameter("gain",
                                   AudioParameter::ConnectionType::INPUT);
         gain_parameter->set_value(new float(0.0f));
 
         auto output_audio_texture =
-            std::make_unique<AudioTexture2DParameter>("output_audio_texture",
+            new AudioTexture2DParameter("output_audio_texture",
                       AudioParameter::ConnectionType::OUTPUT,
                       m_frames_per_buffer * m_num_channels, 1);
 
         auto buffer_size =
-            std::make_unique<AudioIntParameter>("buffer_size",
+            new AudioIntParameter("buffer_size",
                       AudioParameter::ConnectionType::INITIALIZATION);
         buffer_size->set_value(new int(m_frames_per_buffer*m_num_channels));
 
         // TODO: Add parameter for loop
 
-        if (!this->add_parameter(std::move(full_audio_texture))) {
+        if (!this->add_parameter(full_audio_texture)) {
             std::cerr << "Failed to add beginning_audio_texture" << std::endl;
         }
-        if (!this->add_parameter(std::move(output_audio_texture))) {
+        if (!this->add_parameter(output_audio_texture)) {
             std::cerr << "Failed to add output_audio_texture" << std::endl;
         }
-        if (!this->add_parameter(std::move(stream_audio_texture))) {
+        if (!this->add_parameter(stream_audio_texture)) {
             std::cerr << "Failed to add stream_audio_texture" << std::endl;
         }
-        if (!this->add_parameter(std::move(time_parameter))) {
+        if (!this->add_parameter(time_parameter)) {
             std::cerr << "Failed to add time_parameter" << std::endl;
         }
-        if (!this->add_parameter(std::move(tone_parameter))) {
+        if (!this->add_parameter(tone_parameter)) {
             std::cerr << "Failed to add tone_parameter" << std::endl;
         }
-        if (!this->add_parameter(std::move(gain_parameter))) {
+        if (!this->add_parameter(gain_parameter)) {
             std::cerr << "Failed to add play_parameter" << std::endl;
         }
-        if (!this->add_parameter(std::move(play_position_parameter))) {
+        if (!this->add_parameter(play_position_parameter)) {
             std::cerr << "Failed to add play_position_parameter" << std::endl;
         }
-        if (!this->add_parameter(std::move(buffer_size))) {
+        if (!this->add_parameter(buffer_size)) {
             std::cerr << "Failed to add buffer_size" << std::endl;
         }
 }

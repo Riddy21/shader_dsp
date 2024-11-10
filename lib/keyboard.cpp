@@ -10,12 +10,12 @@ Keyboard::~Keyboard() {
     m_keys.clear();
 }
 
-void Keyboard::add_key(std::unique_ptr<Key> key) {
+void Keyboard::add_key(Key * key) {
     if (m_keys.find(key->name) != m_keys.end()) {
         std::cerr << "Key already exists." << std::endl;
         return;
     }
-    m_keys[key->name] = std::move(key);
+    m_keys[key->name] = std::unique_ptr<Key>(key);
 }
 
 void Keyboard::key_down_callback(unsigned char key, int x, int y) {

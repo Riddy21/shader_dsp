@@ -25,7 +25,7 @@ public:
     /**
      * Destructor for the AudioSDLOutputNew class.
     */
-    ~AudioPlayerOutput();
+    ~AudioPlayerOutput() override;
     /**
      * Check if the audio output device is ready.
      * 

@@ -22,6 +22,7 @@ AudioBuffer::AudioBuffer(unsigned int max_size, unsigned int buffer_size)
 }
 
 AudioBuffer::~AudioBuffer() {
+    printf("AudioBuffer Destroyed\n");
     clear();
 }
 

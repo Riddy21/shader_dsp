@@ -20,7 +20,7 @@ public:
     void operator=(Keyboard const&) = delete;
 
     bool initialize();
-    void add_key(std::unique_ptr<Key> key);
+    void add_key(Key * key);
     Key * get_key(const unsigned char key) { return m_keys[key].get(); }
 
 private:

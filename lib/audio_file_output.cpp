@@ -111,4 +111,5 @@ bool AudioFileOutput::is_ready() {
 AudioFileOutput::~AudioFileOutput() {
     // Close the file
     close();
+    printf("AudioFileOutput Destroyed\n");
 }

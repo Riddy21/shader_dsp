@@ -92,7 +92,7 @@ public:
      * @param render_stage The render stage to be added.
      * @return True if the render stage is successfully added, false otherwise.
      */
-    bool add_render_stage(std::unique_ptr<AudioRenderStage> render_stage);
+    bool add_render_stage(AudioRenderStage * render_stage);
 
     /**
      * @brief Adds an output link to the audio renderer.
@@ -100,7 +100,7 @@ public:
      * @param output_link The output link to be added.
      * @return True if the output link is successfully added, false otherwise.
      */
-    bool add_render_output(std::unique_ptr<AudioOutput> output_link);
+    bool add_render_output(AudioOutput * output_link);
 
 // -------------Setters----------------
     /**
@@ -125,7 +125,7 @@ public:
 
     AudioOutput * find_render_output(const unsigned int gid);
 
-    // FIXME: Put this in a seperate file
+    // TODO: Put this in a seperate file
     /**
      * @brief Returns the vertex shader source code.
      * 

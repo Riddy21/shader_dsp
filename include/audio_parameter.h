@@ -27,6 +27,7 @@ public:
     const ConnectionType connection_type;
 
     ~AudioParameter() {
+        printf("Deleting parameter %s\n", name);
     }
 
     // Linking to other parameters
@@ -36,7 +37,6 @@ public:
     }
 
     // Setters
-    // TODO: Make this mulitple types
     virtual bool set_value(const void * value_ptr);
 
     // Getters

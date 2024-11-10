@@ -25,7 +25,7 @@ public:
     /**
      * Destroys the AudioFileOutput object.
      */
-    ~AudioFileOutput();
+    ~AudioFileOutput() override;
 
     /**
      * Checks if the audio file is ready for writing.

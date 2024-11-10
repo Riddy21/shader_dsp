@@ -24,7 +24,7 @@ public:
           m_num_channels(num_channels) {}
 
     // Destructor
-    ~AudioRenderStage();
+    virtual ~AudioRenderStage(); // Make destructor virtual
 
     /** 
      * @brief Add a parameter to the audio parameter list
@@ -34,7 +34,7 @@ public:
      * @param parameter The parameter to add
      * @return True if the parameter is successfully added, false otherwise.
      */
-    bool add_parameter(std::unique_ptr<AudioParameter> parameter);
+    bool add_parameter(AudioParameter * parameter);
 
     /**
      * @brief Find a parameter by name

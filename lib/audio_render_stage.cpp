@@ -156,12 +156,12 @@ void AudioRenderStage::render_render_stage() {
     glUseProgram(0);
 }
 
-bool AudioRenderStage::add_parameter(std::unique_ptr<AudioParameter> parameter) {
+bool AudioRenderStage::add_parameter(AudioParameter * parameter) {
     // Link parameter to the stage
     parameter->link_render_stage(this);
 
     // Put in the parameter list
-    m_parameters.push_back(std::move(parameter));
+    m_parameters.push_back(std::unique_ptr<AudioParameter>(parameter));
     return true;
 }
 

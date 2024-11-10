@@ -25,23 +25,30 @@ int main(int argc, char** argv) {
     float tone = middle_c;
 
     for (size_t i = 0; i < keys.size(); ++i) {
-        auto key = std::make_unique<PianoKey>(keys[i], "media/sine.wav");
+        auto key = new PianoKey(keys[i], "media/sine.wav");
         key->set_gain(0.3f);
         key->set_tone(tone);
-        keyboard.add_key(std::move(key));
+        keyboard.add_key(key);
         tone *= semi_tone;
     }
 
+    // Add a quit key
+    auto quit_key = new Key('q');
+    quit_key->set_key_down_callback([]() {
+        AudioRenderer::get_instance().terminate();
+    });
+    keyboard.add_key(quit_key);
+
     // Make an output player
-    auto audio_player_output = std::make_unique<AudioPlayerOutput>(512, 44100, 2);
-    auto audio_file_output = std::make_unique<AudioFileOutput>(512, 44100, 2, "output.wav");
+    auto audio_player_output = new AudioPlayerOutput(512, 44100, 2);
+    auto audio_file_output = new AudioFileOutput(512, 44100, 2, "build/output.wav");
 
     // Initialize the audio renderer
     audio_renderer.initialize(512, 44100, 2);
     keyboard.initialize();
 
-    audio_renderer.add_render_output(std::move(audio_player_output));
-    audio_renderer.add_render_output(std::move(audio_file_output));
+    audio_renderer.add_render_output(audio_player_output);
+    audio_renderer.add_render_output(audio_file_output);
 
     auto player = audio_renderer.find_render_output(0);
     auto file = audio_renderer.find_render_output(1);
@@ -60,8 +67,6 @@ int main(int argc, char** argv) {
     player->close();
     file->stop();
     file->close();
-
-    audio_renderer.terminate();
 
     return 0;
 }

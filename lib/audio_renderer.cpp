@@ -11,14 +11,14 @@
 
 AudioRenderer * AudioRenderer::instance = nullptr;
 
-bool AudioRenderer::add_render_stage(std::unique_ptr<AudioRenderStage> render_stage)
+bool AudioRenderer::add_render_stage(AudioRenderStage * render_stage)
 {
     if (m_initialized) {
         std::cerr << "Error: Cannot add render stage after initialization." << std::endl;
         return false;
     }
     // Add the render stage to the list of render stages
-    m_render_stages.push_back(std::move(render_stage));
+    m_render_stages.push_back(std::unique_ptr<AudioRenderStage>(render_stage));
     m_num_stages = m_render_stages.size();
 
     // link the render stage to the audio renderer
@@ -37,9 +37,9 @@ bool AudioRenderer::add_render_stage(std::unique_ptr<AudioRenderStage> render_st
     return true;
 }
 
-bool AudioRenderer::add_render_output(std::unique_ptr<AudioOutput> output_link)
+bool AudioRenderer::add_render_output(AudioOutput * output_link)
 {
-    m_render_outputs.push_back(std::move(output_link));
+    m_render_outputs.push_back(std::unique_ptr<AudioOutput>(output_link));
 
     return true;
 }
@@ -220,10 +220,6 @@ bool AudioRenderer::terminate() {
         std::cerr << "Failed to clean up OpenGL context." << std::endl;
         return false;
     }
-    m_render_outputs.clear();
-
-    // Delete the render stages
-    m_render_stages.clear();
 
     return true;
 }

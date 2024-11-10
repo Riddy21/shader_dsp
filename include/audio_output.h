@@ -26,7 +26,7 @@ public:
      * Destructor for the AudioOutputNew class.
      * 
      */
-    virtual ~AudioOutput() = default;
+    virtual ~AudioOutput() {};
 
     const unsigned gid; // The unique identifier of the audio output device
 

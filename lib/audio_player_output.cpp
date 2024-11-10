@@ -53,6 +53,7 @@ void AudioPlayerOutput::error(const char* message) {
 AudioPlayerOutput::~AudioPlayerOutput() {
     SDL_CloseAudioDevice(m_device_id);
     SDL_Quit();
+    printf("AudioPlayerOutput Destroyed\n");
 }
 
 bool AudioPlayerOutput::is_ready() {
