@@ -13,8 +13,8 @@ public:
                           AudioParameter::ConnectionType connection_type,
                           GLuint parameter_width,
                           GLuint parameter_height,
-                          GLuint active_texture = 0,
-                          GLuint color_attachment = 0,
+                          GLuint active_texture = 0, // For Inputs
+                          GLuint color_attachment = 0, // For outputs
                           GLuint datatype = GL_FLOAT,
                           GLuint format = GL_RED,
                           GLuint internal_format = GL_R32F

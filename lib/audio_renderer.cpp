@@ -8,6 +8,7 @@
 #include <condition_variable>
 
 #include "audio_uniform_buffer_parameters.h"
+#include "audio_final_render_stage.h"
 #include "audio_renderer.h"
 
 AudioRenderer * AudioRenderer::instance = nullptr;
@@ -79,7 +80,7 @@ bool AudioRenderer::initialize_glut(unsigned int window_width, unsigned int wind
     return true;
 }
 
-bool AudioRenderer::initialize_quad(GLuint &VAO, GLuint &VBO, GLuint &PBO, const unsigned int num_channels, const unsigned int buffer_size) {
+bool AudioRenderer::initialize_quad() {
     // Just a default set of vertices to cover the screen
     GLfloat vertices[] = {
         // Position    Texcoords
@@ -94,21 +95,15 @@ bool AudioRenderer::initialize_quad(GLuint &VAO, GLuint &VBO, GLuint &PBO, const
     // Generate Textures and Framebuffers
 
     // Generate Buffer Objects
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &PBO); // 2 PBOs for audio data
+    glGenVertexArrays(1, &m_VAO);
+    glGenBuffers(1, &m_VBO);
 
     // Bind Vertex Objects
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    // Bind Pixel buffers
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, PBO);
+    glBindVertexArray(m_VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, m_VBO);
 
     // Allocate memory for vertex data
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    // Allocate memory for the audio data
-    glBufferData(GL_PIXEL_PACK_BUFFER, buffer_size * num_channels * sizeof(float), nullptr, GL_STREAM_READ);
 
     // Configure the vertex attributes
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat), (GLvoid*)0); // Vertex attributes
@@ -172,6 +167,12 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
         return false;
     }
 
+    // Create final render stage
+    if (!initialize_final_render_stage()){
+        std::cerr << "Failed to reate final render stage." << std::endl;
+        return false;
+    }
+
     // initialize all the render stages
     for (auto& stage : m_render_stages) {
         if (!stage->initialize_shader_stage()) {
@@ -195,7 +196,7 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     }
 
     // Create the quad
-    if (!initialize_quad(m_VAO, m_VBO, m_PBO, num_channels, buffer_size)) {
+    if (!initialize_quad()) {
         std::cerr << "Failed to create quad." << std::endl;
         return false;
     }
@@ -277,34 +278,17 @@ void AudioRenderer::render()
         // Render the stage
         m_render_stages[i]->render_render_stage();
     }
-    
-    // FIXME: Build this into another render stage
-    // Bind the last stage to read the audio data
-    glUseProgram(m_render_stages[m_num_stages - 1]->get_shader_program());
-    glBindFramebuffer(GL_FRAMEBUFFER, m_render_stages[m_num_stages - 1]->get_framebuffer());
 
-    // Bind the color attachment we are on
-    glReadBuffer(GL_COLOR_ATTACHMENT0); // Change to the specific color attachment you want to read from
-
-    // Bind the pixel buffer object
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
-
-    glReadPixels(0, 0, m_buffer_size * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
-    const float * output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-
-    push_to_output_buffers(output_buffer_data);
-
-    glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-
-    // Display to screen
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    // Push to output buffers
+    auto final_stage = dynamic_cast<AudioFinalRenderStage*>(m_render_stages.back().get());
+    if (final_stage) {
+        push_to_output_buffers(final_stage->get_output_buffer_data());
+    } else {
+        std::cerr << "Error: Final render stage not found." << std::endl;
+    }
 
     // Unbind everything
     glBindVertexArray(0);
-    glUseProgram(0);
 
     calculate_frame_rate();
 }
@@ -314,9 +298,6 @@ bool AudioRenderer::cleanup()
     // Delete the vertex array and buffer
     glDeleteVertexArrays(1, &m_VAO);
     glDeleteBuffers(1, &m_VBO);
-
-    // Delete the pixel buffer object
-    glDeleteBuffers(1, &m_PBO);
 
     return true;
 }
@@ -394,4 +375,13 @@ AudioParameter * AudioRenderer::find_global_parameter(const char * name) const {
         }
     }
     return nullptr;
+}
+
+bool AudioRenderer::initialize_final_render_stage() {
+    auto final_render_stage = new AudioFinalRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    if (!add_render_stage(final_render_stage)) {
+        std::cerr << "Failed to initialize final render stage" << std::endl;
+        return false;
+    }
+    return true;
 }

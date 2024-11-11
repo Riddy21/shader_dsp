@@ -16,12 +16,15 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
         new AudioTexture2DParameter("stream_audio_texture",
                                     AudioParameter::ConnectionType::PASSTHROUGH,
                                     m_frames_per_buffer * m_num_channels, 1, // Width and height
-                                    m_active_texture_count++);
+                                    ++m_active_texture_count,
+                                    0);
 
     auto output_audio_texture =
         new AudioTexture2DParameter("output_audio_texture",
                                     AudioParameter::ConnectionType::OUTPUT,
-                                    m_frames_per_buffer * m_num_channels, 1);
+                                    m_frames_per_buffer * m_num_channels, 1,
+                                    0,
+                                    ++m_color_attachment_count);
     
     if (!this->add_parameter(output_audio_texture)) {
         std::cerr << "Failed to add output_audio_texture" << std::endl;
@@ -169,9 +172,7 @@ void AudioRenderStage::render_render_stage() {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     
     // unbind the framebuffer and texture and shader program
-    // FIXME: Need to find a better way to bind texture in render output
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    //glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0);
 }
 

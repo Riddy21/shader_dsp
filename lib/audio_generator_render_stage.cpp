@@ -43,7 +43,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
             new AudioTexture2DParameter("full_audio_data_texture",
                                   AudioParameter::ConnectionType::INITIALIZATION,
                                   width, height*2,
-                                  m_active_texture_count++);
+                                  ++m_active_texture_count);
         full_audio_texture->set_value(buffered_full_audio_data.data());
 
         auto play_position_parameter =

@@ -58,18 +58,16 @@ public:
 
             in vec2 TexCoord;
 
-            uniform sampler2D input_audio_texture;
             uniform sampler2D stream_audio_texture;
 
-            layout(std140) uniform time {
-                int time_val;
+            layout(std140) uniform global_time {
+                int global_time_val;
             };
 
             out vec4 output_audio_texture;
 
             void main() {
-                output_audio_texture = texture(input_audio_texture, TexCoord) +
-                                       texture(stream_audio_texture, TexCoord);
+                output_audio_texture = texture(stream_audio_texture, TexCoord);
             }
         )glsl";
     }
@@ -95,9 +93,22 @@ protected:
      * 
      * @return True if initialization is successful, false otherwise.
      */
-    bool initialize_shader_stage();
+    virtual bool initialize_shader_stage();
 
-private:
+    /**
+     * @brief Process linked parameters together
+     * 
+     * @return True if success
+     */
+    virtual bool bind_shader_stage();
+
+    /**
+     * @brief Render the stage.
+     * 
+     * This function is responsible for rendering the stage and all parameters
+     */
+    virtual void render_render_stage();
+
     // Shader source
     GLuint m_shader_program = 0; // Keeps a copy of the shader program associated with the stage
 
@@ -112,19 +123,7 @@ private:
         m_renderer_link = renderer;
     }
 
-    /**
-     * @brief Process linked parameters together
-     * 
-     * @return True if success
-     */
-    bool bind_shader_stage();
-
-    /**
-     * @brief Render the stage.
-     * 
-     * This function is responsible for rendering the stage and all parameters
-     */
-    void render_render_stage();
+private:
 
     /**
      * @brief Compile the shader program.
@@ -146,6 +145,7 @@ private:
      * This function is responsible for initializing the framebuffer.
      */
     bool initialize_framebuffer();
+
 
     unsigned int generate_id() {
         static unsigned int id = 0;

@@ -226,6 +226,13 @@ private:
 
 // -------------Initialization Functions----------------
     /**
+     * @brief Creates the final render stage with pixel buffer output
+     * 
+     * @return True if creation was successful, false otherwise.
+     */
+    bool initialize_final_render_stage();
+
+    /**
      * @brief Initializes the time parameters for the render stages.
      * 
      * @return True if initialization is successful, false otherwise.
@@ -246,16 +253,14 @@ private:
      * 
      * @param VAO The Vertex Array Object.
      * @param VBO The Vertex Buffer Object.
-     * @param PBO The Pixel Buffer Object.
      * @param num_channels The number of audio channels.
      * @param buffer_size The size of the audio data buffer.
      * @return True if initialization is successful, false otherwise.
      */
-    bool initialize_quad(GLuint &VAO, GLuint &VBO, GLuint &PBO, const unsigned int num_channels, const unsigned int buffer_size);
+    bool initialize_quad();
 
     GLuint m_VAO; // Vertex Array Object for holding vertex attribute configurations
     GLuint m_VBO; // Vertex Buffer Object for holding vertex data
-    GLuint m_PBO; // Pixel Buffer Object for inputting and outputting to screen
 
     unsigned int m_num_stages; // Number of audio buffers
     unsigned int m_buffer_size; // Size of audio data
