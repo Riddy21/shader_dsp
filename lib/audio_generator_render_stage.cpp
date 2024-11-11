@@ -42,18 +42,14 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         auto full_audio_texture =
             new AudioTexture2DParameter("full_audio_data_texture",
                                   AudioParameter::ConnectionType::INITIALIZATION,
-                                  width, height*2);
+                                  width, height*2,
+                                  m_active_texture_count++);
         full_audio_texture->set_value(buffered_full_audio_data.data());
 
         auto play_position_parameter =
             new AudioIntParameter("play_position",
                                   AudioParameter::ConnectionType::INPUT);
         play_position_parameter->set_value(new int(0));
-
-        auto stream_audio_texture = 
-            new AudioTexture2DParameter("stream_audio_texture",
-                                  AudioParameter::ConnectionType::PASSTHROUGH,
-                                  m_frames_per_buffer * m_num_channels, 1);
 
         auto tone_parameter =
             new AudioFloatParameter("tone",
@@ -65,26 +61,13 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                                   AudioParameter::ConnectionType::INPUT);
         gain_parameter->set_value(new float(0.0f));
 
-        auto output_audio_texture =
-            new AudioTexture2DParameter("output_audio_texture",
-                      AudioParameter::ConnectionType::OUTPUT,
-                      m_frames_per_buffer * m_num_channels, 1);
-
         auto buffer_size =
             new AudioIntParameter("buffer_size",
                       AudioParameter::ConnectionType::INITIALIZATION);
         buffer_size->set_value(new int(m_frames_per_buffer*m_num_channels));
 
-        // TODO: Add parameter for loop
-
         if (!this->add_parameter(full_audio_texture)) {
             std::cerr << "Failed to add beginning_audio_texture" << std::endl;
-        }
-        if (!this->add_parameter(output_audio_texture)) {
-            std::cerr << "Failed to add output_audio_texture" << std::endl;
-        }
-        if (!this->add_parameter(stream_audio_texture)) {
-            std::cerr << "Failed to add stream_audio_texture" << std::endl;
         }
         if (!this->add_parameter(tone_parameter)) {
             std::cerr << "Failed to add tone_parameter" << std::endl;

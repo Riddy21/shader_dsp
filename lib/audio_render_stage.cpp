@@ -3,6 +3,33 @@
 #include <string>
 #include "audio_renderer.h"
 #include "audio_render_stage.h"
+#include "audio_texture2d_parameter.h"
+
+AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
+                                   const unsigned int sample_rate,
+                                   const unsigned int num_channels)
+                                  : gid(generate_id()),
+                                    m_frames_per_buffer(frames_per_buffer),
+                                    m_sample_rate(sample_rate),
+                                    m_num_channels(num_channels) {
+    auto stream_audio_texture =
+        new AudioTexture2DParameter("stream_audio_texture",
+                                    AudioParameter::ConnectionType::PASSTHROUGH,
+                                    m_frames_per_buffer * m_num_channels, 1, // Width and height
+                                    m_active_texture_count++);
+
+    auto output_audio_texture =
+        new AudioTexture2DParameter("output_audio_texture",
+                                    AudioParameter::ConnectionType::OUTPUT,
+                                    m_frames_per_buffer * m_num_channels, 1);
+    
+    if (!this->add_parameter(output_audio_texture)) {
+        std::cerr << "Failed to add output_audio_texture" << std::endl;
+    }
+    if (!this->add_parameter(stream_audio_texture)) {
+        std::cerr << "Failed to add stream_audio_texture" << std::endl;
+    }
+}
 
 AudioRenderStage::~AudioRenderStage() {
     // Delete the framebuffer
@@ -122,18 +149,11 @@ bool AudioRenderStage::bind_shader_stage() {
             printf("Error: Failed to process linked parameters for %s\n", param->name);
             return false;
         }
-        // Only increment color attachment if the parameter is an output
-        if (param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
-            m_color_attachment ++;
-        }
     }
-    m_color_attachment --; // Decrement to get the correct number of color attachments
     return true;
 }
 
 void AudioRenderStage::render_render_stage() {
-    m_active_texture = 0;
-    
     // Use the shader program of the stage
     glUseProgram(m_shader_program);
 
@@ -144,7 +164,6 @@ void AudioRenderStage::render_render_stage() {
     // Render parameters
     for (auto &param : m_parameters) {
         param->render_parameter();
-        m_active_texture ++;
     }
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -166,7 +185,7 @@ bool AudioRenderStage::add_parameter(AudioParameter * parameter) {
 }
 
 AudioParameter * AudioRenderStage::find_parameter(const char * name) const {
-    // FIXME: Convert this to a map
+    // TODO: Use a map for faster lookup
     for (auto &param : m_parameters) {
         if (std::string(param->name) == std::string(name)) {
             return param.get();

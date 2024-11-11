@@ -17,11 +17,7 @@ public:
     // Constructor
     AudioRenderStage(const unsigned int frames_per_buffer,
                      const unsigned int sample_rate,
-                     const unsigned int num_channels)
-        : gid(generate_id()),
-          m_frames_per_buffer(frames_per_buffer),
-          m_sample_rate(sample_rate),
-          m_num_channels(num_channels) {}
+                     const unsigned int num_channels);
 
     // Destructor
     virtual ~AudioRenderStage(); // Make destructor virtual
@@ -47,22 +43,6 @@ public:
     AudioParameter * find_parameter(const char * name) const;
 
     // Getters
-    void set_texture_count(const GLuint count) {
-        m_active_texture = count;
-    }
-
-    void set_color_attachment_count(const GLuint count) {
-        m_color_attachment = count;
-    }
-
-    GLuint get_texture_count() const {
-        return m_active_texture;
-    }
-
-    GLuint get_color_attachment_count() const {
-        return m_color_attachment;
-    }
-
     GLuint get_shader_program() const {
         return m_shader_program;
     }
@@ -70,17 +50,6 @@ public:
     GLuint get_framebuffer() const {
         return m_framebuffer;
     }
-
-    const unsigned int gid;    
-
-protected:
-    // Settings
-    const unsigned int m_frames_per_buffer;
-    const unsigned int m_sample_rate;
-    const unsigned int m_num_channels;
-    
-    // Link to the renderer
-    const AudioRenderer * m_renderer_link;
 
     virtual GLchar const * get_fragment_source() const {
         return R"glsl(
@@ -105,6 +74,20 @@ protected:
         )glsl";
     }
 
+    const unsigned int gid;    
+
+protected:
+    // Settings
+    const unsigned int m_frames_per_buffer;
+    const unsigned int m_sample_rate;
+    const unsigned int m_num_channels;
+
+    GLuint m_active_texture_count = 0;
+    GLuint m_color_attachment_count = 0;
+    
+    // Link to the renderer
+    const AudioRenderer * m_renderer_link;
+
     /**
      * @brief Initializes the audio render stage.
      * 
@@ -120,11 +103,6 @@ private:
 
     // Framebuffer for the stage if it involves outputs
     GLuint m_framebuffer;
-
-    // Indexs for keeping track of textures and color attachments
-    // FIXME: Move the color attachment to the parameter
-    GLuint m_color_attachment = 0;
-    GLuint m_active_texture = 0;
 
     // Parameters
     std::vector<std::unique_ptr<AudioParameter>> m_parameters;

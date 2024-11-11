@@ -50,6 +50,15 @@ bool AudioUniformBufferParameter::initialize_parameter() {
         printf("Error: OpenGL error in initializing parameter %s\n", name);
         return false;
     }
+
+    // Look for the buffer in the shader program
+    if (m_render_stage_linked != nullptr) {
+        auto location = glGetUniformBlockIndex(m_render_stage_linked->get_shader_program(), name);
+        if (location == GL_INVALID_INDEX) {
+            printf("Error: Could not find buffer in shader program in parameter %s\n", name);
+            return false;
+        }
+    }
     
     // Unbind the buffer
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
