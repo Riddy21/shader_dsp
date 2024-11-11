@@ -102,6 +102,14 @@ public:
      */
     bool add_render_output(AudioOutput * output_link);
 
+    /**
+     * @brief Adds a global parameter to the audio renderer.
+     * 
+     * @param parameter The global parameter to be added.
+     * @return True if the global parameter is successfully added, false otherwise.
+     */
+    bool add_global_parameter(AudioParameter * parameter);
+
 // -------------Setters----------------
     /**
      * @brief The lead output is the output device that sets the timing for the audio renderer.
@@ -123,7 +131,21 @@ public:
      */
     AudioRenderStage * find_render_stage(const unsigned int gid);
 
+    /**
+     * @brief Finds an output link by its global ID.
+     * 
+     * @param gid The global ID of the output link.
+     * @return The output link if found, nullptr otherwise.
+     */
     AudioOutput * find_render_output(const unsigned int gid);
+
+    /**
+     * @brief Finds a global parameter by its name.
+     * 
+     * @param name The name of the global parameter.
+     * @return The global parameter if found, nullptr otherwise.
+     */
+    AudioParameter * find_global_parameter(const char * name) const;
 
     // TODO: Put this in a seperate file
     /**
@@ -156,7 +178,7 @@ private:
      * 
      * Private constructor to enforce singleton pattern.
      */
-    AudioRenderer() {};
+    AudioRenderer();
 
     /**
      * @brief Destroys the AudioRenderer object.
@@ -172,12 +194,6 @@ private:
     void render();
 
 // -------------Helper Functions----------------
-    /**
-     * @brief Sets the time parameter for all render stages.
-     * 
-     * @param time The time value to set.
-     */
-    void set_all_time_parameters(const unsigned int time);
 
     /**
      * @brief Calculates the frame rate of the audio renderer.
@@ -214,7 +230,7 @@ private:
      * 
      * @return True if initialization is successful, false otherwise.
      */
-    bool initialize_time_parameters();
+    bool initialize_global_parameters();
 
     /**
      * @brief Initializes the OpenGL context.
@@ -255,6 +271,7 @@ private:
 
     std::vector<std::unique_ptr<AudioOutput>> m_render_outputs; // Render outputs
     std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages; // Render stages
+    std::vector<std::unique_ptr<AudioParameter>> m_global_parameters; // Parameters for render stages
     std::vector<AudioParameter *> m_frame_time_parameters; // Time parameters for render stages
 
 };

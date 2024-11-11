@@ -23,7 +23,7 @@ PianoKey::PianoKey(const unsigned char key, const char * audio_file_path) : Key(
     m_gain_param = m_audio_generator->find_parameter("gain");
     m_tone_param = m_audio_generator->find_parameter("tone");
     m_play_param = m_audio_generator->find_parameter("play_position");
-    m_time_param = m_audio_generator->find_parameter("time");
+    m_time_param = audio_renderer.find_global_parameter("global_time");
 
     set_key_down_callback([this]() {
         m_play_param->set_value(m_time_param->get_value());

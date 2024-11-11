@@ -7,9 +7,17 @@
 #include <thread>
 #include <condition_variable>
 
+#include "audio_uniform_buffer_parameters.h"
 #include "audio_renderer.h"
 
 AudioRenderer * AudioRenderer::instance = nullptr;
+
+AudioRenderer::AudioRenderer() {
+    // Initialize the global time parameter
+    auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time->set_value(new int(0));
+    add_global_parameter(global_time);
+}
 
 bool AudioRenderer::add_render_stage(AudioRenderStage * render_stage)
 {
@@ -40,6 +48,13 @@ bool AudioRenderer::add_render_stage(AudioRenderStage * render_stage)
 bool AudioRenderer::add_render_output(AudioOutput * output_link)
 {
     m_render_outputs.push_back(std::unique_ptr<AudioOutput>(output_link));
+
+    return true;
+}
+
+bool AudioRenderer::add_global_parameter(AudioParameter * parameter)
+{
+    m_global_parameters.push_back(std::unique_ptr<AudioParameter>(parameter));
 
     return true;
 }
@@ -175,8 +190,8 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
         }
     }
 
-    // Find the time parameters
-    if (!initialize_time_parameters()) {
+    // Intialize global parameters
+    if (!initialize_global_parameters()) {
         std::cerr << "Failed to initialize time parameters." << std::endl;
         return false;
     }
@@ -249,16 +264,22 @@ void AudioRenderer::calculate_frame_rate()
 void AudioRenderer::render()
 {
     // Set the time for the frame
-    set_all_time_parameters(m_frame_count);
+    // TODO: Encapsulate in a function once we have more parameters
+    auto time_param = find_global_parameter("global_time");
+    time_param->set_value(&m_frame_count);
 
     glBindVertexArray(m_VAO);
+
+    // render the global parameters
+    for (auto& param : m_global_parameters) {
+        param->render_parameter();
+    }
 
     for (int i = 0; i < (int)m_num_stages; i++) {
         // Render the stage
         m_render_stages[i]->render_render_stage();
     }
     
-
     // Bind the last stage to read the audio data
     glUseProgram(m_render_stages[m_num_stages - 1]->get_shader_program());
     glBindFramebuffer(GL_FRAMEBUFFER, m_render_stages[m_num_stages - 1]->get_framebuffer());
@@ -334,28 +355,15 @@ void AudioRenderer::push_to_output_buffers(const float * data)
     }
 }
 
-bool AudioRenderer::initialize_time_parameters()
+bool AudioRenderer::initialize_global_parameters()
 {
-    // Initialize the time parameters
-    unsigned int counter = 0;
-    for (auto& stage : m_render_stages) {
-        auto time_param = stage->find_parameter("time");
-        if (time_param == nullptr) {
-            printf("Error: Time parameter not found in render stage %d\n", counter);
+    for (auto& param : m_global_parameters) {
+        if (!param->initialize_parameter()) {
+            std::cerr << "Failed to initialize global parameters" << std::endl;
             return false;
         }
-        m_frame_time_parameters.push_back(time_param);
-        counter ++;
     }
     return true;
-}
-
-void AudioRenderer::set_all_time_parameters(const unsigned int time)
-{
-    // Set the time parameter for all render stages
-    for (auto& param : m_frame_time_parameters) {
-        param->set_value(&time);
-    }
 }
 
 AudioRenderStage * AudioRenderer::find_render_stage(const unsigned int gid) {
@@ -377,5 +385,14 @@ AudioOutput * AudioRenderer::find_render_output(const unsigned int gid) {
         }
     }
     printf("Error: Output link not found\n");
+    return nullptr;
+}
+
+AudioParameter * AudioRenderer::find_global_parameter(const char * name) const {
+    for (auto &param : m_global_parameters) {
+        if (strcmp(param->name, name) == 0) {
+            return param.get();
+        }
+    }
     return nullptr;
 }

@@ -45,12 +45,6 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                                   width, height*2);
         full_audio_texture->set_value(buffered_full_audio_data.data());
 
-        // TODO: Make time a global parameter, not a stage parameter
-        auto time_parameter =
-            new AudioIntParameter("time",
-                                  AudioParameter::ConnectionType::INPUT);
-        time_parameter->set_value(new int(0));
-
         auto play_position_parameter =
             new AudioIntParameter("play_position",
                                   AudioParameter::ConnectionType::INPUT);
@@ -91,9 +85,6 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         }
         if (!this->add_parameter(stream_audio_texture)) {
             std::cerr << "Failed to add stream_audio_texture" << std::endl;
-        }
-        if (!this->add_parameter(time_parameter)) {
-            std::cerr << "Failed to add time_parameter" << std::endl;
         }
         if (!this->add_parameter(tone_parameter)) {
             std::cerr << "Failed to add tone_parameter" << std::endl;

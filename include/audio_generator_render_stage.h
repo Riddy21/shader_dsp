@@ -69,7 +69,9 @@ private:
 
         uniform sampler2D stream_audio_texture;
 
-        uniform int time;
+        layout(std140) uniform global_time {
+            int global_time_val;
+        };
 
         uniform int play_position;
 
@@ -89,8 +91,8 @@ private:
 
             ivec2 chunk_size = ivec2(float(buffer_size) * tone, 1);
 
-            int chunk_offset = (time - play_position) * chunk_size.x % total_audio_size; // repeat
-            //int chunk_offset = (time - play_position) * chunk_size.x; // no repeat
+            int chunk_offset = (global_time_val - play_position) * chunk_size.x % total_audio_size; // repeat
+            //int chunk_offset = (global_time_val - play_position) * chunk_size.x; // no repeat
 
             int total_offset = int(coord.x * float(chunk_size.x)) + chunk_offset;
 

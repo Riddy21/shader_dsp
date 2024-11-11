@@ -16,6 +16,7 @@ class AudioRenderStage; // Forward declaration
 class AudioParameter {
 public:
     friend class AudioRenderStage;
+    friend class AudioRenderer;
     enum ConnectionType {
         INPUT,
         PASSTHROUGH,
