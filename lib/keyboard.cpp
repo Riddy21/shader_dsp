@@ -19,6 +19,7 @@ void Keyboard::add_key(Key * key) {
 }
 
 void Keyboard::key_down_callback(unsigned char key, int x, int y) {
+    // TODO: Handle repeated key presses
     for (auto & kv : instance->m_keys) {
         if (kv.first == key) {
             kv.second->key_down();

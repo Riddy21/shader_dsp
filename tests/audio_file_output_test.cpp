@@ -21,15 +21,12 @@ TEST_CASE("AudioFileOutputTest") {
         audio_data_interleaved[i+1] = sin(((double)(i)/((double)channels*(double)frames_per_buffer)) * M_PI * 10.0);
     }
 
-    // Create audio buffer
-    AudioBuffer * audio_buffer = new AudioBuffer(1, frames_per_buffer*channels);
-    audio_buffer->push(audio_data_interleaved, true);
-
     AudioFileOutput audio_file_output(512, 44100, 2, "build/tests/output.wav");
-    REQUIRE(audio_file_output.set_buffer_link(audio_buffer));
     REQUIRE(audio_file_output.open());
     REQUIRE(audio_file_output.start());
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    for (int i = 0; i < 100; i++) {
+        audio_file_output.push(audio_data_interleaved);
+    }
     REQUIRE(audio_file_output.stop());
     REQUIRE(audio_file_output.close());
 

@@ -28,11 +28,11 @@ bool TestFixture::initialized = false;
 TEST_CASE_METHOD(TestFixture, "AudioRendererStageTest_add_parameter") {
     AudioRenderStage render_stage = AudioRenderStage(512, 44100, 2);
 
-    auto parameter1 =std::make_unique<AudioTexture2DParameter>(
+    auto parameter1 = new AudioTexture2DParameter(
                                       "input_parameter",
                                       AudioParameter::ConnectionType::INPUT,
                                       512 * 2,
                                       1);
 
-    render_stage.add_parameter(std::move(parameter1));
+    render_stage.add_parameter(parameter1);
 }
