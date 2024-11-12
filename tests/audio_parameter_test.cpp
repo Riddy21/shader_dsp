@@ -1,9 +1,9 @@
 #include "catch2/catch_all.hpp"
 #include <vector>
 
-#include "audio_parameter.h"
-#include "audio_uniform_buffer_parameters.h"
-#include "audio_texture2d_parameter.h"
+#include "audio_parameter/audio_parameter.h"
+#include "audio_parameter/audio_uniform_buffer_parameter.h"
+#include "audio_parameter/audio_texture2d_parameter.h"
 
 TEST_CASE("MakeUniqueTest") {
     std::vector<std::unique_ptr<AudioParameter>> audio_parameters;

@@ -1,9 +1,9 @@
 #include "catch2/catch_all.hpp"
 #include <thread>
 
-#include "audio_renderer.h"
-#include "audio_player_output.h"
-#include "keyboard.h"
+#include "audio_core/audio_renderer.h"
+#include "audio_output/audio_player_output.h"
+#include "keyboard/keyboard.h"
 
 TEST_CASE("KeybaordTest") {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();

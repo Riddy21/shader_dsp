@@ -3,9 +3,8 @@
 #include <thread>
 #include <iostream>
 
-#include "audio_buffer.h"
-#include "audio_file_output.h"
-#include "audio_wav.h"
+#include "audio_output/audio_file_output.h"
+#include "audio_output/audio_wav.h"
 
 TEST_CASE("AudioFileOutputTest") {
 

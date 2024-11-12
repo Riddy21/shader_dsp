@@ -4,12 +4,12 @@
 #include <GL/freeglut.h>
 #include <GL/glut.h>
 #include <cstdlib>
-#include "audio_renderer.h"
-#include "audio_generator_render_stage.h"
-#include "audio_player_output.h"
-#include "audio_file_output.h"
-#include "keyboard.h"
-#include "key.h"
+#include "audio_core/audio_renderer.h"
+#include "audio_render_stage/audio_generator_render_stage.h"
+#include "audio_output/audio_player_output.h"
+#include "audio_output/audio_file_output.h"
+#include "keyboard/keyboard.h"
+#include "keyboard/key.h"
 
 float middle_c = 1.214879f;
 float semi_tone = 1.059463f;

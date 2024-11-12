@@ -3,9 +3,9 @@
 #include <iostream>
 #include <mutex>
 
-#include "audio_player_output.h"
-#include "audio_renderer.h"
-#include "audio_generator_render_stage.h"
+#include "audio_output/audio_player_output.h"
+#include "audio_core/audio_renderer.h"
+#include "audio_render_stage/audio_generator_render_stage.h"
 
 TEST_CASE("AudioGeneratorRenderStage") {
     auto audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "media/test.wav");

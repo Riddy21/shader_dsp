@@ -4,7 +4,7 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
-#include "audio_player_output.h"
+#include "audio_output/audio_player_output.h"
 
 const int SAMPLE_RATE = 44100;
 const float INITIAL_AMPLITUDE = 0.5f;

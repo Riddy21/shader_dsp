@@ -2,10 +2,10 @@
 #include "catch2/catch_approx.hpp"
 #include <thread>
 
-#include "audio_renderer.h"
-#include "audio_player_output.h"
-#include "audio_texture2d_parameter.h"
-#include "audio_uniform_parameters.h"
+#include "audio_core/audio_renderer.h"
+#include "audio_output/audio_player_output.h"
+#include "audio_parameter/audio_texture2d_parameter.h"
+#include "audio_parameter/audio_uniform_parameters.h"
 
 TEST_CASE("AudioRenderer") {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
