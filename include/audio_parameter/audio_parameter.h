@@ -8,10 +8,12 @@
 #include <memory>
 #include <vector>
 
-#include "audio_render_stage/audio_render_stage.h"
 #include "audio_parameter/audio_param_data.h"
+#include "audio_core/audio_renderer.h"
+#include "audio_render_stage/audio_render_stage.h"
 
 class AudioRenderStage; // Forward declaration
+class AudioRenderer;
 
 class AudioParameter {
 public:

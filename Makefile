@@ -26,7 +26,7 @@ DEPS = $(OBJECTS:.o=.d)
 
 CXXFLAGS += -MMD -MP
 
-.SECONADY : $(OBJECTS)
+.SECONARDY : $(OBJECTS)
 
 all : $(TARGETS)	
 test : $(TEST_TARGETS)

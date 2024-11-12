@@ -6,10 +6,10 @@
 #include <unordered_map>
 #include <GL/glew.h>
 
-#include "audio_parameters/audio_parameter.h"
+#include "audio_parameter/audio_parameter.h"
 
-class AudioParameter;
 class AudioRenderer;
+class AudioParameter;
 
 class AudioRenderStage {
 public:

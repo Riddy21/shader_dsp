@@ -7,7 +7,7 @@
 #include <thread>
 #include <condition_variable>
 
-#include "audio_parameters/audio_uniform_buffer_parameters.h"
+#include "audio_parameter/audio_uniform_buffer_parameter.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_core/audio_renderer.h"
 
