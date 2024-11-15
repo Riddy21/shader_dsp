@@ -35,7 +35,6 @@ private:
     unsigned int m_num_octaves;
     AudioRenderer & m_audio_renderer = AudioRenderer::get_instance();
     std::unordered_map<unsigned char, std::unique_ptr<Key>> m_keys;
-
 };
 
 #endif // KEYBOARD_H

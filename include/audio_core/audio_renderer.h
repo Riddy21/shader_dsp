@@ -277,7 +277,6 @@ private:
     std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages; // Render stages
     std::vector<std::unique_ptr<AudioParameter>> m_global_parameters; // Parameters for render stages
     std::vector<AudioParameter *> m_frame_time_parameters; // Time parameters for render stages
-
 };
 
 #endif // AUDIO_RENDERER_H

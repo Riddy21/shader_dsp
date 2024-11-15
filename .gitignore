@@ -3,6 +3,9 @@ build/
 # Mac OS files to ignore
 .DS_Store
 
+# SCons files to ignore
+.sconsign*.dblite
+
 #VS Code files to ignore
 .vscode/
 

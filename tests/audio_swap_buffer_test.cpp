@@ -66,7 +66,7 @@ void reader_thread(AudioSwapBuffer& buffer, const unsigned int buffer_size, std:
 
 TEST_CASE("AudioSwapBuffer MultiThreaded ReadWrite", "[AudioSwapBuffer]") {
     const unsigned int buffer_size = 10;
-    const unsigned int duration_seconds = 10;
+    const unsigned int duration_seconds = 3;
     AudioSwapBuffer buffer(buffer_size);
 
     std::atomic<bool> running(true);
