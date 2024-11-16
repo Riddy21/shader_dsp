@@ -25,28 +25,16 @@ public:
      * @param frames_per_buffer The number of frames per buffer.
      * @param sample_rate The sample rate of the audio data.
      * @param num_channels The number of channels in the audio data.
-     * @param audio_filepath The path to the audio file to use
      */
     AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
                               const unsigned int sample_rate,
                               const unsigned int num_channels,
-                              const char * audio_filepath);
+                              const char * fragment_shader_path);
 
     /**
      * @brief Destroys the AudioGenerator object.
      */
     ~AudioGeneratorRenderStage() {}
-
-    const char * m_audio_filepath; // Default audio file path
-
-private:
-    // Load audio file
-    /**
-     * @brief Loads audio data from the specified audio file.
-     * 
-     * This function is responsible for loading audio data from the specified audio file into the full_audio_data vector.
-     */
-    static std::vector<float> load_audio_data_from_file(const char * audio_filepath);
 };
 
 #endif

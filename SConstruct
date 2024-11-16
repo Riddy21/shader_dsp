@@ -75,3 +75,6 @@ for target in COMMAND_LINE_TARGETS:
             playground_name = os.path.splitext(os.path.basename(src))[0]
             playground_objects = create_objects(env, [src] + LIB_SOURCES, BUILD_DIR)
             env.Program(target=os.path.join(BUILD_DIR, 'playground', playground_name), source=playground_objects)
+
+#Specify a single sconsign file for the entire build process
+SConsignFile(os.path.join(BUILD_DIR, 'sconsign.dblite'))

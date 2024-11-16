@@ -44,6 +44,10 @@ AudioRenderStage::~AudioRenderStage() {
     glDeleteFramebuffers(1, &m_framebuffer);
     // Delete shader program
     glDeleteProgram(m_shader_program);
+
+    // Delete shader source code
+    delete[] m_vertex_shader_source;
+    delete[] m_fragment_shader_source;
 }
 
 bool AudioRenderStage::initialize_shader_stage() {

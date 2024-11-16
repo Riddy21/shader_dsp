@@ -11,7 +11,7 @@
 #include "keyboard/keyboard.h"
 #include "keyboard/key.h"
 
-float middle_c = 1.214879f;
+float middle_c = 261.63f;
 float semi_tone = 1.059463f;
 
 int main(int argc, char** argv) {
@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
 
     for (size_t i = 0; i < keys.size(); ++i) {
         auto key = new PianoKey(keys[i], "media/sine.wav");
-        key->set_gain(0.3f);
+        key->set_gain(0.1f);
         key->set_tone(tone);
         keyboard.add_key(key);
         tone *= semi_tone;
