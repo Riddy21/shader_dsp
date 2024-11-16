@@ -9,12 +9,14 @@ SRC_DIR = 'src'
 TEST_DIR = 'tests'
 PLAYGROUND_DIR = 'playground'
 BUILD_DIR = 'build'
+SHADER_DIR = 'shaders'
 
 # Define source files
 LIB_SOURCES = Glob(os.path.join(LIB_DIR, '**', '*.cpp'), strings=True)
 MAIN_SOURCE = os.path.join(SRC_DIR, 'main.cpp')
 TEST_SOURCES = Glob(os.path.join(TEST_DIR, '*_test.cpp'), strings=True)
 PLAYGROUND_SOURCES = Glob(os.path.join(PLAYGROUND_DIR, '*.cpp'), strings=True)
+SHADER_SOURCES = Glob(os.path.join(SHADER_DIR, '*'), strings=True)
 
 # Define compiler and flags
 env = Environment(CXX='g++', CXXFLAGS='-std=c++20')
@@ -45,6 +47,14 @@ def create_objects(env, sources, build_dir):
 
 # Create build directory
 VariantDir(BUILD_DIR, '.', duplicate=0)
+
+# Copy shaders to build directory
+for src in SHADER_SOURCES:
+    shaders = env.Command(target=os.path.join(BUILD_DIR, 'shaders', os.path.basename(src)), source=src, action='cp $SOURCE $TARGET')
+
+# renderer and render stages depend on shaders
+render_stage_sources = Glob(os.path.join(SRC_DIR, 'renderer', 'render_stages', '*.cpp'), strings=True)
+env.Depends(render_stage_sources, shaders)
 
 # Build main executable
 main_objects = create_objects(env, [MAIN_SOURCE] + LIB_SOURCES, BUILD_DIR)

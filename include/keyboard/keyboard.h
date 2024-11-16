@@ -3,6 +3,7 @@
 #define KEYBOARD_H
 
 #include <unordered_map>
+#include <unordered_set>
 
 #include "keyboard/key.h"
 #include "audio_render_stage/audio_generator_render_stage.h"

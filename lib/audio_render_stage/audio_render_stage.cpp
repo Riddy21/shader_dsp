@@ -8,11 +8,15 @@
 
 AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                    const unsigned int sample_rate,
-                                   const unsigned int num_channels)
+                                   const unsigned int num_channels,
+                                   const char * fragment_shader_path,
+                                   const char * vertex_shader_path)
                                   : gid(generate_id()),
                                     m_frames_per_buffer(frames_per_buffer),
                                     m_sample_rate(sample_rate),
-                                    m_num_channels(num_channels) {
+                                    m_num_channels(num_channels),
+                                    m_vertex_shader_source(get_shader_source(vertex_shader_path)),
+                                    m_fragment_shader_source(get_shader_source(fragment_shader_path)) {
     auto stream_audio_texture =
         new AudioTexture2DParameter("stream_audio_texture",
                                     AudioParameter::ConnectionType::PASSTHROUGH,
@@ -62,15 +66,12 @@ bool AudioRenderStage::initialize_shader_stage() {
 }
 
 bool AudioRenderStage::initialize_shader_program() {
-    const GLchar * vertex_source = AudioRenderer::get_instance().get_vertex_source();
-    const GLchar * fragment_source = get_fragment_source();
-
     // Create the vertex and fragment shaders
     GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
     // Compile the vertex shader
-    glShaderSource(vertex_shader, 1, &vertex_source, NULL);
+    glShaderSource(vertex_shader, 1, &m_vertex_shader_source, NULL);
     glCompileShader(vertex_shader);
 
     // Check for vertex shader compilation errors
@@ -83,7 +84,7 @@ bool AudioRenderStage::initialize_shader_program() {
         return 0;
     }
     // Compile the fragment shader
-    glShaderSource(fragment_shader, 1, &fragment_source, NULL);
+    glShaderSource(fragment_shader, 1, &m_fragment_shader_source, NULL);
     glCompileShader(fragment_shader);
 
     // Check for fragment shader compilation errors
@@ -138,7 +139,7 @@ bool AudioRenderStage::initialize_stage_parameters() {
         std::cerr << "Error: No parameters to compile." << std::endl;
         return false;
     }
-    for (auto &param : m_parameters) {
+    for (auto &[name, param] : m_parameters) {
         if (!param->initialize_parameter()) {
             printf("Error: Failed to initialize parameter %s\n", param->name);
             return false;
@@ -148,7 +149,7 @@ bool AudioRenderStage::initialize_stage_parameters() {
 }
 
 bool AudioRenderStage::bind_shader_stage() {
-    for (auto &param : m_parameters) {
+    for (auto & [name, param] : m_parameters) {
         if (!param->bind_parameter()) {
             printf("Error: Failed to process linked parameters for %s\n", param->name);
             return false;
@@ -166,7 +167,7 @@ void AudioRenderStage::render_render_stage() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Render parameters
-    for (auto &param : m_parameters) {
+    for (auto & [name, param] : m_parameters) {
         param->render_parameter();
     }
 
@@ -182,16 +183,37 @@ bool AudioRenderStage::add_parameter(AudioParameter * parameter) {
     parameter->link_render_stage(this);
 
     // Put in the parameter list
-    m_parameters.push_back(std::unique_ptr<AudioParameter>(parameter));
+    m_parameters[parameter->name] = std::unique_ptr<AudioParameter>(parameter);
     return true;
 }
 
 AudioParameter * AudioRenderStage::find_parameter(const char * name) const {
-    // TODO: Use a map for faster lookup
-    for (auto &param : m_parameters) {
-        if (std::string(param->name) == std::string(name)) {
-            return param.get();
-        }
+    if (m_parameters.find(name) != m_parameters.end()) {
+        return m_parameters.at(name).get();
     }
     return nullptr;
 }  
+
+const GLchar * AudioRenderStage::get_shader_source(const char * file_path) {
+    // Open file
+    FILE * file = fopen(file_path, "r");
+    if (!file) {
+        std::cerr << "Error: Failed to open file " << file_path << std::endl;
+        return nullptr;
+    }
+
+    // Get file size
+    fseek(file, 0, SEEK_END);
+    long length = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    // load the vertex shader source code
+    GLchar * source = new GLchar[length + 1];
+    fread(source, 1, length, file);
+    source[length] = '\0';
+
+    // Close file
+    fclose(file);
+
+    return source;
+}

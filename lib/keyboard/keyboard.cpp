@@ -1,4 +1,5 @@
 #include <iostream>
+#include <unordered_set>
 
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
@@ -19,7 +20,6 @@ void Keyboard::add_key(Key * key) {
 }
 
 void Keyboard::key_down_callback(unsigned char key, int x, int y) {
-    // TODO: Handle repeated key presses
     for (auto & kv : instance->m_keys) {
         if (kv.first == key) {
             kv.second->key_down();
@@ -34,7 +34,6 @@ void Keyboard::key_up_callback(unsigned char key, int x, int y) {
         }
     }
 }
-
 
 bool Keyboard::initialize() {
     glutKeyboardFunc(key_down_callback);

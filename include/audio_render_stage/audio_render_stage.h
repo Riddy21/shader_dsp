@@ -17,7 +17,9 @@ public:
     // Constructor
     AudioRenderStage(const unsigned int frames_per_buffer,
                      const unsigned int sample_rate,
-                     const unsigned int num_channels);
+                     const unsigned int num_channels,
+                     const char * fragment_shader_path = "build/shaders/render_stage.frag",
+                     const char * vertex_shader_path = "build/shaders/render_stage.vert");
 
     // Destructor
     virtual ~AudioRenderStage(); // Make destructor virtual
@@ -51,28 +53,12 @@ public:
         return m_framebuffer;
     }
 
-    virtual GLchar const * get_fragment_source() const {
-        return R"glsl(
-            #version 300 es
-            precision highp float;
-
-            in vec2 TexCoord;
-
-            uniform sampler2D stream_audio_texture;
-
-            layout(std140) uniform global_time {
-                int global_time_val;
-            };
-
-            out vec4 output_audio_texture;
-
-            void main() {
-                output_audio_texture = texture(stream_audio_texture, TexCoord);
-            }
-        )glsl";
-    }
+    static const GLchar * get_shader_source(const char * file_path);
 
     const unsigned int gid;    
+
+    const GLchar * const m_vertex_shader_source;
+    const GLchar * const m_fragment_shader_source;
 
 protected:
     // Settings
@@ -116,7 +102,7 @@ protected:
     GLuint m_framebuffer;
 
     // Parameters
-    std::vector<std::unique_ptr<AudioParameter>> m_parameters;
+    std::unordered_map<std::string, std::unique_ptr<AudioParameter>> m_parameters;
 
     // Link to the renderer
     void link_renderer(const AudioRenderer * renderer) {

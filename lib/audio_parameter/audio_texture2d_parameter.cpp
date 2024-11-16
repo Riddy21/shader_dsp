@@ -54,7 +54,7 @@ bool AudioTexture2DParameter::initialize_parameter() {
     if (connection_type == ConnectionType::OUTPUT) {
         // do regex search for output texture
         auto regex = std::regex("out .* " + std::string(name) + ";");
-        if (!std::regex_search(m_render_stage_linked->get_fragment_source(), regex)) {
+        if (!std::regex_search(m_render_stage_linked->m_fragment_shader_source, regex)) {
             printf("Error: Could not find texture in shader program in parameter %s\n", name);
             return false;
         }
