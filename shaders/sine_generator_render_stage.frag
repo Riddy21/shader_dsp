@@ -1,20 +1,3 @@
-#version 300 es
-precision highp float;
-
-// Default parameters that must exist
-in vec2 TexCoord;
-uniform sampler2D stream_audio_texture;
-layout(std140) uniform global_time {
-    int global_time_val;
-};
-out vec4 output_audio_texture;
-
-// Generator specific parameters
-uniform int play_position;
-uniform float tone;
-uniform float gain;
-uniform int buffer_size;
-
 float calculateTime(int elapsed_time, vec2 TexCoord, int buffer_size) {
     // FIXME: Change 44100 to a default audio parameter
     return (float(elapsed_time) + TexCoord.x) / (44100.0 / float(buffer_size));

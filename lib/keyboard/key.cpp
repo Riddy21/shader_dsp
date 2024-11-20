@@ -3,14 +3,13 @@
 #include "keyboard/key.h"
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_file_generator_render_stage.h"
-#include "audio_render_stage/audio_sine_generator_render_stage.h"
 
 PianoKey::PianoKey(const unsigned char key, const char * audio_file_path) : Key(key) {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
 
     AudioGeneratorRenderStage * audio_generator;
-    // FIXME: Delete this after
-    audio_generator = new AudioSineGeneratorRenderStage(512, 44100, 2);
+
+    audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sine_generator_render_stage.frag");
 
     auto gid = audio_generator->gid;
 

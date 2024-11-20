@@ -1,25 +1,4 @@
-#version 300 es
-precision highp float;
-
-in vec2 TexCoord;
-
 uniform sampler2D full_audio_data_texture;
-
-uniform sampler2D stream_audio_texture;
-
-layout(std140) uniform global_time {
-    int global_time_val;
-};
-
-uniform int play_position;
-
-uniform float tone;
-
-uniform float gain;
-
-uniform int buffer_size;
-
-out vec4 output_audio_texture;
 
 vec2 translate_coord(vec2 coord) {
     // Get the chunk size

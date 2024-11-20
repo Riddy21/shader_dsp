@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cstring>
-#include <string>
 
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_render_stage.h"
@@ -9,14 +8,16 @@
 AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                    const unsigned int sample_rate,
                                    const unsigned int num_channels,
-                                   const char * fragment_shader_path,
-                                   const char * vertex_shader_path)
+                                   const std::string & fragment_shader_path,
+                                   const std::vector<std::string> & frag_shader_imports,
+                                   const std::string & vertex_shader_path,
+                                   const std::vector<std::string> & vert_shader_imports)
                                   : gid(generate_id()),
                                     m_frames_per_buffer(frames_per_buffer),
                                     m_sample_rate(sample_rate),
                                     m_num_channels(num_channels),
-                                    m_vertex_shader_source(get_shader_source(vertex_shader_path)),
-                                    m_fragment_shader_source(get_shader_source(fragment_shader_path)) {
+                                    m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
+                                    m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
     auto stream_audio_texture =
         new AudioTexture2DParameter("stream_audio_texture",
                                     AudioParameter::ConnectionType::PASSTHROUGH,
@@ -44,10 +45,6 @@ AudioRenderStage::~AudioRenderStage() {
     glDeleteFramebuffers(1, &m_framebuffer);
     // Delete shader program
     glDeleteProgram(m_shader_program);
-
-    // Delete shader source code
-    delete[] m_vertex_shader_source;
-    delete[] m_fragment_shader_source;
 }
 
 bool AudioRenderStage::initialize_shader_stage() {
@@ -70,12 +67,15 @@ bool AudioRenderStage::initialize_shader_stage() {
 }
 
 bool AudioRenderStage::initialize_shader_program() {
+    const GLchar * vertex_shader_source = m_vertex_shader_source.c_str();
+    const GLchar * fragment_shader_source = m_fragment_shader_source.c_str();
+
     // Create the vertex and fragment shaders
     GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
 
     // Compile the vertex shader
-    glShaderSource(vertex_shader, 1, &m_vertex_shader_source, NULL);
+    glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
     glCompileShader(vertex_shader);
 
     // Check for vertex shader compilation errors
@@ -88,7 +88,7 @@ bool AudioRenderStage::initialize_shader_program() {
         return 0;
     }
     // Compile the fragment shader
-    glShaderSource(fragment_shader, 1, &m_fragment_shader_source, NULL);
+    glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
     glCompileShader(fragment_shader);
 
     // Check for fragment shader compilation errors
@@ -198,9 +198,9 @@ AudioParameter * AudioRenderStage::find_parameter(const char * name) const {
     return nullptr;
 }  
 
-const GLchar * AudioRenderStage::get_shader_source(const char * file_path) {
+const std::string AudioRenderStage::get_shader_source(const std::string & file_path) {
     // Open file
-    FILE * file = fopen(file_path, "r");
+    FILE * file = fopen(file_path.c_str(), "r");
     if (!file) {
         std::cerr << "Error: Failed to open file " << file_path << std::endl;
         return nullptr;
@@ -219,5 +219,15 @@ const GLchar * AudioRenderStage::get_shader_source(const char * file_path) {
     // Close file
     fclose(file);
 
-    return source;
+    return std::string(source);
+}
+
+const std::string AudioRenderStage::combine_shader_source(const std::vector<std::string> & import_paths, const std::string & shader_path) {
+    std::string combined_source = "";
+    for (auto & import_path : import_paths) {
+        combined_source += get_shader_source(import_path) + "\n";
+    }
+    combined_source += get_shader_source(shader_path);
+
+    return combined_source;
 }

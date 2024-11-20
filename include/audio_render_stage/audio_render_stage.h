@@ -3,6 +3,7 @@
 #define AUDIO_RENDER_STAGE_H
 
 #include <vector>
+#include <string>
 #include <unordered_map>
 #include <GL/glew.h>
 
@@ -15,11 +16,17 @@ class AudioRenderStage {
 public:
     friend class AudioRenderer;
     // Constructor
+    // FIXME: Change the frag_shader_imports to a default list that's static, and add overrides through command line
     AudioRenderStage(const unsigned int frames_per_buffer,
                      const unsigned int sample_rate,
                      const unsigned int num_channels,
-                     const char * fragment_shader_path = "build/shaders/render_stage.frag",
-                     const char * vertex_shader_path = "build/shaders/render_stage.vert");
+                     const std::string& fragment_shader_path = "build/shaders/render_stage.frag",
+                     const std::vector<std::string> & frag_shader_imports = 
+                            {"build/shaders/global_settings.glsl",
+                             "build/shaders/frag_shader_settings.glsl"},
+                     const std::string& vertex_shader_path = "build/shaders/render_stage.vert",
+                     const std::vector<std::string> & vert_shader_imports =
+                            {"build/shaders/global_settings.glsl"});
 
     // Destructor
     virtual ~AudioRenderStage(); // Make destructor virtual
@@ -53,12 +60,14 @@ public:
         return m_framebuffer;
     }
 
-    static const GLchar * get_shader_source(const char * file_path);
+    static const std::string get_shader_source(const std::string & file_path);
+    static const std::string combine_shader_source(const std::vector<std::string> & import_paths, const std::string & shader_path);
 
     const unsigned int gid;    
 
-    const GLchar * const m_vertex_shader_source;
-    const GLchar * const m_fragment_shader_source;
+    // FIXME: Think of way to make this static
+    const std::string m_vertex_shader_source;
+    const std::string m_fragment_shader_source;
 
 protected:
     // Settings

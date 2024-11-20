@@ -35,6 +35,7 @@ bool AudioRenderer::add_render_stage(AudioRenderStage * render_stage)
 
     // Link the render stage to the previous render stage by finding the stream_audio_texture
     if (m_num_stages > 1) {
+        // TODO: If this list grows too long, make this into a map that is pulled from render stage class
         auto output_audio_texture = m_render_stages[m_num_stages - 2]->find_parameter("output_audio_texture");
         auto stream_audio_texture = m_render_stages[m_num_stages - 1]->find_parameter("stream_audio_texture");
         output_audio_texture->link(stream_audio_texture);

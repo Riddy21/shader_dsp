@@ -29,7 +29,11 @@ public:
     AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
                               const unsigned int sample_rate,
                               const unsigned int num_channels,
-                              const char * fragment_shader_path);
+                              const char * fragment_shader_path,
+                              const std::vector<std::string> & frag_shader_imports = 
+                                    {"build/shaders/global_settings.glsl",
+                                     "build/shaders/frag_shader_settings.glsl",
+                                     "build/shaders/generator_render_stage_settings.glsl"});
 
     /**
      * @brief Destroys the AudioGenerator object.

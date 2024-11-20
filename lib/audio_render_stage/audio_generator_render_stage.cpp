@@ -12,8 +12,9 @@
 AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
                                                      const unsigned int sample_rate,
                                                      const unsigned int num_channels,
-                                                     const char * fragment_shader_path)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path) {
+                                                     const char * fragment_shader_path,
+                                                     const std::vector<std::string> & frag_shader_imports)
+    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
 
         auto play_position_parameter =
             new AudioIntParameter("play_position",
