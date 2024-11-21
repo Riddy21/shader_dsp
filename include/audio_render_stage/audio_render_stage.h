@@ -16,17 +16,16 @@ class AudioRenderStage {
 public:
     friend class AudioRenderer;
     // Constructor
-    // FIXME: Change the frag_shader_imports to a default list that's static, and add overrides through command line
+    static const std::vector<std::string> default_frag_shader_imports;
+    static const std::vector<std::string> default_vert_shader_imports;
+
     AudioRenderStage(const unsigned int frames_per_buffer,
                      const unsigned int sample_rate,
                      const unsigned int num_channels,
                      const std::string& fragment_shader_path = "build/shaders/render_stage.frag",
-                     const std::vector<std::string> & frag_shader_imports = 
-                            {"build/shaders/global_settings.glsl",
-                             "build/shaders/frag_shader_settings.glsl"},
+                     const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports,
                      const std::string& vertex_shader_path = "build/shaders/render_stage.vert",
-                     const std::vector<std::string> & vert_shader_imports =
-                            {"build/shaders/global_settings.glsl"});
+                     const std::vector<std::string> & vert_shader_imports = default_vert_shader_imports);
 
     // Destructor
     virtual ~AudioRenderStage(); // Make destructor virtual

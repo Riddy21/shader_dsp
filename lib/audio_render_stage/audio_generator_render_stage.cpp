@@ -9,6 +9,12 @@
 #include "audio_parameter/audio_uniform_parameter.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
 
+const std::vector<std::string> AudioGeneratorRenderStage::default_frag_shader_imports = {
+    "build/shaders/global_settings.glsl",
+    "build/shaders/frag_shader_settings.glsl",
+    "build/shaders/generator_render_stage_settings.glsl"
+};
+
 AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
                                                      const unsigned int sample_rate,
                                                      const unsigned int num_channels,

@@ -5,6 +5,15 @@
 #include "audio_render_stage/audio_render_stage.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
 
+const std::vector<std::string> AudioRenderStage::default_frag_shader_imports = {
+    "build/shaders/global_settings.glsl",
+    "build/shaders/frag_shader_settings.glsl"
+};
+
+const std::vector<std::string> AudioRenderStage::default_vert_shader_imports = {
+    "build/shaders/global_settings.glsl"
+};
+
 AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                    const unsigned int sample_rate,
                                    const unsigned int num_channels,

@@ -26,14 +26,13 @@ public:
      * @param sample_rate The sample rate of the audio data.
      * @param num_channels The number of channels in the audio data.
      */
+    static const std::vector<std::string> default_frag_shader_imports;
+
     AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
                               const unsigned int sample_rate,
                               const unsigned int num_channels,
                               const char * fragment_shader_path,
-                              const std::vector<std::string> & frag_shader_imports = 
-                                    {"build/shaders/global_settings.glsl",
-                                     "build/shaders/frag_shader_settings.glsl",
-                                     "build/shaders/generator_render_stage_settings.glsl"});
+                              const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 
     /**
      * @brief Destroys the AudioGenerator object.
