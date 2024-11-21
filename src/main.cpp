@@ -12,6 +12,7 @@
 #include "keyboard/key.h"
 
 float middle_c = 261.63f;
+//float middle_c = 1.214879f;
 float semi_tone = 1.059463f;
 
 int main(int argc, char** argv) {

@@ -67,7 +67,11 @@ for target in COMMAND_LINE_TARGETS:
             test_name = os.path.splitext(os.path.basename(src))[0]
             test_objects = create_objects(env, [src] + LIB_SOURCES, BUILD_DIR)
             test_executable = env.Program(target=os.path.join(BUILD_DIR, 'tests', test_name), source=test_objects)
-            env.Command(target=test_executable[0].abspath + '_output.txt', source=test_executable, action='xvfb-run -a ' + test_executable[0].abspath + ' -d yes > ' + test_executable[0].abspath + '_output.txt')
+            env.Command(
+                target=test_executable[0].abspath + '.out',
+                source=test_executable,
+                action='xvfb-run -a ' + test_executable[0].abspath + ' -d yes > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
+            )
 
 for target in COMMAND_LINE_TARGETS:
     if 'playground' in target:

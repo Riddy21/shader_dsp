@@ -5,10 +5,10 @@
 
 #include "audio_output/audio_player_output.h"
 #include "audio_core/audio_renderer.h"
-#include "audio_render_stage/audio_generator_render_stage.h"
+#include "audio_render_stage/audio_file_generator_render_stage.h"
 
 TEST_CASE("AudioGeneratorRenderStage") {
-    auto audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
 
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
