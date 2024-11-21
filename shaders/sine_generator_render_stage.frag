@@ -1,8 +1,3 @@
-float calculateTime(int elapsed_time, vec2 TexCoord, int buffer_size) {
-    // FIXME: Change 44100 to a default audio parameter
-    return (float(elapsed_time) + TexCoord.x) / (44100.0 / float(buffer_size));
-}
-
 float generateSine(float tone, float time) {
     return sin(2.0 * 3.14159265359 * tone * time);
 }

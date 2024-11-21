@@ -15,7 +15,7 @@ float middle_c = 261.63f;
 float semi_tone = 1.059463f;
 
 int main(int argc, char** argv) {
-    system("sudo renice -18 $(pgrep audio_program)");
+    //system("sudo renice -18 $(pgrep audio_program)");
 
     // Get the render program
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
     float tone = middle_c;
 
     for (size_t i = 0; i < keys.size(); ++i) {
-        auto key = new PianoKey(keys[i], "media/sine.wav");
+        auto key = new PianoKey(keys[i], "media/test.wav");
         key->set_gain(0.1f);
         key->set_tone(tone);
         keyboard.add_key(key);
