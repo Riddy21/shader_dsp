@@ -12,7 +12,8 @@
 const std::vector<std::string> AudioGeneratorRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
     "build/shaders/frag_shader_settings.glsl",
-    "build/shaders/generator_render_stage_settings.glsl"
+    "build/shaders/generator_render_stage_settings.glsl",
+    "build/shaders/adsr_envelope.glsl"
 };
 
 AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
@@ -22,36 +23,78 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                                                      const std::vector<std::string> & frag_shader_imports)
     : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
 
-        auto play_position_parameter =
-            new AudioIntParameter("play_position",
-                                  AudioParameter::ConnectionType::INPUT);
-        play_position_parameter->set_value(new int(0));
+    auto play_position_parameter =
+        new AudioIntParameter("play_position",
+                              AudioParameter::ConnectionType::INPUT);
+    play_position_parameter->set_value(new int(0));
 
-        auto tone_parameter =
-            new AudioFloatParameter("tone",
-                                  AudioParameter::ConnectionType::INPUT);
-        tone_parameter->set_value(new float(1.0f));
+    auto stop_position_parameter =
+        new AudioIntParameter("stop_position",
+                              AudioParameter::ConnectionType::INPUT);
+    stop_position_parameter->set_value(new int(0));
 
-        auto gain_parameter =
-            new AudioFloatParameter("gain",
-                                  AudioParameter::ConnectionType::INPUT);
-        gain_parameter->set_value(new float(0.0f));
+    auto play_parameter =
+        new AudioBoolParameter("play",
+                              AudioParameter::ConnectionType::INPUT);
+    play_parameter->set_value(new bool(false));
 
-        auto buffer_size =
-            new AudioIntParameter("buffer_size",
-                      AudioParameter::ConnectionType::INITIALIZATION);
-        buffer_size->set_value(new int(m_frames_per_buffer*m_num_channels));
+    auto tone_parameter =
+        new AudioFloatParameter("tone",
+                              AudioParameter::ConnectionType::INPUT);
+    tone_parameter->set_value(new float(1.0f));
 
-        if (!this->add_parameter(tone_parameter)) {
-            std::cerr << "Failed to add tone_parameter" << std::endl;
-        }
-        if (!this->add_parameter(gain_parameter)) {
-            std::cerr << "Failed to add play_parameter" << std::endl;
-        }
-        if (!this->add_parameter(play_position_parameter)) {
-            std::cerr << "Failed to add play_position_parameter" << std::endl;
-        }
-        if (!this->add_parameter(buffer_size)) {
-            std::cerr << "Failed to add buffer_size" << std::endl;
-        }
+    auto gain_parameter =
+        new AudioFloatParameter("gain",
+                              AudioParameter::ConnectionType::INPUT);
+    gain_parameter->set_value(new float(0.0f));
+
+    if (!this->add_parameter(play_parameter)) {
+        std::cerr << "Failed to add play_parameter" << std::endl;
+    }
+    if (!this->add_parameter(tone_parameter)) {
+        std::cerr << "Failed to add tone_parameter" << std::endl;
+    }
+    if (!this->add_parameter(gain_parameter)) {
+        std::cerr << "Failed to add gain_parameter" << std::endl;
+    }
+    if (!this->add_parameter(play_position_parameter)) {
+        std::cerr << "Failed to add play_position_parameter" << std::endl;
+    }
+    if (!this->add_parameter(stop_position_parameter)) {
+        std::cerr << "Failed to add stop_position_parameter" << std::endl;
+    }
+
+    // TODO: Envelope Parameters, Consider moving to a separate class
+    auto attack_time_parameter =
+        new AudioFloatParameter("attack_time",
+                              AudioParameter::ConnectionType::INPUT);
+    attack_time_parameter->set_value(new float(0.1f));
+
+    auto decay_time_parameter =
+        new AudioFloatParameter("decay_time",
+                              AudioParameter::ConnectionType::INPUT);
+    decay_time_parameter->set_value(new float(0.5f));
+
+    auto sustain_level_parameter =
+        new AudioFloatParameter("sustain_level",
+                              AudioParameter::ConnectionType::INPUT);
+    sustain_level_parameter->set_value(new float(0.5f));
+
+    auto release_time_parameter =
+        new AudioFloatParameter("release_time",
+                              AudioParameter::ConnectionType::INPUT);
+    release_time_parameter->set_value(new float(0.5f));
+
+    if (!this->add_parameter(attack_time_parameter)) {
+        std::cerr << "Failed to add attack_time_parameter" << std::endl;
+    }
+    if (!this->add_parameter(decay_time_parameter)) {
+        std::cerr << "Failed to add decay_time_parameter" << std::endl;
+    }
+    if (!this->add_parameter(sustain_level_parameter)) {
+        std::cerr << "Failed to add sustain_level_parameter" << std::endl;
+    }
+    if (!this->add_parameter(release_time_parameter)) {
+        std::cerr << "Failed to add release_time_parameter" << std::endl;
+    }
 }

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 
 #include "keyboard/key.h"
 #include "audio_core/audio_renderer.h"
@@ -9,10 +10,11 @@ PianoKey::PianoKey(const unsigned char key, const char * audio_file_path) : Key(
 
     AudioGeneratorRenderStage * audio_generator;
 
-    audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sawtooth_generator_render_stage.frag");
+    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sawtooth_generator_render_stage.frag");
     //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/triangle_generator_render_stage.frag");
     //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/square_generator_render_stage.frag");
-    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sine_generator_render_stage.frag");
+    audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sine_generator_render_stage.frag");
+    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/static_noise_render_stage.frag");
     //audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, audio_file_path);
 
     auto gid = audio_generator->gid;
@@ -29,17 +31,20 @@ PianoKey::PianoKey(const unsigned char key, const char * audio_file_path) : Key(
 
     m_gain_param = m_audio_generator->find_parameter("gain");
     m_tone_param = m_audio_generator->find_parameter("tone");
-    m_play_param = m_audio_generator->find_parameter("play_position");
+    m_play_position_param = m_audio_generator->find_parameter("play_position");
+    m_stop_position_param = m_audio_generator->find_parameter("stop_position");
     m_time_param = audio_renderer.find_global_parameter("global_time");
+    m_play_param = m_audio_generator->find_parameter("play");
 
     set_key_down_callback([this]() {
-        m_play_param->set_value(m_time_param->get_value());
+        m_play_position_param->set_value(m_time_param->get_value());
+        m_play_param->set_value(new bool(true));
         m_gain_param->set_value(new float(m_gain));
         m_tone_param->set_value(new float(m_tone));
     });
 
     set_key_up_callback([this]() {
-        m_gain_param->set_value(new float(0.0));
-        //m_tone_param->set_value(new float(0.0f));
+        m_stop_position_param->set_value(m_time_param->get_value());
+        m_play_param->set_value(new bool(false));
     });
 }

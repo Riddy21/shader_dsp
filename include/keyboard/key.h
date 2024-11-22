@@ -43,8 +43,10 @@ private:
     AudioGeneratorRenderStage * m_audio_generator;
     AudioParameter * m_gain_param;
     AudioParameter * m_tone_param;
-    AudioParameter * m_play_param;
+    AudioParameter * m_play_position_param;
+    AudioParameter * m_stop_position_param;
     AudioParameter * m_time_param;
+    AudioParameter * m_play_param;
     float m_gain;
     float m_tone;
 };

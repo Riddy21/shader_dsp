@@ -3,6 +3,7 @@
 
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_render_stage.h"
+#include "audio_parameter/audio_uniform_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
 
 const std::vector<std::string> AudioRenderStage::default_frag_shader_imports = {
@@ -40,12 +41,20 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     m_frames_per_buffer * m_num_channels, 1,
                                     0,
                                     ++m_color_attachment_count);
+
+    auto buffer_size =
+        new AudioIntParameter("buffer_size",
+                  AudioParameter::ConnectionType::INITIALIZATION);
+    buffer_size->set_value(new int(m_frames_per_buffer*m_num_channels));
     
     if (!this->add_parameter(output_audio_texture)) {
         std::cerr << "Failed to add output_audio_texture" << std::endl;
     }
     if (!this->add_parameter(stream_audio_texture)) {
         std::cerr << "Failed to add stream_audio_texture" << std::endl;
+    }
+    if (!this->add_parameter(buffer_size)) {
+        std::cerr << "Failed to add buffer_size" << std::endl;
     }
 }
 

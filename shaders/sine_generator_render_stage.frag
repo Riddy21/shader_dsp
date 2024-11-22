@@ -1,12 +1,12 @@
 float generateSine(float tone, float time) {
-    return sin(2.0 * 3.14159265359 * tone * time);
+    return sin(TWO_PI * tone * time);
 }
 
 void main() {
-    int elapsed_time = global_time_val - play_position;
-
-    float time = calculateTime(elapsed_time, TexCoord, buffer_size);
-    float sine_out = generateSine(tone, time);
+    float start_time = calculateTime(play_position, vec2(0.0, 0.0), buffer_size);
+    float end_time = calculateTime(stop_position, vec2(0.0, 0.0), buffer_size);
+    float time = calculateTime(global_time_val, TexCoord, buffer_size);
+    float sine_out = generateSine(tone, time) * adsr_envelope(start_time, end_time, time);
     output_audio_texture = texture(stream_audio_texture, TexCoord) + vec4(sine_out * gain, 0.0, 0.0, 0.0);
 }
 
