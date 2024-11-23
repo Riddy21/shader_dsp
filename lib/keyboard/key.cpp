@@ -12,8 +12,8 @@ PianoKey::PianoKey(const unsigned char key, const char * audio_file_path) : Key(
 
     //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sawtooth_generator_render_stage.frag");
     //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/triangle_generator_render_stage.frag");
-    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/square_generator_render_stage.frag");
-    audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sine_generator_render_stage.frag");
+    /audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/square_generator_render_stage.frag");
+    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sine_generator_render_stage.frag");
     //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/static_noise_render_stage.frag");
     //audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, audio_file_path);
 

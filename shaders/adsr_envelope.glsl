@@ -13,7 +13,7 @@ float adsr_envelope(float start_time, float end_time, float time) {
 
     if (from_start_time < attack_time) {
         current_level = from_start_time / attack_time;
-    } else if (time < attack_time + decay_time) {
+    } else if (from_start_time < attack_time + decay_time) {
         current_level = 1.0 - (1.0 - sustain_level) * (from_start_time - attack_time) / decay_time;
     } else {
         current_level = sustain_level;

@@ -73,7 +73,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     auto decay_time_parameter =
         new AudioFloatParameter("decay_time",
                               AudioParameter::ConnectionType::INPUT);
-    decay_time_parameter->set_value(new float(0.5f));
+    decay_time_parameter->set_value(new float(0.2f));
 
     auto sustain_level_parameter =
         new AudioFloatParameter("sustain_level",
