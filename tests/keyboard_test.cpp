@@ -10,12 +10,12 @@ TEST_CASE("KeybaordTest") {
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
 
     Keyboard & keyboard = Keyboard::get_instance();
-    auto key = new PianoKey('c', "media/test.wav");
-    key->set_gain(1.0f);
-    key->set_tone(1.0f);
-    auto key2 = new PianoKey('d', "media/test.wav");
-    key2->set_gain(1.0f);
-    key2->set_tone(0.8f);
+    auto key = new PianoKey('c');
+    key->set_gain(.5f);
+    key->set_tone(161.63f);
+    auto key2 = new PianoKey('d');
+    key2->set_gain(.5f);
+    key2->set_tone(163.67f);
 
     keyboard.add_key(key);
     keyboard.add_key(key2);
@@ -38,6 +38,7 @@ TEST_CASE("KeybaordTest") {
 
     REQUIRE(audio_renderer.initialize(512, 44100, 2));
     REQUIRE(keyboard.initialize());
+
 
     REQUIRE(audio_driver->open());
     REQUIRE(audio_driver->start());

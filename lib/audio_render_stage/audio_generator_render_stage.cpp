@@ -26,27 +26,27 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     auto play_position_parameter =
         new AudioIntParameter("play_position",
                               AudioParameter::ConnectionType::INPUT);
-    play_position_parameter->set_value(new int(0));
+    play_position_parameter->set_value(0);
 
     auto stop_position_parameter =
         new AudioIntParameter("stop_position",
                               AudioParameter::ConnectionType::INPUT);
-    stop_position_parameter->set_value(new int(0));
+    stop_position_parameter->set_value(0);
 
     auto play_parameter =
         new AudioBoolParameter("play",
                               AudioParameter::ConnectionType::INPUT);
-    play_parameter->set_value(new bool(false));
+    play_parameter->set_value(false);
 
     auto tone_parameter =
         new AudioFloatParameter("tone",
                               AudioParameter::ConnectionType::INPUT);
-    tone_parameter->set_value(new float(1.0f));
+    tone_parameter->set_value(1.0f);
 
     auto gain_parameter =
         new AudioFloatParameter("gain",
                               AudioParameter::ConnectionType::INPUT);
-    gain_parameter->set_value(new float(0.0f));
+    gain_parameter->set_value(0.0f);
 
     if (!this->add_parameter(play_parameter)) {
         std::cerr << "Failed to add play_parameter" << std::endl;
@@ -68,22 +68,22 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     auto attack_time_parameter =
         new AudioFloatParameter("attack_time",
                               AudioParameter::ConnectionType::INPUT);
-    attack_time_parameter->set_value(new float(0.1f));
+    attack_time_parameter->set_value(0.1f);
 
     auto decay_time_parameter =
         new AudioFloatParameter("decay_time",
                               AudioParameter::ConnectionType::INPUT);
-    decay_time_parameter->set_value(new float(0.1f));
+    decay_time_parameter->set_value(0.1f);
 
     auto sustain_level_parameter =
         new AudioFloatParameter("sustain_level",
                               AudioParameter::ConnectionType::INPUT);
-    sustain_level_parameter->set_value(new float(0.5f));
+    sustain_level_parameter->set_value(0.5f);
 
     auto release_time_parameter =
         new AudioFloatParameter("release_time",
                               AudioParameter::ConnectionType::INPUT);
-    release_time_parameter->set_value(new float(1.0f));
+    release_time_parameter->set_value(1.0f);
 
     if (!this->add_parameter(attack_time_parameter)) {
         std::cerr << "Failed to add attack_time_parameter" << std::endl;

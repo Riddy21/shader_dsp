@@ -42,6 +42,22 @@ public:
     // Setters
     virtual bool set_value(const void * value_ptr);
 
+    bool set_value(const bool value) {
+        return set_value(&value);
+    }
+
+    bool set_value(const int value) {
+        return set_value(&value);
+    }
+
+    bool set_value(const unsigned int value) {
+        return set_value(&value);
+    }
+
+    bool set_value(const float value) {
+        return set_value(&value);
+    }
+
     // Getters
     const void * const get_value() const {
         return m_data->get_data();

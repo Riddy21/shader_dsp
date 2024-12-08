@@ -16,7 +16,7 @@ AudioRenderer * AudioRenderer::instance = nullptr;
 AudioRenderer::AudioRenderer() {
     // Initialize the global time parameter
     auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
-    global_time->set_value(new int(0));
+    global_time->set_value(0);
     add_global_parameter(global_time);
 }
 

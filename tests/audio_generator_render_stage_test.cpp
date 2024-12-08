@@ -18,7 +18,7 @@ TEST_CASE("AudioGeneratorRenderStage") {
     auto position_param = audio_generator->find_parameter("play_position");
     auto time_param = audio_renderer.find_global_parameter("global_time");
 
-    tone_param->set_value(new float(0.8f));
+    tone_param->set_value(0.8f);
 
     audio_renderer.add_render_stage(audio_generator);
     audio_renderer.add_render_output(audio_driver);
@@ -27,14 +27,14 @@ TEST_CASE("AudioGeneratorRenderStage") {
     std::thread t1([&audio_renderer, &audio_driver, &audio_generator, &play_param, &time_param, &position_param](){
         std::this_thread::sleep_for(std::chrono::seconds(1));
         position_param->set_value(time_param->get_value());
-        play_param->set_value(new float(1.0f));
+        play_param->set_value(1.0f);
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        play_param->set_value(new float(0.0f));
+        play_param->set_value(0.0f);
         std::this_thread::sleep_for(std::chrono::seconds(1));
         position_param->set_value(time_param->get_value());
-        play_param->set_value(new float(1.0f));
+        play_param->set_value(1.0f);
         std::this_thread::sleep_for(std::chrono::seconds(5));
-        play_param->set_value(new float(0.0f));
+        play_param->set_value(0.0f);
         audio_renderer.terminate();
         //audio_driver.stop();
         //audio_driver.close();

@@ -37,13 +37,21 @@ PianoKey::PianoKey(const unsigned char key) : Key(key) {
 
     set_key_down_callback([this]() {
         m_play_position_param->set_value(m_time_param->get_value());
-        m_play_param->set_value(new bool(true));
-        m_gain_param->set_value(new float(m_gain));
-        m_tone_param->set_value(new float(m_tone));
+        m_play_param->set_value(true);
     });
 
     set_key_up_callback([this]() {
         m_stop_position_param->set_value(m_time_param->get_value());
-        m_play_param->set_value(new bool(false));
+        m_play_param->set_value(false);
     });
+}
+
+void PianoKey::set_gain(const float gain) {
+    m_gain = gain;
+    m_gain_param->set_value(gain);
+}
+
+void PianoKey::set_tone(const float tone) {
+    m_tone = tone;
+    m_tone_param->set_value(tone);
 }

@@ -45,7 +45,7 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
     auto buffer_size =
         new AudioIntParameter("buffer_size",
                   AudioParameter::ConnectionType::INITIALIZATION);
-    buffer_size->set_value(new int(m_frames_per_buffer*m_num_channels));
+    buffer_size->set_value(m_frames_per_buffer*m_num_channels);
     
     if (!this->add_parameter(output_audio_texture)) {
         std::cerr << "Failed to add output_audio_texture" << std::endl;

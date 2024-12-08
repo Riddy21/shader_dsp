@@ -38,8 +38,8 @@ class PianoKey : public Key {
 public:
     PianoKey(const unsigned char key);
 
-    void set_gain(const float gain) { m_gain = gain; }
-    void set_tone(const float tone) { m_tone = tone; }
+    void set_gain(const float gain);
+    void set_tone(const float tone);
 
 private:
     AudioGeneratorRenderStage * m_audio_generator;

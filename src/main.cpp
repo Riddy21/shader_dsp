@@ -22,16 +22,6 @@ int main(int argc, char** argv) {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
 
     Keyboard & keyboard = Keyboard::get_instance();
-    std::vector<char> keys = {'a', 'w', 's', 'e', 'd', 'f', 't', 'g', 'y', 'h', 'u', 'j', 'k'};
-    float tone = middle_c;
-
-    for (size_t i = 0; i < keys.size(); ++i) {
-        auto key = new PianoKey(keys[i]);
-        key->set_gain(0.1f);
-        key->set_tone(tone);
-        keyboard.add_key(key);
-        tone *= semi_tone;
-    }
 
     // Add a quit key
     auto quit_key = new Key('q');

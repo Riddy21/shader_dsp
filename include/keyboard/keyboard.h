@@ -3,9 +3,9 @@
 #define KEYBOARD_H
 
 #include <unordered_map>
-#include <unordered_set>
 
 #include "keyboard/key.h"
+#include "keyboard/piano.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
 
 class Keyboard {
@@ -25,7 +25,7 @@ public:
     Key * get_key(const unsigned char key) { return m_keys[key].get(); }
 
 private:
-    Keyboard() {}
+    Keyboard();
     ~Keyboard();
 
     static void key_down_callback(unsigned char key, int x, int y);
@@ -33,9 +33,9 @@ private:
 
     static Keyboard * instance;
 
-    unsigned int m_num_octaves;
     AudioRenderer & m_audio_renderer = AudioRenderer::get_instance();
     std::unordered_map<unsigned char, std::unique_ptr<Key>> m_keys;
-};
+    Piano m_piano;
+};;
 
 #endif // KEYBOARD_H

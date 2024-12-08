@@ -18,6 +18,7 @@ TEST_CASE("MakeUniqueTest") {
     REQUIRE(audio_parameters.size() == 1);
     float * value = new float[512*512]();
     REQUIRE(audio_parameters[0]->set_value(value));
+    delete[] value;
 
     // Cast to a 2D parameter
     auto audio_texture = dynamic_cast<AudioTexture2DParameter *>(audio_parameters[0].get())->name;
@@ -25,7 +26,7 @@ TEST_CASE("MakeUniqueTest") {
 
     auto time_parameter = std::make_unique<AudioIntBufferParameter>("time",
                                                               AudioParameter::ConnectionType::INPUT);
-    time_parameter->set_value(new int(19));
+    time_parameter->set_value(19);
 
     audio_parameters.push_back(std::move(time_parameter));
 }
