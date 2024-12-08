@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
+#include "audio_render_stage/audio_effect_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_output/audio_file_output.h"
 #include "keyboard/keyboard.h"
@@ -29,6 +30,9 @@ int main(int argc, char** argv) {
         AudioRenderer::get_instance().terminate();
     });
     keyboard.add_key(quit_key);
+
+    // add an effect render stage
+    auto effect_render_stage = new AudioEffectRenderStage(512, 44100, 2);
 
     // Make an output player
     auto audio_player_output = new AudioPlayerOutput(512, 44100, 2);

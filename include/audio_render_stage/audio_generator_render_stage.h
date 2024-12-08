@@ -16,6 +16,8 @@
  */
 class AudioGeneratorRenderStage : public AudioRenderStage {
 public:
+    static const std::vector<std::string> default_frag_shader_imports;
+
     /**
      * @brief Constructs an AudioGenerator object.
      * 
@@ -26,8 +28,6 @@ public:
      * @param sample_rate The sample rate of the audio data.
      * @param num_channels The number of channels in the audio data.
      */
-    static const std::vector<std::string> default_frag_shader_imports;
-
     AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
                               const unsigned int sample_rate,
                               const unsigned int num_channels,
