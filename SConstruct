@@ -16,7 +16,7 @@ LIB_SOURCES = Glob(os.path.join(LIB_DIR, '**', '*.cpp'), strings=True)
 MAIN_SOURCE = os.path.join(SRC_DIR, 'main.cpp')
 TEST_SOURCES = Glob(os.path.join(TEST_DIR, '*_test.cpp'), strings=True)
 PLAYGROUND_SOURCES = Glob(os.path.join(PLAYGROUND_DIR, '*.cpp'), strings=True)
-SHADER_SOURCES = Glob(os.path.join(SHADER_DIR, '*'), strings=True)
+SHADER_SOURCES = Glob(os.path.join(SHADER_DIR, '**', '*.glsl'), strings=True)
 
 # Define compiler and flags
 env = Environment(CXX='g++', CXXFLAGS='-std=c++20')

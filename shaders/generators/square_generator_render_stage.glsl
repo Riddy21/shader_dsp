@@ -3,7 +3,7 @@ float generateSquare(float tone, float time) {
 }
 
 void main() {
-    float time = calculateTime(global_time_val, TexCoord, buffer_size);
+    float time = calculateTime(global_time_val, TexCoord);
     float square_out = generateSquare(tone, time);
     output_audio_texture = texture(stream_audio_texture, TexCoord) + vec4(square_out * gain, 0.0, 0.0, 0.0);
 }

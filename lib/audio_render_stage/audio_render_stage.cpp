@@ -46,6 +46,11 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
         new AudioIntParameter("buffer_size",
                   AudioParameter::ConnectionType::INITIALIZATION);
     buffer_size->set_value(m_frames_per_buffer*m_num_channels);
+
+    auto samp_rate =
+        new AudioIntParameter("sample_rate",
+                  AudioParameter::ConnectionType::INITIALIZATION);
+    samp_rate->set_value(sample_rate);
     
     if (!this->add_parameter(output_audio_texture)) {
         std::cerr << "Failed to add output_audio_texture" << std::endl;
@@ -55,6 +60,9 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
     }
     if (!this->add_parameter(buffer_size)) {
         std::cerr << "Failed to add buffer_size" << std::endl;
+    }
+    if (!this->add_parameter(samp_rate)) {
+        std::cerr << "Failed to add sample_rate" << std::endl;
     }
 }
 

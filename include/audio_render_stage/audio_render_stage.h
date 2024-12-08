@@ -22,9 +22,9 @@ public:
     AudioRenderStage(const unsigned int frames_per_buffer,
                      const unsigned int sample_rate,
                      const unsigned int num_channels,
-                     const std::string& fragment_shader_path = "build/shaders/render_stage.frag",
+                     const std::string& fragment_shader_path = "build/shaders/render_stage_frag.glsl",
                      const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports,
-                     const std::string& vertex_shader_path = "build/shaders/render_stage.vert",
+                     const std::string& vertex_shader_path = "build/shaders/render_stage_vert.glsl",
                      const std::vector<std::string> & vert_shader_imports = default_vert_shader_imports);
 
     // Destructor
