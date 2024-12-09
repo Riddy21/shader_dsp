@@ -5,7 +5,6 @@
 #include <cmath>
 
 #include "audio_output/audio_wav.h"
-#include "audio_parameter/audio_uniform_buffer_parameter.h"
 #include "audio_parameter/audio_uniform_parameter.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
 

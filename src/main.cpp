@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
-#include "audio_render_stage/audio_effect_render_stage.h"
+#include "audio_render_stage/audio_gain_effect_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_output/audio_file_output.h"
 #include "keyboard/keyboard.h"
@@ -32,7 +32,9 @@ int main(int argc, char** argv) {
     keyboard.add_key(quit_key);
 
     // add an effect render stage
-    auto effect_render_stage = new AudioEffectRenderStage(512, 44100, 2);
+    auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
+
+    audio_renderer.add_render_stage(effect_render_stage);
 
     // Make an output player
     auto audio_player_output = new AudioPlayerOutput(512, 44100, 2);
@@ -45,23 +47,26 @@ int main(int argc, char** argv) {
     audio_renderer.add_render_output(audio_player_output);
     audio_renderer.add_render_output(audio_file_output);
 
-    auto player = audio_renderer.find_render_output(0);
-    auto file = audio_renderer.find_render_output(1);
-
     audio_renderer.set_lead_output(0);
 
-    player->open();
-    player->start();
-    file->open();
-    file->start();
+    audio_player_output->open();
+    audio_player_output->start();
+    audio_file_output->open();
+    audio_file_output->start();
+
+    // get the render stage 
+    auto gain_param = effect_render_stage->find_parameter("gain");
+    gain_param->set_value(1.0f);
+    auto balance_param = effect_render_stage->find_parameter("balance");
+    balance_param->set_value(1.0f);
 
     // Start the audio renderer main loop
     audio_renderer.start_main_loop();
 
-    player->stop();
-    player->close();
-    file->stop();
-    file->close();
+    audio_player_output->stop();
+    audio_player_output->close();
+    audio_file_output->stop();
+    audio_file_output->close();
 
     return 0;
 }

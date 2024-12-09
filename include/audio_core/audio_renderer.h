@@ -253,7 +253,6 @@ private:
 
     std::vector<std::unique_ptr<AudioOutput>> m_render_outputs; // Render outputs
     std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages; // Render stages
-    //std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages_2;
     std::vector<std::unique_ptr<AudioParameter>> m_global_parameters; // Parameters for render stages
     std::vector<AudioParameter *> m_frame_time_parameters; // Time parameters for render stages
 };

@@ -10,7 +10,7 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int 
                                                              const unsigned int sample_rate,
                                                              const unsigned int num_channels,
                                                              const char * audio_filepath)
-    : AudioGeneratorRenderStage(frames_per_buffer, sample_rate, num_channels, "build/shaders/file_generator_render_stage.frag"),
+    : AudioGeneratorRenderStage(frames_per_buffer, sample_rate, num_channels, "build/shaders/file_generator_render_stage.glsl"),
       m_audio_filepath(audio_filepath) {
 
     // Load the audio data filepath into the full_audio_data vector
