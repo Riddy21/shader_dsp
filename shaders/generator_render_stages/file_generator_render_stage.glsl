@@ -23,6 +23,8 @@ vec2 translate_coord(vec2 coord) {
                 //2.0 * (float(total_coord.y) + 0.25 * coord.y) / float(audio_size.y));
 }
 
+// TODO: Make file generator render stage compatible with envelope
+// TODO: Make this compatible with the play value as well
 void main() {
     // Translate the texture coordinates
     vec2 coord = translate_coord(TexCoord);

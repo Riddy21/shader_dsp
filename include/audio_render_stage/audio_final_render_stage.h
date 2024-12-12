@@ -11,8 +11,11 @@
  * The AudioFinalRenderStage class provides functionality to render the final stage of the audio renderer,
  * This includes outputting the final buffer output and to the screen if needed
  */
+
+class AudioRenderer;
 class AudioFinalRenderStage : public AudioRenderStage {
 public:
+    friend class AudioRenderer;
     /**
      * @brief Constructs an AudioFinalRenderStage object.
      * 

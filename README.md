@@ -23,3 +23,7 @@ This project depends on the following libraries:
 ## Usage
 
 > :warning: This is currently **WIP**, auto documentation about the API is not yet generated
+
+## Next Steps
+- Apply Multitrack support
+- Allow dynamic render stage swapping

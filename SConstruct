@@ -49,12 +49,12 @@ def create_objects(env, sources, build_dir):
 VariantDir(BUILD_DIR, '.', duplicate=0)
 
 # Copy shaders to build directory
+all_shaders = []
 for src in SHADER_SOURCES:
-    shaders = env.Command(target=os.path.join(BUILD_DIR, 'shaders', os.path.basename(src)), source=src, action='cp $SOURCE $TARGET')
+    all_shaders += env.Command(target=os.path.join(BUILD_DIR, 'shaders', os.path.basename(src)), source=src, action='cp $SOURCE $TARGET')
 
 # renderer and render stages depend on shaders
-render_stage_sources = Glob(os.path.join(SRC_DIR, 'renderer', 'render_stages', '*.cpp'), strings=True)
-env.Depends(render_stage_sources, shaders)
+env.Depends(LIB_SOURCES, all_shaders)
 
 # Build main executable
 main_objects = create_objects(env, [MAIN_SOURCE] + LIB_SOURCES, BUILD_DIR)

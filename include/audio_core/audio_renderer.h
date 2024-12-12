@@ -14,6 +14,8 @@
 #include "audio_parameter/audio_parameter.h"
 
 class AudioRenderStage;
+class AudioMultitrackJoinRenderStage;
+class AudioFinalRenderStage;
 class AudioParameter;
 
 /**
@@ -92,6 +94,8 @@ public:
      * @return True if the render stage is successfully added, false otherwise.
      */
     bool add_render_stage(AudioRenderStage * render_stage);
+
+    bool add_render_stage_2(AudioRenderStage * render_stage);
 
     /**
      * @brief Adds an output link to the audio renderer.
@@ -239,7 +243,7 @@ private:
     GLuint m_VAO; // Vertex Array Object for holding vertex attribute configurations
     GLuint m_VBO; // Vertex Buffer Object for holding vertex data
 
-    unsigned int m_num_stages; // Number of audio buffers
+    unsigned int m_num_stages; // number of audio buffers
     unsigned int m_buffer_size; // Size of audio data
     unsigned int m_num_channels; // Number of audio channels
     unsigned int m_sample_rate; // Sample rate of audio data
@@ -253,8 +257,13 @@ private:
 
     std::vector<std::unique_ptr<AudioOutput>> m_render_outputs; // Render outputs
     std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages; // Render stages
+    std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages_2;
     std::vector<std::unique_ptr<AudioParameter>> m_global_parameters; // Parameters for render stages
     std::vector<AudioParameter *> m_frame_time_parameters; // Time parameters for render stages
+
+    // FIXME: Delete this after
+    AudioMultitrackJoinRenderStage * m_join_render_stage = nullptr;
+    AudioFinalRenderStage * m_final_render_stage = nullptr;
 };
 
 #endif // AUDIO_RENDERER_H

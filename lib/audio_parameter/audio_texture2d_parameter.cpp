@@ -143,8 +143,6 @@ bool AudioTexture2DParameter::bind_parameter() {
 
     return true;
 
-
-
 }
 
 

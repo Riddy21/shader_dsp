@@ -45,7 +45,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     auto gain_parameter =
         new AudioFloatParameter("gain",
                               AudioParameter::ConnectionType::INPUT);
-    gain_parameter->set_value(0.0f);
+    gain_parameter->set_value(1.0f);
 
     if (!this->add_parameter(play_parameter)) {
         std::cerr << "Failed to add play_parameter" << std::endl;
