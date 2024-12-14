@@ -6,12 +6,21 @@
 #include "audio_output/audio_player_output.h"
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_file_generator_render_stage.h"
+#include "audio_render_stage/audio_final_render_stage.h"
+#include "audio_core/audio_render_graph.h"
 
 TEST_CASE("AudioGeneratorRenderStage") {
     auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto audio_final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
+
+    audio_generator->find_parameter("output_audio_texture")->link(audio_final_render_stage->find_parameter("stream_audio_texture"));
+
+    auto audio_render_graph = new AudioRenderGraph({audio_generator});
+
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
 
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
+
 
     auto play_param = audio_generator->find_parameter("gain");
     auto tone_param = audio_generator->find_parameter("tone");
@@ -20,8 +29,7 @@ TEST_CASE("AudioGeneratorRenderStage") {
 
     tone_param->set_value(0.8f);
 
-    // FIXME: Fix this example
-    audio_renderer.add_render_stage(audio_generator);
+    audio_renderer.add_render_graph(audio_render_graph);
     audio_renderer.add_render_output(audio_driver);
 
     // Open a thread to wait few sec and the shut it down

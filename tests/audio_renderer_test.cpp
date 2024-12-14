@@ -3,9 +3,11 @@
 #include <thread>
 
 #include "audio_core/audio_renderer.h"
+#include "audio_core/audio_render_graph.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
 #include "audio_parameter/audio_uniform_parameter.h"
+#include "audio_render_stage/audio_final_render_stage.h"
 
 TEST_CASE("AudioRenderer") {
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
@@ -64,10 +66,14 @@ TEST_CASE("AudioRenderer") {
     REQUIRE(render_stage5->add_parameter(stream_audio_texture4));
     REQUIRE(render_stage5->add_parameter(output_audio_texture4));
 
+    auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
+
+    output_audio_texture4->link(final_render_stage->find_parameter("stream_audio_texture"));
+
     // FIXME: Fix this example`
-    audio_renderer.add_render_stage(render_stage2);
-    audio_renderer.add_render_stage(render_stage3);
-    audio_renderer.add_render_stage(render_stage5);
+    auto audio_render_graph = new AudioRenderGraph({render_stage2});
+
+    audio_renderer.add_render_graph(audio_render_graph);
 
     REQUIRE(audio_renderer.initialize(512, 44100, 2));
 
