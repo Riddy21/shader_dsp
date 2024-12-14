@@ -19,6 +19,7 @@ PianoKey::PianoKey(const unsigned char key) : Key(key) {
 
     auto gid = audio_generator->gid;
 
+    // FIXME: get this to work with the render graph
     bool result = audio_renderer.add_render_stage(audio_generator);
 
     if (!result) {

@@ -20,6 +20,7 @@ TEST_CASE("AudioGeneratorRenderStage") {
 
     tone_param->set_value(0.8f);
 
+    // FIXME: Fix this example
     audio_renderer.add_render_stage(audio_generator);
     audio_renderer.add_render_output(audio_driver);
 

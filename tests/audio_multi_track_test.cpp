@@ -6,23 +6,42 @@
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_file_generator_render_stage.h"
 #include "audio_render_stage/audio_gain_effect_render_stage.h"
+#include "audio_render_stage/audio_multitrack_join_render_stage.h"
+#include "audio_render_stage/audio_final_render_stage.h"
+#include "audio_core/audio_render_graph.h"
+
 
 TEST_CASE("AudioGainEffectRenderStage") {
+    // Generate a render stage graph
+
+    // TODO: Add name to each render stage
     auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
 
     auto audio_generator_2 = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
 
+    auto join_render_stage = new AudioMultitrackJoinRenderStage(512, 44100, 2);
+    auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
+
+    // Get the parameters from the audio_generator render stage
+    audio_generator->find_parameter("output_audio_texture")->link(effect_render_stage->find_parameter("stream_audio_texture"));
+    audio_generator_2->find_parameter("output_audio_texture")->link(effect_render_stage_2->find_parameter("stream_audio_texture"));
+
+    effect_render_stage->find_parameter("output_audio_texture")->link(join_render_stage->find_parameter("stream_audio_texture_1"));
+    effect_render_stage_2->find_parameter("output_audio_texture")->link(join_render_stage->find_parameter("stream_audio_texture_2"));
+
+    join_render_stage->find_parameter("output_audio_texture")->link(final_render_stage->find_parameter("stream_audio_texture"));
+
+    // TODO: Convert this into render graph object
+    auto audio_render_graph = new AudioRenderGraph({audio_generator, audio_generator_2});
+
+    // set up the audio renderer
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
 
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
 
-    audio_renderer.add_render_stage(audio_generator);
-    audio_renderer.add_render_stage(effect_render_stage);
-
-    audio_renderer.add_render_stage_2(audio_generator_2);
-    audio_renderer.add_render_stage_2(effect_render_stage_2);
+    audio_renderer.add_render_graph(audio_render_graph);
 
     audio_renderer.add_render_output(audio_driver);
 
@@ -52,6 +71,10 @@ TEST_CASE("AudioGainEffectRenderStage") {
         position_param_2->set_value(time_param->get_value());
         balance_param_2->set_value(1.0f);
         play_param_2->set_value(1.0f);
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        // Stop track 1
+        play_param->set_value(0.0f);
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
 

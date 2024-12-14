@@ -214,6 +214,13 @@ bool AudioRenderStage::add_parameter(AudioParameter * parameter) {
 
     // Put in the parameter list
     m_parameters[parameter->name] = std::unique_ptr<AudioParameter>(parameter);
+
+    // Add to the input or output list
+    if (parameter->connection_type == AudioParameter::ConnectionType::INPUT) {
+        m_input_parameters.push_back(m_parameters[parameter->name].get());
+    } else if (parameter->connection_type == AudioParameter::ConnectionType::OUTPUT) {
+        m_output_parameters.push_back(m_parameters[parameter->name].get());
+    }
     return true;
 }
 

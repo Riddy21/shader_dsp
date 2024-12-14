@@ -64,6 +64,7 @@ TEST_CASE("AudioRenderer") {
     REQUIRE(render_stage5->add_parameter(stream_audio_texture4));
     REQUIRE(render_stage5->add_parameter(output_audio_texture4));
 
+    // FIXME: Fix this example`
     audio_renderer.add_render_stage(render_stage2);
     audio_renderer.add_render_stage(render_stage3);
     audio_renderer.add_render_stage(render_stage5);

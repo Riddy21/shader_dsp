@@ -10,6 +10,7 @@
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_core/audio_renderer.h"
+#include "audio_core/audio_render_graph.h"
 #include "audio_render_stage/audio_multitrack_join_render_stage.h" // FIXME: Delete this after
 #include "audio_render_stage/audio_final_render_stage.h" // FIXME: Delete this after
 
@@ -22,55 +23,9 @@ AudioRenderer::AudioRenderer() {
     add_global_parameter(global_time);
 }
 
+// TODO: Make flow to build a render stage tree and then initialize it in order
+
 // TODO: Add insert render stage and swap render stage function
-
-// TODO: Allow dynamic render stage swapping
-bool AudioRenderer::add_render_stage(AudioRenderStage * render_stage)
-{
-    if (m_initialized) {
-        std::cerr << "Error: Cannot add render stage after initialization." << std::endl;
-        return false;
-    }
-    // Add the render stage to the list of render stages
-    m_render_stages.push_back(std::unique_ptr<AudioRenderStage>(render_stage));
-    m_num_stages = m_render_stages.size();
-
-    // link the render stage to the audio renderer
-    m_render_stages.back()->link_renderer(this);
-
-    // Link the render stage to the previous render stage by finding the stream_audio_texture
-    if (m_num_stages > 1) {
-        // TODO: If this list grows too long, make this into a map that is pulled from render stage class
-        auto output_audio_texture = m_render_stages[m_num_stages - 2]->find_parameter("output_audio_texture");
-        auto stream_audio_texture = m_render_stages[m_num_stages - 1]->find_parameter("stream_audio_texture");
-        output_audio_texture->link(stream_audio_texture);
-    }
-
-    return true;
-}
-
-bool AudioRenderer::add_render_stage_2(AudioRenderStage * render_stage)
-{
-    if (m_initialized) {
-        std::cerr << "Error: Cannot add render stage after initialization." << std::endl;
-        return false;
-    }
-    // Add the render stage to the list of render stages
-    m_render_stages_2.push_back(std::unique_ptr<AudioRenderStage>(render_stage));
-
-    // link the render stage to the audio renderer
-    m_render_stages_2.back()->link_renderer(this);
-
-    // Link the render stage to the previous render stage by finding the stream_audio_texture
-    if (m_render_stages_2.size() > 1) {
-        // TODO: If this list grows too long, make this into a map that is pulled from render stage class
-        auto output_audio_texture = m_render_stages_2[m_render_stages_2.size() - 2]->find_parameter("output_audio_texture");
-        auto stream_audio_texture = m_render_stages_2[m_render_stages_2.size() - 1]->find_parameter("stream_audio_texture");
-        output_audio_texture->link(stream_audio_texture);
-    }
-
-    return true;
-}
 
 bool AudioRenderer::add_render_output(AudioOutput * output_link)
 {
@@ -82,6 +37,17 @@ bool AudioRenderer::add_render_output(AudioOutput * output_link)
 bool AudioRenderer::add_global_parameter(AudioParameter * parameter)
 {
     m_global_parameters.push_back(std::unique_ptr<AudioParameter>(parameter));
+
+    return true;
+}
+
+bool AudioRenderer::add_render_graph(AudioRenderGraph * render_graph)
+{
+    if (m_initialized) {
+        std::cerr << "Error: Cannot add render graph after initialization." << std::endl;
+        return false;
+    }
+    m_render_graph = std::unique_ptr<AudioRenderGraph>(render_graph);
 
     return true;
 }
@@ -163,12 +129,6 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     this->m_num_channels = num_channels;
     this->m_sample_rate = sample_rate;
 
-    // Check that at least one stage has been added
-    if (m_num_stages == 0) {
-        std::cerr << "Error: No render stages added." << std::endl;
-        return false;
-    }
-
     // Initialize GLUT
     initialize_glut(buffer_size*num_channels, 200);
     
@@ -190,55 +150,17 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_FRAMEBUFFER_SRGB);
 
-    if (m_render_stages.size() == 0) {
-        std::cerr << "Error: No render stages added." << std::endl;
+    // Check if render graph is added
+    if (m_render_graph == nullptr) {
+        std::cerr << "Error: No render graph added." << std::endl;
         return false;
     }
 
-    // Create final render stage
-    if (!initialize_final_render_stage()){
-        std::cerr << "Failed to reate final render stage." << std::endl;
+    // Initialize the render stages
+    if (!m_render_graph->initialize()) {
+        std::cerr << "Failed to initialize render graph." << std::endl;
         return false;
     }
-
-    // initialize all the render stages
-    for (auto& stage : m_render_stages) {
-        if (!stage->initialize_shader_stage()) {
-            std::cerr << "Failed to compile render stages" << std::endl;
-            return false;
-        }
-    }
-
-    // FIXME: Delete this after
-    for (auto& stage : m_render_stages_2) {
-        if (!stage->initialize_shader_stage()) {
-            std::cerr << "Failed to compile render stages" << std::endl;
-            return false;
-        }
-    }
-
-    m_join_render_stage->initialize_shader_stage();
-    m_final_render_stage->initialize_shader_stage();
-
-    // Link parameters
-    for (auto& stage : m_render_stages) {
-        if (!stage->bind_shader_stage()) {
-            std::cerr << "Failed to link render stages" << std::endl;
-            return false;
-        }
-    }
-
-    // FIXME: Delete this after
-    for (auto& stage : m_render_stages_2) {
-        if (!stage->bind_shader_stage()) {
-            std::cerr << "Failed to link render stages" << std::endl;
-            return false;
-        }
-    }
-
-    // delete after
-    m_join_render_stage->bind_shader_stage();
-    m_final_render_stage->bind_shader_stage();
 
     // Intialize global parameters
     if (!initialize_global_parameters()) {
@@ -325,22 +247,11 @@ void AudioRenderer::render()
         param->render_parameter();
     }
 
-    // TODO: try multiple tracks for render stages
-    for (int i = 0; i < (int)m_num_stages; i++) {
-        // Render the stage
-        m_render_stages[i]->render_render_stage();
-    }
-
-    for (int i = 0; i < (int)m_render_stages_2.size(); i++) {
-        // Render the stage
-        m_render_stages_2[i]->render_render_stage();
-    }
-
-    m_join_render_stage->render_render_stage();
-    m_final_render_stage->render_render_stage();
+    // Render the render graph
+    m_render_graph->render();
 
     // Push to output buffers
-    push_to_output_buffers(m_final_render_stage->get_output_buffer_data());
+    push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data());
 
     // Unbind everything
     glBindVertexArray(0);
@@ -364,9 +275,6 @@ AudioRenderer::~AudioRenderer()
         std::cerr << "Failed to clean up OpenGL context." << std::endl;
     }
     m_render_outputs.clear();
-
-    // Delete the render stages
-    m_render_stages.clear();
 }
 
 void AudioRenderer::push_to_output_buffers(const float * data)
@@ -401,17 +309,6 @@ bool AudioRenderer::initialize_global_parameters()
     return true;
 }
 
-AudioRenderStage * AudioRenderer::find_render_stage(const unsigned int gid) {
-    for (auto &stage : m_render_stages) {
-        if (stage->gid == gid) {
-            printf("Found render stage %d\n", gid);
-            return stage.get();
-        }
-    }
-    printf("Error: Render stage not found\n");
-    return nullptr;
-}
-
 AudioOutput * AudioRenderer::find_render_output(const unsigned int gid) {
     for (auto &output : m_render_outputs) {
         if (output->gid == gid) {
@@ -430,38 +327,4 @@ AudioParameter * AudioRenderer::find_global_parameter(const char * name) const {
         }
     }
     return nullptr;
-}
-
-bool AudioRenderer::initialize_final_render_stage() {
-    // FIXME: This is a temporary solution
-    //auto final_render_stage = new AudioFinalRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
-    //if (!add_render_stage(final_render_stage)) {
-    //    std::cerr << "Failed to initialize final render stage" << std::endl;
-    //    return false;
-    //}
-    // FIXME: Change to better code after
-
-    m_join_render_stage = new AudioMultitrackJoinRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
-    m_final_render_stage = new AudioFinalRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
-
-    // Join the 2 render stage vectors together
-    auto output_audio_texture_1 = m_render_stages.back()->find_parameter("output_audio_texture");
-    auto output_audio_texture_2 = m_render_stages_2.back()->find_parameter("output_audio_texture");
-
-    m_join_render_stage->link_renderer(this);
-    
-    auto stream_audio_texture_1 = m_join_render_stage->find_parameter("stream_audio_texture_1");
-    auto stream_audio_texture_2 = m_join_render_stage->find_parameter("stream_audio_texture_2");
-
-    output_audio_texture_1->link(stream_audio_texture_1);
-    output_audio_texture_2->link(stream_audio_texture_2);
-
-    m_final_render_stage->link_renderer(this);
-
-    auto output_audio_texture = m_join_render_stage->find_parameter("output_audio_texture");
-    auto stream_audio_texture = m_final_render_stage->find_parameter("stream_audio_texture");
-
-    output_audio_texture->link(stream_audio_texture);
-
-    return true;
 }

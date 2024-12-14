@@ -16,6 +16,7 @@
 class AudioRenderStage;
 class AudioMultitrackJoinRenderStage;
 class AudioFinalRenderStage;
+class AudioRenderGraph;
 class AudioParameter;
 
 /**
@@ -88,16 +89,6 @@ public:
 
 // -------------Add Functions----------------
     /**
-     * @brief Adds a render stage to the audio renderer.
-     * 
-     * @param render_stage The render stage to be added.
-     * @return True if the render stage is successfully added, false otherwise.
-     */
-    bool add_render_stage(AudioRenderStage * render_stage);
-
-    bool add_render_stage_2(AudioRenderStage * render_stage);
-
-    /**
      * @brief Adds an output link to the audio renderer.
      * 
      * @param output_link The output link to be added.
@@ -113,6 +104,14 @@ public:
      */
     bool add_global_parameter(AudioParameter * parameter);
 
+    /**
+     * @brief Adds a render stage tree to the audio renderer.
+     * 
+     * @param render_stages The render stages to be added.
+     * @return True if the render stages are successfully added, false otherwise.
+     */
+    bool add_render_graph(AudioRenderGraph * render_graph);
+
 // -------------Setters----------------
     /**
      * @brief The lead output is the output device that sets the timing for the audio renderer.
@@ -125,14 +124,14 @@ public:
     }
 
 // -------------Getters----------------
-
     /**
-     * @brief Finds a render stage by its global ID.
+     * @brief Returns the render graph of the audio renderer.
      * 
-     * @param gid The global ID of the render stage.
-     * @return The render stage if found, nullptr otherwise.
+     * @return The render graph of the audio renderer.
      */
-    AudioRenderStage * find_render_stage(const unsigned int gid);
+    AudioRenderGraph * get_render_graph() {
+        return m_render_graph.get();
+    }
 
     /**
      * @brief Finds an output link by its global ID.
@@ -207,13 +206,6 @@ private:
 
 // -------------Initialization Functions----------------
     /**
-     * @brief Creates the final render stage with pixel buffer output
-     * 
-     * @return True if creation was successful, false otherwise.
-     */
-    bool initialize_final_render_stage();
-
-    /**
      * @brief Initializes the time parameters for the render stages.
      * 
      * @return True if initialization is successful, false otherwise.
@@ -243,7 +235,6 @@ private:
     GLuint m_VAO; // Vertex Array Object for holding vertex attribute configurations
     GLuint m_VBO; // Vertex Buffer Object for holding vertex data
 
-    unsigned int m_num_stages; // number of audio buffers
     unsigned int m_buffer_size; // Size of audio data
     unsigned int m_num_channels; // Number of audio channels
     unsigned int m_sample_rate; // Sample rate of audio data
@@ -256,14 +247,8 @@ private:
     bool m_initialized = false; // Flag to mark initialization
 
     std::vector<std::unique_ptr<AudioOutput>> m_render_outputs; // Render outputs
-    std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages; // Render stages
-    std::vector<std::unique_ptr<AudioRenderStage>> m_render_stages_2;
     std::vector<std::unique_ptr<AudioParameter>> m_global_parameters; // Parameters for render stages
-    std::vector<AudioParameter *> m_frame_time_parameters; // Time parameters for render stages
-
-    // FIXME: Delete this after
-    AudioMultitrackJoinRenderStage * m_join_render_stage = nullptr;
-    AudioFinalRenderStage * m_final_render_stage = nullptr;
+    std::unique_ptr<AudioRenderGraph> m_render_graph; // Render graph
 };
 
 #endif // AUDIO_RENDERER_H

@@ -9,12 +9,15 @@
 
 #include "audio_parameter/audio_parameter.h"
 
+// TODO: Clean up dependencies
 class AudioRenderer;
+class AudioRenderGraph;
 class AudioParameter;
 
 class AudioRenderStage {
 public:
     friend class AudioRenderer;
+    friend class AudioRenderGraph;
     // Constructor
     static const std::vector<std::string> default_frag_shader_imports;
     static const std::vector<std::string> default_vert_shader_imports;
@@ -51,6 +54,14 @@ public:
     AudioParameter * find_parameter(const char * name) const;
 
     // Getters
+    const std::vector<AudioParameter *> & get_input_parameters() const {
+        return m_input_parameters;
+    }
+
+    const std::vector<AudioParameter *> & get_output_parameters() const {
+        return m_output_parameters;
+    }
+
     GLuint get_shader_program() const {
         return m_shader_program;
     }
@@ -111,8 +122,11 @@ protected:
 
     // Parameters
     std::unordered_map<std::string, std::unique_ptr<AudioParameter>> m_parameters;
+    std::vector<AudioParameter *> m_input_parameters;
+    std::vector<AudioParameter *> m_output_parameters;
 
     // Link to the renderer
+    // FIXME: Remove this, not needed, just call from static instance
     void link_renderer(const AudioRenderer * renderer) {
         m_renderer_link = renderer;
     }

@@ -63,9 +63,18 @@ public:
         return m_data->get_data();
     }
 
+    AudioRenderStage * get_linked_render_stage() const {
+        return m_render_stage_linked;
+    }
+
+    const AudioParameter * get_linked_parameter() const {
+        return m_linked_parameter;
+    }
+
     bool is_connected() const {
         return m_linked_parameter != nullptr;
     }
+
 
 protected:
     AudioParameter(const char * name,
