@@ -16,6 +16,8 @@ class AudioParameter;
 
 class AudioRenderStage {
 public:
+    // TODO: Re-manage permission settings
+
     friend class AudioRenderer;
     friend class AudioRenderGraph;
     // Constructor
@@ -42,6 +44,7 @@ public:
      * @return True if the parameter is successfully added, false otherwise.
      */
     bool add_parameter(AudioParameter * parameter);
+    bool add_parameter(std::unique_ptr<AudioParameter> parameter);
 
     /**
      * @brief Find a parameter by name
@@ -156,7 +159,7 @@ private:
 
 
     unsigned int generate_id() {
-        static unsigned int id = 0;
+        static unsigned int id = 1; // Render stage GIDs start at 1
         return id++;
     }
 };

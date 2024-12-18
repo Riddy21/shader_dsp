@@ -4,6 +4,7 @@
 
 #include <queue>
 #include "keyboard/key.h"
+#include "audio_render_stage/audio_render_stage.h"
 
 #define MIDDLE_C 261.63f
 #define SEMI_TONE 1.059463f

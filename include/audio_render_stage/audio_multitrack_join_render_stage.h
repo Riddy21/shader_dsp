@@ -3,19 +3,30 @@
 #ifndef AUDIO_MULTITRACK_JOIN_RENDER_STAGE_H
 #define AUDIO_MULTITRACK_JOIN_RENDER_STAGE_H
 
-#include "audio_render_stage.h"
+#include <queue>
+#include <unordered_set>
+#include "audio_render_stage/audio_render_stage.h"
+#include "audio_parameter/audio_parameter.h"
 
 class AudioMultitrackJoinRenderStage : public AudioRenderStage {
 public:
     AudioMultitrackJoinRenderStage(const unsigned int frames_per_buffer,
                                    const unsigned int sample_rate,
                                    const unsigned int num_channels,
+                                   const unsigned int num_tracks = 4,
                                    const std::string& fragment_shader_path = "build/shaders/multitrack_join_render_stage.glsl",
                                    const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 
     static const std::vector<std::string> default_frag_shader_imports;
 
+    // TODO: write a function in parameter to unlink stage
+    AudioParameter * get_free_stream_parameter();
+
     ~AudioMultitrackJoinRenderStage();
+
+private:
+    std::queue<AudioParameter *> m_free_textures;
+    std::unordered_set<AudioParameter *> m_used_textures;
 };
 
 #endif // AUDIO_MULTITRACK_JOIN_RENDER_STAGE_H

@@ -6,6 +6,7 @@
 
 #include "audio_render_stage/audio_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
+#include "audio_render_stage/audio_multitrack_join_render_stage.h"
 
 #include "audio_core/audio_render_graph.h"
 
@@ -97,7 +98,7 @@ bool AudioRenderGraph::dfs_construct_graph(AudioRenderStage * node) {
             return false;
         }
         // Add the edge to the graph backwards
-        m_graph[linked_stage->gid].push_back(node->gid);
+        m_graph[linked_stage->gid].insert(node->gid);
     }
 
     return true;
@@ -169,4 +170,18 @@ void AudioRenderGraph::render() {
     for (auto gid : m_render_order) {
         m_render_stages_map[gid]->render_render_stage();
     }
+}
+
+bool AudioRenderGraph::link_render_stages(AudioRenderStage * input, AudioRenderStage * output) {
+    if (AudioMultitrackJoinRenderStage * multi_out = dynamic_cast<AudioMultitrackJoinRenderStage*>(output)){
+        auto free_param = multi_out->get_free_stream_parameter();
+        input->find_parameter("output_audio_texture")->link(free_param);
+        // TODO: Add a fork render stage
+    } else {
+        // Find parameters to join
+        input->find_parameter("output_audio_texture")->link(output->find_parameter("stream_audio_texture"));
+        // TODO: Consider making this data driven
+    }
+    return true;
+
 }

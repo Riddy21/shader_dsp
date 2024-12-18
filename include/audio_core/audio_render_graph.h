@@ -3,7 +3,6 @@
 #define AUDIO_RENDER_GRAPH_H
 
 #include <unordered_set>
-#include <vector>
 #include <string>
 #include <unordered_map>
 #include <memory>
@@ -54,7 +53,13 @@ public:
 
     bool remove_render_stage(const GID gid);
 
-    bool insert_render_stage(const GID front, const GID back, AudioRenderStage * render_stage);
+    bool insert_render_stage_infront(const GID back, AudioRenderStage * render_stage);
+    
+    bool insert_render_stage_behind(const GID front, AudioRenderStage * render_stage);
+
+    bool insert_render_stage_between(const GID front, const GID back, AudioRenderStage * render_stage);
+
+    static bool link_render_stages(AudioRenderStage * input, AudioRenderStage * output);
 
     // Getters
     AudioFinalRenderStage * get_output_render_stage() {
@@ -69,7 +74,7 @@ private:
 
     static std::vector<AudioRenderStage *> find_linked_render_stages(const AudioRenderStage * render_stage);
 
-    std::unordered_map<GID, std::vector<GID>> m_graph;
+    std::unordered_map<GID, std::unordered_set<GID>> m_graph;
     std::vector<GID> m_outputs;
     std::vector<GID> m_render_order;
 

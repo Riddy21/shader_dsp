@@ -34,7 +34,6 @@ Piano::~Piano() {
 void Piano::add_key() {
     auto key = std::make_unique<PianoKey>('_'); // Placeholder name
     m_key_pool.push(std::move(key));
-
 }
 
 void Piano::key_down(const float tone, const float gain) {

@@ -21,15 +21,15 @@ TEST_CASE("AudioGainEffectRenderStage") {
     auto audio_generator_2 = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
 
-    auto join_render_stage = new AudioMultitrackJoinRenderStage(512, 44100, 2);
+    auto join_render_stage = new AudioMultitrackJoinRenderStage(512, 44100, 2, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
     // Get the parameters from the audio_generator render stage
     audio_generator->find_parameter("output_audio_texture")->link(effect_render_stage->find_parameter("stream_audio_texture"));
     audio_generator_2->find_parameter("output_audio_texture")->link(effect_render_stage_2->find_parameter("stream_audio_texture"));
 
-    effect_render_stage->find_parameter("output_audio_texture")->link(join_render_stage->find_parameter("stream_audio_texture_1"));
-    effect_render_stage_2->find_parameter("output_audio_texture")->link(join_render_stage->find_parameter("stream_audio_texture_2"));
+    effect_render_stage->find_parameter("output_audio_texture")->link(join_render_stage->find_parameter("stream_audio_texture_0"));
+    effect_render_stage_2->find_parameter("output_audio_texture")->link(join_render_stage->find_parameter("stream_audio_texture_1"));
 
     join_render_stage->find_parameter("output_audio_texture")->link(final_render_stage->find_parameter("stream_audio_texture"));
 
