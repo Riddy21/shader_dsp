@@ -9,7 +9,7 @@
 
 class AudioTexture2DParameter : public AudioParameter {
 public:
-    AudioTexture2DParameter(const char * name,
+    AudioTexture2DParameter(const std::string name,
                           AudioParameter::ConnectionType connection_type,
                           GLuint parameter_width,
                           GLuint parameter_height,

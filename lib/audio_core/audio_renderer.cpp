@@ -320,9 +320,9 @@ AudioOutput * AudioRenderer::find_render_output(const unsigned int gid) {
     return nullptr;
 }
 
-AudioParameter * AudioRenderer::find_global_parameter(const char * name) const {
+AudioParameter * AudioRenderer::find_global_parameter(const std::string name) const {
     for (auto &param : m_global_parameters) {
-        if (strcmp(param->name, name) == 0) {
+        if (param->name == name) {
             return param.get();
         }
     }

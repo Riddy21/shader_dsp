@@ -12,7 +12,7 @@ const float AudioTexture2DParameter::FLAT_COLOR[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
 bool AudioTexture2DParameter::initialize_parameter() {
     if (m_render_stage_linked == nullptr) {
-        printf("Error: render stage linked is nullptr in parameter %s\n, cannot be a global parameter.", name);
+        printf("Error: render stage linked is nullptr in parameter %s\n, cannot be a global parameter.", name.c_str());
         return false;
     }
 
@@ -35,7 +35,7 @@ bool AudioTexture2DParameter::initialize_parameter() {
     if (connection_type == ConnectionType::INPUT || connection_type == ConnectionType::INITIALIZATION) {
         // Allocate memory for the texture and data 
         if (m_data == nullptr) {
-            printf("Warning: value is nullptr when declared as input or initialization in parameter %s\n", name);
+            printf("Warning: value is nullptr when declared as input or initialization in parameter %s\n", name.c_str());
         }
         glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, m_data->get_data());
 
@@ -55,11 +55,11 @@ bool AudioTexture2DParameter::initialize_parameter() {
         // do regex search for output texture
         auto regex = std::regex("out .* " + std::string(name) + ";");
         if (!std::regex_search(m_render_stage_linked->m_fragment_shader_source, regex)) {
-            printf("Error: Could not find texture in shader program in parameter %s\n", name);
+            printf("Error: Could not find texture in shader program in parameter %s\n", name.c_str());
             return false;
         }
     } else {
-        auto location = glGetUniformLocation(m_render_stage_linked->get_shader_program(), name);
+        auto location = glGetUniformLocation(m_render_stage_linked->get_shader_program(), name.c_str());
         if (location == -1) {
             printf("Error: Could not find texture in shader program in parameter %s\n", name);
             return false;
@@ -77,7 +77,7 @@ void AudioTexture2DParameter::render_parameter() {
     }
     glActiveTexture(GL_TEXTURE0 + m_active_texture);
     glBindTexture(GL_TEXTURE_2D, m_texture);
-    glUniform1i(glGetUniformLocation(m_render_stage_linked->get_shader_program(), name), m_active_texture);
+    glUniform1i(glGetUniformLocation(m_render_stage_linked->get_shader_program(), name.c_str()), m_active_texture);
 
     if (connection_type == ConnectionType::INPUT) {
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_parameter_width, m_parameter_height, m_format, m_datatype, m_data->get_data());
@@ -100,7 +100,7 @@ bool AudioTexture2DParameter::bind_parameter() {
     }
 
     if (linked_param == nullptr) {
-        printf("Error: Linked parameter is not an AudioTexture2DParameter in parameter %s\n", name);
+        printf("Error: Linked parameter is not an AudioTexture2DParameter in parameter %s\n", name.c_str());
         return false;
     }
 
@@ -111,7 +111,7 @@ bool AudioTexture2DParameter::bind_parameter() {
     }
 
     if (linked_param->connection_type != ConnectionType::PASSTHROUGH && linked_param != this) {
-        printf("Error: Linked parameter is not a passthrough in parameter %s\n", name);
+        printf("Error: Linked parameter is not a passthrough in parameter %s\n", name.c_str());
         return false;
     }
 
@@ -131,7 +131,7 @@ bool AudioTexture2DParameter::bind_parameter() {
     // Check for errors 
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error: Framebuffer is not complete in parameter %s\n", name);
+        printf("Error: Framebuffer is not complete in parameter %s\n", name.c_str());
         return false;
     }
 

@@ -19,11 +19,13 @@ AudioMultitrackJoinRenderStage::AudioMultitrackJoinRenderStage(const unsigned in
     // NOTE: Pre-allocating 8 audio textures because cannot dynamically allocate in the shader
     //       You don't need to use all of them
     // Add parameters
+
+    AudioParameter * input_audio_texture;
     for (unsigned int i=0; i<num_tracks; i++){
         std::string stream_name = "stream_audio_texture_" + std::to_string(i);
 
-        auto input_audio_texture =
-                std::make_unique<AudioTexture2DParameter>(stream_name.c_str(),
+        input_audio_texture =
+                new AudioTexture2DParameter(stream_name,
                                             AudioParameter::ConnectionType::PASSTHROUGH,
                                             m_frames_per_buffer * m_num_channels, 1,
                                             ++m_active_texture_count,
@@ -35,10 +37,6 @@ AudioMultitrackJoinRenderStage::AudioMultitrackJoinRenderStage(const unsigned in
         }
 
         m_free_textures.push(this->find_parameter(stream_name.c_str()));
-    }
-
-    for (auto & [name,param]:m_parameters){
-        printf("%s \n", param->name);
     }
 }
 

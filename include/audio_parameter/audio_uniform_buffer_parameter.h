@@ -10,7 +10,7 @@
 class AudioUniformBufferParameter : public AudioParameter {
 
 protected:
-    AudioUniformBufferParameter(const char * name,
+    AudioUniformBufferParameter(const std::string name,
                       AudioParameter::ConnectionType connection_type);
     ~AudioUniformBufferParameter() = default;
 
@@ -31,7 +31,7 @@ private:
 
 class AudioIntBufferParameter : public AudioUniformBufferParameter {
 public:
-    AudioIntBufferParameter(const char * name,
+    AudioIntBufferParameter(const std::string name,
                       AudioParameter::ConnectionType connection_type)
         : AudioUniformBufferParameter(name, connection_type)
     {};
@@ -45,7 +45,7 @@ private:
 
 class AudioFloatBufferParameter : public AudioUniformBufferParameter {
 public:
-    AudioFloatBufferParameter(const char * name,
+    AudioFloatBufferParameter(const std::string name,
                         AudioParameter::ConnectionType connection_type)
         : AudioUniformBufferParameter(name, connection_type)
     {};
@@ -59,7 +59,7 @@ private:
 
 class AudioBoolBufferParameter : public AudioUniformBufferParameter {
 public:
-    AudioBoolBufferParameter(const char * name,
+    AudioBoolBufferParameter(const std::string name,
                        AudioParameter::ConnectionType connection_type)
         : AudioUniformBufferParameter(name, connection_type)
     {};

@@ -10,7 +10,7 @@
 class AudioUniformParameter : public AudioParameter {
 
 protected:
-    AudioUniformParameter(const char * name,
+    AudioUniformParameter(const std::string name,
                           AudioParameter::ConnectionType connection_type);
     ~AudioUniformParameter() = default;
 
@@ -32,7 +32,7 @@ private:
 
 class AudioIntParameter : public AudioUniformParameter {
 public:
-    AudioIntParameter(const char * name,
+    AudioIntParameter(const std::string name,
                       AudioParameter::ConnectionType connection_type)
         : AudioUniformParameter(name, connection_type)
     {};
@@ -49,7 +49,7 @@ private:
 
 class AudioFloatParameter : public AudioUniformParameter {
 public:
-    AudioFloatParameter(const char * name,
+    AudioFloatParameter(const std::string name,
                         AudioParameter::ConnectionType connection_type)
         : AudioUniformParameter(name, connection_type)
     {};
@@ -66,7 +66,7 @@ private:
 
 class AudioBoolParameter : public AudioUniformParameter {
 public:
-    AudioBoolParameter(const char * name,
+    AudioBoolParameter(const std::string name,
                        AudioParameter::ConnectionType connection_type)
         : AudioUniformParameter(name, connection_type)
     {};

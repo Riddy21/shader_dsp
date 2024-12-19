@@ -44,7 +44,6 @@ public:
      * @return True if the parameter is successfully added, false otherwise.
      */
     bool add_parameter(AudioParameter * parameter);
-    bool add_parameter(std::unique_ptr<AudioParameter> parameter);
 
     /**
      * @brief Find a parameter by name
@@ -54,7 +53,7 @@ public:
      * @param name The name of the parameter to find
      * @return The parameter if found, nullptr otherwise.
      */
-    AudioParameter * find_parameter(const char * name) const;
+    AudioParameter * find_parameter(const std::string name) const;
 
     // Getters
     const std::vector<AudioParameter *> & get_input_parameters() const {

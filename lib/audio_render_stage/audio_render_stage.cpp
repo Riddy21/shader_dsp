@@ -223,24 +223,7 @@ bool AudioRenderStage::add_parameter(AudioParameter * parameter) {
     }
     return true;
 }
-bool AudioRenderStage::add_parameter(std::unique_ptr<AudioParameter> parameter) {
-    // Link parameter to the stage
-    parameter->link_render_stage(this);
-
-    // Put in the parameter list
-    m_parameters[parameter->name] = std::move(parameter);
-
-    // Add to the input or output list
-    if (parameter->connection_type == AudioParameter::ConnectionType::INPUT) {
-        m_input_parameters.push_back(m_parameters[parameter->name].get());
-    } else if (parameter->connection_type == AudioParameter::ConnectionType::OUTPUT) {
-        m_output_parameters.push_back(m_parameters[parameter->name].get());
-    }
-    return true;
-}
-
-
-AudioParameter * AudioRenderStage::find_parameter(const char * name) const {
+AudioParameter * AudioRenderStage::find_parameter(const std::string name) const {
     if (m_parameters.find(name) != m_parameters.end()) {
         return m_parameters.at(name).get();
     }

@@ -26,7 +26,7 @@ public:
         INITIALIZATION
     };
 
-    const char * name;
+    const std::string name;
     const ConnectionType connection_type;
 
     ~AudioParameter() {
@@ -77,7 +77,7 @@ public:
 
 
 protected:
-    AudioParameter(const char * name,
+    AudioParameter(const std::string name,
                    ConnectionType connection_type)
         : name(name),    
           connection_type(connection_type)

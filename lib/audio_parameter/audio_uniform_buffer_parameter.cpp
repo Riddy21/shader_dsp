@@ -4,7 +4,7 @@
 
 unsigned int AudioUniformBufferParameter::total_binding_points = 0;
 
-AudioUniformBufferParameter::AudioUniformBufferParameter(const char * name,
+AudioUniformBufferParameter::AudioUniformBufferParameter(const std::string name,
                                                          AudioParameter::ConnectionType connection_type)
     : AudioParameter(name, connection_type),
       m_binding_point(total_binding_points++)
@@ -12,7 +12,7 @@ AudioUniformBufferParameter::AudioUniformBufferParameter(const char * name,
     // Cannot set value for output or passthrough parameters
     if (connection_type == ConnectionType::OUTPUT || connection_type == ConnectionType::PASSTHROUGH) {
         char error_message[256];
-        sprintf(error_message, "Error: Cannot set parameter %s as OUTPUT or PASSTHROUGH\n", name);
+        sprintf(error_message, "Error: Cannot set parameter %s as OUTPUT or PASSTHROUGH\n", name.c_str());
         throw std::invalid_argument(error_message);
     }
 }
@@ -29,7 +29,7 @@ bool AudioUniformBufferParameter::initialize_parameter() {
     if (connection_type == ConnectionType::INPUT) {
         // Allocate memory for the buffer and data
         if (m_data == nullptr) {
-            printf("Warning: value is nullptr when declared as input or initialization in parameter %s\n", name);
+            printf("Warning: value is nullptr when declared as input or initialization in parameter %s\n", name.c_str());
         }
         glBufferData(GL_UNIFORM_BUFFER, m_data->get_size(), m_data->get_data(), GL_DYNAMIC_DRAW);
 
@@ -38,7 +38,7 @@ bool AudioUniformBufferParameter::initialize_parameter() {
         glBufferData(GL_UNIFORM_BUFFER, m_data->get_size(), m_data->get_data(), GL_STATIC_DRAW);
     } else {
         // Output int parameters are not allowed
-        printf("Error: output and passthrough int parameters are not allowed in parameter %s\n", name);
+        printf("Error: output and passthrough int parameters are not allowed in parameter %s\n", name.c_str());
         return false;
     }
 
@@ -53,9 +53,9 @@ bool AudioUniformBufferParameter::initialize_parameter() {
 
     // Look for the buffer in the shader program
     if (m_render_stage_linked != nullptr) {
-        auto location = glGetUniformBlockIndex(m_render_stage_linked->get_shader_program(), name);
+        auto location = glGetUniformBlockIndex(m_render_stage_linked->get_shader_program(), name.c_str());
         if (location == GL_INVALID_INDEX) {
-            printf("Error: Could not find buffer in shader program in parameter %s\n", name);
+            printf("Error: Could not find buffer in shader program in parameter %s\n", name.c_str());
             return false;
         }
     }
@@ -77,10 +77,10 @@ void AudioUniformBufferParameter::render_parameter() {
 bool AudioUniformBufferParameter::bind_parameter() {
     glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
 
-    GLuint block_index = glGetUniformBlockIndex(m_render_stage_linked->get_shader_program(), name);
+    GLuint block_index = glGetUniformBlockIndex(m_render_stage_linked->get_shader_program(), name.c_str());
 
     if (block_index == GL_INVALID_INDEX) {
-        printf("Error: Uniform block index not found in parameter %s\n", name);
+        printf("Error: Uniform block index not found in parameter %s\n", name.c_str());
         return false;
     }
 
@@ -90,7 +90,7 @@ bool AudioUniformBufferParameter::bind_parameter() {
 
     GLenum status = glGetError();
     if (status != GL_NO_ERROR) {
-        printf("Error: OpenGL error %d in binding parameter %s\n", status, name);
+        printf("Error: OpenGL error %d in binding parameter %s\n", status, name.c_str());
         return false;
     }
     return true;

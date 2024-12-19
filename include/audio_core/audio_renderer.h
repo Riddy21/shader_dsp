@@ -147,7 +147,7 @@ public:
      * @param name The name of the global parameter.
      * @return The global parameter if found, nullptr otherwise.
      */
-    AudioParameter * find_global_parameter(const char * name) const;
+    AudioParameter * find_global_parameter(const std::string name) const;
 
 private:
     static AudioRenderer * instance;
