@@ -9,6 +9,7 @@
 Keyboard * Keyboard::instance = nullptr;
 
 Keyboard::Keyboard() : m_piano(10) {
+
 }
 
 Keyboard::~Keyboard() {}

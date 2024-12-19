@@ -171,7 +171,7 @@ bool AudioRenderStage::initialize_stage_parameters() {
     }
     for (auto &[name, param] : m_parameters) {
         if (!param->initialize_parameter()) {
-            printf("Error: Failed to initialize parameter %s\n", param->name);
+            printf("Error: Failed to initialize parameter %s\n", param->name.c_str());
             return false;
         }
     }
@@ -181,7 +181,7 @@ bool AudioRenderStage::initialize_stage_parameters() {
 bool AudioRenderStage::bind_shader_stage() {
     for (auto & [name, param] : m_parameters) {
         if (!param->bind_parameter()) {
-            printf("Error: Failed to process linked parameters for %s\n", param->name);
+            printf("Error: Failed to process linked parameters for %s\n", param->name.c_str());
             return false;
         }
     }

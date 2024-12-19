@@ -106,7 +106,7 @@ bool AudioTexture2DParameter::bind_parameter() {
 
     // Check if linked parameter is initialized
     if (linked_param->get_texture() == 0) {
-        printf("Error: Linked parameter texture is not initialized in parameter %s\n", name);
+        printf("Error: Linked parameter texture is not initialized in parameter %s\n", name.c_str());
         return false;
     }
 

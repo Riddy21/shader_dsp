@@ -44,20 +44,26 @@ public:
 
     bool initialize();
 
+    bool bind_render_stages();
+
     void render();
 
-    AudioRenderStage * find_render_stage(const GID gid);
+    AudioRenderStage * find_render_stage(GID gid);
 
     // TODO: To implement
-    bool replace_render_stage(const GID gid, AudioRenderStage * render_stage);
+    bool replace_render_stage(GID gid, AudioRenderStage * render_stage);
 
-    bool remove_render_stage(const GID gid);
+    // TODO: To implement
+    bool remove_render_stage(GID gid);
 
-    bool insert_render_stage_infront(const GID back, AudioRenderStage * render_stage);
+    // TODO: To implement
+    bool insert_render_stage_infront(GID back, AudioRenderStage * render_stage);
     
-    bool insert_render_stage_behind(const GID front, AudioRenderStage * render_stage);
+    // TODO: To implement
+    bool insert_render_stage_behind(GID front, AudioRenderStage * render_stage);
 
-    bool insert_render_stage_between(const GID front, const GID back, AudioRenderStage * render_stage);
+    // TODO: To implement
+    bool insert_render_stage_between(GID front, GID back, AudioRenderStage * render_stage);
 
     static bool link_render_stages(AudioRenderStage * input, AudioRenderStage * output);
     static bool unlink_render_stages(AudioRenderStage * input, AudioRenderStage * output);
@@ -68,15 +74,16 @@ public:
     }
 
 private:
-    bool construct_render_order(const GID node, std::unordered_set<GID> & visited);
+    bool construct_render_order(GID node, std::unordered_set<GID> & visited);
 
     bool construct_graph(const std::vector<AudioRenderStage *> & inputs);
-    bool dfs_construct_graph(AudioRenderStage * node);
+    bool dfs_construct_graph(AudioRenderStage * node, std::unordered_set<GID> & visited);
 
     static std::vector<AudioRenderStage *> find_linked_render_stages(const AudioRenderStage * render_stage);
 
     std::unordered_map<GID, std::unordered_set<GID>> m_graph;
     std::vector<GID> m_outputs;
+    std::vector<GID> m_inputs;
     std::vector<GID> m_render_order;
 
     std::unordered_map<GID, std::unique_ptr<AudioRenderStage>> m_render_stages_map;

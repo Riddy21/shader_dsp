@@ -1,6 +1,7 @@
 #include <math.h>
 
 #include "keyboard/piano.h"
+#include "audio_core/audio_render_graph.h"
 
 const std::unordered_map<unsigned char, float> Piano::KEY_TONE_MAPPING = {
     {'a', MIDDLE_C},
@@ -20,7 +21,22 @@ const std::unordered_map<unsigned char, float> Piano::KEY_TONE_MAPPING = {
 
 Piano::Piano(const unsigned int init_pool_size) {
     for (unsigned int i = 0; i < init_pool_size; i++) {
-        add_key();
+        // Make a piano key
+        auto key = std::make_unique<PianoKey>('_'); // Placeholder name
+
+        // Save the interface
+        if (i == 0) {
+            m_first_render_stage = key->get_render_stage();
+        } else if (i == init_pool_size - 1) {
+            m_last_render_stage = key->get_render_stage();
+        }
+
+        if (i > 0) {
+            AudioRenderGraph::link_render_stages(m_key_pool.back()->get_render_stage(),
+                                                 key->get_render_stage());
+        }
+        
+        m_key_pool.push(std::move(key));
     }
 }
 
@@ -31,16 +47,10 @@ Piano::~Piano() {
     }
 }
 
-void Piano::add_key() {
-    auto key = std::make_unique<PianoKey>('_'); // Placeholder name
-    m_key_pool.push(std::move(key));
-}
-
 void Piano::key_down(const float tone, const float gain) {
     if (m_key_pool.empty()) {
         // Add a new key
         //TODO: Currently cannot add render stage after initialization, need to enable this in the future
-        add_key();
         return;
     }
     auto key = std::move(m_key_pool.front());

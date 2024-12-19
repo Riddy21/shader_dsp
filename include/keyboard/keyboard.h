@@ -6,6 +6,7 @@
 
 #include "keyboard/key.h"
 #include "keyboard/piano.h"
+#include "audio_render_stage/audio_render_stage.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
 
 class Keyboard {
@@ -23,6 +24,8 @@ public:
     bool initialize();
     void add_key(Key * key);
     Key * get_key(const unsigned char key) { return m_keys[key].get(); }
+    AudioRenderStage * get_input_render_stage() {return m_piano.get_first_render_stage();}
+    AudioRenderStage * get_output_render_stage() {return m_piano.get_last_render_stage();}
 
 private:
     Keyboard();

@@ -34,7 +34,6 @@ TEST_CASE("AudioGainEffectRenderStage") {
 
     AudioRenderGraph::link_render_stages(join_render_stage, final_render_stage);
 
-    // TODO: Convert this into render graph object
     auto audio_render_graph = new AudioRenderGraph({audio_generator, audio_generator_2});
 
     REQUIRE(audio_render_graph != nullptr);
@@ -75,7 +74,7 @@ TEST_CASE("AudioGainEffectRenderStage") {
         balance_param_2->set_value(1.0f);
         play_param_2->set_value(1.0f);
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(2));
         // Stop track 1
         play_param->set_value(0.0f);
 
@@ -120,9 +119,63 @@ TEST_CASE("AudioGainEffectRenderStage_bad") {
 
     AudioRenderGraph::link_render_stages(join_render_stage, final_render_stage);
 
-    // TODO: Convert this into render graph object
-    
     REQUIRE_THROWS_AS(AudioRenderGraph({audio_generator, audio_generator_2}), std::runtime_error);
+}
+
+TEST_CASE("AudioGainEffectRenderStage_modify_graph") {
+    // Generate a render stage graph
+    auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    int gid = audio_generator->gid;
+
+    printf("Generated render stage\n");
+    auto graph = new AudioRenderGraph({audio_generator});
+
+    printf("Insert render stage\n");
+
+    printf("Generated render graph\n");
+    auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
+
+    graph->insert_render_stage_behind(gid, final_render_stage);
+
+    AudioRenderer & audio_renderer = AudioRenderer::get_instance();
+
+    audio_renderer.add_render_graph(graph);
+
+    auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
+
+    audio_renderer.add_render_output(audio_driver);
+
+    std::thread t1([&audio_renderer, &audio_generator](){
+        auto time_param = audio_renderer.find_global_parameter("global_time");
+
+        auto position_param = audio_generator->find_parameter("play_position");
+        auto play_param = audio_generator->find_parameter("gain");
+
+        play_param->set_value(0.0f);
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        // Play from left speaker on track 1
+        position_param->set_value(time_param->get_value());
+        play_param->set_value(1.0f);
+
+        std::this_thread::sleep_for(std::chrono::seconds(10));
+
+        audio_renderer.terminate();
+    });
+
+    REQUIRE(audio_renderer.initialize(512, 44100, 2));
+
+    REQUIRE(audio_driver->open());
+    REQUIRE(audio_driver->start());
+
+    audio_renderer.start_main_loop();
+
+    // TODO: Add a render stage while sound is playing
+    //REQUIRE(graph->bind_render_stages());
+
+
+    t1.detach();
+
 }
 
 

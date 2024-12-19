@@ -19,11 +19,14 @@ public:
 
     static const std::unordered_map<unsigned char, float> KEY_TONE_MAPPING;
 
+    AudioRenderStage * get_first_render_stage() {return m_first_render_stage;}
+    AudioRenderStage * get_last_render_stage() {return m_last_render_stage;}
+
 private:
     std::queue<std::unique_ptr<PianoKey>> m_key_pool;
     std::unordered_map<float, std::unique_ptr<PianoKey>> m_pressed_keys;
-
-    void add_key();
+    AudioRenderStage * m_first_render_stage;
+    AudioRenderStage * m_last_render_stage;
 };
 
 

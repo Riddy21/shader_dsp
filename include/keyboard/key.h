@@ -29,6 +29,7 @@ public:
 
     const unsigned char name;
 
+
 private:
     std::function<void()> m_key_down_callback;
     std::function<void()> m_key_up_callback;
@@ -40,6 +41,9 @@ public:
 
     void set_gain(const float gain);
     void set_tone(const float tone);
+
+    // Getters
+    AudioGeneratorRenderStage * get_render_stage() {return m_audio_generator;}
 
 private:
     AudioGeneratorRenderStage * m_audio_generator;

@@ -195,12 +195,13 @@ void AudioRenderer::start_main_loop() {
 }
 
 bool AudioRenderer::terminate() {
-    // Stop the loop
-    m_running = false;
-
     // Terminate the OpenGL context
     glutLeaveMainLoop();
     //glutDestroyWindow(glutGetWindow()); // Don't need this
+
+    // Stop the loop
+    m_running = false;
+    m_initialized = false;
 
     // Clean up the OpenGL context
     if (!cleanup()) {
