@@ -19,8 +19,8 @@ public:
 
     static const std::vector<std::string> default_frag_shader_imports;
 
-    // TODO: write a function in parameter to unlink stage
     AudioParameter * get_free_stream_parameter();
+    bool release_stream_parameter(AudioParameter * parameter);
 
     ~AudioMultitrackJoinRenderStage();
 

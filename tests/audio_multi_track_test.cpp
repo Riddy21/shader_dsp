@@ -1,6 +1,7 @@
 #include "catch2/catch_all.hpp"
 #include <thread>
 #include <iostream>
+#include <stdexcept>
 
 #include "audio_output/audio_player_output.h"
 #include "audio_core/audio_renderer.h"
@@ -25,16 +26,18 @@ TEST_CASE("AudioGainEffectRenderStage") {
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
     // Get the parameters from the audio_generator render stage
-    audio_generator->find_parameter("output_audio_texture")->link(effect_render_stage->find_parameter("stream_audio_texture"));
-    audio_generator_2->find_parameter("output_audio_texture")->link(effect_render_stage_2->find_parameter("stream_audio_texture"));
+    AudioRenderGraph::link_render_stages(audio_generator, effect_render_stage);
+    AudioRenderGraph::link_render_stages(audio_generator_2, effect_render_stage_2);
 
-    effect_render_stage->find_parameter("output_audio_texture")->link(join_render_stage->find_parameter("stream_audio_texture_0"));
-    effect_render_stage_2->find_parameter("output_audio_texture")->link(join_render_stage->find_parameter("stream_audio_texture_1"));
+    AudioRenderGraph::link_render_stages(effect_render_stage, join_render_stage);
+    AudioRenderGraph::link_render_stages(effect_render_stage_2, join_render_stage);
 
-    join_render_stage->find_parameter("output_audio_texture")->link(final_render_stage->find_parameter("stream_audio_texture"));
+    AudioRenderGraph::link_render_stages(join_render_stage, final_render_stage);
 
     // TODO: Convert this into render graph object
     auto audio_render_graph = new AudioRenderGraph({audio_generator, audio_generator_2});
+
+    REQUIRE(audio_render_graph != nullptr);
 
     // set up the audio renderer
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
@@ -76,7 +79,7 @@ TEST_CASE("AudioGainEffectRenderStage") {
         // Stop track 1
         play_param->set_value(0.0f);
 
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        std::this_thread::sleep_for(std::chrono::seconds(2));
 
         audio_renderer.terminate();
     });
@@ -90,4 +93,36 @@ TEST_CASE("AudioGainEffectRenderStage") {
 
     t1.detach();
 }
+
+TEST_CASE("AudioGainEffectRenderStage_bad") {
+    // Generate a render stage graph
+
+    auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
+
+    auto audio_generator_2 = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
+
+    auto join_render_stage = new AudioMultitrackJoinRenderStage(512, 44100, 2, 2);
+    auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
+
+    // Get the parameters from the audio_generator render stage
+    AudioRenderGraph::link_render_stages(audio_generator, effect_render_stage);
+    AudioRenderGraph::link_render_stages(audio_generator_2, effect_render_stage_2);
+
+    REQUIRE(!AudioRenderGraph::link_render_stages(audio_generator, effect_render_stage_2));
+
+    AudioRenderGraph::link_render_stages(effect_render_stage, join_render_stage);
+    AudioRenderGraph::link_render_stages(effect_render_stage_2, join_render_stage);
+
+    REQUIRE(AudioRenderGraph::unlink_render_stages(audio_generator, effect_render_stage));
+    REQUIRE(AudioRenderGraph::unlink_render_stages(effect_render_stage_2, join_render_stage));
+
+    AudioRenderGraph::link_render_stages(join_render_stage, final_render_stage);
+
+    // TODO: Convert this into render graph object
+    
+    REQUIRE_THROWS_AS(AudioRenderGraph({audio_generator, audio_generator_2}), std::runtime_error);
+}
+
 

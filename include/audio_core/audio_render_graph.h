@@ -60,6 +60,7 @@ public:
     bool insert_render_stage_between(const GID front, const GID back, AudioRenderStage * render_stage);
 
     static bool link_render_stages(AudioRenderStage * input, AudioRenderStage * output);
+    static bool unlink_render_stages(AudioRenderStage * input, AudioRenderStage * output);
 
     // Getters
     AudioFinalRenderStage * get_output_render_stage() {

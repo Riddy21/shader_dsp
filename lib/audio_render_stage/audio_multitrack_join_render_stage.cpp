@@ -3,6 +3,8 @@
 #include "audio_render_stage/audio_multitrack_join_render_stage.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
 
+#define MAX_TRACKS 8
+
 const std::vector<std::string> AudioMultitrackJoinRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
     "build/shaders/frag_shader_settings.glsl"
@@ -20,6 +22,10 @@ AudioMultitrackJoinRenderStage::AudioMultitrackJoinRenderStage(const unsigned in
     //       You don't need to use all of them
     // Add parameters
 
+    if (num_tracks > MAX_TRACKS) {
+        std::cerr << "Cannot add more than " << MAX_TRACKS << " tracks" << std::endl;
+    }
+
     AudioParameter * input_audio_texture;
     for (unsigned int i=0; i<num_tracks; i++){
         std::string stream_name = "stream_audio_texture_" + std::to_string(i);
@@ -31,7 +37,6 @@ AudioMultitrackJoinRenderStage::AudioMultitrackJoinRenderStage(const unsigned in
                                             ++m_active_texture_count,
                                             0);
 
-        // TODO: This needs to be a copy or else it doesn't work
         if (!this->add_parameter(input_audio_texture)) {
             std::cerr << "Failed to add " << stream_name << std::endl;
         }
@@ -52,4 +57,18 @@ AudioParameter * AudioMultitrackJoinRenderStage::get_free_stream_parameter() {
     m_used_textures.insert(free_parameter);
 
     return free_parameter;
+}
+
+bool AudioMultitrackJoinRenderStage::release_stream_parameter(AudioParameter * parameter){
+    // Find audio parameter
+    if (m_used_textures.find(parameter) == m_used_textures.end()){
+        printf("Parameter %s is not used\n", parameter->name.c_str());
+        return false;
+    }
+
+    // Erase it if its there
+    m_used_textures.erase(parameter);
+    // Push to free queue
+    m_free_textures.push(parameter);
+    return true;
 }

@@ -12,6 +12,8 @@
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_render_stage.h"
 
+// TODO: Look into making required arguments const for all classes
+
 class AudioRenderStage; // Forward declaration
 class AudioRenderer;
 
@@ -30,13 +32,20 @@ public:
     const ConnectionType connection_type;
 
     ~AudioParameter() {
-        printf("Deleting parameter %s\n", name);
+        printf("Deleting parameter %s\n", name.c_str());
     }
 
     // Linking to other parameters
-    virtual bool link(const AudioParameter * parameter) {
+    // TODO: Make these private
+    virtual bool link(AudioParameter * parameter) {
         m_linked_parameter = parameter;
         return true;
+    }
+
+    virtual AudioParameter * unlink() {
+        AudioParameter * linked = m_linked_parameter;
+        m_linked_parameter = nullptr;
+        return linked;
     }
 
     // Setters
@@ -67,7 +76,7 @@ public:
         return m_render_stage_linked;
     }
 
-    const AudioParameter * get_linked_parameter() const {
+    AudioParameter * get_linked_parameter() const {
         return m_linked_parameter;
     }
 
@@ -97,7 +106,7 @@ protected:
 
     std::unique_ptr<ParamData> m_data = nullptr; // Using unique pointer to cast to derived class
     AudioRenderStage * m_render_stage_linked = nullptr;
-    const AudioParameter * m_linked_parameter = nullptr;
+    AudioParameter * m_linked_parameter = nullptr;
 };
 
 
