@@ -31,9 +31,9 @@ Piano::Piano(const unsigned int init_pool_size) {
             m_last_render_stage = key->get_render_stage();
         }
 
+        // Link the render stages
         if (i > 0) {
-            AudioRenderGraph::link_render_stages(m_key_pool.back()->get_render_stage(),
-                                                 key->get_render_stage());
+            m_key_pool.back()->get_render_stage()->connect_render_stage(key->get_render_stage());
         }
         
         m_key_pool.push(std::move(key));

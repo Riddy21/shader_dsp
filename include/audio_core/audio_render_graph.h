@@ -65,9 +65,6 @@ public:
     // TODO: To implement
     bool insert_render_stage_between(GID front, GID back, AudioRenderStage * render_stage);
 
-    static bool link_render_stages(AudioRenderStage * input, AudioRenderStage * output);
-    static bool unlink_render_stages(AudioRenderStage * input, AudioRenderStage * output);
-
     // Getters
     AudioFinalRenderStage * get_output_render_stage() {
         return static_cast<AudioFinalRenderStage *>(find_render_stage(m_outputs[0]));

@@ -45,9 +45,7 @@ AudioMultitrackJoinRenderStage::AudioMultitrackJoinRenderStage(const unsigned in
     }
 }
 
-AudioMultitrackJoinRenderStage::~AudioMultitrackJoinRenderStage() {}
-
-AudioParameter * AudioMultitrackJoinRenderStage::get_free_stream_parameter() {
+const std::vector<AudioParameter *> AudioMultitrackJoinRenderStage::get_stream_interface() {
     AudioParameter * free_parameter = m_free_textures.front();
 
     // Pop from queue
@@ -56,10 +54,13 @@ AudioParameter * AudioMultitrackJoinRenderStage::get_free_stream_parameter() {
     // Put in to use textures
     m_used_textures.insert(free_parameter);
 
-    return free_parameter;
+    return {free_parameter};
 }
 
-bool AudioMultitrackJoinRenderStage::release_stream_parameter(AudioParameter * parameter){
+bool AudioMultitrackJoinRenderStage::release_stream_interface(AudioRenderStage * prev_stage){
+    // Find linked render stage stream parameter
+    auto * parameter = prev_stage->find_parameter("output_audio_texture")->get_linked_parameter();
+    
     // Find audio parameter
     if (m_used_textures.find(parameter) == m_used_textures.end()){
         printf("Parameter %s is not used\n", parameter->name.c_str());

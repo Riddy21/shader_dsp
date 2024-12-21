@@ -17,14 +17,14 @@ public:
                                    const std::string& fragment_shader_path = "build/shaders/multitrack_join_render_stage.glsl",
                                    const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 
+    ~AudioMultitrackJoinRenderStage() {};
+
     static const std::vector<std::string> default_frag_shader_imports;
 
-    AudioParameter * get_free_stream_parameter();
-    bool release_stream_parameter(AudioParameter * parameter);
-
-    ~AudioMultitrackJoinRenderStage();
-
 private:
+    const std::vector<AudioParameter *> get_stream_interface() override;
+    bool release_stream_interface(AudioRenderStage * prev_stage) override;
+
     std::queue<AudioParameter *> m_free_textures;
     std::unordered_set<AudioParameter *> m_used_textures;
 };

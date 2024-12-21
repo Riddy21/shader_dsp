@@ -197,58 +197,7 @@ void AudioRenderGraph::render() {
     }
 }
 
-bool AudioRenderGraph::link_render_stages(AudioRenderStage * input, AudioRenderStage * output) {
-    auto * output_parameter = input->find_parameter("output_audio_texture");
-
-    if (output_parameter->is_connected()) {
-        printf("Output parameter %s in render stage %d is already linked\n", output_parameter->name.c_str(), input->gid);
-        return false;
-    }
-
-    if (!output_parameter){
-        printf("Could not find output parameter %s in render stage %d\n", output_parameter->name.c_str(), input->gid);
-        return false;
-    }
-
-    if (auto * multi_join_out = dynamic_cast<AudioMultitrackJoinRenderStage*>(output)){
-        auto * free_param = multi_join_out->get_free_stream_parameter();
-        output_parameter->link(free_param);
-        // TODO: Add a fork render stage
-    } else {
-        // Find parameters to join
-        auto * stream_param = output->find_parameter("stream_audio_texture");
-        if (!stream_param){
-            printf("Could not find output parameter %s in render stage %d\n", "output_audio_texture", input->gid);
-            return false;
-        }
-        output_parameter->link(stream_param);
-        // TODO: Consider making this data driven
-    }
-    return true;
-}
-
-bool AudioRenderGraph::unlink_render_stages(AudioRenderStage * input, AudioRenderStage * output) {
-    auto * output_parameter = input->find_parameter("output_audio_texture");
-
-    // Find the linked render stage name
-    auto * stream_parameter = output_parameter->get_linked_parameter();
-    if (stream_parameter->get_linked_render_stage() != output) {
-        printf("Output render stage %d specified is not linked to the render stage %d\n", output->gid, input->gid);
-        return false;
-    }
-            
-    // Release from used if multi track join
-    if (auto * multi_join_out = dynamic_cast<AudioMultitrackJoinRenderStage*>(output)) {
-        multi_join_out->release_stream_parameter(stream_parameter);
-    }
-
-    // Unlink input audio texture
-    output_parameter->unlink();
-
-    return true;
-}
-
-// TODO: Implement inline flag
+// FIXME: Re-write this function so it works with render stages
 bool AudioRenderGraph::insert_render_stage_behind(GID front, AudioRenderStage * render_stage) {
     // Make sure front exists
     if (m_render_stages_map.find(front) == m_render_stages_map.end()) {
@@ -264,6 +213,7 @@ bool AudioRenderGraph::insert_render_stage_behind(GID front, AudioRenderStage * 
     // Link it to the render stage
     link_render_stages(m_render_stages_map[front].get(), render_stage);
 
+    // FIXME: Write function to re-construct render graph
     // Clear the render_map
     m_graph.clear();
     m_render_order.clear();

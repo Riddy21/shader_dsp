@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstring>
+#include <typeinfo>
 
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_render_stage.h"
@@ -263,3 +264,115 @@ const std::string AudioRenderStage::combine_shader_source(const std::vector<std:
 
     return combined_source;
 }
+
+const std::vector<AudioParameter *> AudioRenderStage::get_output_interface() {
+    std::vector<AudioParameter *> outputs;
+    
+    outputs.push_back(find_parameter("output_audio_texture"));
+    return outputs;
+}
+
+bool AudioRenderStage::release_output_interface(AudioRenderStage * next_stage)
+{
+    auto output = find_parameter("output_audio_texture");
+    if (!output->is_connected()) {
+        printf("Output parameter %s in render stage %d is already unlinked\n", output->name.c_str(), this->gid);
+        return false;
+    }
+
+    if (!output->unlink()) {
+        printf("Failed to unlink parameter %s in render stage %d and %d\n",
+               output->name.c_str(),this->gid, next_stage->gid);
+        return false;
+    }
+
+    return true;
+}
+
+const std::vector<AudioParameter *> AudioRenderStage::get_stream_interface()
+{
+    std::vector<AudioParameter *> inputs;
+    
+    inputs.push_back(find_parameter("stream_audio_texture"));
+    return inputs;
+}
+
+bool AudioRenderStage::connect_render_stage(AudioRenderStage * next_stage) {
+    auto output_parameters = get_output_interface();
+    auto stream_parameters = next_stage->get_stream_interface();
+
+    // Check they are the right size
+    if (output_parameters.size() != stream_parameters.size()) {
+        printf("Input and output sizes do not match for connecting render stage %d and %d\n", this->gid, next_stage->gid);
+        return false;
+    }
+
+    for (int i=0; i<output_parameters.size(); i++){
+        if (!output_parameters[i]){
+            printf("Could not find output parameter %s in render stage %d\n", output_parameters[i]->name.c_str(), this->gid);
+            return false;
+        }
+
+        if (output_parameters[i]->is_connected()) {
+            printf("Output parameter %s in render stage %d is already linked\n", output_parameters[i]->name.c_str(), this->gid);
+            return false;
+        }
+
+        // Need to make sure they are the same parameter type
+        if (typeid(output_parameters[i]) != typeid(stream_parameters[i])) {
+            printf("Parameter type %s and %s in render stage %d and %d do not match\n",
+                   output_parameters[i]->name.c_str(), stream_parameters[i]->name.c_str(), this->gid, next_stage->gid);
+            return false;
+        }
+
+        // too lazy to check the sizes for now
+
+        if (!output_parameters[i]->link(stream_parameters[i])) {
+            printf("Failed to link parameter %s and %s in render stage %d and %d\n",
+                   output_parameters[i]->name.c_str(), stream_parameters[i]->name.c_str(), this->gid, next_stage->gid);
+            return false;
+        }
+    }
+
+    m_connected_output_render_stages.insert(next_stage);
+    next_stage->m_connected_stream_render_stages.insert(this);
+
+    return true;
+}
+
+bool AudioRenderStage::disconnect_render_stage(AudioRenderStage * next_stage) {
+    // Check if it's already disconnected
+    if (m_connected_output_render_stages.size() == 0) {
+        printf("Render stage %d is already disconnected\n", this->gid);
+        return false;
+    }
+
+    // Check that next_stage is the right one
+    if (next_stage != *m_connected_output_render_stages.begin()){
+        printf("Trying to disconnect render stage %d not connect to %d\n", next_stage->gid, this->gid);
+        return false;
+    }
+
+    if (!next_stage->release_stream_interface(this)) {
+        printf("Failed to release stream interface between render stage %d and %d\n", this->gid, next_stage->gid);
+        return false;
+    }
+    if (!this->release_output_interface(next_stage)) {
+        printf("Failed to release output interface between render stage %d and %d\n", this->gid, next_stage->gid);
+        return false;
+    }
+
+    m_connected_output_render_stages.erase(next_stage);
+    next_stage->m_connected_stream_render_stages.erase(this);
+    return true;
+}
+
+bool AudioRenderStage::disconnect_render_stage() {
+    if (m_connected_output_render_stages.size() == 1){
+        return disconnect_render_stage(*m_connected_output_render_stages.begin());
+    }
+    printf("render stage %d is not connected\n", this->gid);
+    return false;
+}
+
+

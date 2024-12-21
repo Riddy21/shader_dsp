@@ -42,10 +42,9 @@ public:
         return true;
     }
 
-    virtual AudioParameter * unlink() {
-        AudioParameter * linked = m_linked_parameter;
+    virtual bool unlink() {
         m_linked_parameter = nullptr;
-        return linked;
+        return true;
     }
 
     // Setters

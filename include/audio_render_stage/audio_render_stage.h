@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <GL/glew.h>
 
 #include "audio_parameter/audio_parameter.h"
@@ -35,6 +36,7 @@ public:
     // Destructor
     virtual ~AudioRenderStage(); // Make destructor virtual
 
+    // Parameter Manipulation
     /** 
      * @brief Add a parameter to the audio parameter list
      * 
@@ -54,6 +56,13 @@ public:
      * @return The parameter if found, nullptr otherwise.
      */
     AudioParameter * find_parameter(const std::string name) const;
+
+    // Render stage manipulation
+    virtual bool connect_render_stage(AudioRenderStage * next_stage);
+
+    virtual bool disconnect_render_stage(AudioRenderStage * next_stage);
+
+    virtual bool disconnect_render_stage();
 
     // Getters
     const std::vector<AudioParameter *> & get_input_parameters() const {
@@ -77,7 +86,7 @@ public:
 
     const unsigned int gid;    
 
-    // FIXME: Think of way to make this static
+    // TODO: Think of way to make this static
     const std::string m_vertex_shader_source;
     const std::string m_fragment_shader_source;
 
@@ -116,6 +125,11 @@ protected:
      */
     virtual void render_render_stage();
 
+    virtual const std::vector<AudioParameter *> get_output_interface();
+    virtual bool release_output_interface(AudioRenderStage * next_stage);
+    virtual const std::vector<AudioParameter *> get_stream_interface();
+    virtual bool release_stream_interface(AudioRenderStage * prev_stage) {return true;};
+
     // Shader source
     GLuint m_shader_program = 0; // Keeps a copy of the shader program associated with the stage
 
@@ -126,12 +140,8 @@ protected:
     std::unordered_map<std::string, std::unique_ptr<AudioParameter>> m_parameters;
     std::vector<AudioParameter *> m_input_parameters;
     std::vector<AudioParameter *> m_output_parameters;
-
-    // Link to the renderer
-    // FIXME: Remove this, not needed, just call from static instance
-    void link_renderer(const AudioRenderer * renderer) {
-        m_renderer_link = renderer;
-    }
+    std::unordered_set<AudioRenderStage *> m_connected_output_render_stages;
+    std::unordered_set<AudioRenderStage *> m_connected_stream_render_stages;
 
 private:
 

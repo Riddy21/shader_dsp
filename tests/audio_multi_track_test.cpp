@@ -26,13 +26,13 @@ TEST_CASE("AudioGainEffectRenderStage") {
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
     // Get the parameters from the audio_generator render stage
-    AudioRenderGraph::link_render_stages(audio_generator, effect_render_stage);
-    AudioRenderGraph::link_render_stages(audio_generator_2, effect_render_stage_2);
+    audio_generator->connect_render_stage(effect_render_stage);
+    audio_generator_2->connect_render_stage(effect_render_stage_2);
 
-    AudioRenderGraph::link_render_stages(effect_render_stage, join_render_stage);
-    AudioRenderGraph::link_render_stages(effect_render_stage_2, join_render_stage);
+    effect_render_stage->connect_render_stage(join_render_stage);
+    effect_render_stage_2->connect_render_stage(join_render_stage);
 
-    AudioRenderGraph::link_render_stages(join_render_stage, final_render_stage);
+    join_render_stage->connect_render_stage(final_render_stage);
 
     auto audio_render_graph = new AudioRenderGraph({audio_generator, audio_generator_2});
 
@@ -106,18 +106,18 @@ TEST_CASE("AudioGainEffectRenderStage_bad") {
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
     // Get the parameters from the audio_generator render stage
-    AudioRenderGraph::link_render_stages(audio_generator, effect_render_stage);
-    AudioRenderGraph::link_render_stages(audio_generator_2, effect_render_stage_2);
+    audio_generator->connect_render_stage(effect_render_stage);
+    audio_generator_2->connect_render_stage(effect_render_stage_2);
 
-    REQUIRE(!AudioRenderGraph::link_render_stages(audio_generator, effect_render_stage_2));
+    REQUIRE(!audio_generator->connect_render_stage(effect_render_stage_2));
 
-    AudioRenderGraph::link_render_stages(effect_render_stage, join_render_stage);
-    AudioRenderGraph::link_render_stages(effect_render_stage_2, join_render_stage);
+    effect_render_stage->connect_render_stage(join_render_stage);
+    effect_render_stage_2->connect_render_stage(join_render_stage);
 
-    REQUIRE(AudioRenderGraph::unlink_render_stages(audio_generator, effect_render_stage));
-    REQUIRE(AudioRenderGraph::unlink_render_stages(effect_render_stage_2, join_render_stage));
+    REQUIRE(!audio_generator->connect_render_stage(effect_render_stage));
+    REQUIRE(effect_render_stage_2->disconnect_render_stage(join_render_stage));
 
-    AudioRenderGraph::link_render_stages(join_render_stage, final_render_stage);
+    join_render_stage->connect_render_stage(final_render_stage);
 
     REQUIRE_THROWS_AS(AudioRenderGraph({audio_generator, audio_generator_2}), std::runtime_error);
 }
@@ -177,5 +177,7 @@ TEST_CASE("AudioGainEffectRenderStage_modify_graph") {
     t1.detach();
 
 }
+
+// TODO: Add test for disconnecting render stages
 
 

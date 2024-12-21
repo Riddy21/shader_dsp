@@ -37,8 +37,8 @@ int main(int argc, char** argv) {
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
-    AudioRenderGraph::link_render_stages(keyboard.get_output_render_stage(), effect_render_stage);
-    AudioRenderGraph::link_render_stages(effect_render_stage, final_render_stage);
+    keyboard.get_output_render_stage()->connect_render_stage(effect_render_stage);
+    effect_render_stage->connect_render_stage(final_render_stage);
 
     auto audio_render_graph = new AudioRenderGraph({keyboard.get_input_render_stage()});
 
