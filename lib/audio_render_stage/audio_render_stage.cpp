@@ -298,6 +298,7 @@ const std::vector<AudioParameter *> AudioRenderStage::get_stream_interface()
 }
 
 bool AudioRenderStage::connect_render_stage(AudioRenderStage * next_stage) {
+    // TODO: Consider changing these from "get output interface" to "connect_ouptut_interface"
     auto output_parameters = get_output_interface();
     auto stream_parameters = next_stage->get_stream_interface();
 

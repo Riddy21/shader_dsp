@@ -38,7 +38,9 @@ class AudioRenderGraph {
 public:
     using GID = unsigned int;
 
-    AudioRenderGraph(const std::vector<AudioRenderStage *> inputs);
+    AudioRenderGraph(AudioRenderStage * output);
+    // TODO: Consider making the render graph input driven graph so it checks the render stages
+    //AudioRenderGraph(std::vector<AudioRenderStage *> inputs);
 
     ~AudioRenderGraph();
 
@@ -48,13 +50,16 @@ public:
 
     void render();
 
-    AudioRenderStage * find_render_stage(GID gid);
+    // TODO:: To implement, verify render graph is complete and correct
+    bool check_render_graph();
+
+    AudioRenderStage * find_render_stage(GID gid) {return m_render_stages_map[gid].get();}
 
     // TODO: To implement
-    bool replace_render_stage(GID gid, AudioRenderStage * render_stage);
+    std::unique_ptr<AudioRenderStage> replace_render_stage(GID gid, AudioRenderStage * render_stage);
 
     // TODO: To implement
-    bool remove_render_stage(GID gid);
+    std::unique_ptr<AudioRenderStage> remove_render_stage(GID gid);
 
     // TODO: To implement
     bool insert_render_stage_infront(GID back, AudioRenderStage * render_stage);
@@ -67,18 +72,12 @@ public:
 
     // Getters
     AudioFinalRenderStage * get_output_render_stage() {
-        return static_cast<AudioFinalRenderStage *>(find_render_stage(m_outputs[0]));
+        return dynamic_cast<AudioFinalRenderStage *>(find_render_stage(m_outputs[0]));
     }
 
 private:
-    bool construct_render_order(GID node, std::unordered_set<GID> & visited);
+    bool construct_render_order(AudioRenderStage * node);
 
-    bool construct_graph(const std::vector<AudioRenderStage *> & inputs);
-    bool dfs_construct_graph(AudioRenderStage * node, std::unordered_set<GID> & visited);
-
-    static std::vector<AudioRenderStage *> find_linked_render_stages(const AudioRenderStage * render_stage);
-
-    std::unordered_map<GID, std::unordered_set<GID>> m_graph;
     std::vector<GID> m_outputs;
     std::vector<GID> m_inputs;
     std::vector<GID> m_render_order;

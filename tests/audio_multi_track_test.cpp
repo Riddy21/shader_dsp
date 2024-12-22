@@ -34,7 +34,7 @@ TEST_CASE("AudioGainEffectRenderStage") {
 
     join_render_stage->connect_render_stage(final_render_stage);
 
-    auto audio_render_graph = new AudioRenderGraph({audio_generator, audio_generator_2});
+    auto audio_render_graph = new AudioRenderGraph(final_render_stage);
 
     REQUIRE(audio_render_graph != nullptr);
 
@@ -78,7 +78,7 @@ TEST_CASE("AudioGainEffectRenderStage") {
         // Stop track 1
         play_param->set_value(0.0f);
 
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::seconds(5));
 
         audio_renderer.terminate();
     });
@@ -93,35 +93,37 @@ TEST_CASE("AudioGainEffectRenderStage") {
     t1.detach();
 }
 
-TEST_CASE("AudioGainEffectRenderStage_bad") {
-    // Generate a render stage graph
+// TODO: Turn on when render graph input driven is enabled
+//TEST_CASE("AudioGainEffectRenderStage_bad") {
+//    // Generate a render stage graph
+//
+//    auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+//    auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
+//
+//    auto audio_generator_2 = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+//    auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
+//
+//    auto join_render_stage = new AudioMultitrackJoinRenderStage(512, 44100, 2, 2);
+//    auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
+//
+//    // Get the parameters from the audio_generator render stage
+//    audio_generator->connect_render_stage(effect_render_stage);
+//    audio_generator_2->connect_render_stage(effect_render_stage_2);
+//
+//    REQUIRE(!audio_generator->connect_render_stage(effect_render_stage_2));
+//
+//    effect_render_stage->connect_render_stage(join_render_stage);
+//    effect_render_stage_2->connect_render_stage(join_render_stage);
+//
+//    REQUIRE(!audio_generator->connect_render_stage(effect_render_stage));
+//    REQUIRE(effect_render_stage_2->disconnect_render_stage(join_render_stage));
+//
+//    join_render_stage->connect_render_stage(final_render_stage);
+//
+//    REQUIRE_THROWS_AS(AudioRenderGraph({audio_generator, audio_generator_2}), std::runtime_error);
+//}
 
-    auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
-    auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
-
-    auto audio_generator_2 = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
-    auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
-
-    auto join_render_stage = new AudioMultitrackJoinRenderStage(512, 44100, 2, 2);
-    auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
-
-    // Get the parameters from the audio_generator render stage
-    audio_generator->connect_render_stage(effect_render_stage);
-    audio_generator_2->connect_render_stage(effect_render_stage_2);
-
-    REQUIRE(!audio_generator->connect_render_stage(effect_render_stage_2));
-
-    effect_render_stage->connect_render_stage(join_render_stage);
-    effect_render_stage_2->connect_render_stage(join_render_stage);
-
-    REQUIRE(!audio_generator->connect_render_stage(effect_render_stage));
-    REQUIRE(effect_render_stage_2->disconnect_render_stage(join_render_stage));
-
-    join_render_stage->connect_render_stage(final_render_stage);
-
-    REQUIRE_THROWS_AS(AudioRenderGraph({audio_generator, audio_generator_2}), std::runtime_error);
-}
-
+// FIXME: Get this example working with dynamic changing of the graph
 TEST_CASE("AudioGainEffectRenderStage_modify_graph") {
     // Generate a render stage graph
     auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
