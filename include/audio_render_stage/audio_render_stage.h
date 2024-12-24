@@ -2,6 +2,7 @@
 #ifndef AUDIO_RENDER_STAGE_H
 #define AUDIO_RENDER_STAGE_H
 
+#include <iostream>
 #include <vector>
 #include <string>
 #include <unordered_map>
@@ -9,6 +10,13 @@
 #include <GL/glew.h>
 
 #include "audio_parameter/audio_parameter.h"
+
+// FIXME: Words to search up
+// - Ramifying
+// - Doughty
+// - Ravening
+// - Imbibed
+// - Immemorial
 
 // TODO: Clean up dependencies
 class AudioRenderer;
@@ -34,7 +42,17 @@ public:
                      const std::vector<std::string> & vert_shader_imports = default_vert_shader_imports);
 
     // Destructor
-    virtual ~AudioRenderStage(); // Make destructor virtual
+    virtual ~AudioRenderStage();
+
+    /**
+     * @brief Initializes the audio render stage.
+     * 
+     * This function is responsible for initializing the audio render stage.
+     * 
+     * @return True if initialization is successful, false otherwise.
+     */
+    // FIXME: Rename and re-organize initialization structure
+    virtual bool initialize_shader_stage();
 
     // Parameter Manipulation
     /** 
@@ -101,15 +119,6 @@ protected:
     
     // Link to the renderer
     const AudioRenderer * m_renderer_link;
-
-    /**
-     * @brief Initializes the audio render stage.
-     * 
-     * This function is responsible for initializing the audio render stage.
-     * 
-     * @return True if initialization is successful, false otherwise.
-     */
-    virtual bool initialize_shader_stage();
 
     /**
      * @brief Process linked parameters together

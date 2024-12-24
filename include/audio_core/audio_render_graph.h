@@ -40,7 +40,7 @@ public:
 
     AudioRenderGraph(AudioRenderStage * output);
     // TODO: Consider making the render graph input driven graph so it checks the render stages
-    //AudioRenderGraph(std::vector<AudioRenderStage *> inputs);
+    AudioRenderGraph(std::vector<AudioRenderStage *> inputs);
 
     ~AudioRenderGraph();
 
@@ -49,9 +49,6 @@ public:
     bool bind_render_stages();
 
     void render();
-
-    // TODO:: To implement, verify render graph is complete and correct
-    bool check_render_graph();
 
     AudioRenderStage * find_render_stage(GID gid) {return m_render_stages_map[gid].get();}
 
@@ -76,6 +73,7 @@ public:
     }
 
 private:
+    static AudioRenderStage * from_input_to_output(AudioRenderStage * node, std::unordered_set<GID> & visited);
     bool construct_render_order(AudioRenderStage * node);
 
     std::vector<GID> m_outputs;

@@ -72,6 +72,8 @@ AudioRenderStage::~AudioRenderStage() {
     glDeleteFramebuffers(1, &m_framebuffer);
     // Delete shader program
     glDeleteProgram(m_shader_program);
+
+    printf("Deleting render stage %d\n", gid);
 }
 
 bool AudioRenderStage::initialize_shader_stage() {

@@ -24,6 +24,70 @@ AudioRenderGraph::AudioRenderGraph(AudioRenderStage * output) {
     printf("\n");
 }
 
+AudioRenderGraph::AudioRenderGraph(std::vector<AudioRenderStage *> inputs) {
+    // Traverse inputs to find ouptut
+    std::unordered_set<GID> visited;
+
+    std::vector<AudioRenderStage *> outputs;
+    for (auto & node : inputs) {
+        auto * output = from_input_to_output(node, visited);
+        if (output != nullptr){
+            outputs.push_back(output);
+        }
+    }
+
+    // If there is more than one output then error
+    if (outputs.size() != 1){
+        throw std::runtime_error("Wrong number of render outputs found, 1 expected");
+    }
+
+    // Construct the render order
+    if (!construct_render_order(outputs[0])) {
+        throw std::runtime_error("Failed to construct render order.");
+    }
+
+    printf("Render stage order: ");
+    for (auto & gid : m_render_order) {
+        printf("%d ", gid);
+    }
+    printf("\n");
+}
+
+AudioRenderStage * AudioRenderGraph::from_input_to_output(AudioRenderStage * node, std::unordered_set<GID> & visited) {
+    // Break cases
+    if (node->m_connected_output_render_stages.size() == 0) {
+        // Check if it is the ouput
+        if (dynamic_cast<AudioFinalRenderStage*>(node) == nullptr) {
+            throw std::runtime_error("Render graph did not end in Final render stage");
+        }
+        return node;
+    }
+
+    if (visited.find(node->gid) != visited.end()){
+        return nullptr;
+    }
+
+    visited.insert(node->gid);
+
+    std::vector<AudioRenderStage *> outputs;
+
+    for (auto * next_node: node->m_connected_output_render_stages){
+        auto * output = from_input_to_output(next_node, visited);
+        if (output != nullptr){
+            outputs.push_back(output);
+        }
+    }
+
+    // If there is more than one output then error
+    if (outputs.size() > 1){
+        throw std::runtime_error("Wrong number of render outputs found, 1 expected");
+    } else if (outputs.size() < 1) {
+        return nullptr;
+    }
+
+    return outputs[0];
+}
+
 AudioRenderGraph::~AudioRenderGraph() {
     m_outputs.clear();
     m_inputs.clear();
@@ -33,6 +97,7 @@ AudioRenderGraph::~AudioRenderGraph() {
 
 // Pull directly from render stage graph
 bool AudioRenderGraph::construct_render_order(AudioRenderStage * node) {
+
     if (dynamic_cast<AudioFinalRenderStage*>(node) != nullptr) {
         m_outputs.push_back(node->gid);
     }
@@ -47,9 +112,13 @@ bool AudioRenderGraph::construct_render_order(AudioRenderStage * node) {
         return true;
     }
 
+
     // Add the node to the render order from the front
     m_render_order.insert(m_render_order.begin(), node->gid);
-    m_render_stages_map[node->gid] = std::unique_ptr<AudioRenderStage>(node);
+
+    if (m_render_stages_map.find(node->gid) == m_render_stages_map.end()){
+        m_render_stages_map[node->gid] = std::unique_ptr<AudioRenderStage>(node);
+    }
 
     // If nodes aren't connected in streams, that means it's input node
     if (node->m_connected_stream_render_stages.size() == 0) {
@@ -112,7 +181,6 @@ void AudioRenderGraph::render() {
     }
 }
 
-// FIXME: Re-write this function so it works with render stages
 bool AudioRenderGraph::insert_render_stage_behind(GID front, AudioRenderStage * render_stage) {
     // Make sure front exists
     if (m_render_stages_map.find(front) == m_render_stages_map.end()) {
@@ -125,7 +193,26 @@ bool AudioRenderGraph::insert_render_stage_behind(GID front, AudioRenderStage * 
         return false;
     }
     
-    // TODO: Connect the render stage into the satage
+    // If there is multiple outputs
+    if (int size = m_render_stages_map[front]->m_connected_output_render_stages.size() < 1) {
+        printf("Can't add render stage after the final render stage.");
+        return false;
+    }
+
+    if (int size = m_render_stages_map[front]->m_connected_output_render_stages.size() > 1) {
+        printf("Can't add render stage after multitrack split render stage.");
+        return false;
+    }
+
+    // Re-connect the render stages
+
+    auto * front_render_stage = find_render_stage(front);
+    auto * back_render_stage = *front_render_stage->m_connected_output_render_stages.begin();
+
+    front_render_stage->disconnect_render_stage(back_render_stage);
+
+    front_render_stage->connect_render_stage(render_stage);
+    render_stage->connect_render_stage(back_render_stage);
 
     // Save the output assuming one output
     GID output_node = m_outputs[0];
@@ -134,13 +221,17 @@ bool AudioRenderGraph::insert_render_stage_behind(GID front, AudioRenderStage * 
     m_outputs.clear();
     m_inputs.clear();
 
-    // Find the ouptut
-
     // Re-generate graph
     if (!construct_render_order(find_render_stage(output_node))) {
         // Undo the connection
         throw std::runtime_error("Failed to construct render order.");
     }
+
+    printf("Render stage order: ");
+    for (auto & gid : m_render_order) {
+        printf("%d ", gid);
+    }
+    printf("\n");
 
     return true;
 }
