@@ -129,7 +129,6 @@ bool AudioTexture2DParameter::bind_parameter() {
     glDrawBuffers(1, draw_buffers);
 
     // Check for errors 
-    // FIXME: Cannot rebind render parameters during main loop, What do I do?
     GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE) {
         printf("Error: Framebuffer is not complete in parameter %s\n", name.c_str());

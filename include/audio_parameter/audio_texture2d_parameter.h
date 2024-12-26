@@ -32,6 +32,7 @@ public:
     ~AudioTexture2DParameter() {
         if (m_texture != 0) {
             glDeleteTextures(1, &m_texture);
+            printf("Deleted texture %s: %d\n", name.c_str(), m_texture);
         }
     }
 

@@ -247,8 +247,6 @@ TEST_CASE("AudioGainEffectRenderStage_modify_graph") {
 
         graph->insert_render_stage_behind(gid, effect_render_stage);
 
-        graph->bind_render_stages();
-
         printf("initialized render graph\n");
 
         std::this_thread::sleep_for(std::chrono::seconds(3));

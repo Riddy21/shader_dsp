@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     keyboard.get_output_render_stage()->connect_render_stage(effect_render_stage);
     effect_render_stage->connect_render_stage(final_render_stage);
 
-    auto audio_render_graph = new AudioRenderGraph({keyboard.get_input_render_stage()});
+    auto audio_render_graph = new AudioRenderGraph(final_render_stage);
 
     audio_renderer.add_render_graph(audio_render_graph);
 

@@ -236,6 +236,10 @@ void AudioRenderer::calculate_frame_rate()
 
 void AudioRenderer::render()
 {
+    // TODO: Encapsulate this in a function if more render graph changes come into play
+    //       If it becomes a performance issue, add flag to only re-bind if necessary
+    m_render_graph->bind_render_stages();
+
     // Set the time for the frame
     // TODO: Encapsulate in a function once we have more parameters
     auto time_param = find_global_parameter("global_time");
