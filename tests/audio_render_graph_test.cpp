@@ -12,7 +12,7 @@
 #include "audio_core/audio_render_graph.h"
 
 
-TEST_CASE("AudioGainEffectRenderStage") {
+TEST_CASE("AudioRenderGraph_test") {
     // Generate a render stage graph
 
     // TODO: Add name to each render stage
@@ -93,7 +93,7 @@ TEST_CASE("AudioGainEffectRenderStage") {
     t1.detach();
 }
 
-TEST_CASE("AudioGainEffectRenderStage_inputs") {
+TEST_CASE("AudioRenderGraph_inputs") {
     // Generate a render stage graph
 
     // TODO: Add name to each render stage
@@ -174,7 +174,7 @@ TEST_CASE("AudioGainEffectRenderStage_inputs") {
     t1.detach();
 }
 
-TEST_CASE("AudioGainEffectRenderStage_bad") {
+TEST_CASE("AudioRenderGraph_test_bad") {
     // Generate a render stage graph
 
     auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
@@ -203,17 +203,19 @@ TEST_CASE("AudioGainEffectRenderStage_bad") {
     REQUIRE_THROWS_AS(AudioRenderGraph({audio_generator, audio_generator_2}), std::runtime_error);
 }
 
-// FIXME: Get this example working with dynamic changing of the graph
-TEST_CASE("AudioGainEffectRenderStage_modify_graph") {
+TEST_CASE("AudioRenderGraph_modify_graph") {
     // Generate a render stage graph
     auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
-    int gid = audio_generator->gid;
 
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
     auto balance_param = effect_render_stage->find_parameter("balance");
-    balance_param->set_value(1.0f);
+    balance_param->set_value(0.8f);
+
+    auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
+    auto balance_param_2 = effect_render_stage_2->find_parameter("balance");
+    balance_param_2->set_value(0.2f);
 
     audio_generator->connect_render_stage(final_render_stage);
 
@@ -228,7 +230,7 @@ TEST_CASE("AudioGainEffectRenderStage_modify_graph") {
 
     audio_renderer.add_render_output(audio_driver);
 
-    std::thread t1([&audio_renderer, &audio_generator, &graph, &gid, &effect_render_stage](){
+    std::thread t1([&audio_renderer, &audio_generator, &graph, &effect_render_stage, &effect_render_stage_2](){
         auto time_param = audio_renderer.find_global_parameter("global_time");
 
         auto position_param = audio_generator->find_parameter("play_position");
@@ -243,11 +245,11 @@ TEST_CASE("AudioGainEffectRenderStage_modify_graph") {
 
         std::this_thread::sleep_for(std::chrono::seconds(3));
 
-        printf("Adding new render-stage\n");
-
-        graph->insert_render_stage_behind(gid, effect_render_stage);
-
-        printf("initialized render graph\n");
+        graph->insert_render_stage_behind(audio_generator->gid, effect_render_stage);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        graph->insert_render_stage_infront(effect_render_stage->gid, effect_render_stage_2);
+        // TODO: test remove render stage
+        // TODO: test replace render stage
 
         std::this_thread::sleep_for(std::chrono::seconds(3));
 
@@ -257,6 +259,7 @@ TEST_CASE("AudioGainEffectRenderStage_modify_graph") {
     REQUIRE(audio_renderer.initialize(512, 44100, 2));
 
     effect_render_stage->initialize_shader_stage();
+    effect_render_stage_2->initialize_shader_stage();
 
     REQUIRE(audio_driver->open());
     REQUIRE(audio_driver->start());

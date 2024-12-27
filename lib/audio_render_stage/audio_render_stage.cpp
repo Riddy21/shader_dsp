@@ -92,6 +92,8 @@ bool AudioRenderStage::initialize_shader_stage() {
         return false;
     }
 
+    m_initialized = true;
+
     return true;
 }
 
@@ -182,6 +184,12 @@ bool AudioRenderStage::initialize_stage_parameters() {
 }
 
 bool AudioRenderStage::bind_shader_stage() {
+    // Make sure is initialized
+    if (!m_initialized) {
+        std::cerr << "Error: Render stage not initialized." << std::endl;
+        return false;
+    }
+    // bind the parameters to the next render stage
     for (auto & [name, param] : m_parameters) {
         if (!param->bind_parameter()) {
             printf("Error: Failed to process linked parameters for %s\n", param->name.c_str());

@@ -236,9 +236,7 @@ void AudioRenderer::calculate_frame_rate()
 
 void AudioRenderer::render()
 {
-    // TODO: Encapsulate this in a function if more render graph changes come into play
-    //       If it becomes a performance issue, add flag to only re-bind if necessary
-    m_render_graph->bind_render_stages();
+    m_render_graph->update();
 
     // Set the time for the frame
     // TODO: Encapsulate in a function once we have more parameters

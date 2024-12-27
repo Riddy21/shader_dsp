@@ -99,6 +99,10 @@ public:
         return m_framebuffer;
     }
 
+    bool is_initialized() const {
+        return m_initialized;
+    }
+
     static const std::string get_shader_source(const std::string & file_path);
     static const std::string combine_shader_source(const std::vector<std::string> & import_paths, const std::string & shader_path);
 
@@ -109,6 +113,9 @@ public:
     const std::string m_fragment_shader_source;
 
 protected:
+    // Initialized
+    bool m_initialized = false;
+
     // Settings
     const unsigned int m_frames_per_buffer;
     const unsigned int m_sample_rate;

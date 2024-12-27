@@ -46,9 +46,9 @@ public:
 
     bool initialize();
 
-    bool bind_render_stages();
-
     void render();
+
+    void update();
 
     AudioRenderStage * find_render_stage(GID gid) {return m_render_stages_map[gid].get();}
 
@@ -58,13 +58,10 @@ public:
     // TODO: To implement
     std::unique_ptr<AudioRenderStage> remove_render_stage(GID gid);
 
-    // TODO: To implement
     bool insert_render_stage_infront(GID back, AudioRenderStage * render_stage);
     
-    // TODO: To implement
     bool insert_render_stage_behind(GID front, AudioRenderStage * render_stage);
 
-    // TODO: To implement
     bool insert_render_stage_between(GID front, GID back, AudioRenderStage * render_stage);
 
     // Getters
@@ -75,10 +72,13 @@ public:
 private:
     static AudioRenderStage * from_input_to_output(AudioRenderStage * node, std::unordered_set<GID> & visited);
     bool construct_render_order(AudioRenderStage * node);
+    bool bind_render_stages();
 
     std::vector<GID> m_outputs;
     std::vector<GID> m_inputs;
     std::vector<GID> m_render_order;
+
+    bool m_needs_update = false;
 
     std::unordered_map<GID, std::unique_ptr<AudioRenderStage>> m_render_stages_map;
 };

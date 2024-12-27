@@ -182,17 +182,6 @@ void AudioRenderGraph::render() {
 }
 
 bool AudioRenderGraph::insert_render_stage_behind(GID front, AudioRenderStage * render_stage) {
-    // Make sure front exists
-    if (m_render_stages_map.find(front) == m_render_stages_map.end()) {
-        printf("Did not find render stage %d in graph\n", front);
-        return false;
-    }
-    // Make sure render stage does not exist
-    if (m_render_stages_map.find(render_stage->gid) != m_render_stages_map.end()) {
-        printf("Render stage %d is already in graph\n", render_stage->gid);
-        return false;
-    }
-    
     // If there is multiple outputs
     if (int size = m_render_stages_map[front]->m_connected_output_render_stages.size() < 1) {
         printf("Can't add render stage after the final render stage.");
@@ -204,10 +193,55 @@ bool AudioRenderGraph::insert_render_stage_behind(GID front, AudioRenderStage * 
         return false;
     }
 
-    // Re-connect the render stages
+    GID back = (*find_render_stage(front)->m_connected_output_render_stages.begin())->gid;
 
+    return insert_render_stage_between(front, back, render_stage);
+}
+
+bool AudioRenderGraph::insert_render_stage_infront(GID back, AudioRenderStage * render_stage) {
+    // If there is multiple inputs
+    if (int size = m_render_stages_map[back]->m_connected_stream_render_stages.size() < 1) {
+        printf("Can't add render stage before the first render stage.");
+        return false;
+    }
+
+    if (int size = m_render_stages_map[back]->m_connected_stream_render_stages.size() > 1) {
+        printf("Can't add render stage before multitrack join render stage.");
+        return false;
+    }
+
+    GID front = (*find_render_stage(back)->m_connected_stream_render_stages.begin())->gid;
+
+    return insert_render_stage_between(front, back, render_stage);
+}
+
+bool AudioRenderGraph::insert_render_stage_between(GID front, GID back, AudioRenderStage * render_stage) {
+    // Make sure front exists
+    if (m_render_stages_map.find(front) == m_render_stages_map.end()) {
+        printf("Did not find render stage %d in graph\n", front);
+        return false;
+    }
+    // Make sure back exists
+    if (m_render_stages_map.find(back) == m_render_stages_map.end()) {
+        printf("Did not find render stage %d in graph\n", back);
+        return false;
+    }
+    // Make sure render stage does not exist
+    if (m_render_stages_map.find(render_stage->gid) != m_render_stages_map.end()) {
+        printf("Render stage %d is already in graph\n", render_stage->gid);
+        return false;
+    }
+    
+    // Re-connect the render stages
     auto * front_render_stage = find_render_stage(front);
-    auto * back_render_stage = *front_render_stage->m_connected_output_render_stages.begin();
+    auto * back_render_stage = find_render_stage(back);
+
+    // Make sure back is connected to front
+    if (front_render_stage->m_connected_output_render_stages.find(back_render_stage) ==
+        front_render_stage->m_connected_output_render_stages.end()) {
+        printf("Render stage %d is not connected to render stage %d\n", back, front);
+        return false;
+    }
 
     front_render_stage->disconnect_render_stage(back_render_stage);
 
@@ -227,6 +261,8 @@ bool AudioRenderGraph::insert_render_stage_behind(GID front, AudioRenderStage * 
         throw std::runtime_error("Failed to construct render order.");
     }
 
+    m_needs_update = true;
+
     printf("Render stage order: ");
     for (auto & gid : m_render_order) {
         printf("%d ", gid);
@@ -234,4 +270,12 @@ bool AudioRenderGraph::insert_render_stage_behind(GID front, AudioRenderStage * 
     printf("\n");
 
     return true;
+}
+
+void AudioRenderGraph::update() {
+    // If the render order changed, rebind the render stages
+    if (m_needs_update) {
+        bind_render_stages();
+        m_needs_update = false;
+    }
 }
