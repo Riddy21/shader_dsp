@@ -352,9 +352,9 @@ bool AudioRenderStage::connect_render_stage(AudioRenderStage * next_stage) {
 }
 
 bool AudioRenderStage::disconnect_render_stage(AudioRenderStage * next_stage) {
-    // Check if it's already disconnected
-    if (m_connected_output_render_stages.size() == 0) {
-        printf("Render stage %d is already disconnected\n", this->gid);
+    // Check if it connected
+    if (m_connected_output_render_stages.find(next_stage) == m_connected_output_render_stages.end()) {
+        printf("Render stage %d is not connected to %d\n", this->gid, next_stage->gid);
         return false;
     }
 
@@ -373,8 +373,8 @@ bool AudioRenderStage::disconnect_render_stage(AudioRenderStage * next_stage) {
         return false;
     }
 
-    m_connected_output_render_stages.erase(next_stage);
-    next_stage->m_connected_stream_render_stages.erase(this);
+    m_connected_output_render_stages.extract(next_stage);
+    next_stage->m_connected_stream_render_stages.extract(this);
     return true;
 }
 

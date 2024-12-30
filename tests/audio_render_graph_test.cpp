@@ -243,17 +243,22 @@ TEST_CASE("AudioRenderGraph_modify_graph") {
         position_param->set_value(time_param->get_value());
         play_param->set_value(1.0f);
 
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         graph->insert_render_stage_behind(audio_generator->gid, effect_render_stage);
         std::this_thread::sleep_for(std::chrono::seconds(1));
         graph->insert_render_stage_infront(effect_render_stage->gid, effect_render_stage_2);
-        // TODO: test remove render stage
-        // TODO: test replace render stage
-
-        std::this_thread::sleep_for(std::chrono::seconds(3));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        auto removed = graph->remove_render_stage(effect_render_stage->gid);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        auto replaced = graph->replace_render_stage(effect_render_stage_2->gid, removed.get());
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         audio_renderer.terminate();
+
+        // TODO: Fix termination deletion of render stages;
+        // For now just sleep
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     });
 
     REQUIRE(audio_renderer.initialize(512, 44100, 2));
@@ -269,7 +274,5 @@ TEST_CASE("AudioRenderGraph_modify_graph") {
     t1.detach();
 
 }
-
-// TODO: Add test for disconnecting render stages
 
 

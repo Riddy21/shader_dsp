@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include <memory>
+#include <mutex>
 
 #include "audio_render_stage/audio_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
@@ -55,7 +56,6 @@ public:
     // TODO: To implement
     std::unique_ptr<AudioRenderStage> replace_render_stage(GID gid, AudioRenderStage * render_stage);
 
-    // TODO: To implement
     std::unique_ptr<AudioRenderStage> remove_render_stage(GID gid);
 
     bool insert_render_stage_infront(GID back, AudioRenderStage * render_stage);
@@ -77,6 +77,8 @@ private:
     std::vector<GID> m_outputs;
     std::vector<GID> m_inputs;
     std::vector<GID> m_render_order;
+
+    std::mutex m_graph_mutex;
 
     bool m_needs_update = false;
 
