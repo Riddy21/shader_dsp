@@ -263,8 +263,8 @@ TEST_CASE("AudioRenderGraph_modify_graph") {
 
     REQUIRE(audio_renderer.initialize(512, 44100, 2));
 
-    effect_render_stage->initialize_shader_stage();
-    effect_render_stage_2->initialize_shader_stage();
+    effect_render_stage->initialize();
+    effect_render_stage_2->initialize();
 
     REQUIRE(audio_driver->open());
     REQUIRE(audio_driver->start());

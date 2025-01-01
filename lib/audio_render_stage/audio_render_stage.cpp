@@ -76,7 +76,7 @@ AudioRenderStage::~AudioRenderStage() {
     printf("Deleting render stage %d\n", gid);
 }
 
-bool AudioRenderStage::initialize_shader_stage() {
+bool AudioRenderStage::initialize() {
     // Initialize the shader program
     if (!initialize_shader_program()) {
         return false;

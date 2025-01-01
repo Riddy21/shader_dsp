@@ -34,8 +34,8 @@ void AudioFinalRenderStage::render_render_stage() {
     glUseProgram(0);
 }
 
-bool AudioFinalRenderStage::initialize_shader_stage() {
-    AudioRenderStage::initialize_shader_stage();
+bool AudioFinalRenderStage::initialize() {
+    AudioRenderStage::initialize();
 
     // Generate the pixel buffer object
     glGenBuffers(1, &m_PBO);

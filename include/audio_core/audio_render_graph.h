@@ -40,7 +40,6 @@ public:
     using GID = unsigned int;
 
     AudioRenderGraph(AudioRenderStage * output);
-    // TODO: Consider making the render graph input driven graph so it checks the render stages
     AudioRenderGraph(std::vector<AudioRenderStage *> inputs);
 
     ~AudioRenderGraph();
@@ -53,7 +52,6 @@ public:
 
     AudioRenderStage * find_render_stage(GID gid) {return m_render_stages_map[gid].get();}
 
-    // TODO: To implement
     std::unique_ptr<AudioRenderStage> replace_render_stage(GID gid, AudioRenderStage * render_stage);
 
     std::unique_ptr<AudioRenderStage> remove_render_stage(GID gid);

@@ -27,12 +27,12 @@ public:
     AudioRenderStage * get_input_render_stage() {return m_piano.get_first_render_stage();}
     AudioRenderStage * get_output_render_stage() {return m_piano.get_last_render_stage();}
 
+    static void key_down_callback(unsigned char key, int x, int y);
+    static void key_up_callback(unsigned char key, int x, int y);
+
 private:
     Keyboard();
     ~Keyboard();
-
-    static void key_down_callback(unsigned char key, int x, int y);
-    static void key_up_callback(unsigned char key, int x, int y);
 
     static Keyboard * instance;
 

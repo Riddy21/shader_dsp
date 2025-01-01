@@ -147,7 +147,7 @@ bool AudioRenderGraph::initialize() {
 
     // Initialize the render stages
     for (auto & [gid, render_stage] : m_render_stages_map) {
-        if (!render_stage->initialize_shader_stage()) {
+        if (!render_stage->initialize()) {
             std::cerr << "Error: Failed to initialize render stage " << gid << std::endl;
             return false;
         }

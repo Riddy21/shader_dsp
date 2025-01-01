@@ -45,7 +45,7 @@ private:
      */
     void render_render_stage() override;
 
-    bool initialize_shader_stage() override;
+    bool initialize() override;
 
     GLuint m_PBO;
     float * m_output_buffer_data;

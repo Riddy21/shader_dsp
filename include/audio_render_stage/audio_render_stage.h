@@ -11,13 +11,6 @@
 
 #include "audio_parameter/audio_parameter.h"
 
-// FIXME: Words to search up
-// - Ramifying
-// - Doughty
-// - Ravening
-// - Imbibed
-// - Immemorial
-
 // TODO: Clean up dependencies
 class AudioRenderer;
 class AudioRenderGraph;
@@ -51,8 +44,7 @@ public:
      * 
      * @return True if initialization is successful, false otherwise.
      */
-    // FIXME: Rename and re-organize initialization structure
-    virtual bool initialize_shader_stage();
+    virtual bool initialize();
 
     // Parameter Manipulation
     /** 

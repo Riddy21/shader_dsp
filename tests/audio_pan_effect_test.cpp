@@ -15,10 +15,10 @@ TEST_CASE("AudioGainEffectRenderStage") {
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
 
-    audio_generator->find_parameter("output_audio_texture")->link(effect_render_stage->find_parameter("stream_audio_texture"));
-    effect_render_stage->find_parameter("output_audio_texture")->link(final_render_stage->find_parameter("stream_audio_texture"));
+    audio_generator->connect_render_stage(effect_render_stage);
+    effect_render_stage->connect_render_stage(final_render_stage);
 
-    auto audio_render_graph = new AudioRenderGraph({audio_generator});
+    auto audio_render_graph = new AudioRenderGraph(final_render_stage);
 
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
 

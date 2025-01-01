@@ -3,6 +3,8 @@
 
 #include "audio_core/audio_renderer.h"
 #include "audio_output/audio_player_output.h"
+#include "audio_render_stage/audio_final_render_stage.h"
+#include "audio_core/audio_render_graph.h"
 #include "keyboard/keyboard.h"
 
 TEST_CASE("KeybaordTest") {
@@ -10,29 +12,26 @@ TEST_CASE("KeybaordTest") {
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
 
     Keyboard & keyboard = Keyboard::get_instance();
-    auto key = new PianoKey('c');
-    key->set_gain(.5f);
-    key->set_tone(161.63f);
-    auto key2 = new PianoKey('d');
-    key2->set_gain(.5f);
-    key2->set_tone(163.67f);
 
-    keyboard.add_key(key);
-    keyboard.add_key(key2);
+    auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
+
+    keyboard.get_output_render_stage()->connect_render_stage(final_render_stage);
 
     std::thread t1([&audio_renderer, &keyboard](){
-        Key * key = keyboard.get_key('c');
-        Key * key2 = keyboard.get_key('d');
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        key->key_down();
+        Keyboard::key_down_callback('a', 0, 0);
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        key2->key_down();
+        Keyboard::key_down_callback('s', 0, 0);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        key->key_up();
-        key2->key_up();
+        Keyboard::key_up_callback('a', 0, 0);
+        Keyboard::key_up_callback('s', 0, 0);
         std::this_thread::sleep_for(std::chrono::seconds(2));
         audio_renderer.terminate();
     });
+
+    auto audio_render_graph = new AudioRenderGraph(final_render_stage);
+
+    audio_renderer.add_render_graph(audio_render_graph);
 
     audio_renderer.add_render_output(audio_driver);
 

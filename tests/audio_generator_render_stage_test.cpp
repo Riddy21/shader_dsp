@@ -13,9 +13,9 @@ TEST_CASE("AudioGeneratorRenderStage") {
     auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto audio_final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
-    audio_generator->find_parameter("output_audio_texture")->link(audio_final_render_stage->find_parameter("stream_audio_texture"));
+    audio_generator->connect_render_stage(audio_final_render_stage);
 
-    auto audio_render_graph = new AudioRenderGraph({audio_generator});
+    auto audio_render_graph = new AudioRenderGraph({audio_final_render_stage});
 
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
 

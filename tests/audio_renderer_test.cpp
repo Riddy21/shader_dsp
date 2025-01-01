@@ -71,7 +71,7 @@ TEST_CASE("AudioRenderer") {
     output_audio_texture4->link(final_render_stage->find_parameter("stream_audio_texture"));
 
     // FIXME: Fix this example`
-    auto audio_render_graph = new AudioRenderGraph({render_stage2});
+    auto audio_render_graph = new AudioRenderGraph(final_render_stage);
 
     audio_renderer.add_render_graph(audio_render_graph);
 
