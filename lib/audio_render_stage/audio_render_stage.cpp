@@ -6,6 +6,7 @@
 #include "audio_render_stage/audio_render_stage.h"
 #include "audio_parameter/audio_uniform_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
+#include "audio_core/audio_shader_program.h"
 
 const std::vector<std::string> AudioRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
@@ -65,13 +66,13 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
     if (!this->add_parameter(samp_rate)) {
         std::cerr << "Failed to add sample_rate" << std::endl;
     }
+
+    m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
 }
 
 AudioRenderStage::~AudioRenderStage() {
     // Delete the framebuffer
     glDeleteFramebuffers(1, &m_framebuffer);
-    // Delete shader program
-    glDeleteProgram(m_shader_program);
 
     printf("Deleting render stage %d\n", gid);
 }
@@ -98,60 +99,10 @@ bool AudioRenderStage::initialize() {
 }
 
 bool AudioRenderStage::initialize_shader_program() {
-    const GLchar * vertex_shader_source = m_vertex_shader_source.c_str();
-    const GLchar * fragment_shader_source = m_fragment_shader_source.c_str();
-
-    // Create the vertex and fragment shaders
-    GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-
-    // Compile the vertex shader
-    glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
-    glCompileShader(vertex_shader);
-
-    // Check for vertex shader compilation errors
-    GLint vertex_success;
-    glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &vertex_success);
-    if (!vertex_success) {
-        GLchar info_log[512];
-        glGetShaderInfoLog(vertex_shader, 512, NULL, info_log);
-        std::cerr << "Error compiling vertex shader: " << info_log << std::endl;
-        return 0;
+    if (!m_shader_program->initialize()) {
+        std::cerr << "Error: Failed to initialize shader program." << std::endl;
+        return false;
     }
-    // Compile the fragment shader
-    glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
-    glCompileShader(fragment_shader);
-
-    // Check for fragment shader compilation errors
-    GLint fragment_success;
-    glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &fragment_success);
-    if (!fragment_success) {
-        GLchar info_log[512];
-        glGetShaderInfoLog(fragment_shader, 512, NULL, info_log);
-        std::cerr << "Error compiling fragment shader: " << info_log << std::endl;
-        return 0;
-    }
-    // Create the shader program
-    GLuint shader_program = glCreateProgram();
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    glLinkProgram(shader_program);
-
-    // Check for shader program linking errors
-    GLint program_success;
-    glGetProgramiv(shader_program, GL_LINK_STATUS, &program_success);
-    if (!program_success) {
-        GLchar info_log[512];
-        glGetProgramInfoLog(shader_program, 512, NULL, info_log);
-        std::cerr << "Error linking shader program: " << info_log << std::endl;
-        return 0;
-    }
-
-    // Delete the shaders
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
-    m_shader_program = shader_program;
 
     return true;
 }
@@ -201,7 +152,7 @@ bool AudioRenderStage::bind_shader_stage() {
 
 void AudioRenderStage::render_render_stage() {
     // Use the shader program of the stage
-    glUseProgram(m_shader_program);
+    glUseProgram(m_shader_program->get_program());
 
     // Bind the framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);

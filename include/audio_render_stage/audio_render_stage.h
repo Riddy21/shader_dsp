@@ -10,6 +10,7 @@
 #include <GL/glew.h>
 
 #include "audio_parameter/audio_parameter.h"
+#include "audio_core/audio_shader_program.h"
 
 // TODO: Clean up dependencies
 class AudioRenderer;
@@ -84,7 +85,7 @@ public:
     }
 
     GLuint get_shader_program() const {
-        return m_shader_program;
+        return m_shader_program->get_program();
     }
 
     GLuint get_framebuffer() const {
@@ -139,7 +140,7 @@ protected:
     virtual bool release_stream_interface(AudioRenderStage * prev_stage) {return true;};
 
     // Shader source
-    GLuint m_shader_program = 0; // Keeps a copy of the shader program associated with the stage
+    std::unique_ptr<AudioShaderProgram> m_shader_program;
 
     // Framebuffer for the stage if it involves outputs
     GLuint m_framebuffer;

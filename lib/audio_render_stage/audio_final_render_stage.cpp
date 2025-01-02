@@ -12,7 +12,7 @@ void AudioFinalRenderStage::render_render_stage() {
     AudioRenderStage::render_render_stage();
 
     // Bind shader program
-    glUseProgram(m_shader_program);
+    glUseProgram(m_shader_program->get_program());
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
 
     glReadBuffer(GL_COLOR_ATTACHMENT0 + m_color_attachment_count);
