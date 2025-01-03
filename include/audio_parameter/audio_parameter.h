@@ -9,8 +9,6 @@
 #include <vector>
 
 #include "audio_parameter/audio_param_data.h"
-#include "audio_core/audio_renderer.h"
-#include "audio_render_stage/audio_render_stage.h"
 #include "audio_core/audio_shader_program.h"
 
 // TODO: Look into making required arguments const for all classes
@@ -34,18 +32,6 @@ public:
 
     ~AudioParameter() {
         printf("Deleting parameter %s\n", name.c_str());
-    }
-
-    // Linking to other parameters
-    // TODO: Make these private
-    virtual bool link(AudioParameter * parameter) {
-        m_linked_parameter = parameter;
-        return true;
-    }
-
-    virtual bool unlink() {
-        m_linked_parameter = nullptr;
-        return true;
     }
 
     // Setters
@@ -87,6 +73,17 @@ protected:
         : name(name),    
           connection_type(connection_type)
     {};
+
+    // Linking to other parameters
+    virtual bool link(AudioParameter * parameter) {
+        m_linked_parameter = parameter;
+        return true;
+    }
+
+    virtual bool unlink() {
+        m_linked_parameter = nullptr;
+        return true;
+    }
 
     virtual bool initialize_parameter(GLuint frame_buffer=0, AudioShaderProgram * shader_program=nullptr) = 0;
 

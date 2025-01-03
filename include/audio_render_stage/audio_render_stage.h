@@ -18,9 +18,8 @@ class AudioParameter;
 
 class AudioRenderStage {
 public:
-    // TODO: Re-manage permission settings
-
     friend class AudioRenderGraph;
+
     // Constructor
     static const std::vector<std::string> default_frag_shader_imports;
     static const std::vector<std::string> default_vert_shader_imports;

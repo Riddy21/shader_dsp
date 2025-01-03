@@ -13,12 +13,6 @@
 #include "audio_output/audio_output.h"
 #include "audio_parameter/audio_parameter.h"
 
-class AudioRenderStage;
-class AudioMultitrackJoinRenderStage;
-class AudioFinalRenderStage;
-class AudioRenderGraph;
-class AudioParameter;
-
 /**
  * @class AudioRenderer
  * @brief The AudioRenderer class is responsible for rendering audio data.
