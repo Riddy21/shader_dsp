@@ -11,6 +11,7 @@
 #include "audio_parameter/audio_param_data.h"
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_shader_program.h"
 
 // TODO: Look into making required arguments const for all classes
 
@@ -71,10 +72,6 @@ public:
         return m_data->get_data();
     }
 
-    AudioRenderStage * get_linked_render_stage() const {
-        return m_render_stage_linked;
-    }
-
     AudioParameter * get_linked_parameter() const {
         return m_linked_parameter;
     }
@@ -91,7 +88,7 @@ protected:
           connection_type(connection_type)
     {};
 
-    virtual bool initialize_parameter() = 0;
+    virtual bool initialize_parameter(GLuint frame_buffer=0, AudioShaderProgram * shader_program=nullptr) = 0;
 
     virtual bool bind_parameter() = 0;
 
@@ -99,13 +96,10 @@ protected:
 
     virtual std::unique_ptr<ParamData> create_param_data() = 0;
 
-    void link_render_stage(AudioRenderStage * render_stage) {
-        m_render_stage_linked = render_stage;
-    }
-
     std::unique_ptr<ParamData> m_data = nullptr; // Using unique pointer to cast to derived class
-    AudioRenderStage * m_render_stage_linked = nullptr;
     AudioParameter * m_linked_parameter = nullptr;
+    GLuint m_framebuffer_linked = 0;
+    AudioShaderProgram * m_shader_program_linked = nullptr;
 };
 
 

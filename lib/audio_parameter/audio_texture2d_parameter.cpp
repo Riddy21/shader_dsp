@@ -10,8 +10,15 @@
 
 const float AudioTexture2DParameter::FLAT_COLOR[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-bool AudioTexture2DParameter::initialize_parameter() {
-    if (m_render_stage_linked == nullptr) {
+bool AudioTexture2DParameter::initialize_parameter(GLuint frame_buffer, AudioShaderProgram * shader_program) {
+    m_framebuffer_linked = frame_buffer;
+    m_shader_program_linked = shader_program;
+
+    if (m_framebuffer_linked == 0) {
+        printf("Error: render stage linked is nullptr in parameter %s\n, cannot be a global parameter.", name.c_str());
+        return false;
+    }
+    if (m_shader_program_linked == nullptr) {
         printf("Error: render stage linked is nullptr in parameter %s\n, cannot be a global parameter.", name.c_str());
         return false;
     }
@@ -54,12 +61,12 @@ bool AudioTexture2DParameter::initialize_parameter() {
     if (connection_type == ConnectionType::OUTPUT) {
         // do regex search for output texture
         auto regex = std::regex("out .* " + std::string(name) + ";");
-        if (!std::regex_search(m_render_stage_linked->m_fragment_shader_source, regex)) {
+        if (!std::regex_search(m_shader_program_linked->get_fragment_shader_source(), regex)) {
             printf("Error: Could not find texture in shader program in parameter %s\n", name.c_str());
             return false;
         }
     } else {
-        auto location = glGetUniformLocation(m_render_stage_linked->get_shader_program(), name.c_str());
+        auto location = glGetUniformLocation(m_shader_program_linked->get_program(), name.c_str());
         if (location == -1) {
             printf("Error: Could not find texture in shader program in parameter %s\n", name);
             return false;
@@ -77,7 +84,7 @@ void AudioTexture2DParameter::render_parameter() {
     }
     glActiveTexture(GL_TEXTURE0 + m_active_texture);
     glBindTexture(GL_TEXTURE_2D, m_texture);
-    glUniform1i(glGetUniformLocation(m_render_stage_linked->get_shader_program(), name.c_str()), m_active_texture);
+    glUniform1i(glGetUniformLocation(m_shader_program_linked->get_program(), name.c_str()), m_active_texture);
 
     if (connection_type == ConnectionType::INPUT) {
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_parameter_width, m_parameter_height, m_format, m_datatype, m_data->get_data());
@@ -116,7 +123,7 @@ bool AudioTexture2DParameter::bind_parameter() {
     }
 
     // bind the frame buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, m_render_stage_linked->get_framebuffer());
+    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);
 
     glBindTexture(GL_TEXTURE_2D, linked_param->get_texture());
 

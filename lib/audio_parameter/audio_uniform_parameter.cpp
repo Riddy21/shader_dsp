@@ -16,7 +16,7 @@ void AudioUniformParameter::render_parameter() {
     // Check if the parameter is an input or initialization parameter
     if (connection_type == ConnectionType::INPUT || (connection_type == ConnectionType::INITIALIZATION && !m_initialized)) {
         // Get the location of the uniform
-        GLuint location = glGetUniformLocation(m_render_stage_linked->get_shader_program(), name.c_str());
+        GLuint location = glGetUniformLocation(m_shader_program_linked->get_program(), name.c_str());
         // Set the uniform
         set_uniform(location);
         // Set the initialized flag

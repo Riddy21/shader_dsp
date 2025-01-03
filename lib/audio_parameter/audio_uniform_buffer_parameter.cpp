@@ -17,7 +17,9 @@ AudioUniformBufferParameter::AudioUniformBufferParameter(const std::string name,
     }
 }
 
-bool AudioUniformBufferParameter::initialize_parameter() {
+bool AudioUniformBufferParameter::initialize_parameter(GLuint frame_buffer, AudioShaderProgram * shader_program) {
+    m_framebuffer_linked = frame_buffer;
+    m_shader_program_linked = shader_program;
 
     // Generate a buffer
     glGenBuffers(1, &m_ubo);
@@ -52,8 +54,9 @@ bool AudioUniformBufferParameter::initialize_parameter() {
     }
 
     // Look for the buffer in the shader program
-    if (m_render_stage_linked != nullptr) {
-        auto location = glGetUniformBlockIndex(m_render_stage_linked->get_shader_program(), name.c_str());
+    // NOTE: There is no way of checking if it's a global parameter, that should be ok
+    if (m_shader_program_linked != nullptr) {
+        auto location = glGetUniformBlockIndex(m_shader_program_linked->get_program(), name.c_str());
         if (location == GL_INVALID_INDEX) {
             printf("Error: Could not find buffer in shader program in parameter %s\n", name.c_str());
             return false;
@@ -75,23 +78,6 @@ void AudioUniformBufferParameter::render_parameter() {
 }
 
 bool AudioUniformBufferParameter::bind_parameter() {
-    glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
-
-    GLuint block_index = glGetUniformBlockIndex(m_render_stage_linked->get_shader_program(), name.c_str());
-
-    if (block_index == GL_INVALID_INDEX) {
-        printf("Error: Uniform block index not found in parameter %s\n", name.c_str());
-        return false;
-    }
-
-    glUniformBlockBinding(m_render_stage_linked->get_shader_program(), block_index, m_binding_point);
-
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-    GLenum status = glGetError();
-    if (status != GL_NO_ERROR) {
-        printf("Error: OpenGL error %d in binding parameter %s\n", status, name.c_str());
-        return false;
-    }
+    // Nothing to do for output or passthrough parameters
     return true;
 }

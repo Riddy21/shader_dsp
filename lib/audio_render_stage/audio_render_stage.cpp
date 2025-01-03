@@ -125,8 +125,11 @@ bool AudioRenderStage::initialize_stage_parameters() {
         std::cerr << "Error: No parameters to compile." << std::endl;
         return false;
     }
+
+
     for (auto &[name, param] : m_parameters) {
-        if (!param->initialize_parameter()) {
+        // Link parameter to the stage
+        if (!param->initialize_parameter(m_framebuffer, m_shader_program.get())) {
             printf("Error: Failed to initialize parameter %s\n", param->name.c_str());
             return false;
         }
@@ -171,9 +174,6 @@ void AudioRenderStage::render_render_stage() {
 }
 
 bool AudioRenderStage::add_parameter(AudioParameter * parameter) {
-    // Link parameter to the stage
-    parameter->link_render_stage(this);
-
     // Put in the parameter list
     m_parameters[parameter->name] = std::unique_ptr<AudioParameter>(parameter);
 

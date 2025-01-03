@@ -13,7 +13,6 @@
 #include "audio_core/audio_shader_program.h"
 
 // TODO: Clean up dependencies
-class AudioRenderer;
 class AudioRenderGraph;
 class AudioParameter;
 
@@ -21,7 +20,6 @@ class AudioRenderStage {
 public:
     // TODO: Re-manage permission settings
 
-    friend class AudioRenderer;
     friend class AudioRenderGraph;
     // Constructor
     static const std::vector<std::string> default_frag_shader_imports;
@@ -117,9 +115,6 @@ protected:
     GLuint m_active_texture_count = 0;
     GLuint m_color_attachment_count = 0;
     
-    // Link to the renderer
-    const AudioRenderer * m_renderer_link;
-
     /**
      * @brief Process linked parameters together
      * 
