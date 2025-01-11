@@ -88,6 +88,7 @@ for target in COMMAND_LINE_TARGETS:
             source=Glob('docs/Doxyfile'),
             action='doxygen $SOURCE'
         )
+        env.Clean(os.path.join(BUILD_DIR, 'docs', 'html', 'index.html'), Glob(os.path.join(BUILD_DIR, 'docs', 'html', '*'))+Glob(os.path.join(BUILD_DIR, 'docs', 'latex', '*')))
 
 #Specify a single sconsign file for the entire build process
 SConsignFile(os.path.join(BUILD_DIR, 'sconsign.dblite'))
