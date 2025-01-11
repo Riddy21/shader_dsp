@@ -12,6 +12,7 @@
 #include "audio_render_stage/audio_render_stage.h"
 #include "audio_output/audio_output.h"
 #include "audio_parameter/audio_parameter.h"
+#include "audio_core/audio_render_graph.h"
 
 /**
  * @class AudioRenderer
