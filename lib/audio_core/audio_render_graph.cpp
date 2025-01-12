@@ -158,6 +158,7 @@ bool AudioRenderGraph::initialize() {
         return false;
     }
 
+    m_initialized = true;
 
     return true;
 }
@@ -166,7 +167,7 @@ bool AudioRenderGraph::bind_render_stages() {
     std::lock_guard<std::mutex> guard(m_graph_mutex);
     // bind the render stages
     for (auto & [gid, render_stage] : m_render_stages_map) {
-        if (!render_stage->bind_shader_stage()) {
+        if (!render_stage->bind()) {
             std::cerr << "Error: Failed to bind render stage " << gid << std::endl;
             return false;
         }
@@ -179,7 +180,7 @@ void AudioRenderGraph::render() {
     std::lock_guard<std::mutex> guard(m_graph_mutex);
     // Render the render stages in order
     for (auto & gid : m_render_order) {
-        m_render_stages_map[gid]->render_render_stage();
+        m_render_stages_map[gid]->render();
     }
 }
 
@@ -275,7 +276,7 @@ bool AudioRenderGraph::insert_render_stage_between(GID front, GID back, AudioRen
     return true;
 }
 
-void AudioRenderGraph::update() {
+void AudioRenderGraph::bind() {
     // If the render order changed, rebind the render stages
     if (m_needs_update) {
         bind_render_stages();

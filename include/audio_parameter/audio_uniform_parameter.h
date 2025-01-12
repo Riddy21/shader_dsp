@@ -15,15 +15,15 @@ protected:
     ~AudioUniformParameter() = default;
 
 private:
-    bool initialize_parameter(GLuint frame_buffer=0, AudioShaderProgram * shader_program=nullptr) override {
+    bool initialize(GLuint frame_buffer=0, AudioShaderProgram * shader_program=nullptr) override {
         m_framebuffer_linked = frame_buffer;
         m_shader_program_linked = shader_program;
         return true;
     }
 
-    void render_parameter() override;
+    void render() override;
 
-    bool bind_parameter() override {
+    bool bind() override {
         return true;
     }
 

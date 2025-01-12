@@ -43,7 +43,7 @@ private:
      * 
      * This function is responsible for rendering the final stage of the audio renderer.
      */
-    void render_render_stage() override;
+    void render() override;
 
     bool initialize() override;
 

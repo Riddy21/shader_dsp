@@ -15,7 +15,6 @@
 TEST_CASE("AudioRenderGraph_test") {
     // Generate a render stage graph
 
-    // TODO: Add name to each render stage
     auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
 
@@ -96,7 +95,6 @@ TEST_CASE("AudioRenderGraph_test") {
 TEST_CASE("AudioRenderGraph_inputs") {
     // Generate a render stage graph
 
-    // TODO: Add name to each render stage
     auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
 
