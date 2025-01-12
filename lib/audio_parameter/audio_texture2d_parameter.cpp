@@ -10,7 +10,7 @@
 
 const float AudioTexture2DParameter::FLAT_COLOR[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-bool AudioTexture2DParameter::initialize_parameter(GLuint frame_buffer, AudioShaderProgram * shader_program) {
+bool AudioTexture2DParameter::initialize(GLuint frame_buffer, AudioShaderProgram * shader_program) {
     m_framebuffer_linked = frame_buffer;
     m_shader_program_linked = shader_program;
 
@@ -78,7 +78,7 @@ bool AudioTexture2DParameter::initialize_parameter(GLuint frame_buffer, AudioSha
     return true;
 }
 
-void AudioTexture2DParameter::render_parameter() {
+void AudioTexture2DParameter::render() {
     if (connection_type == ConnectionType::OUTPUT) {
         return; // Do not need to render if output
     }
@@ -91,7 +91,7 @@ void AudioTexture2DParameter::render_parameter() {
     }
 }
 
-bool AudioTexture2DParameter::bind_parameter() {
+bool AudioTexture2DParameter::bind() {
     // Pass if parameter is not an output or passthrough
     if (connection_type != ConnectionType::OUTPUT) {
         return true;

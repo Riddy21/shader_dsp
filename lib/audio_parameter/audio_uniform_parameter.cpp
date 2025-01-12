@@ -12,7 +12,7 @@ AudioUniformParameter::AudioUniformParameter(const std::string name,
     }
 }
 
-void AudioUniformParameter::render_parameter() {
+void AudioUniformParameter::render() {
     // Check if the parameter is an input or initialization parameter
     if (connection_type == ConnectionType::INPUT || (connection_type == ConnectionType::INITIALIZATION && !m_initialized)) {
         // Get the location of the uniform

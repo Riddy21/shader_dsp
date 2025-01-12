@@ -29,7 +29,6 @@ TEST_CASE("AudioGainEffectRenderStage") {
 
     auto balance_param = effect_render_stage->find_parameter("balance");
 
-    // FIXME: Fix this example
     audio_renderer.add_render_graph(audio_render_graph);
     audio_renderer.add_render_output(audio_driver);
 

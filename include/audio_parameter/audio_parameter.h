@@ -30,6 +30,17 @@ public:
     const std::string name;
     const ConnectionType connection_type;
 
+    // Linking to other parameters
+    virtual bool link(AudioParameter * parameter) {
+        m_linked_parameter = parameter;
+        return true;
+    }
+
+    virtual bool unlink() {
+        m_linked_parameter = nullptr;
+        return true;
+    }
+
     ~AudioParameter() {
         printf("Deleting parameter %s\n", name.c_str());
     }
@@ -74,22 +85,12 @@ protected:
           connection_type(connection_type)
     {};
 
-    // Linking to other parameters
-    virtual bool link(AudioParameter * parameter) {
-        m_linked_parameter = parameter;
-        return true;
-    }
+    // Standard functions for parameter
+    virtual bool initialize(GLuint frame_buffer=0, AudioShaderProgram * shader_program=nullptr) = 0;
 
-    virtual bool unlink() {
-        m_linked_parameter = nullptr;
-        return true;
-    }
+    virtual bool bind() = 0;
 
-    virtual bool initialize_parameter(GLuint frame_buffer=0, AudioShaderProgram * shader_program=nullptr) = 0;
-
-    virtual bool bind_parameter() = 0;
-
-    virtual void render_parameter() = 0;
+    virtual void render() = 0;
 
     virtual std::unique_ptr<ParamData> create_param_data() = 0;
 
@@ -98,6 +99,5 @@ protected:
     GLuint m_framebuffer_linked = 0;
     AudioShaderProgram * m_shader_program_linked = nullptr;
 };
-
 
 #endif // AUDIO_PARAMETER_H

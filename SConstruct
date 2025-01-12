@@ -80,5 +80,15 @@ for target in COMMAND_LINE_TARGETS:
             playground_objects = create_objects(env, [src] + LIB_SOURCES, BUILD_DIR)
             env.Program(target=os.path.join(BUILD_DIR, 'playground', playground_name), source=playground_objects)
 
+# Build docs using doxygen
+for target in COMMAND_LINE_TARGETS:
+    if 'docs' in target:
+        env.Command(
+            target=os.path.join(BUILD_DIR, 'docs', 'html', 'index.html'),
+            source=Glob('docs/Doxyfile'),
+            action='doxygen $SOURCE'
+        )
+        env.Clean(os.path.join(BUILD_DIR, 'docs', 'html', 'index.html'), Glob(os.path.join(BUILD_DIR, 'docs', 'html', '*'))+Glob(os.path.join(BUILD_DIR, 'docs', 'latex', '*')))
+
 #Specify a single sconsign file for the entire build process
 SConsignFile(os.path.join(BUILD_DIR, 'sconsign.dblite'))

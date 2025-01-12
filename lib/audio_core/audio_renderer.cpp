@@ -11,8 +11,6 @@
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_graph.h"
-#include "audio_render_stage/audio_multitrack_join_render_stage.h" // FIXME: Delete this after
-#include "audio_render_stage/audio_final_render_stage.h" // FIXME: Delete this after
 
 AudioRenderer * AudioRenderer::instance = nullptr;
 
@@ -22,10 +20,6 @@ AudioRenderer::AudioRenderer() {
     global_time->set_value(0);
     add_global_parameter(global_time);
 }
-
-// TODO: Make flow to build a render stage tree and then initialize it in order
-
-// TODO: Add insert render stage and swap render stage function
 
 bool AudioRenderer::add_render_output(AudioOutput * output_link)
 {
@@ -236,7 +230,7 @@ void AudioRenderer::calculate_frame_rate()
 
 void AudioRenderer::render()
 {
-    m_render_graph->update();
+    m_render_graph->bind();
 
     // Set the time for the frame
     // TODO: Encapsulate in a function once we have more parameters
@@ -247,7 +241,7 @@ void AudioRenderer::render()
 
     // render the global parameters
     for (auto& param : m_global_parameters) {
-        param->render_parameter();
+        param->render();
     }
 
     // Render the render graph
@@ -304,7 +298,7 @@ void AudioRenderer::push_to_output_buffers(const float * data)
 bool AudioRenderer::initialize_global_parameters()
 {
     for (auto& param : m_global_parameters) {
-        if (!param->initialize_parameter()) {
+        if (!param->initialize()) {
             std::cerr << "Failed to initialize global parameters" << std::endl;
             return false;
         }

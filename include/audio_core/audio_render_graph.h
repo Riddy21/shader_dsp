@@ -37,6 +37,7 @@
 
 class AudioRenderGraph {
 public:
+    friend class AudioRenderer;
     using GID = unsigned int;
 
     AudioRenderGraph(AudioRenderStage * output);
@@ -44,12 +45,7 @@ public:
 
     ~AudioRenderGraph();
 
-    bool initialize();
-
-    void render();
-
-    void update();
-
+    // Render Stage Manipulation
     AudioRenderStage * find_render_stage(GID gid) {return m_render_stages_map[gid].get();}
 
     std::unique_ptr<AudioRenderStage> replace_render_stage(GID gid, AudioRenderStage * render_stage);
@@ -68,6 +64,14 @@ public:
     }
 
 private:
+    bool initialize();
+
+    void render();
+
+    void bind();
+
+    bool m_initialized = false;
+
     static AudioRenderStage * from_input_to_output(AudioRenderStage * node, std::unordered_set<GID> & visited);
     bool construct_render_order(AudioRenderStage * node);
     bool bind_render_stages();
