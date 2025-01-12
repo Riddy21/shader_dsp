@@ -10,12 +10,12 @@ PianoKey::PianoKey(const unsigned char key) : Key(key) {
 
     AudioGeneratorRenderStage * audio_generator;
 
-    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sawtooth_generator_render_stage.frag");
-    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/triangle_generator_render_stage.frag");
-    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/square_generator_render_stage.frag");
-    audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sine_generator_render_stage.glsl");
-    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/static_noise_render_stage.frag");
-    //audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sawtooth_generator_render_stage.glsl");
+    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/triangle_generator_render_stage.glsl");
+    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/square_generator_render_stage.glsl");
+    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/sine_generator_render_stage.glsl");
+    //audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/static_generator_render_stage.glsl");
+    audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
 
     auto gid = audio_generator->gid;
 
