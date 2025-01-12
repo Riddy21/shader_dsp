@@ -17,7 +17,7 @@ AudioUniformBufferParameter::AudioUniformBufferParameter(const std::string name,
     }
 }
 
-bool AudioUniformBufferParameter::initialize_parameter(GLuint frame_buffer, AudioShaderProgram * shader_program) {
+bool AudioUniformBufferParameter::initialize(GLuint frame_buffer, AudioShaderProgram * shader_program) {
     m_framebuffer_linked = frame_buffer;
     m_shader_program_linked = shader_program;
 
@@ -68,7 +68,7 @@ bool AudioUniformBufferParameter::initialize_parameter(GLuint frame_buffer, Audi
     return true;
 }
 
-void AudioUniformBufferParameter::render_parameter() {
+void AudioUniformBufferParameter::render() {
     if (connection_type == ConnectionType::INPUT) {
         glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
         glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(int), m_data->get_data());
@@ -77,7 +77,7 @@ void AudioUniformBufferParameter::render_parameter() {
 
 }
 
-bool AudioUniformBufferParameter::bind_parameter() {
+bool AudioUniformBufferParameter::bind() {
     // Nothing to do for output or passthrough parameters
     return true;
 }

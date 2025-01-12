@@ -12,6 +12,7 @@
 #include "audio_render_stage/audio_render_stage.h"
 #include "audio_output/audio_output.h"
 #include "audio_parameter/audio_parameter.h"
+#include "audio_core/audio_render_graph.h"
 
 /**
  * @class AudioRenderer
@@ -48,15 +49,6 @@ public:
      * @return True if initialization is successful, false otherwise.
      */
     bool initialize(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels);
-
-    /**
-     * @brief Checks if the audio renderer is initialized.
-     * 
-     * @return True if the audio renderer is initialized, false otherwise.
-     */
-    bool is_initialized() {
-        return m_initialized;
-    }
 
     /**
      * @brief Starts the main loop of the audio renderer.
@@ -118,6 +110,16 @@ public:
     }
 
 // -------------Getters----------------
+
+    /**
+     * @brief Checks if the audio renderer is initialized.
+     * 
+     * @return True if the audio renderer is initialized, false otherwise.
+     */
+    bool is_initialized() {
+        return m_initialized;
+    }
+
     /**
      * @brief Returns the render graph of the audio renderer.
      * 

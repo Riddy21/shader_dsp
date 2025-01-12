@@ -129,7 +129,7 @@ bool AudioRenderStage::initialize_stage_parameters() {
 
     for (auto &[name, param] : m_parameters) {
         // Link parameter to the stage
-        if (!param->initialize_parameter(m_framebuffer, m_shader_program.get())) {
+        if (!param->initialize(m_framebuffer, m_shader_program.get())) {
             printf("Error: Failed to initialize parameter %s\n", param->name.c_str());
             return false;
         }
@@ -137,7 +137,7 @@ bool AudioRenderStage::initialize_stage_parameters() {
     return true;
 }
 
-bool AudioRenderStage::bind_shader_stage() {
+bool AudioRenderStage::bind() {
     // Make sure is initialized
     if (!m_initialized) {
         std::cerr << "Error: Render stage not initialized." << std::endl;
@@ -145,7 +145,7 @@ bool AudioRenderStage::bind_shader_stage() {
     }
     // bind the parameters to the next render stage
     for (auto & [name, param] : m_parameters) {
-        if (!param->bind_parameter()) {
+        if (!param->bind()) {
             printf("Error: Failed to process linked parameters for %s\n", param->name.c_str());
             return false;
         }
@@ -153,7 +153,7 @@ bool AudioRenderStage::bind_shader_stage() {
     return true;
 }
 
-void AudioRenderStage::render_render_stage() {
+void AudioRenderStage::render() {
     // Use the shader program of the stage
     glUseProgram(m_shader_program->get_program());
 
@@ -163,7 +163,7 @@ void AudioRenderStage::render_render_stage() {
 
     // Render parameters
     for (auto & [name, param] : m_parameters) {
-        param->render_parameter();
+        param->render();
     }
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -259,7 +259,6 @@ const std::vector<AudioParameter *> AudioRenderStage::get_stream_interface()
 }
 
 bool AudioRenderStage::connect_render_stage(AudioRenderStage * next_stage) {
-    // TODO: Consider changing these from "get output interface" to "connect_ouptut_interface"
     auto output_parameters = get_output_interface();
     auto stream_parameters = next_stage->get_stream_interface();
 

@@ -8,8 +8,8 @@ AudioFinalRenderStage::AudioFinalRenderStage(const unsigned int frames_per_buffe
         : AudioRenderStage(frames_per_buffer, sample_rate, num_channels) {
 }
 
-void AudioFinalRenderStage::render_render_stage() {
-    AudioRenderStage::render_render_stage();
+void AudioFinalRenderStage::render() {
+    AudioRenderStage::render();
 
     // Bind shader program
     glUseProgram(m_shader_program->get_program());

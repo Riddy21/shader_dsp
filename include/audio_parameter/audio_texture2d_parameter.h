@@ -41,11 +41,11 @@ public:
 
 private:
 
-    bool initialize_parameter(GLuint frame_buffer=0, AudioShaderProgram * shader_program=nullptr) override;
+    bool initialize(GLuint frame_buffer=0, AudioShaderProgram * shader_program=nullptr) override;
 
-    void render_parameter() override;
+    void render() override;
 
-    bool bind_parameter() override;
+    bool bind() override;
 
     std::unique_ptr<ParamData> create_param_data() override {
         return std::make_unique<ParamFloatArrayData>(m_parameter_width * m_parameter_height);

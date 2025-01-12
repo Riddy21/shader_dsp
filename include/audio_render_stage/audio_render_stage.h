@@ -12,7 +12,6 @@
 #include "audio_parameter/audio_parameter.h"
 #include "audio_core/audio_shader_program.h"
 
-// TODO: Clean up dependencies
 class AudioRenderGraph;
 class AudioParameter;
 
@@ -72,6 +71,7 @@ public:
 
     virtual bool disconnect_render_stage();
 
+
     // Getters
     const std::vector<AudioParameter *> & get_input_parameters() const {
         return m_input_parameters;
@@ -103,6 +103,21 @@ public:
     const std::string m_fragment_shader_source;
 
 protected:
+
+    /**
+     * @brief Process linked parameters together
+     * 
+     * @return True if success
+     */
+    virtual bool bind();
+
+    /**
+     * @brief Render the stage.
+     * 
+     * This function is responsible for rendering the stage and all parameters
+     */
+    virtual void render();
+
     // Initialized
     bool m_initialized = false;
 
@@ -114,19 +129,6 @@ protected:
     GLuint m_active_texture_count = 0;
     GLuint m_color_attachment_count = 0;
     
-    /**
-     * @brief Process linked parameters together
-     * 
-     * @return True if success
-     */
-    virtual bool bind_shader_stage();
-
-    /**
-     * @brief Render the stage.
-     * 
-     * This function is responsible for rendering the stage and all parameters
-     */
-    virtual void render_render_stage();
 
     virtual const std::vector<AudioParameter *> get_output_interface();
     virtual bool release_output_interface(AudioRenderStage * next_stage);
