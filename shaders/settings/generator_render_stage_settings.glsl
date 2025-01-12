@@ -7,6 +7,7 @@ uniform float gain;
 const float PI = 3.14159265359;
 const float TWO_PI = 6.28318530718;
 const float MAX_TIME = 83880.0; // This is the maximum time in seconds before precision is lost
+const float MIDDLE_C = 261.63; // Middle C in Hz
 
 float calculateTime(int time, vec2 TexCoord) {
     // Each buffer = buffer_size samples
@@ -21,7 +22,7 @@ float calculateTime(int time, vec2 TexCoord) {
                   + TexCoord.x * blockDuration;
 
     // Keep it from becoming too large:
-    return mod(timeVal + 3600.0, MAX_TIME);
+    return mod(timeVal, MAX_TIME);
 }
 
 float calculatePhase(int time, vec2 TexCoord, float tone) {

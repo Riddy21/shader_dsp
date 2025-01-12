@@ -25,7 +25,7 @@ float adsr_envelope(float start_time, float end_time, float time) {
     // If play is released before the sustain phase is complete, release from the current level
     } else {
         if (from_end_time < release_time) {
-            return current_level - current_level * from_end_time / release_time;
+            return current_level - (current_level * from_end_time / release_time);
         } else {
             return 0.0;
         }
