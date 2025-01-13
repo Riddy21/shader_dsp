@@ -10,6 +10,28 @@
 
 const float AudioTexture2DParameter::FLAT_COLOR[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
+AudioTexture2DParameter::AudioTexture2DParameter(const std::string name,
+                          AudioParameter::ConnectionType connection_type,
+                          GLuint parameter_width,
+                          GLuint parameter_height,
+                          GLuint active_texture,
+                          GLuint color_attachment,
+                          GLuint datatype,
+                          GLuint format,
+                          GLuint internal_format
+                          )
+        : AudioParameter(name, connection_type),
+        m_parameter_width(parameter_width),
+        m_parameter_height(parameter_height),
+        m_active_texture(active_texture),
+        m_color_attachment(color_attachment),
+        m_datatype(datatype),
+        m_format(format),
+        m_internal_format(internal_format)
+{
+    m_data = create_param_data();
+};
+
 bool AudioTexture2DParameter::initialize(GLuint frame_buffer, AudioShaderProgram * shader_program) {
     m_framebuffer_linked = frame_buffer;
     m_shader_program_linked = shader_program;
@@ -152,5 +174,21 @@ bool AudioTexture2DParameter::bind() {
 
 }
 
+const void * const AudioTexture2DParameter::get_value() const {
+    if (connection_type == ConnectionType::INPUT) {
+        return AudioParameter::get_value();
+    }
+    else {
+        glBindTexture(GL_TEXTURE_2D, m_texture);
+        glGetTexImage(GL_TEXTURE_2D, 0, m_format, m_datatype, m_data->get_data());
+        glBindTexture(GL_TEXTURE_2D, 0);
+        return m_data->get_data();
+    }
+}
 
+const void AudioTexture2DParameter::transfer_texture_data_to_buffer() const {
+    glBindTexture(GL_TEXTURE_2D, m_texture);
+    glGetTexImage(GL_TEXTURE_2D, 0, m_format, m_datatype, nullptr);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
 
