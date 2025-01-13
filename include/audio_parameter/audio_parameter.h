@@ -65,7 +65,7 @@ public:
     }
 
     // Getters
-    const void * const get_value() const {
+    virtual const void * const get_value() const {
         return m_data->get_data();
     }
 

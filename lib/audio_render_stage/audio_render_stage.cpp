@@ -30,17 +30,21 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     m_num_channels(num_channels),
                                     m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
                                     m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
+
+    int width = m_frames_per_buffer*m_num_channels;
+    int height = 1; // Around 10s of audio data
+
     auto stream_audio_texture =
         new AudioTexture2DParameter("stream_audio_texture",
                                     AudioParameter::ConnectionType::PASSTHROUGH,
-                                    m_frames_per_buffer * m_num_channels, 1, // Width and height
+                                    width, height, // Width and height
                                     ++m_active_texture_count,
                                     0);
 
     auto output_audio_texture =
         new AudioTexture2DParameter("output_audio_texture",
                                     AudioParameter::ConnectionType::OUTPUT,
-                                    m_frames_per_buffer * m_num_channels, 1,
+                                    width, height,
                                     0,
                                     ++m_color_attachment_count);
 
@@ -335,5 +339,4 @@ bool AudioRenderStage::disconnect_render_stage() {
     printf("render stage %d is not connected\n", this->gid);
     return false;
 }
-
 

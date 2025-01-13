@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "audio_render_stage/audio_final_render_stage.h"
+#include "audio_parameter/audio_texture2d_parameter.h"
 
 AudioFinalRenderStage::AudioFinalRenderStage(const unsigned int frames_per_buffer,
                                              const unsigned int sample_rate,
@@ -9,6 +10,7 @@ AudioFinalRenderStage::AudioFinalRenderStage(const unsigned int frames_per_buffe
 }
 
 void AudioFinalRenderStage::render() {
+    // TODO: Shorten this so that it doesn't render anything and directly passes to next stage
     AudioRenderStage::render();
 
     // Bind shader program
@@ -19,16 +21,18 @@ void AudioFinalRenderStage::render() {
 
     glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
 
-    glReadPixels(0, 0, m_frames_per_buffer * m_num_channels, 1, GL_RED, GL_FLOAT, 0);
+    AudioTexture2DParameter * stream_texture = dynamic_cast<AudioTexture2DParameter *>(this->find_parameter("stream_audio_texture"));
+    stream_texture->transfer_texture_data_to_buffer();
+
     m_output_buffer_data = (float *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
 
     glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
     glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
 
     // Display to screen
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //glClear(GL_COLOR_BUFFER_BIT);
+    //glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // Unbind everything
     glUseProgram(0);

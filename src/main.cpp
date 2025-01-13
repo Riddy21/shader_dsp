@@ -7,7 +7,7 @@
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_graph.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
-#include "audio_render_stage/audio_gain_effect_render_stage.h"
+#include "audio_render_stage/audio_effect_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_output/audio_file_output.h"
