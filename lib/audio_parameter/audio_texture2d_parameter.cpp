@@ -145,28 +145,11 @@ bool AudioTexture2DParameter::bind() {
         return false;
     }
 
-    // bind the frame buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);
-
     glBindTexture(GL_TEXTURE_2D, linked_param->get_texture());
 
     // Link the texture to the framebuffer
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + m_color_attachment,
                            GL_TEXTURE_2D, linked_param->get_texture(), 0);
-
-    // Draw the buffer
-    GLenum draw_buffers[1] = { GL_COLOR_ATTACHMENT0 + m_color_attachment };
-    glDrawBuffers(1, draw_buffers);
-
-    // Check for errors 
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error: Framebuffer is not complete in parameter %s\n", name.c_str());
-        return false;
-    }
-
-    // Unbind the framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Unbind texture
     glBindTexture(GL_TEXTURE_2D, 0);
