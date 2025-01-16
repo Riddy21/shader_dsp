@@ -40,3 +40,6 @@ float calculatePhase(int time, vec2 TexCoord, float tone) {
     // Convert to float time in [0,1).
     return float(modSamples) / float(sample_rate);
 }
+
+// FIXME: Add function for interpretting larger stream texture
+// FIXME: Add final render stage shader with a different sized output texture

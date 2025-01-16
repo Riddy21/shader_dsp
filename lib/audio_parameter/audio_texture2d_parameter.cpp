@@ -84,6 +84,7 @@ bool AudioTexture2DParameter::initialize(GLuint frame_buffer, AudioShaderProgram
         // do regex search for output texture
         auto regex = std::regex("out .* " + std::string(name) + ";");
         if (!std::regex_search(m_shader_program_linked->get_fragment_shader_source(), regex)) {
+            printf("%s ", m_shader_program_linked->get_fragment_shader_source().c_str());
             printf("Error: Could not find texture in shader program in parameter %s\n", name.c_str());
             return false;
         }
