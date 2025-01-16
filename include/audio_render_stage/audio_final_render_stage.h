@@ -15,7 +15,6 @@
 class AudioRenderer;
 class AudioFinalRenderStage : public AudioRenderStage {
 public:
-    friend class AudioRenderer;
     /**
      * @brief Constructs an AudioFinalRenderStage object.
      * 
@@ -28,7 +27,11 @@ public:
      */
     AudioFinalRenderStage(const unsigned int frames_per_buffer,
                           const unsigned int sample_rate,
-                          const unsigned int num_channels);
+                          const unsigned int num_channels,
+                          const std::string& fragment_shader_path = "build/shaders/final_render_stage.glsl",
+                          const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
+    static const std::vector<std::string> default_frag_shader_imports;
 
     /**
      * @brief Destroys the AudioFinalRenderStage object.

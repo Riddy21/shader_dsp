@@ -30,8 +30,9 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     m_num_channels(num_channels),
                                     m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
                                     m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
-
+    
     int width = m_frames_per_buffer*m_num_channels;
+    //int width = MAX_TEXTURE_SIZE;
     int height = 1; // Around 10s of audio data
 
     auto stream_audio_texture =
@@ -162,6 +163,7 @@ void AudioRenderStage::render() {
     glUseProgram(m_shader_program->get_program());
 
     // Bind the framebuffer
+    // FIXME: Move frame buffer to the parameter
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 

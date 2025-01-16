@@ -8,4 +8,4 @@ layout(std140) uniform global_time {
     int global_time_val;
 };
 
-out vec4 output_audio_texture;
+layout(location = 0) out vec4 output_audio_texture;
