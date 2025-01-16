@@ -32,6 +32,8 @@ public:
 
     const void * const get_value() const override;
 
+    GLuint get_color_attachment() const { return m_color_attachment; }
+
     /**
      * Transfers the texture data to the buffer, must be used between a OpenGL
      * buffer, will transfer the data directly to that buffer
