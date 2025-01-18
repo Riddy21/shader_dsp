@@ -55,6 +55,7 @@ private:
     }
 
     GLuint m_texture;
+    GLuint m_PBO;
     const GLuint m_parameter_width;
     const GLuint m_parameter_height;
     const GLuint m_active_texture;

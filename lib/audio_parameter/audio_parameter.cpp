@@ -17,5 +17,7 @@ bool AudioParameter::set_value(const void * value_ptr) {
     // Copy the value to m_value
     std::memcpy(m_data->get_data(), value_ptr, m_data->get_size());
 
+    m_update_param = true;
+
     return true;
 }

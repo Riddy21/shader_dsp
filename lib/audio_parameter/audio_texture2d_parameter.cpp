@@ -91,13 +91,34 @@ bool AudioTexture2DParameter::initialize(GLuint frame_buffer, AudioShaderProgram
     } else {
         auto location = glGetUniformLocation(m_shader_program_linked->get_program(), name.c_str());
         if (location == -1) {
-            printf("Error: Could not find texture in shader program in parameter %s\n", name);
+            printf("Source: %s\n", m_shader_program_linked->get_fragment_shader_source().c_str());
+            printf("Error: Could not find texture in shader program in parameter %s\n", name.c_str());
             return false;
         }
     }
 
     // Unbind the texture
-    glBindTexture(GL_TEXTURE_2D, 0);
+    //glBindTexture(GL_TEXTURE_2D, 0);
+
+    //// Initialize the PBO
+    //glGenBuffers(1, &m_PBO);
+
+    //// Bind the PBO
+    //glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
+
+    //// Allocate memory for the PBO
+    //glBufferData(GL_PIXEL_PACK_BUFFER, (m_parameter_width * m_parameter_height) * sizeof(float), nullptr, GL_STREAM_READ);
+
+    //// Unbind the PBO
+    //glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+
+    //// Check for errors
+    //status = glGetError();
+    //if (status != GL_NO_ERROR) {
+    //    printf("Error: OpenGL error in initializing parameter %s\n", name);
+    //    return false;
+    //}
+
     return true;
 }
 
@@ -109,17 +130,13 @@ void AudioTexture2DParameter::render() {
     glBindTexture(GL_TEXTURE_2D, m_texture);
     glUniform1i(glGetUniformLocation(m_shader_program_linked->get_program(), name.c_str()), m_active_texture);
 
-    if (connection_type == ConnectionType::INPUT) {
+    if (connection_type == ConnectionType::INPUT && m_update_param) {
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_parameter_width, m_parameter_height, m_format, m_datatype, m_data->get_data());
+        m_update_param = false;
     }
 }
 
 bool AudioTexture2DParameter::bind() {
-    // Pass if parameter is not an output or passthrough
-    if (connection_type != ConnectionType::OUTPUT) {
-        return true;
-    }
-    
     const AudioTexture2DParameter* linked_param = nullptr;
     if (m_linked_parameter == nullptr) {
         // If not linked, then tie off
@@ -166,13 +183,17 @@ const void * const AudioTexture2DParameter::get_value() const {
         glBindTexture(GL_TEXTURE_2D, m_texture);
         glGetTexImage(GL_TEXTURE_2D, 0, m_format, m_datatype, m_data->get_data());
         glBindTexture(GL_TEXTURE_2D, 0);
+
+        //  Using pixel buffer object may be faster
+        //glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
+        //glBindTexture(GL_TEXTURE_2D, m_texture);
+        //glGetTexImage(GL_TEXTURE_2D, 0, m_format, m_datatype, nullptr);
+        //glBindTexture(GL_TEXTURE_2D, 0);
+        //memcpy(m_data->get_data(), glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY), m_parameter_width * m_parameter_height * sizeof(float));
+
+        //glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
+        //glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+
         return m_data->get_data();
     }
 }
-
-const void AudioTexture2DParameter::transfer_texture_data_to_buffer() const {
-    glBindTexture(GL_TEXTURE_2D, m_texture);
-    glGetTexImage(GL_TEXTURE_2D, 0, m_format, m_datatype, nullptr);
-    glBindTexture(GL_TEXTURE_2D, 0);
-}
-

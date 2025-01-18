@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
     // 6. Create two textures, attach each to a different color attachment
     glGenTextures(1, &tex0);
     glBindTexture(GL_TEXTURE_2D, tex0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 512, 512, 0,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 512, 1, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
 
     glGenTextures(1, &tex1);
     glBindTexture(GL_TEXTURE_2D, tex1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 512, 512, 0,
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 512, 1, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
