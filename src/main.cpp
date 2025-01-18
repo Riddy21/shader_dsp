@@ -35,10 +35,12 @@ int main(int argc, char** argv) {
 
     // add an effect render stage
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
+    auto echo_render_stage = new AudioEchoEffectRenderStage(512, 44100, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
     keyboard.get_output_render_stage()->connect_render_stage(effect_render_stage);
-    effect_render_stage->connect_render_stage(final_render_stage);
+    effect_render_stage->connect_render_stage(echo_render_stage);
+    echo_render_stage->connect_render_stage(final_render_stage);
 
     auto audio_render_graph = new AudioRenderGraph(final_render_stage);
 
@@ -66,7 +68,7 @@ int main(int argc, char** argv) {
     auto gain_param = effect_render_stage->find_parameter("gain");
     gain_param->set_value(1.0f);
     auto balance_param = effect_render_stage->find_parameter("balance");
-    balance_param->set_value(1.0f);
+    balance_param->set_value(0.5f);
 
     // Start the audio renderer main loop
     audio_renderer.start_main_loop();

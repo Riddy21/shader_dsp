@@ -42,6 +42,10 @@ public:
 
     ~AudioEchoEffectRenderStage() {};
 
+private:
+    void render() override;
+
+    std::vector<float> m_echo_buffer;
 };
 
 #endif // AUDIO_EFFECT_RENDER_STAGE_H

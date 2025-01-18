@@ -32,8 +32,7 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
     
     int width = m_frames_per_buffer*m_num_channels;
-    //int width = MAX_TEXTURE_SIZE;
-    int height = 1; // Around 10s of audio data
+    int height = 1; // around 10s of audio data
 
     auto stream_audio_texture =
         new AudioTexture2DParameter("stream_audio_texture",
@@ -181,6 +180,8 @@ void AudioRenderStage::render() {
             }
         }
     }
+    // sort the draw buffers
+    std::sort(draw_buffers.begin(), draw_buffers.end());
 
     glDrawBuffers(draw_buffers.size(), draw_buffers.data());
 

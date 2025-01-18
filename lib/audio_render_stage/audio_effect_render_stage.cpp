@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "audio_parameter/audio_uniform_parameter.h"
+#include "audio_parameter/audio_texture2d_parameter.h"
 #include "audio_render_stage/audio_effect_render_stage.h"
 
 const std::vector<std::string> AudioGainEffectRenderStage::default_frag_shader_imports = {
@@ -63,6 +64,19 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
                                 AudioParameter::ConnectionType::INPUT);
     decay_parameter->set_value(0.0f);
 
+    auto echo_audio_texture =
+        new AudioTexture2DParameter("echo_audio_texture",
+                                AudioParameter::ConnectionType::INPUT,
+                                frames_per_buffer * num_channels, 200, // Around 2s of audio data
+                                ++m_active_texture_count,
+                                0);
+
+    // Set the echo buffer to the size of the audio data and set to 0
+    m_echo_buffer.resize(frames_per_buffer * num_channels * 200, 0.0f);
+
+    // Set to 0 to start
+    echo_audio_texture->set_value(m_echo_buffer.data());
+
     if (!this->add_parameter(feedback_parameter)) {
         std::cerr << "Failed to add feedback_parameter" << std::endl;
     }
@@ -72,4 +86,25 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
     if (!this->add_parameter(decay_parameter)) {
         std::cerr << "Failed to add decay_parameter" << std::endl;
     }
+    if (!this->add_parameter(echo_audio_texture)) {
+        std::cerr << "Failed to add echo_audio_texture" << std::endl;
+    }
+
+}
+
+void AudioEchoEffectRenderStage::render() {
+
+    // Get the audio data
+    auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
+
+    // shift the echo buffer
+    std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels);
+
+    // Add the new data to the echo buffer
+    std::copy(data, data + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin());
+
+    this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
+
+    AudioRenderStage::render();
+
 }
