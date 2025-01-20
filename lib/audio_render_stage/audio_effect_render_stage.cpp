@@ -92,19 +92,27 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
 
 }
 
-void AudioEchoEffectRenderStage::render() {
+void AudioEchoEffectRenderStage::render(unsigned int time) {
 
     // Get the audio data
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
-    // shift the echo buffer
-    std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels);
+    static int prev_time = 0;
 
-    // Add the new data to the echo buffer
-    std::copy(data, data + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin());
+    if (time != prev_time) {
+        // shift the echo buffer
+        std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels);
 
-    this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
+        // Add the new data to the echo buffer
+        std::copy(data, data + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin());
 
-    AudioRenderStage::render();
+        this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
+
+        auto echo_data = (float *)this->find_parameter("echo_audio_texture")->get_value();
+    }
+
+    prev_time = time;
+
+    AudioRenderStage::render(time);
 
 }

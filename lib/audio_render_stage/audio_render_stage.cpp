@@ -159,7 +159,7 @@ bool AudioRenderStage::bind() {
     return true;
 }
 
-void AudioRenderStage::render() {
+void AudioRenderStage::render(unsigned int time) {
     // Use the shader program of the stage
     glUseProgram(m_shader_program->get_program());
 

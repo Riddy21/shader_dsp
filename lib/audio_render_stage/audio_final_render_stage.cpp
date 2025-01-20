@@ -16,40 +16,28 @@ AudioFinalRenderStage::AudioFinalRenderStage(const unsigned int frames_per_buffe
         : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
 }
 
-void AudioFinalRenderStage::render() {
+void AudioFinalRenderStage::render(unsigned int time) {
     // TODO: Shorten this so that it doesn't render anything and directly passes to next stage
-    AudioRenderStage::render();
+    AudioRenderStage::render(time);
+
+    // display to screen
+    glClear(GL_COLOR_BUFFER_BIT);
+    glUseProgram(m_shader_program->get_program());
+    // Bind the framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glUseProgram(0);
 
     m_output_buffer_data = (float *)this->find_parameter("output_audio_texture")->get_value();
 
-    // Display to screen
-    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    //glClear(GL_COLOR_BUFFER_BIT);
-    //glDrawArrays(GL_TRIANGLES, 0, 6);
+     //Print out the sound 
+    //for (int i = 0; i < m_frames_per_buffer * m_num_channels; i++) {
+    //    printf("%f ", m_output_buffer_data[i]);
+    //}
 
-    // Unbind everything
-    glUseProgram(0);
-}
+    //printf("\n");
+    //printf("\n");
+    //printf("\n");
 
-bool AudioFinalRenderStage::initialize() {
-    AudioRenderStage::initialize();
 
-    // Generate the pixel buffer object
-    glGenBuffers(1, &m_PBO);
-
-    // Bind Pixel buffers
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
-
-    // Allocate memory for pixel buffer
-    glBufferData(GL_PIXEL_PACK_BUFFER, (m_frames_per_buffer * m_num_channels) * sizeof(float), nullptr, GL_STREAM_READ);
-
-    // Unbind the buffer
-    glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
-
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        std::cerr << "Failed to initialize OpenGL: " << error << std::endl;
-        return false;
-    }
-    return true;
 }
