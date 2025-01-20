@@ -33,6 +33,26 @@ int main(int argc, char** argv) {
     });
     keyboard.add_key(quit_key);
 
+    // Add pause key
+    auto pause_key = new Key('p');
+    pause_key->set_key_down_callback([]() {
+        AudioRenderer::get_instance().pause_main_loop();
+    });
+    keyboard.add_key(pause_key);
+
+    // Add unpause key
+    auto unpause_key = new Key('o');
+    unpause_key->set_key_down_callback([]() {
+        AudioRenderer::get_instance().unpause_main_loop();
+    });
+    keyboard.add_key(unpause_key);
+
+    auto increment_key = new Key('i');
+    increment_key->set_key_down_callback([]() {
+        AudioRenderer::get_instance().increment_main_loop();
+    });
+    keyboard.add_key(increment_key);
+
     // add an effect render stage
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
     auto echo_render_stage = new AudioEchoEffectRenderStage(512, 44100, 2);

@@ -46,11 +46,8 @@ private:
      * 
      * This function is responsible for rendering the final stage of the audio renderer.
      */
-    void render() override;
+    void render(unsigned int time) override;
 
-    bool initialize() override;
-
-    GLuint m_PBO;
     float * m_output_buffer_data;
 };
 

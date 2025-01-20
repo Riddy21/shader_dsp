@@ -8,6 +8,7 @@
 #include <GL/glew.h>
 #include <GL/glut.h>
 #include <atomic>
+#include <thread>
 
 #include "audio_render_stage/audio_render_stage.h"
 #include "audio_output/audio_output.h"
@@ -54,6 +55,30 @@ public:
      * @brief Starts the main loop of the audio renderer.
      */
     void start_main_loop();
+
+    /**
+     * @brief Pause the main loop of the audio renderer.
+     */
+    void pause_main_loop() {
+        printf("Pausing\n");
+        m_paused = true;
+    }
+
+    /**
+     * @brief Unpause the main loop of the audio renderer.
+     */
+    void unpause_main_loop() {
+        printf("Unpausing\n");
+        m_paused = false;
+    }
+
+    /**
+     * @brief Increments the main loop of the audio renderer.
+     */
+    void increment_main_loop() {
+        printf("Incrementing\n");
+        render();
+    }
 
     /**
      * @brief Terminates the audio renderer.
@@ -189,6 +214,11 @@ private:
      * @brief Static callback function for rendering.
      */
     static void render_callback() {
+        if (instance->m_paused) {
+            // Sleep for a bit to reduce CPU usage
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            return;
+        }
         instance->render();
     }
 
@@ -239,6 +269,7 @@ private:
     AudioOutput * m_lead_output = nullptr; // Lead output for frame rate calculation
 
     std::atomic<bool> m_running; // Flag to control the loop
+    std::atomic<bool> m_paused; // Flag to control the loop
 
     bool m_initialized = false; // Flag to mark initialization
 

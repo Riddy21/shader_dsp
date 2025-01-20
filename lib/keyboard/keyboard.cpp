@@ -16,7 +16,7 @@ Keyboard::~Keyboard() {}
 
 void Keyboard::key_down_callback(unsigned char key, int x, int y) {
     if (Piano::KEY_TONE_MAPPING.find(key) != Piano::KEY_TONE_MAPPING.end()) {
-        instance->m_piano.key_down(Piano::KEY_TONE_MAPPING.at(key), 0.1f);
+        instance->m_piano.key_down(Piano::KEY_TONE_MAPPING.at(key), 0.9f);
     } else if (instance->m_keys.find(key) != instance->m_keys.end()) {
         instance->m_keys[key]->key_down();
     }
