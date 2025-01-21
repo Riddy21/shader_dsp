@@ -12,6 +12,8 @@
 #include "audio_parameter/audio_parameter.h"
 #include "audio_core/audio_shader_program.h"
 
+#define MAX_TEXTURE_SIZE 4096
+
 class AudioRenderGraph;
 class AudioParameter;
 
@@ -116,7 +118,7 @@ protected:
      * 
      * This function is responsible for rendering the stage and all parameters
      */
-    virtual void render();
+    virtual void render(unsigned int time);
 
     // Initialized
     bool m_initialized = false;
