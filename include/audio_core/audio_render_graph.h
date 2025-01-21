@@ -66,7 +66,7 @@ public:
 private:
     bool initialize();
 
-    void render();
+    void render(unsigned int time);
 
     void bind();
 

@@ -18,16 +18,7 @@ public:
                           GLuint datatype = GL_FLOAT,
                           GLuint format = GL_RED,
                           GLuint internal_format = GL_R32F
-                          )
-        : AudioParameter(name, connection_type),
-        m_parameter_width(parameter_width),
-        m_parameter_height(parameter_height),
-        m_active_texture(active_texture),
-        m_color_attachment(color_attachment),
-        m_datatype(datatype),
-        m_format(format),
-        m_internal_format(internal_format)
-    {};
+                          );
 
     ~AudioTexture2DParameter() {
         if (m_texture != 0) {
@@ -38,6 +29,18 @@ public:
 
     // Getters
     GLuint get_texture() const { return m_texture; }
+
+    const void * const get_value() const override;
+
+    GLuint get_color_attachment() const { return m_color_attachment; }
+
+    /**
+     * Transfers the texture data to the buffer, must be used between a OpenGL
+     * buffer, will transfer the data directly to that buffer
+     * 
+     * @return void
+     */
+    const void transfer_texture_data_to_buffer() const ;
 
 private:
 
@@ -52,6 +55,7 @@ private:
     }
 
     GLuint m_texture;
+    GLuint m_PBO;
     const GLuint m_parameter_width;
     const GLuint m_parameter_height;
     const GLuint m_active_texture;

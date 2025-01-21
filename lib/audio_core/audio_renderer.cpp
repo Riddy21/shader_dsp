@@ -235,7 +235,7 @@ void AudioRenderer::render()
     // Set the time for the frame
     // TODO: Encapsulate in a function once we have more parameters
     auto time_param = find_global_parameter("global_time");
-    time_param->set_value(&m_frame_count);
+    time_param->set_value(m_frame_count);
 
     glBindVertexArray(m_VAO);
 
@@ -245,7 +245,7 @@ void AudioRenderer::render()
     }
 
     // Render the render graph
-    m_render_graph->render();
+    m_render_graph->render(m_frame_count);
 
     // Push to output buffers
     push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data());
@@ -255,6 +255,7 @@ void AudioRenderer::render()
 
     calculate_frame_rate();
 }
+
 
 bool AudioRenderer::cleanup()
 {

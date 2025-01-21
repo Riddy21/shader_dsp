@@ -24,6 +24,39 @@ private:
     int m_size;
 };
 
+class ParamVec2Data : public ParamData {
+public:
+    ParamVec2Data()
+            : m_data{0.0f, 0.0f} {}
+    ~ParamVec2Data() override = default;
+    void * get_data() const override { return (void *) m_data; }
+    size_t get_size() const override { return sizeof(float) * 2; }
+private:
+    float m_data[2];
+};
+
+class ParamVec3Data : public ParamData {
+public:
+    ParamVec3Data()
+            : m_data{0.0f, 0.0f, 0.0f} {}
+    ~ParamVec3Data() override = default;
+    void * get_data() const override { return (void *) m_data; }
+    size_t get_size() const override { return sizeof(float) * 3; }
+private:
+    float m_data[3];
+};
+
+class ParamIVec2Data : public ParamData {
+public:
+    ParamIVec2Data()
+            : m_data{0, 0} {}
+    ~ParamIVec2Data() override = default;
+    void * get_data() const override { return (void *) m_data; }
+    size_t get_size() const override { return sizeof(int) * 2; }
+private:
+    int m_data[2];
+};
+
 class ParamIntData : public ParamData {
 public:
     ParamIntData()
@@ -56,5 +89,6 @@ public:
 private:
     bool m_data;
 };
+
 
 #endif // AUDIO_PARAM_DATA_H

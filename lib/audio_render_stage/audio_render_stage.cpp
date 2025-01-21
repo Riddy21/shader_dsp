@@ -30,17 +30,21 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     m_num_channels(num_channels),
                                     m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
                                     m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
+    
+    int width = m_frames_per_buffer*m_num_channels;
+    int height = 1; // around 10s of audio data
+
     auto stream_audio_texture =
         new AudioTexture2DParameter("stream_audio_texture",
                                     AudioParameter::ConnectionType::PASSTHROUGH,
-                                    m_frames_per_buffer * m_num_channels, 1, // Width and height
+                                    width, height, // Width and height
                                     ++m_active_texture_count,
                                     0);
 
     auto output_audio_texture =
         new AudioTexture2DParameter("output_audio_texture",
                                     AudioParameter::ConnectionType::OUTPUT,
-                                    m_frames_per_buffer * m_num_channels, 1,
+                                    width, height,
                                     0,
                                     ++m_color_attachment_count);
 
@@ -143,6 +147,8 @@ bool AudioRenderStage::bind() {
         std::cerr << "Error: Render stage not initialized." << std::endl;
         return false;
     }
+    // Bind the framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
     // bind the parameters to the next render stage
     for (auto & [name, param] : m_parameters) {
         if (!param->bind()) {
@@ -153,7 +159,7 @@ bool AudioRenderStage::bind() {
     return true;
 }
 
-void AudioRenderStage::render() {
+void AudioRenderStage::render(unsigned int time) {
     // Use the shader program of the stage
     glUseProgram(m_shader_program->get_program());
 
@@ -161,9 +167,28 @@ void AudioRenderStage::render() {
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    std::vector<GLenum> draw_buffers;
+
     // Render parameters
     for (auto & [name, param] : m_parameters) {
         param->render();
+        // If the type is AudioTexture2DParameter, then add to the draw buffers
+
+        if (auto * texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
+            if (texture_param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
+                draw_buffers.push_back(GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment());
+            }
+        }
+    }
+    // sort the draw buffers
+    std::sort(draw_buffers.begin(), draw_buffers.end());
+
+    glDrawBuffers(draw_buffers.size(), draw_buffers.data());
+
+    // Check for errors 
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        printf("Error: Framebuffer is not complete in render stage %d\n", gid);
     }
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -335,5 +360,4 @@ bool AudioRenderStage::disconnect_render_stage() {
     printf("render stage %d is not connected\n", this->gid);
     return false;
 }
-
 

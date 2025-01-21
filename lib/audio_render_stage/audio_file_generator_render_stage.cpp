@@ -4,6 +4,7 @@
 
 #include "audio_output/audio_wav.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
+#include "audio_render_stage/audio_render_stage.h"
 #include "audio_render_stage/audio_file_generator_render_stage.h"
 
 AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int frames_per_buffer,

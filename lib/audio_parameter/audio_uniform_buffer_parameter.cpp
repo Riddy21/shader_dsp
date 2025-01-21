@@ -71,7 +71,10 @@ bool AudioUniformBufferParameter::initialize(GLuint frame_buffer, AudioShaderPro
 void AudioUniformBufferParameter::render() {
     if (connection_type == ConnectionType::INPUT) {
         glBindBuffer(GL_UNIFORM_BUFFER, m_ubo);
-        glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(int), m_data->get_data());
+        if (m_update_param) {
+            glBufferSubData(GL_UNIFORM_BUFFER, 0, m_data->get_size(), m_data->get_data());
+            m_update_param = false;
+        }
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
     }
 

@@ -46,7 +46,7 @@ public:
     }
 
     // Setters
-    virtual bool set_value(const void * value_ptr);
+    bool set_value(const void * value_ptr);
 
     bool set_value(const bool value) {
         return set_value(&value);
@@ -65,7 +65,7 @@ public:
     }
 
     // Getters
-    const void * const get_value() const {
+    virtual const void * const get_value() const {
         return m_data->get_data();
     }
 
@@ -98,6 +98,7 @@ protected:
     AudioParameter * m_linked_parameter = nullptr;
     GLuint m_framebuffer_linked = 0;
     AudioShaderProgram * m_shader_program_linked = nullptr;
+    bool m_update_param = true;
 };
 
 #endif // AUDIO_PARAMETER_H

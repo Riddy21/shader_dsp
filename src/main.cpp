@@ -7,7 +7,7 @@
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_graph.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
-#include "audio_render_stage/audio_gain_effect_render_stage.h"
+#include "audio_render_stage/audio_effect_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_output/audio_file_output.h"
@@ -33,12 +33,34 @@ int main(int argc, char** argv) {
     });
     keyboard.add_key(quit_key);
 
+    // Add pause key
+    auto pause_key = new Key('p');
+    pause_key->set_key_down_callback([]() {
+        AudioRenderer::get_instance().pause_main_loop();
+    });
+    keyboard.add_key(pause_key);
+
+    // Add unpause key
+    auto unpause_key = new Key('o');
+    unpause_key->set_key_down_callback([]() {
+        AudioRenderer::get_instance().unpause_main_loop();
+    });
+    keyboard.add_key(unpause_key);
+
+    auto increment_key = new Key('i');
+    increment_key->set_key_down_callback([]() {
+        AudioRenderer::get_instance().increment_main_loop();
+    });
+    keyboard.add_key(increment_key);
+
     // add an effect render stage
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
+    auto echo_render_stage = new AudioEchoEffectRenderStage(512, 44100, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
     keyboard.get_output_render_stage()->connect_render_stage(effect_render_stage);
-    effect_render_stage->connect_render_stage(final_render_stage);
+    effect_render_stage->connect_render_stage(echo_render_stage);
+    echo_render_stage->connect_render_stage(final_render_stage);
 
     auto audio_render_graph = new AudioRenderGraph(final_render_stage);
 
@@ -66,7 +88,7 @@ int main(int argc, char** argv) {
     auto gain_param = effect_render_stage->find_parameter("gain");
     gain_param->set_value(1.0f);
     auto balance_param = effect_render_stage->find_parameter("balance");
-    balance_param->set_value(1.0f);
+    balance_param->set_value(0.5f);
 
     // Start the audio renderer main loop
     audio_renderer.start_main_loop();
