@@ -8,6 +8,7 @@
 #include "audio_core/audio_render_graph.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "audio_render_stage/audio_effect_render_stage.h"
+#include "audio_render_stage/audio_tape_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_output/audio_file_output.h"
@@ -56,11 +57,20 @@ int main(int argc, char** argv) {
     // add an effect render stage
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
     auto echo_render_stage = new AudioEchoEffectRenderStage(512, 44100, 2);
+    auto record_render_stage = new AudioRecordRenderStage(512, 44100, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
     keyboard.get_output_render_stage()->connect_render_stage(effect_render_stage);
     effect_render_stage->connect_render_stage(echo_render_stage);
-    echo_render_stage->connect_render_stage(final_render_stage);
+    echo_render_stage->connect_render_stage(record_render_stage);
+    record_render_stage->connect_render_stage(final_render_stage);
+
+    auto record_param = record_render_stage->find_parameter("recording");
+    auto record_key = new Key('r');
+    record_key->set_key_down_callback([&record_param]() {
+        record_param->set_value(!*(bool *)record_param->get_value());
+    });
+    keyboard.add_key(record_key);
 
     auto audio_render_graph = new AudioRenderGraph(final_render_stage);
 
@@ -89,6 +99,7 @@ int main(int argc, char** argv) {
     gain_param->set_value(1.0f);
     auto balance_param = effect_render_stage->find_parameter("balance");
     balance_param->set_value(0.5f);
+
 
     // Start the audio renderer main loop
     audio_renderer.start_main_loop();
