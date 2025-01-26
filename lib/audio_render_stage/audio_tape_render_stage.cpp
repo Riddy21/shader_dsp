@@ -121,7 +121,12 @@ void AudioPlaybackRenderStage::load_tape_data_to_texture(const Tape & tape, cons
     // Get the right segment of tape
     float * data = new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE]();
 
-    std::copy(tape.begin() + offset, tape.begin() + offset + m_frames_per_buffer * m_num_channels * M_TAPE_SIZE, data);
+    // If the tape ends before the offset, then fill with 0s
+    if (offset + m_frames_per_buffer * m_num_channels * M_TAPE_SIZE > tape.size()) {
+        std::copy(tape.begin() + offset, tape.end(), data);
+    } else {
+        std::copy(tape.begin() + offset, tape.begin() + offset + m_frames_per_buffer * m_num_channels * M_TAPE_SIZE, data);
+    }
 
     this->find_parameter("playback_texture")->set_value(data);
 }
