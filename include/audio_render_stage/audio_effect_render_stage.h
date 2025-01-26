@@ -43,7 +43,7 @@ public:
     ~AudioEchoEffectRenderStage() {};
 
 private:
-    void render(unsigned int time) override;
+    void render(const unsigned int time) override;
 
     std::vector<float> m_echo_buffer;
 };
