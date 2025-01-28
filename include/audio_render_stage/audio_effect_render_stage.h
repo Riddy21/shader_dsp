@@ -46,6 +46,8 @@ private:
     void render(const unsigned int time) override;
 
     std::vector<float> m_echo_buffer;
+
+    static const unsigned int M_MAX_ECHO_BUFFER_SIZE = 200;
 };
 
 #endif // AUDIO_EFFECT_RENDER_STAGE_H

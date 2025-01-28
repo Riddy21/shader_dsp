@@ -57,7 +57,7 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
     auto delay_parameter =
         new AudioFloatParameter("delay",
                                 AudioParameter::ConnectionType::INPUT);
-    delay_parameter->set_value(0.5f);
+    delay_parameter->set_value(0.2f);
 
     auto decay_parameter =
         new AudioFloatParameter("decay",
@@ -67,12 +67,12 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
     auto echo_audio_texture =
         new AudioTexture2DParameter("echo_audio_texture",
                                 AudioParameter::ConnectionType::INPUT,
-                                frames_per_buffer * num_channels, 200, // Around 2s of audio data
+                                frames_per_buffer * num_channels, M_MAX_ECHO_BUFFER_SIZE * 2, // Around 2s of audio data
                                 ++m_active_texture_count,
                                 0);
 
     // Set the echo buffer to the size of the audio data and set to 0
-    m_echo_buffer.resize(frames_per_buffer * num_channels * 200, 0.0f);
+    m_echo_buffer.resize(frames_per_buffer * num_channels * M_MAX_ECHO_BUFFER_SIZE * 2, 0.0f);
 
     // Set to 0 to start
     echo_audio_texture->set_value(m_echo_buffer.data());
@@ -97,21 +97,18 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
     // Get the audio data
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
-    static int prev_time = 0;
-
-    if (time != prev_time) {
+    if (time != m_time) {
         // shift the echo buffer
-        std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels);
+        std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels * 2, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels * 2);
 
         // Add the new data to the echo buffer
         std::copy(data, data + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin());
 
+        // Insert a row of 0s to m_echo_buffer righ after the new data
+        std::fill(m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels * 2, 0.0f);
+
         this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
-
-        auto echo_data = (float *)this->find_parameter("echo_audio_texture")->get_value();
     }
-
-    prev_time = time;
 
     AudioRenderStage::render(time);
 
