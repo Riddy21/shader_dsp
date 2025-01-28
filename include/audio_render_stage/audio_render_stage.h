@@ -118,7 +118,10 @@ protected:
      * 
      * This function is responsible for rendering the stage and all parameters
      */
-    virtual void render(unsigned int time);
+    virtual void render(const unsigned int time);
+
+    // Time
+    unsigned int m_time = 0;
 
     // Initialized
     bool m_initialized = false;

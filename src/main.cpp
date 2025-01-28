@@ -8,6 +8,7 @@
 #include "audio_core/audio_render_graph.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "audio_render_stage/audio_effect_render_stage.h"
+#include "audio_render_stage/audio_tape_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_output/audio_file_output.h"
@@ -56,11 +57,38 @@ int main(int argc, char** argv) {
     // add an effect render stage
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
     auto echo_render_stage = new AudioEchoEffectRenderStage(512, 44100, 2);
+    auto record_render_stage = new AudioRecordRenderStage(512, 44100, 2);
+    auto playback_render_stage = new AudioPlaybackRenderStage(512, 44100, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
     keyboard.get_output_render_stage()->connect_render_stage(effect_render_stage);
     effect_render_stage->connect_render_stage(echo_render_stage);
-    echo_render_stage->connect_render_stage(final_render_stage);
+    echo_render_stage->connect_render_stage(record_render_stage);
+    record_render_stage->connect_render_stage(playback_render_stage);
+    playback_render_stage->connect_render_stage(final_render_stage);
+
+    auto record_key = new Key('r');
+    record_key->set_key_down_callback([&record_render_stage]() {
+        if (record_render_stage->is_recording()) {
+            record_render_stage->stop();
+        } else {
+            record_render_stage->record(0);
+        }
+    });
+    keyboard.add_key(record_key);
+
+    auto playback_key = new Key('l');
+    playback_key->set_key_down_callback([&playback_render_stage, &record_render_stage]() {
+        // Load the data
+        playback_render_stage->load_tape(record_render_stage->get_tape());
+
+        if (playback_render_stage->is_playing()) {
+            playback_render_stage->stop();
+        } else {
+            playback_render_stage->play(0);
+        }
+    });
+    keyboard.add_key(playback_key);
 
     auto audio_render_graph = new AudioRenderGraph(final_render_stage);
 
