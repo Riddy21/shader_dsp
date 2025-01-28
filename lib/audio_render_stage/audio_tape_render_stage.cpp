@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 #include "audio_parameter/audio_texture2d_parameter.h"
 #include "audio_parameter/audio_uniform_parameter.h"
@@ -44,6 +45,7 @@ void AudioRecordRenderStage::stop() {
 // TODO: Implement copy and paste functionality
 
 // TODO: Set functionality to save this data and reload it on shutdown
+
 const std::vector<std::string> AudioPlaybackRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
     "build/shaders/frag_shader_settings.glsl"
@@ -58,10 +60,12 @@ AudioPlaybackRenderStage::AudioPlaybackRenderStage(const unsigned int frames_per
 
     auto playback_texture = new AudioTexture2DParameter("playback_texture",
                                                         AudioParameter::ConnectionType::INPUT,
-                                                        m_frames_per_buffer * m_num_channels, M_TAPE_SIZE, // Store 2 seconds of sound at a time
+                                                        m_frames_per_buffer * m_num_channels, M_TAPE_SIZE*2, // Store 2 seconds of sound at a time
                                                         ++m_active_texture_count,
                                                         0);
-    playback_texture->set_value(new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE]);
+    auto playback_data = new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE*2];
+    playback_texture->set_value(playback_data);
+    delete[] playback_data;
 
     auto play_position = new AudioIntParameter("play_position",
                                                AudioParameter::ConnectionType::INPUT);
@@ -119,16 +123,20 @@ const unsigned int AudioPlaybackRenderStage::get_current_tape_position(const uns
 
 void AudioPlaybackRenderStage::load_tape_data_to_texture(const Tape & tape, const unsigned int offset) {
     // Get the right segment of tape
-    float * data = new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE]();
+    float * buffered_data = new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE * 2]();
 
-    // If the tape ends before the offset, then fill with 0s
-    if (offset + m_frames_per_buffer * m_num_channels * M_TAPE_SIZE > tape.size()) {
-        std::copy(tape.begin() + offset, tape.end(), data);
-    } else {
-        std::copy(tape.begin() + offset, tape.begin() + offset + m_frames_per_buffer * m_num_channels * M_TAPE_SIZE, data);
+    // Copy the data and buffer with rows of 0s every m_frames_per_buffer * m_num_channels
+    for (unsigned int i = 0; i < M_TAPE_SIZE; i++) {
+        if (offset + i * m_frames_per_buffer * m_num_channels < tape.size()) {
+            std::memcpy(&buffered_data[i * m_frames_per_buffer * m_num_channels * 2], 
+                        &tape[offset + i * m_frames_per_buffer * m_num_channels], 
+                        m_frames_per_buffer * m_num_channels * sizeof(float));
+        }
     }
 
-    this->find_parameter("playback_texture")->set_value(data);
+    this->find_parameter("playback_texture")->set_value(buffered_data);
+
+    delete[] buffered_data;
 }
 
 void AudioPlaybackRenderStage::render(const unsigned int time) {
@@ -137,11 +145,21 @@ void AudioPlaybackRenderStage::render(const unsigned int time) {
         // tape is loaded
         // There is still data left to play
     auto offset = get_current_tape_position(time);
-    
-    if (is_playing()) {
+
+    static bool was_playing = false;
+
+    // Load immediately after start
+    if (is_playing() && !was_playing) {
+        load_tape_data_to_texture(*m_tape_ptr, offset);
+    }
+
+    was_playing = is_playing();
+
+    // If its still currently playing and the time has changed
+    if (is_playing() && time != m_time) {
         // If there is still audio to play
         if (m_tape_ptr != nullptr && offset < m_tape_ptr->size()) {
-            // If there's a need to load the tape
+            // If there's a need to load more data from the tape
             if (offset % (m_frames_per_buffer * m_num_channels * M_TAPE_SIZE) == 0) {
                 load_tape_data_to_texture(*m_tape_ptr, offset);
             }
