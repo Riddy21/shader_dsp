@@ -33,7 +33,6 @@ env.Append(LIBS=[
     'Catch2Main',
     'Catch2',
     'glut',
-    'portaudio',
     'pthread'
 ])
 

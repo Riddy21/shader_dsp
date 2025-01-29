@@ -9,9 +9,10 @@ void main() {
     y = 1.0 - y;
 
     // Draw a line at the y-coordinate
-    if (abs(TexCoord.y - y) < 0.003) {
-        output_audio_texture = vec4(1.0, 1.0, 1.0, 1.0); // White line
-    } else {
-        output_audio_texture = vec4(0.0, 0.0, 0.0, 1.0); // Black background
-    }
+    //if (abs(TexCoord.y - y) < 0.003) {
+    //    output_audio_texture = vec4(1.0, 1.0, 1.0, 1.0); // White line
+    //} else {
+    //    output_audio_texture = vec4(0.0, 0.0, 0.0, 1.0); // Black background
+    //}
+    output_audio_texture = texture(stream_audio_texture, TexCoord);
 }

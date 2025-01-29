@@ -11,8 +11,11 @@ This project aims to leverage the power of OpenGL shaders to process audio signa
 This project depends on the following libraries:
 
 - [OpenGL Version 3.1](https://www.opengl.org/)
-- [PortAudio](http://www.portaudio.com/)
 - [Catch2](https://github.com/catchorg/Catch2)
+```
+sudo apt-get install libsdl2-dev libglew-dev freeglut3-dev g++ scons libportaudio2 mesa-utils
+```
+
 
 ## How to Build
 
