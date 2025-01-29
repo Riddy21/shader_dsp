@@ -17,8 +17,7 @@ void main() {
             break;
         }
         vec2 echo_sample_coord = vec2(TexCoord.x, echo_sample_index);
-        //echo += texture(echo_audio_texture, echo_sample_coord) * pow(decay, float(i));
-        echo += texture(echo_audio_texture, echo_sample_coord);
+        echo += texture(echo_audio_texture, echo_sample_coord) * pow(decay, float(i));
     }
 
     output_audio_texture = texture(stream_audio_texture, TexCoord) + echo;
