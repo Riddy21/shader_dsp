@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include <typeinfo>
+#include <algorithm>
 
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_render_stage.h"
