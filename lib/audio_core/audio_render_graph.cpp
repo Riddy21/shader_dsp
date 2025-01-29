@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <memory>
 #include <stdexcept>
+#include <algorithm>
 
 #include "audio_render_stage/audio_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
