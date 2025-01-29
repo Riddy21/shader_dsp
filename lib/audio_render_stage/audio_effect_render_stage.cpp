@@ -57,7 +57,7 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
     auto delay_parameter =
         new AudioFloatParameter("delay",
                                 AudioParameter::ConnectionType::INPUT);
-    delay_parameter->set_value(0.5f);
+    delay_parameter->set_value(0.2f);
 
     auto decay_parameter =
         new AudioFloatParameter("decay",
