@@ -52,12 +52,12 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
     auto feedback_parameter =
         new AudioIntParameter("num_echos",
                                 AudioParameter::ConnectionType::INPUT);
-    feedback_parameter->set_value(1);
+    feedback_parameter->set_value(5);
 
     auto delay_parameter =
         new AudioFloatParameter("delay",
                                 AudioParameter::ConnectionType::INPUT);
-    delay_parameter->set_value(1.0f);
+    delay_parameter->set_value(0.5f);
 
     auto decay_parameter =
         new AudioFloatParameter("decay",
