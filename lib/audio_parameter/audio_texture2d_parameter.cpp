@@ -16,6 +16,7 @@ AudioTexture2DParameter::AudioTexture2DParameter(const std::string name,
                           GLuint parameter_height,
                           GLuint active_texture,
                           GLuint color_attachment,
+                          GLuint texture_filter_type,
                           GLuint datatype,
                           GLuint format,
                           GLuint internal_format
@@ -25,6 +26,7 @@ AudioTexture2DParameter::AudioTexture2DParameter(const std::string name,
         m_parameter_height(parameter_height),
         m_active_texture(active_texture),
         m_color_attachment(color_attachment),
+        m_filter_type(texture_filter_type),
         m_datatype(datatype),
         m_format(format),
         m_internal_format(internal_format)
@@ -52,8 +54,8 @@ bool AudioTexture2DParameter::initialize(GLuint frame_buffer, AudioShaderProgram
     glBindTexture(GL_TEXTURE_2D, m_texture);
 
     // Configure the texture
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, m_filter_type);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, m_filter_type);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     //glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, FLAT_COLOR);

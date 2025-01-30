@@ -67,12 +67,12 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
     auto echo_audio_texture =
         new AudioTexture2DParameter("echo_audio_texture",
                                 AudioParameter::ConnectionType::INPUT,
-                                frames_per_buffer * num_channels, M_MAX_ECHO_BUFFER_SIZE * 2, // Around 2s of audio data
+                                frames_per_buffer * num_channels, M_MAX_ECHO_BUFFER_SIZE, // Around 2s of audio data
                                 ++m_active_texture_count,
-                                0);
+                                0, GL_NEAREST);
 
     // Set the echo buffer to the size of the audio data and set to 0
-    m_echo_buffer.resize(frames_per_buffer * num_channels * M_MAX_ECHO_BUFFER_SIZE * 2, 0.0f);
+    m_echo_buffer.resize(frames_per_buffer * num_channels * M_MAX_ECHO_BUFFER_SIZE, 0.0f);
 
     // Set to 0 to start
     echo_audio_texture->set_value(m_echo_buffer.data());
@@ -99,13 +99,10 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
 
     if (time != m_time) {
         // shift the echo buffer
-        std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels * 2, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels * 2);
+        std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels);
 
         // Add the new data to the echo buffer
         std::copy(data, data + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin());
-
-        // Insert a row of 0s to m_echo_buffer righ after the new data
-        std::fill(m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels * 2, 0.0f);
 
         this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
     }
