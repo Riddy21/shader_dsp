@@ -5,7 +5,7 @@ uniform sampler2D echo_audio_texture;
 
 void main() {
     ivec2 echo_buffer_size = ivec2(textureSize(echo_audio_texture, 0));
-    float echo_sample_data_size_in_seconds = float(echo_buffer_size.y/2 - 1) * float(buffer_size) / float(sample_rate);
+    float echo_sample_data_size_in_seconds = float(echo_buffer_size.y) * float(buffer_size) / float(sample_rate);
     float delay_increment = delay / echo_sample_data_size_in_seconds;
 
     vec4 echo = vec4(0.0, 0.0, 0.0, 0.0);
