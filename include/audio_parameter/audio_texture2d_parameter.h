@@ -15,6 +15,7 @@ public:
                           GLuint parameter_height,
                           GLuint active_texture = 0, // For Inputs
                           GLuint color_attachment = 0, // For outputs
+                          GLuint texture_filter_type = GL_NEAREST,
                           GLuint datatype = GL_FLOAT,
                           GLuint format = GL_RED,
                           GLuint internal_format = GL_R32F
@@ -56,6 +57,8 @@ private:
 
     GLuint m_texture;
     GLuint m_PBO;
+
+    const GLuint m_filter_type;
     const GLuint m_parameter_width;
     const GLuint m_parameter_height;
     const GLuint m_active_texture;

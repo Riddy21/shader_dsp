@@ -60,10 +60,11 @@ AudioPlaybackRenderStage::AudioPlaybackRenderStage(const unsigned int frames_per
 
     auto playback_texture = new AudioTexture2DParameter("playback_texture",
                                                         AudioParameter::ConnectionType::INPUT,
-                                                        m_frames_per_buffer * m_num_channels, M_TAPE_SIZE*2, // Store 2 seconds of sound at a time
+                                                        m_frames_per_buffer * m_num_channels, M_TAPE_SIZE, // Store 2 seconds of sound at a time
                                                         ++m_active_texture_count,
-                                                        0);
-    auto playback_data = new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE*2];
+                                                        0,
+                                                        GL_NEAREST);
+    auto playback_data = new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE];
     playback_texture->set_value(playback_data);
     delete[] playback_data;
 
@@ -123,15 +124,13 @@ const unsigned int AudioPlaybackRenderStage::get_current_tape_position(const uns
 
 void AudioPlaybackRenderStage::load_tape_data_to_texture(const Tape & tape, const unsigned int offset) {
     // Get the right segment of tape
-    float * buffered_data = new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE * 2]();
+    float * buffered_data = new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE]();
 
-    // Copy the data and buffer with rows of 0s every m_frames_per_buffer * m_num_channels
-    for (unsigned int i = 0; i < M_TAPE_SIZE; i++) {
-        if (offset + i * m_frames_per_buffer * m_num_channels < tape.size()) {
-            std::memcpy(&buffered_data[i * m_frames_per_buffer * m_num_channels * 2], 
-                        &tape[offset + i * m_frames_per_buffer * m_num_channels], 
-                        m_frames_per_buffer * m_num_channels * sizeof(float));
-        }
+    // Copy the data to the buffer
+    if (offset + m_frames_per_buffer * m_num_channels * M_TAPE_SIZE > tape.size()) {
+        std::copy(tape.begin() + offset, tape.end(), buffered_data);
+    } else {
+        std::copy(tape.begin() + offset, tape.begin() + offset + m_frames_per_buffer * m_num_channels * M_TAPE_SIZE, buffered_data);
     }
 
     this->find_parameter("playback_texture")->set_value(buffered_data);
