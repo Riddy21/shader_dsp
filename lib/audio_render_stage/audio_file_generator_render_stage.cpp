@@ -42,7 +42,7 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int 
                               AudioParameter::ConnectionType::INITIALIZATION,
                               width, height*2,
                               ++m_active_texture_count,
-                              0);
+                              0, GL_LINEAR);
 
     full_audio_texture->set_value(buffered_full_audio_data.data());
 
