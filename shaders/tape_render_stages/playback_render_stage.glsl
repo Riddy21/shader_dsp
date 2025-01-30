@@ -13,7 +13,7 @@ void main() {
 
         float epsilon = 0.0001;
 
-        float playback_sample_index =  (float(offset + epsilon)) / float(playback_buffer_size.y);
+        float playback_sample_index =  (float(offset) + epsilon) / float(playback_buffer_size.y);
 
         playback = texture(playback_texture, vec2(TexCoord.x, playback_sample_index));
     }
