@@ -67,22 +67,22 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     auto attack_time_parameter =
         new AudioFloatParameter("attack_time",
                               AudioParameter::ConnectionType::INPUT);
-    attack_time_parameter->set_value(0.2f);
+    attack_time_parameter->set_value(1.0f);
 
     auto decay_time_parameter =
         new AudioFloatParameter("decay_time",
                               AudioParameter::ConnectionType::INPUT);
-    decay_time_parameter->set_value(0.0f);
+    decay_time_parameter->set_value(1.0f);
 
     auto sustain_level_parameter =
         new AudioFloatParameter("sustain_level",
                               AudioParameter::ConnectionType::INPUT);
-    sustain_level_parameter->set_value(1.0f);
+    sustain_level_parameter->set_value(0.2f);
 
     auto release_time_parameter =
         new AudioFloatParameter("release_time",
                               AudioParameter::ConnectionType::INPUT);
-    release_time_parameter->set_value(0.2f);
+    release_time_parameter->set_value(0.1f);
 
     if (!this->add_parameter(attack_time_parameter)) {
         std::cerr << "Failed to add attack_time_parameter" << std::endl;
