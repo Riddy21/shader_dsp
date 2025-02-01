@@ -123,6 +123,11 @@ const unsigned int AudioPlaybackRenderStage::get_current_tape_position(const uns
 }
 
 void AudioPlaybackRenderStage::load_tape_data_to_texture(const Tape & tape, const unsigned int offset) {
+    // If there is no data in the tape, then return
+    if (tape.size() == 0) {
+        return;
+    }
+
     // Get the right segment of tape
     float * buffered_data = new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE]();
 

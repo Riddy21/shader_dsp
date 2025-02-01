@@ -4,58 +4,60 @@ uniform float decay_time;    // Time for the decay phase
 uniform float sustain_level; // Level for the sustain phase
 uniform float release_time;  // Time for the release phase
 
-// Smooth ADSR envelope using smoothstep instead of a previous-envelope variable.
+/**
+ * Returns a smoothed ADSR value at "time", starting from "start_time"
+ * and ending at "end_time". When "play" goes false, we release from
+ * the *current* envelope level rather than jumping to sustain.
+ */
 float adsr_envelope(float start_time, float end_time, float time) {
-    float from_start = time - start_time;
-    float from_end   = time - end_time;
+    float from_start = time - start_time;  // Time since note-on
+    float from_end   = time - end_time;    // Time since note-off
 
-    // If playback hasn't started yet, envelope is 0.
+    // If playback hasn't started yet, envelope is 0
     if (from_start < 0.0) {
         return 0.0;
     }
 
-    if (play) {
-        // -----------------------
+    //--------------------------------------------------------------------------
+    // 1) Compute "currentLevel" as if the note were still playing
+    //--------------------------------------------------------------------------
+    float currentLevel;
+    if (from_start <= attack_time) {
         // Attack: smoothly go 0 → 1
-        // -----------------------
-        if (from_start <= attack_time) {
-            // Progress 0..1 over the attack_time range
-            // smoothstep(x0, x1, x) transitions smoothly from 0..1 across [x0, x1]
-            return smoothstep(0.0, attack_time, from_start);
-        }
-
-        // -----------------------
-        // Decay: smoothly go 1 → sustain_level
-        // -----------------------
+        currentLevel = smoothstep(0.0, attack_time, from_start);
+    }
+    else {
         float after_attack = from_start - attack_time;
         if (after_attack <= decay_time) {
-            float t = after_attack / decay_time; // normalized 0..1 in decay range
-            // smoothly blend from 1.0 down to sustain_level
-            return mix(1.0, sustain_level, smoothstep(0.0, 1.0, t));
+            // Decay: smoothly go 1 → sustain_level
+            float t = after_attack / decay_time; 
+            currentLevel = mix(1.0, sustain_level, smoothstep(0.0, 1.0, t));
         }
-
-        // -----------------------
-        // Sustain
-        // -----------------------
-        return sustain_level;
-
-    } else {
-        // -----------------------
-        // Release: smoothly go from current level → 0
-        // -----------------------
-        // If release hasn’t started (time < end_time), just stay at sustain_level:
-        if (from_end < 0.0) {
-            return sustain_level;
+        else {
+            // Sustain
+            currentLevel = sustain_level;
         }
-
-        // If we're still within release_time, do a smooth transition to 0.0
-        if (from_end <= release_time) {
-            float t = from_end / release_time; // 0..1 across release
-            // smoothly blend from sustain_level to 0
-            return mix(sustain_level, 0.0, smoothstep(0.0, 1.0, t));
-        }
-
-        // Once release_time is exceeded, envelope is fully at 0
-        return 0.0;
     }
+
+    //--------------------------------------------------------------------------
+    // 2) If play = false, apply release from "currentLevel" → 0
+    //--------------------------------------------------------------------------
+    if (!play) {
+        // If release hasn’t started yet (time < end_time), stay at currentLevel
+        if (from_end < 0.0) {
+            return currentLevel;
+        }
+        // If in the middle of release_time, smoothly go currentLevel → 0
+        else if (from_end <= release_time) {
+            float t = from_end / release_time; 
+            return mix(currentLevel, 0.0, smoothstep(0.0, 1.0, t));
+        }
+        // If release fully completed
+        else {
+            return 0.0;
+        }
+    }
+
+    // If still playing, just return the currentLevel
+    return currentLevel;
 }
