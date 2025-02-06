@@ -82,7 +82,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     auto release_time_parameter =
         new AudioFloatParameter("release_time",
                               AudioParameter::ConnectionType::INPUT);
-    release_time_parameter->set_value(0.1f);
+    release_time_parameter->set_value(0.3f);
 
     if (!this->add_parameter(attack_time_parameter)) {
         std::cerr << "Failed to add attack_time_parameter" << std::endl;
