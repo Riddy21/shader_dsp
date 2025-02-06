@@ -23,15 +23,15 @@ float adsr_envelope(float start_time, float end_time, float time) {
     //--------------------------------------------------------------------------
     float currentLevel;
     if (from_start <= attack_time) {
-        // Attack: smoothly go 0 → 1
-        currentLevel = smoothstep(0.0, attack_time, from_start);
+        // Attack: exponential growth from 0 → 1
+        currentLevel = 1.0 - exp(-5.0 * from_start / attack_time);
     }
     else {
         float after_attack = from_start - attack_time;
         if (after_attack <= decay_time) {
-            // Decay: smoothly go 1 → sustain_level
+            // Decay: exponential decay from 1 → sustain_level
             float t = after_attack / decay_time; 
-            currentLevel = mix(1.0, sustain_level, smoothstep(0.0, 1.0, t));
+            currentLevel = mix(1.0, sustain_level, 1.0 - exp(-5.0 * t));
         }
         else {
             // Sustain
@@ -47,10 +47,10 @@ float adsr_envelope(float start_time, float end_time, float time) {
         if (from_end < 0.0) {
             return currentLevel;
         }
-        // If in the middle of release_time, smoothly go currentLevel → 0
+        // If in the middle of release_time, exponential decay from currentLevel → 0
         else if (from_end <= release_time) {
             float t = from_end / release_time; 
-            return mix(currentLevel, 0.0, smoothstep(0.0, 1.0, t));
+            return currentLevel * exp(-5.0 * t);
         }
         // If release fully completed
         else {
