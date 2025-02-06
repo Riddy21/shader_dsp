@@ -32,8 +32,8 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
                                     m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
     
-    int width = m_frames_per_buffer*m_num_channels;
-    int height = 1; // around 10s of audio data
+    int width = m_frames_per_buffer * m_num_channels;
+    int height = 1;
 
     auto stream_audio_texture =
         new AudioTexture2DParameter("stream_audio_texture",

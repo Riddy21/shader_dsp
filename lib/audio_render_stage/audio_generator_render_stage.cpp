@@ -18,7 +18,7 @@ const std::vector<std::string> AudioGeneratorRenderStage::default_frag_shader_im
 AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
                                                      const unsigned int sample_rate,
                                                      const unsigned int num_channels,
-                                                     const char * fragment_shader_path,
+                                                     const std::string & fragment_shader_path,
                                                      const std::vector<std::string> & frag_shader_imports)
     : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
 
@@ -40,7 +40,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     auto tone_parameter =
         new AudioFloatParameter("tone",
                               AudioParameter::ConnectionType::INPUT);
-    tone_parameter->set_value(1.0f);
+    tone_parameter->set_value(MIDDLE_C);
 
     auto gain_parameter =
         new AudioFloatParameter("gain",
