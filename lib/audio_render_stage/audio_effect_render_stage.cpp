@@ -52,7 +52,7 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
     auto feedback_parameter =
         new AudioIntParameter("num_echos",
                                 AudioParameter::ConnectionType::INPUT);
-    feedback_parameter->set_value(0);
+    feedback_parameter->set_value(5);
 
     auto delay_parameter =
         new AudioFloatParameter("delay",
@@ -109,4 +109,51 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
 
     AudioRenderStage::render(time);
 
+}
+
+const std::vector<std::string> AudioFrequencyFilterEffectRenderStage::default_frag_shader_imports = {
+    "build/shaders/global_settings.glsl",
+    "build/shaders/frag_shader_settings.glsl"
+};
+
+AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(const unsigned int frames_per_buffer,
+                                               const unsigned int sample_rate,
+                                               const unsigned int num_channels,
+                                               const std::string & fragment_shader_path,
+                                               const std::vector<std::string> & frag_shader_imports)
+    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+
+    // Add new parameter objects to the parameter list
+    auto low_pass_parameter =
+        new AudioFloatParameter("low_pass",
+                                AudioParameter::ConnectionType::INPUT);
+    low_pass_parameter->set_value(200.0f);
+
+    auto high_pass_parameter =
+        new AudioFloatParameter("high_pass",
+                                AudioParameter::ConnectionType::INPUT);
+    high_pass_parameter->set_value(3000.0f);
+
+    //auto resonance_parameter =
+    //    new AudioFloatParameter("resonance",
+    //                            AudioParameter::ConnectionType::INPUT);
+    //resonance_parameter->set_value(0.0f);
+
+    //auto filter_follower_parameter =
+    //    new AudioFloatParameter("filter_follower",
+    //                            AudioParameter::ConnectionType::INPUT);
+    //filter_follower_parameter->set_value(0.0f);
+
+    if (!this->add_parameter(low_pass_parameter)) {
+        std::cerr << "Failed to add low_pass_parameter" << std::endl;
+    }
+    if (!this->add_parameter(high_pass_parameter)) {
+        std::cerr << "Failed to add high_pass_parameter" << std::endl;
+    }
+    //if (!this->add_parameter(resonance_parameter)) {
+    //    std::cerr << "Failed to add resonance_parameter" << std::endl;
+    //}
+    //if (!this->add_parameter(filter_follower_parameter)) {
+    //    std::cerr << "Failed to add filter_follower_parameter" << std::endl;
+    //}
 }

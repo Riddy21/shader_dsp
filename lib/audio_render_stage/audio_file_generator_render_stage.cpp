@@ -10,7 +10,7 @@
 AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int frames_per_buffer,
                                                              const unsigned int sample_rate,
                                                              const unsigned int num_channels,
-                                                             const char * audio_filepath)
+                                                             const std::string & audio_filepath)
     : AudioGeneratorRenderStage(frames_per_buffer, sample_rate, num_channels, "build/shaders/file_generator_render_stage.glsl"),
       m_audio_filepath(audio_filepath) {
 
@@ -51,7 +51,7 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int 
     }
 }
 
-std::vector<float> AudioFileGeneratorRenderStage::load_audio_data_from_file(const char * audio_filepath) {
+std::vector<float> AudioFileGeneratorRenderStage::load_audio_data_from_file(const std::string & audio_filepath) {
     // Open the audio file
     std::ifstream file(audio_filepath, std::ios::binary);
     if (!file) {
