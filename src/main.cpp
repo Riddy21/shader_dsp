@@ -55,43 +55,44 @@ int main(int argc, char** argv) {
     keyboard.add_key(increment_key);
 
     // add an effect render stage
-    auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
-    auto echo_render_stage = new AudioEchoEffectRenderStage(512, 44100, 2);
+    //auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
+    //auto echo_render_stage = new AudioEchoEffectRenderStage(512, 44100, 2);
     //auto filter_render_stage = new AudioFrequencyFilterEffectRenderStage(512, 44100, 2);
-    auto record_render_stage = new AudioRecordRenderStage(512, 44100, 2);
-    auto playback_render_stage = new AudioPlaybackRenderStage(512, 44100, 2);
+    //auto record_render_stage = new AudioRecordRenderStage(512, 44100, 2);
+    //auto playback_render_stage = new AudioPlaybackRenderStage(512, 44100, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
-    keyboard.get_output_render_stage()->connect_render_stage(effect_render_stage);
-    effect_render_stage->connect_render_stage(echo_render_stage);
+    //keyboard.get_output_render_stage()->connect_render_stage(effect_render_stage);
+    keyboard.get_output_render_stage()->connect_render_stage(final_render_stage);
+    //effect_render_stage->connect_render_stage(echo_render_stage);
     //echo_render_stage->connect_render_stage(filter_render_stage);
-    echo_render_stage->connect_render_stage(record_render_stage);
+    //echo_render_stage->connect_render_stage(record_render_stage);
     //filter_render_stage->connect_render_stage(record_render_stage);
-    record_render_stage->connect_render_stage(playback_render_stage);
-    playback_render_stage->connect_render_stage(final_render_stage);
+    //record_render_stage->connect_render_stage(playback_render_stage);
+    //playback_render_stage->connect_render_stage(final_render_stage);
 
-    auto record_key = new Key('r');
-    record_key->set_key_down_callback([&record_render_stage]() {
-        if (record_render_stage->is_recording()) {
-            record_render_stage->stop();
-        } else {
-            record_render_stage->record(0);
-        }
-    });
-    keyboard.add_key(record_key);
+    //auto record_key = new Key('r');
+    //record_key->set_key_down_callback([&record_render_stage]() {
+    //    if (record_render_stage->is_recording()) {
+    //        record_render_stage->stop();
+    //    } else {
+    //        record_render_stage->record(0);
+    //    }
+    //});
+    //keyboard.add_key(record_key);
 
-    auto playback_key = new Key('l');
-    playback_key->set_key_down_callback([&playback_render_stage, &record_render_stage]() {
-        // Load the data
-        playback_render_stage->load_tape(record_render_stage->get_tape());
+    //auto playback_key = new Key('l');
+    //playback_key->set_key_down_callback([&playback_render_stage, &record_render_stage]() {
+    //    // Load the data
+    //    playback_render_stage->load_tape(record_render_stage->get_tape());
 
-        if (playback_render_stage->is_playing()) {
-            playback_render_stage->stop();
-        } else {
-            playback_render_stage->play(0);
-        }
-    });
-    keyboard.add_key(playback_key);
+    //    if (playback_render_stage->is_playing()) {
+    //        playback_render_stage->stop();
+    //    } else {
+    //        playback_render_stage->play(0);
+    //    }
+    //});
+    //keyboard.add_key(playback_key);
 
     auto audio_render_graph = new AudioRenderGraph(final_render_stage);
 
@@ -116,10 +117,10 @@ int main(int argc, char** argv) {
     audio_file_output->start();
 
     // get the render stage 
-    auto gain_param = effect_render_stage->find_parameter("gain");
-    gain_param->set_value(1.0f);
-    auto balance_param = effect_render_stage->find_parameter("balance");
-    balance_param->set_value(0.5f);
+    //auto gain_param = effect_render_stage->find_parameter("gain");
+    //gain_param->set_value(1.0f);
+    //auto balance_param = effect_render_stage->find_parameter("balance");
+    //balance_param->set_value(0.5f);
 
     // Start the audio renderer main loop
     audio_renderer.start_main_loop();

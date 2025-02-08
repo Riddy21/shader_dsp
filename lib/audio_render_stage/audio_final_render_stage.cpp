@@ -18,10 +18,11 @@ AudioFinalRenderStage::AudioFinalRenderStage(const unsigned int frames_per_buffe
     auto output_audio_texture =
         new AudioTexture2DParameter("final_output_audio_texture",
                                     AudioParameter::ConnectionType::OUTPUT,
-                                    m_frames_per_buffer * m_num_channels,
-                                    1,
+                                    m_frames_per_buffer,
+                                    m_num_channels,
                                     0,
-                                    ++m_color_attachment_count);
+                                    ++m_color_attachment_count,
+                                    GL_NEAREST);
 
     if (!this->add_parameter(output_audio_texture)) {
         std::cerr << "Failed to add output_audio_texture" << std::endl;
