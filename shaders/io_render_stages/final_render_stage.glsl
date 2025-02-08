@@ -1,3 +1,5 @@
+layout(location = 1) out vec4 final_output_audio_texture;
+
 void main() {
     // Sample the audio texture
     float audioSample = texture(stream_audio_texture, TexCoord).r;
@@ -14,4 +16,7 @@ void main() {
     } else {
         output_audio_texture = vec4(0.0, 0.0, 0.0, 1.0); // Black background
     }
+
+    // FIXME: Should reshuffle the audio sample to make it merge the channels into one interpolated result
+    final_output_audio_texture = texture(stream_audio_texture, TexCoord);
 }
