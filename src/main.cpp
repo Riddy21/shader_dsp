@@ -60,10 +60,15 @@ int main(int argc, char** argv) {
     //auto filter_render_stage = new AudioFrequencyFilterEffectRenderStage(512, 44100, 2);
     //auto record_render_stage = new AudioRecordRenderStage(512, 44100, 2);
     //auto playback_render_stage = new AudioPlaybackRenderStage(512, 44100, 2);
+    //auto gain_render_stage = new AudioGainEffectRenderStage(512, 44100, 1);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 1);
+
+    //gain_render_stage->find_parameter("gain")->set_value(1.0f);
+    //gain_render_stage->find_parameter("balance")->set_value(0.0f);
 
     //keyboard.get_output_render_stage()->connect_render_stage(effect_render_stage);
     keyboard.get_output_render_stage()->connect_render_stage(final_render_stage);
+    //gain_render_stage->connect_render_stage(final_render_stage);
     //effect_render_stage->connect_render_stage(echo_render_stage);
     //echo_render_stage->connect_render_stage(filter_render_stage);
     //echo_render_stage->connect_render_stage(record_render_stage);

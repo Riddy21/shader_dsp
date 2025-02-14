@@ -54,6 +54,11 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                   AudioParameter::ConnectionType::INITIALIZATION);
     buffer_size->set_value(m_frames_per_buffer);
 
+    auto n_channels = 
+        new AudioIntParameter("num_channels",
+                  AudioParameter::ConnectionType::INITIALIZATION);
+    n_channels->set_value(m_num_channels);
+
     auto samp_rate =
         new AudioIntParameter("sample_rate",
                   AudioParameter::ConnectionType::INITIALIZATION);
@@ -67,6 +72,9 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
     }
     if (!this->add_parameter(buffer_size)) {
         std::cerr << "Failed to add buffer_size" << std::endl;
+    }
+    if (!this->add_parameter(n_channels)) {
+        std::cerr << "Failed to add num_channels" << std::endl;
     }
     if (!this->add_parameter(samp_rate)) {
         std::cerr << "Failed to add sample_rate" << std::endl;
