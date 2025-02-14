@@ -26,6 +26,8 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int 
         exit(1);
     }
 
+    // FIXME: Need to load this from file as non-interpolated data
+
     // Fill the rest with zeros
     full_audio_data.resize(width * height, 0.0f);
 
