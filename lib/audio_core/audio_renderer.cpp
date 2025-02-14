@@ -124,7 +124,7 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     this->m_sample_rate = sample_rate;
 
     // Initialize GLUT
-    initialize_glut(buffer_size, num_channels*100);
+    initialize_glut(buffer_size, num_channels);
     
     // Initialize GLEW
     GLenum glewInitResult = glewInit();

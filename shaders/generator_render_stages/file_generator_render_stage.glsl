@@ -6,7 +6,7 @@ vec2 translate_coord(vec2 coord, int time, float speed) {
 
     int total_audio_size = audio_size.x * audio_size.y / 2; // divide by 2 because spacing
 
-    ivec2 chunk_size = ivec2(float(buffer_size) * speed, 1);
+    ivec2 chunk_size = ivec2(float(buffer_size * num_channels) * speed, 1);
 
     // Calculate the offset
     int chunk_offset = time * chunk_size.x % total_audio_size; // repeat
@@ -29,9 +29,16 @@ void main() {
     float start_time = calculateTime(play_position, vec2(0.0, 0.0));
     float end_time = calculateTime(stop_position, vec2(0.0, 0.0));
     float time = calculateTime(global_time_val, TexCoord);
+    
+    // Translate the texture coordinate to channel dependent coordinate
+    int channel = int(TexCoord.y * float(num_channels));
+    int total_samples = buffer_size * num_channels;
+    int orig_sample = int(TexCoord.x * float(buffer_size));
+    int new_sample = orig_sample * num_channels + channel;
+    vec2 interpolated_texcoord = vec2(float(new_sample)/float(total_samples), TexCoord.y);
 
     // Translate the texture coordinates
-    vec2 coord = translate_coord(TexCoord, global_time_val - play_position, tone / MIDDLE_C);
+    vec2 coord = translate_coord(interpolated_texcoord, global_time_val - play_position, tone / MIDDLE_C);
 
     // Get the audio sample
     vec4 audio_sample = texture(full_audio_data_texture, coord) * adsr_envelope(start_time, end_time, time);
