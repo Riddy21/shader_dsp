@@ -14,6 +14,6 @@ void main(){
     vec2 inTexCoord = vec2(float(smpl) / float(buffer_size), float(channel) / float(num_channels));
     
     // Finally, sample the input texture at the rotated coordinate.
-    final_output_audio_texture = texture(stream_audio_texture, inTexCoord);
+    final_output_audio_texture = texture(stream_audio_texture, TexCoord);
     output_audio_texture = texture(stream_audio_texture, TexCoord);
 }

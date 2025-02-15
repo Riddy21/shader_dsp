@@ -43,16 +43,16 @@ void AudioFinalRenderStage::render(unsigned int time) {
     m_output_buffer_data = (float *)this->find_parameter("final_output_audio_texture")->get_value();
 
     //Print out the sound 
-    //for (int i = 0; i < m_frames_per_buffer; i++) {
-    //    printf("%f ", m_output_buffer_data[i]);
-    //}
-    //printf("\n");
-    //for (int i = m_frames_per_buffer; i < m_frames_per_buffer * 2; i++) {
-    //    printf("%f ", m_output_buffer_data[i]);
-    //}
+    for (int i = 0; i < m_frames_per_buffer; i++) {
+        printf("%f ", m_output_buffer_data[i]);
+    }
+    printf("\n");
+    for (int i = m_frames_per_buffer; i < m_frames_per_buffer * 2; i++) {
+        printf("%f ", m_output_buffer_data[i]);
+    }
 
-    //printf("\n");
-    //printf("\n");
-    //printf("\n");
+    printf("\n");
+    printf("\n");
+    printf("\n");
 
 }

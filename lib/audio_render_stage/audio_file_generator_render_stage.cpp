@@ -18,7 +18,7 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int 
     auto full_audio_data = load_audio_data_from_file(audio_filepath);
 
     const unsigned int width = (unsigned)MAX_TEXTURE_SIZE;
-    const unsigned int height = full_audio_data.size() / width + 1;
+    const unsigned int height = full_audio_data.size() / width;
 
     // Add new parameter objects to the parameter list
     auto full_audio_texture =
@@ -105,10 +105,11 @@ const std::vector<float> AudioFileGeneratorRenderStage::load_audio_data_from_fil
             if (end > audio_data[j].end()) {
                 full_audio_data.insert(full_audio_data.end(), start, audio_data[j].end());
                 full_audio_data.insert(full_audio_data.end(), width - (audio_data[j].end() - start), 0.0f);
+            } else {
+                full_audio_data.insert(full_audio_data.end(), start, end);
             }
-            full_audio_data.insert(full_audio_data.end(), start, end);
             // Push back buffer of 0s
-            full_audio_data.insert(full_audio_data.end(), width - (end - start), 0.0f);
+            full_audio_data.insert(full_audio_data.end(), width, 0.0f);
         }
     }
 
