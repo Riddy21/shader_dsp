@@ -7,9 +7,11 @@ void main() {
     vec4 playback = vec4(0.0, 0.0, 0.0, 0.0);
 
     if (play) {
+        int channel = int(TexCoord.y * float(num_channels));
+
         ivec2 playback_buffer_size = ivec2(textureSize(playback_texture, 0));
 
-        int offset = (global_time_val - time_at_start + play_position) % (playback_buffer_size.y);
+        int offset = ((global_time_val - time_at_start + play_position) * num_channels + channel) % (playback_buffer_size.y);
 
         float epsilon = 0.0001;
 

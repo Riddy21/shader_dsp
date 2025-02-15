@@ -17,41 +17,25 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int 
     // Load the audio data filepath into the full_audio_data vector
     auto full_audio_data = load_audio_data_from_file(audio_filepath);
 
-    // Determine width and height based on MAX_TEXTURE_SIZE round to nearest multiple of MAX_TEXTURE_SIZE
-    const unsigned int width = std::max((unsigned)MAX_TEXTURE_SIZE, m_frames_per_buffer * m_num_channels);
-    const unsigned int height = full_audio_data.size() / MAX_TEXTURE_SIZE;
-
-    if (height == 0) {
-        std::cerr << "Audio data is too small to fill a texture" << std::endl;
-        exit(1);
-    }
-
-    // Fill the rest with zeros
-    full_audio_data.resize(width * height, 0.0f);
-
-    // Buffer the full audio data
-    std::vector<float> buffered_full_audio_data(width * height * 2, 0.0f);
-
-    for (unsigned int i = 0; i < height; i++) {
-        std::memcpy(&buffered_full_audio_data[i * width * 2], &full_audio_data[i * width], width * sizeof(float));
-    }
+    const unsigned int width = (unsigned)MAX_TEXTURE_SIZE;
+    const unsigned int height = full_audio_data.size() / width;
 
     // Add new parameter objects to the parameter list
     auto full_audio_texture =
         new AudioTexture2DParameter("full_audio_data_texture",
                               AudioParameter::ConnectionType::INITIALIZATION,
-                              width, height*2,
+                              width, height,
                               ++m_active_texture_count,
                               0, GL_LINEAR);
 
-    full_audio_texture->set_value(buffered_full_audio_data.data());
+    full_audio_texture->set_value(full_audio_data.data());
 
     if (!this->add_parameter(full_audio_texture)) {
         std::cerr << "Failed to add beginning_audio_texture" << std::endl;
     }
 }
 
-std::vector<float> AudioFileGeneratorRenderStage::load_audio_data_from_file(const std::string & audio_filepath) {
+const std::vector<float> AudioFileGeneratorRenderStage::load_audio_data_from_file(const std::string & audio_filepath) {
     // Open the audio file
     std::ifstream file(audio_filepath, std::ios::binary);
     if (!file) {
@@ -90,11 +74,45 @@ std::vector<float> AudioFileGeneratorRenderStage::load_audio_data_from_file(cons
     }
 
     // Convert the audio data to float
-    std::vector<float> audio_data(data.size());
+    std::vector<std::vector<float>> audio_data(header.channels, std::vector<float>(data.size()/header.channels));
     for (unsigned int i = 0; i < data.size(); i++) {
-        audio_data[i] = data[i] / 32768.0f; // have to shift the wave from -1.0 to 1.0
+        audio_data[i % header.channels][i / header.channels] = data[i] / 32768.0f; // have to shift the wave from -1.0 to 1.0
     }
-    return audio_data;
 
+    // Determine width and height based on MAX_TEXTURE_SIZE round to nearest multiple of MAX_TEXTURE_SIZE
+    const unsigned int width = (unsigned)MAX_TEXTURE_SIZE;
+    const unsigned int num_lines_of_data = audio_data[0].size() / width + 1;
+    const unsigned int height = num_lines_of_data * header.channels * 2; // 2 for the 0s in between the audio data
+
+    std::vector<float> full_audio_data;
+
+    // Add audio data to full_audio_data vector
+
+    // Store audio in the form of 
+    // c1 c1 c1 c1 c1 c1 c1 c1 c1 c1
+    // 0  0  0  0  0  0  0  0  0  0
+    // c2 c2 c2 c2 c2 c2 c2 c2 c2 c2
+    // 0  0  0  0  0  0  0  0  0  0
+    // c1 c1 c1 c1 c1 c1 c1 c1 c1 c1
+    // ....
+
+    for (unsigned int i = 0; i < num_lines_of_data; i++) {
+        for (unsigned int j = 0; j < header.channels; j++) {
+            std::vector<float> data;
+            auto start = audio_data[j].begin() + i * width;
+            auto end = audio_data[j].begin() + (i + 1) * width;
+            // add 0s to the end of the audio data
+            if (end > audio_data[j].end()) {
+                full_audio_data.insert(full_audio_data.end(), start, audio_data[j].end());
+                full_audio_data.insert(full_audio_data.end(), width - (audio_data[j].end() - start), 0.0f);
+            } else {
+                full_audio_data.insert(full_audio_data.end(), start, end);
+            }
+            // Push back buffer of 0s
+            full_audio_data.insert(full_audio_data.end(), width, 0.0f);
+        }
+    }
+
+    return full_audio_data;
 
 }
