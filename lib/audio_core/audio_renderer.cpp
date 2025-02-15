@@ -72,12 +72,12 @@ bool AudioRenderer::initialize_quad() {
     // Just a default set of vertices to cover the screen
     GLfloat vertices[] = {
         // Position    Texcoords
-        -1.0f, -1.0f, 0.0f, 1.0f,  // Bottom-left
-        -1.0f,  1.0f, 0.0f, 0.0f, // Top-left
-         1.0f, -1.0f, 1.0f, 1.0f, // Bottom-right
-         1.0f,  1.0f, 1.0f, 0.0f, // Top-right
-        -1.0f,  1.0f, 0.0f, 0.0f, // Top-left
-         1.0f, -1.0f, 1.0f, 1.0f // Bottom-right
+        -1.0f, -1.0f, 0.0f, 0.0f,  // Bottom-left
+        -1.0f,  1.0f, 0.0f, 1.0f,  // Top-left
+         1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right
+         1.0f,  1.0f, 1.0f, 1.0f,  // Top-right
+        -1.0f,  1.0f, 0.0f, 1.0f,  // Top-left
+         1.0f, -1.0f, 1.0f, 0.0f   // Bottom-right
     };
 
     // Generate Textures and Framebuffers
@@ -124,7 +124,7 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     this->m_sample_rate = sample_rate;
 
     // Initialize GLUT
-    initialize_glut(buffer_size*num_channels, 200);
+    initialize_glut(buffer_size, num_channels);
     
     // Initialize GLEW
     GLenum glewInitResult = glewInit();

@@ -60,7 +60,7 @@ AudioPlaybackRenderStage::AudioPlaybackRenderStage(const unsigned int frames_per
 
     auto playback_texture = new AudioTexture2DParameter("playback_texture",
                                                         AudioParameter::ConnectionType::INPUT,
-                                                        m_frames_per_buffer * m_num_channels, M_TAPE_SIZE, // Store 2 seconds of sound at a time
+                                                        m_frames_per_buffer, M_TAPE_SIZE * m_num_channels, // Store 2 seconds of sound at a time
                                                         ++m_active_texture_count,
                                                         0,
                                                         GL_NEAREST);

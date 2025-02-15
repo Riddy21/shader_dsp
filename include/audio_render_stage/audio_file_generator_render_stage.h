@@ -40,7 +40,7 @@ private:
      * 
      * This function is responsible for loading audio data from the specified audio file into the full_audio_data vector.
      */
-    static std::vector<float> load_audio_data_from_file(const std::string & audio_filepath);
+    static const std::vector<float> load_audio_data_from_file(const std::string & audio_filepath);
 };
 
 #endif // AUDIO_FILE_GENERATOR_RENDER_STAGE_H

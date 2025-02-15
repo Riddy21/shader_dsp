@@ -1,22 +1,19 @@
 layout(location = 1) out vec4 final_output_audio_texture;
 
-void main() {
-    // Sample the audio texture
-    float audioSample = texture(stream_audio_texture, TexCoord).r;
+void main(){
+    // Convert from interpolated coordinates to non-interpolated coordinates.
+    int x_int = int(TexCoord.x * float(buffer_size));
+    int y_int = int(TexCoord.y * float(num_channels));
 
-    // Map the audio sample to the y-coordinate
-    float y = (audioSample + 1.0) / 2.0; // Assuming audioSample is in range [-1, 1]
+    int position = y_int * buffer_size + x_int;
 
-    // Flip the y-coordinate
-    y = 1.0 - y;
+    // Calculate the sample and channel from the position.
+    int channel = position % num_channels;
+    int smpl = position / num_channels;
 
-    // Draw a line at the y-coordinate
-    if (abs(TexCoord.y - y) < 0.003) {
-        output_audio_texture = vec4(1.0, 1.0, 1.0, 1.0); // White line
-    } else {
-        output_audio_texture = vec4(0.0, 0.0, 0.0, 1.0); // Black background
-    }
-
-    // FIXME: Should reshuffle the audio sample to make it merge the channels into one interpolated result
-    final_output_audio_texture = texture(stream_audio_texture, TexCoord);
+    vec2 inTexCoord = vec2(float(smpl) / float(buffer_size), float(channel) / float(num_channels));
+    
+    // Finally, sample the input texture at the rotated coordinate.
+    final_output_audio_texture = texture(stream_audio_texture, inTexCoord);
+    output_audio_texture = texture(stream_audio_texture, TexCoord);
 }
