@@ -3,7 +3,7 @@ layout(location = 1) out vec4 final_output_audio_texture;
 void main(){
     // Convert from interpolated coordinates to non-interpolated coordinates.
     int x_int = int(TexCoord.x * float(buffer_size));
-    int y_int = int((1.0 - TexCoord.y) * float(num_channels));
+    int y_int = int(TexCoord.y * float(num_channels));
 
     int position = y_int * buffer_size + x_int;
 
@@ -14,6 +14,6 @@ void main(){
     vec2 inTexCoord = vec2(float(smpl) / float(buffer_size), float(channel) / float(num_channels));
     
     // Finally, sample the input texture at the rotated coordinate.
-    final_output_audio_texture = texture(stream_audio_texture, TexCoord);
-    output_audio_texture = texture(stream_audio_texture, TexCoord);
+    final_output_audio_texture = texture(stream_audio_texture, inTexCoord);
+    output_audio_texture = texture(stream_audio_texture, inTexCoord);
 }
