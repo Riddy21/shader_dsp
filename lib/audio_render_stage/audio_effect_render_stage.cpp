@@ -127,12 +127,12 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     auto low_pass_parameter =
         new AudioFloatParameter("low_pass",
                                 AudioParameter::ConnectionType::INPUT);
-    low_pass_parameter->set_value(200.0f);
+    low_pass_parameter->set_value(0.0f);
 
     auto high_pass_parameter =
         new AudioFloatParameter("high_pass",
                                 AudioParameter::ConnectionType::INPUT);
-    high_pass_parameter->set_value(3000.0f);
+    high_pass_parameter->set_value(1000.0f);
 
     //auto resonance_parameter =
     //    new AudioFloatParameter("resonance",
