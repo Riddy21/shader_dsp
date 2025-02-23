@@ -1,5 +1,8 @@
 #include <iostream>
 #include <vector>
+#include <cmath>
+#include <stdexcept>
+#include <numeric>  // for std::accumulate
 
 #include "audio_parameter/audio_uniform_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
@@ -127,12 +130,50 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     auto low_pass_parameter =
         new AudioFloatParameter("low_pass",
                                 AudioParameter::ConnectionType::INPUT);
-    low_pass_parameter->set_value(0.0f);
+    low_pass_parameter->set_value(300.0f);
 
     auto high_pass_parameter =
         new AudioFloatParameter("high_pass",
                                 AudioParameter::ConnectionType::INPUT);
     high_pass_parameter->set_value(1000.0f);
+
+    auto num_taps_parameter =
+        new AudioIntParameter("num_taps",
+                                AudioParameter::ConnectionType::INPUT);
+    num_taps_parameter->set_value(5001); // Strange restriction, this cannot be larger than the buffer size
+
+    auto b_coeff_texture =
+        new AudioTexture2DParameter("b_coeff_texture",
+                                AudioParameter::ConnectionType::INPUT,
+                                frames_per_buffer, num_channels, // Due to restriction of the shader only can be as big as the buffer size
+                                ++m_active_texture_count,
+                                0, GL_NEAREST);
+
+    // TODO: Calculate initial b based on low pass high pass parameters
+    float nyquist = sample_rate / 2.0f;
+    float low_pass = *(float *)low_pass_parameter->get_value()/nyquist;
+    float high_pass = *(float *)high_pass_parameter->get_value()/nyquist;
+    auto b_coeff = calculate_firwin_b_coefficients(low_pass, high_pass, *(int *)num_taps_parameter->get_value());
+    b_coeff_texture->set_value(b_coeff.data());
+
+    auto input_zi_texture =
+        new AudioTexture2DParameter("input_zi_texture",
+                                AudioParameter::ConnectionType::INPUT,
+                                frames_per_buffer, num_channels,
+                                ++m_active_texture_count,
+                                0, GL_NEAREST);
+    std::vector<float> initial_zi(frames_per_buffer * num_channels, 0.0f);
+    input_zi_texture->set_value(initial_zi.data());
+
+    auto output_zi_texture =
+        new AudioTexture2DParameter("output_zi_texture",
+                                    AudioParameter::ConnectionType::OUTPUT,
+                                    frames_per_buffer, num_channels,
+                                    0,
+                                    ++m_color_attachment_count,
+                                    GL_NEAREST);
+
+    
 
     //auto resonance_parameter =
     //    new AudioFloatParameter("resonance",
@@ -150,10 +191,138 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     if (!this->add_parameter(high_pass_parameter)) {
         std::cerr << "Failed to add high_pass_parameter" << std::endl;
     }
+    if (!this->add_parameter(num_taps_parameter)) {
+        std::cerr << "Failed to add num_taps_parameter" << std::endl;
+    }
+    if (!this->add_parameter(b_coeff_texture)) {
+        std::cerr << "Failed to add b_coeff_texture" << std::endl;
+    }
+    if (!this->add_parameter(input_zi_texture)) {
+        std::cerr << "Failed to add input_zi_texture" << std::endl;
+    }
+    if (!this->add_parameter(output_zi_texture)) {
+        std::cerr << "Failed to add output_zi_texture" << std::endl;
+    }
     //if (!this->add_parameter(resonance_parameter)) {
     //    std::cerr << "Failed to add resonance_parameter" << std::endl;
     //}
     //if (!this->add_parameter(filter_follower_parameter)) {
     //    std::cerr << "Failed to add filter_follower_parameter" << std::endl;
     //}
+}
+
+// Assume this function is a member of AudioFrequencyFilterEffectRenderStage.
+const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin_b_coefficients(
+    const float low_pass,
+    const float high_pass,
+    const unsigned int num_taps)
+{
+    // Check that we have at least one positive cutoff.
+    if (low_pass <= 0.0f && high_pass <= 0.0f)
+        throw std::invalid_argument("At least one cutoff frequency must be positive.");
+
+    // Create a vector for the filter coefficients.
+    std::vector<float> h(num_taps, 0.0f);
+    const double M = (num_taps - 1) / 2.0;  // center index
+
+    // Helper lambda: normalized sinc function: sin(pi*x)/(pi*x) (with sinc(0)=1).
+    auto sinc = [](double x) -> double {
+        const double pi = M_PI;
+        if (std::fabs(x) < 1e-8)
+            return 1.0;
+        return std::sin(pi * x) / (pi * x);
+    };
+
+    // Helper lambda: lowpass impulse response for cutoff f.
+    auto lowpass_ir = [=](double f, double n) -> double {
+        // f * sinc(f*(n-M))
+        return f * sinc(f * (n - M));
+    };
+
+    // Determine filter type:
+    // We'll define our filter type by an enum.
+    enum FilterType { Lowpass, Highpass, Bandpass, Bandstop };
+    FilterType filter_type;
+    double cutoff = 0.0; // used for single-cutoff filters
+    double f1 = 0.0, f2 = 0.0;  // used for two-cutoff filters
+
+    if (low_pass <= 0.0f && high_pass > 0.0f)
+    {
+        // Only high_pass is positive: design a lowpass filter with cutoff = high_pass.
+        filter_type = Lowpass;
+        cutoff = high_pass;
+    }
+    else if (high_pass <= 0.0f && low_pass > 0.0f)
+    {
+        // Only low_pass is positive: design a highpass filter with cutoff = low_pass.
+        filter_type = Highpass;
+        cutoff = low_pass;
+    }
+    else // both cutoffs are positive
+    {
+        if (low_pass < high_pass)
+        {
+            // Bandpass filter: pass frequencies between low_pass and high_pass.
+            filter_type = Bandpass;
+            f1 = low_pass;
+            f2 = high_pass;
+        }
+        else // low_pass > high_pass
+        {
+            // Bandstop (band reject) filter: reject frequencies between high_pass and low_pass.
+            filter_type = Bandstop;
+            // Here we sort the frequencies so that f1 < f2.
+            f1 = high_pass;
+            f2 = low_pass;
+        }
+    }
+
+    // Compute the ideal impulse response.
+    for (unsigned int n = 0; n < num_taps; n++)
+    {
+        switch (filter_type)
+        {
+            case Lowpass:
+                // Lowpass filter: use the lowpass impulse response at cutoff.
+                h[n] = lowpass_ir(cutoff, n);
+                break;
+            case Highpass:
+                // Highpass filter: spectral inversion.
+                // h[n] = δ[n-M] - lowpass_ir(cutoff, n)
+                h[n] = ((std::fabs(n - M) < 1e-8) ? 1.0 : 0.0) - lowpass_ir(cutoff, n);
+                break;
+            case Bandpass:
+                // Bandpass filter: difference between two lowpass responses.
+                // h[n] = lowpass_ir(f2, n) - lowpass_ir(f1, n)
+                h[n] = lowpass_ir(f2, n) - lowpass_ir(f1, n);
+                break;
+            case Bandstop:
+                // Bandstop filter: spectral inversion of the bandpass.
+                // h[n] = δ[n-M] - (lowpass_ir(f2, n) - lowpass_ir(f1, n))
+                h[n] = ((std::fabs(n - M) < 1e-8) ? 1.0 : 0.0) - (lowpass_ir(f2, n) - lowpass_ir(f1, n));
+                break;
+        }
+    }
+
+    // Apply Hamming window to reduce ripple in the frequency response.
+    // Hamming window: w[n] = 0.54 - 0.46*cos(2*pi*n/(N-1))
+    for (unsigned int n = 0; n < num_taps; n++)
+    {
+        double w = 0.54 - 0.46 * std::cos(2 * M_PI * n / (num_taps - 1));
+        h[n] *= w;
+    }
+
+    // For filters that pass DC (lowpass and bandstop), normalize the coefficients so that their sum equals one.
+    // (Highpass and bandpass filters naturally have zero DC gain.)
+    if (filter_type == Lowpass || filter_type == Bandstop)
+    {
+        double sum = std::accumulate(h.begin(), h.end(), 0.0);
+        if (std::fabs(sum) > 1e-8)
+        {
+            for (unsigned int n = 0; n < num_taps; n++)
+                h[n] = static_cast<float>(h[n] / sum);
+        }
+    }
+
+    return h;
 }
