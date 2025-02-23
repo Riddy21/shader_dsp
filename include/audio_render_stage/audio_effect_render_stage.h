@@ -61,6 +61,9 @@ public:
     static const std::vector<std::string> default_frag_shader_imports;
 
     ~AudioFrequencyFilterEffectRenderStage() {};
+
+private:
+    static const std::vector<float> calculate_firwin_b_coefficients(const float low_pass, const float high_pass, const unsigned int num_taps);
 };
 
 #endif // AUDIO_EFFECT_RENDER_STAGE_H
