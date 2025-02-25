@@ -137,10 +137,11 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
                                 AudioParameter::ConnectionType::INPUT);
     high_pass_parameter->set_value(1000.0f);
 
+    // Valid range is 1 - buffer_size * num_channels
     auto num_taps_parameter =
         new AudioIntParameter("num_taps",
                                 AudioParameter::ConnectionType::INPUT);
-    num_taps_parameter->set_value(5001); // Strange restriction, this cannot be larger than the buffer size
+    num_taps_parameter->set_value(512); // Strange restriction, this cannot be larger than the buffer size
 
     auto b_coeff_texture =
         new AudioTexture2DParameter("b_coeff_texture",
@@ -154,7 +155,18 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     float low_pass = *(float *)low_pass_parameter->get_value()/nyquist;
     float high_pass = *(float *)high_pass_parameter->get_value()/nyquist;
     auto b_coeff = calculate_firwin_b_coefficients(low_pass, high_pass, *(int *)num_taps_parameter->get_value());
+    b_coeff.resize(frames_per_buffer * num_channels, 0.0f); // Fill the rest with 0s
     b_coeff_texture->set_value(b_coeff.data());
+
+    auto a_coeff_texture = 
+        new AudioTexture2DParameter("a_coeff_texture",
+                                AudioParameter::ConnectionType::INPUT,
+                                frames_per_buffer, num_channels,
+                                ++m_active_texture_count,
+                                0, GL_NEAREST);
+    std::vector<float> initial_a(1, 1.0f);
+    initial_a.resize(frames_per_buffer * num_channels, 0.0f); // Pad with 0s
+    a_coeff_texture->set_value(initial_a.data());
 
     auto input_zi_texture =
         new AudioTexture2DParameter("input_zi_texture",
@@ -325,4 +337,17 @@ const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin
     }
 
     return h;
+}
+
+void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
+    AudioRenderStage::render(time);
+
+    auto * data = (float *)this->find_parameter("output_zi_texture")->get_value();
+    for (int i = 0; i < m_frames_per_buffer * m_num_channels; i++) {
+        std::cout << data[i] << " ";
+        if (i % m_frames_per_buffer== m_frames_per_buffer - 1) {
+            std::cout << std::endl;
+        }
+    }
+    printf("\n");
 }
