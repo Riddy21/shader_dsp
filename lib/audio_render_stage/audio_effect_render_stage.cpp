@@ -20,6 +20,7 @@ AudioGainEffectRenderStage::AudioGainEffectRenderStage(const unsigned int frames
                                                const std::vector<std::string> & frag_shader_imports)
     : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
 
+    // TODO: Change balance to be an array of channels
     // Add new parameter objects to the parameter list
     auto gain_parameter =
         new AudioFloatParameter("gain",
@@ -137,7 +138,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     auto num_taps_parameter =
         new AudioIntParameter("num_taps",
                                 AudioParameter::ConnectionType::INPUT);
-    num_taps_parameter->set_value(100); // Strange restriction, this cannot be larger than the buffer size
+    num_taps_parameter->set_value(101); // Strange restriction, this cannot be larger than the buffer size
 
     auto b_coeff_texture =
         new AudioTexture2DParameter("b_coeff_texture",
@@ -330,7 +331,6 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
         total_data.insert(total_data.end(), m_history_buffer[i].begin(), m_history_buffer[i].end());
     }
 
-    // FIXME: audio_history_texture is only not getting updated correctly if running at high FPS,
     // My theory is audio_history_texture is only getting set wrong when multiples of the same frame get rendered
     this->find_parameter("audio_history_texture")->set_value(total_data.data());
 }

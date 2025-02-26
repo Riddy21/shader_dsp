@@ -32,6 +32,7 @@ float get_data(int index) {
 void main() {
     int n_states = num_taps - 1;
 
+    // FIXME: Start here
     output_audio_texture = vec4(get_data(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001;
     //output_audio_texture = vec4(get_data(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001;
     //output_audio_texture = vec4(float(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001 * get_data(0);
