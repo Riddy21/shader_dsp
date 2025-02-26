@@ -64,7 +64,9 @@ public:
 
 private:
     static const std::vector<float> calculate_firwin_b_coefficients(const float low_pass, const float high_pass, const unsigned int num_taps);
-    void render(const unsigned int time) override; // DELETE after
+    void render(const unsigned int time) override;
+
+    std::vector<std::vector<float>> m_history_buffer;
 };
 
 #endif // AUDIO_EFFECT_RENDER_STAGE_H

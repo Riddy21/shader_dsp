@@ -3,11 +3,8 @@ uniform float high_pass;
 
 uniform int num_taps;
 
-uniform sampler2D a_coeff_texture;
 uniform sampler2D b_coeff_texture;
-uniform sampler2D input_zi_texture;
-
-layout(location = 1) out vec4 output_zi_texture;
+uniform sampler2D audio_history_texture;
 
 // Treat the coefficient textures as an array by mapping tex coords
 float get_tex_value(sampler2D tex, int index) {
@@ -16,31 +13,26 @@ float get_tex_value(sampler2D tex, int index) {
     return texture(tex, vec2(index_real) / vec2(texture_size)).r;
 }
 
+// function for joining the history and the current audio stream into one index to pull from
+float get_data(int index) {
+    // Get the last num_taps - 1 samples of history and concat with current stream_audio_texture
+    int total_history_size = textureSize(audio_history_texture, 0).x;
+    int history_size = num_taps - 1;
+    if (index < history_size) {
+        // History texture
+        int history_index = index + total_history_size - history_size;
+        return texture(audio_history_texture, vec2(float(history_index)/float(total_history_size), TexCoord.y)).r;
+    } else {
+        // stream texture
+        int history_index = index - history_size;
+        return texture(stream_audio_texture, vec2(float(history_index)/float(buffer_size), TexCoord.y)).r;
+    }
+}
+
 void main() {
     int n_states = num_taps - 1;
 
-    float x = texture(stream_audio_texture, TexCoord).r;
-    x = 1.0 + 0.000000000000000000000001 * x;
-
-    float y = get_tex_value(b_coeff_texture, 0) * x + (n_states > 0 ? get_tex_value(input_zi_texture, 0) : 0.0);
-
-    float state = texture(input_zi_texture, TexCoord).r;
-
-    int current_index = int(TexCoord.x * float(buffer_size));
-
-    if (n_states > 0) {
-        if (current_index < n_states - 1) {
-            state = get_tex_value(input_zi_texture, current_index + 1) + 
-                    get_tex_value(b_coeff_texture, current_index + 1) * x - 
-                    get_tex_value(a_coeff_texture, current_index + 1) * y;
-        } else if (current_index == n_states - 1) {
-            state = get_tex_value(b_coeff_texture, num_taps - 1) * x - 
-                    get_tex_value(a_coeff_texture, num_taps - 1) * y;
-        } else {
-            state = 0.0;
-        }
-    }
-
-    output_audio_texture = vec4(y, 0.0, 0.0, 0.0);
-    output_zi_texture = vec4(y, 0.0, 0.0, 0.0);
+    output_audio_texture = vec4(get_data(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001;
+    //output_audio_texture = vec4(get_data(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001;
+    //output_audio_texture = vec4(float(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001 * get_data(0);
 }
