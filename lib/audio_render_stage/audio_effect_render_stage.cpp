@@ -96,22 +96,18 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
 }
 
 void AudioEchoEffectRenderStage::render(unsigned int time) {
+    AudioRenderStage::render(time);
 
     // Get the audio data
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
-    if (time != m_time) {
-        // shift the echo buffer
-        std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels);
+    // shift the echo buffer
+    std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels);
 
-        // Add the new data to the echo buffer
-        std::copy(data, data + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin());
+    // Add the new data to the echo buffer
+    std::copy(data, data + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin());
 
-        this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
-    }
-
-    AudioRenderStage::render(time);
-
+    this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
 }
 
 const std::vector<std::string> AudioFrequencyFilterEffectRenderStage::default_frag_shader_imports = {
@@ -141,12 +137,12 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     auto num_taps_parameter =
         new AudioIntParameter("num_taps",
                                 AudioParameter::ConnectionType::INPUT);
-    num_taps_parameter->set_value(512); // Strange restriction, this cannot be larger than the buffer size
+    num_taps_parameter->set_value(100); // Strange restriction, this cannot be larger than the buffer size
 
     auto b_coeff_texture =
         new AudioTexture2DParameter("b_coeff_texture",
                                 AudioParameter::ConnectionType::INPUT,
-                                frames_per_buffer, num_channels, // Due to restriction of the shader only can be as big as the buffer size
+                                MAX_TEXTURE_SIZE, 1, // Due to restriction of the shader only can be as big as the buffer size
                                 ++m_active_texture_count,
                                 0, GL_NEAREST);
 
@@ -155,38 +151,21 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     float low_pass = *(float *)low_pass_parameter->get_value()/nyquist;
     float high_pass = *(float *)high_pass_parameter->get_value()/nyquist;
     auto b_coeff = calculate_firwin_b_coefficients(low_pass, high_pass, *(int *)num_taps_parameter->get_value());
-    b_coeff.resize(frames_per_buffer * num_channels, 0.0f); // Fill the rest with 0s
+    b_coeff.resize(MAX_TEXTURE_SIZE, 0.0);
     b_coeff_texture->set_value(b_coeff.data());
 
-    auto a_coeff_texture = 
-        new AudioTexture2DParameter("a_coeff_texture",
+    auto audio_history_texture = new AudioTexture2DParameter("audio_history_texture",
                                 AudioParameter::ConnectionType::INPUT,
-                                frames_per_buffer, num_channels,
+                                MAX_TEXTURE_SIZE, num_channels, // Due to restriction of the shader only can be as big as the buffer size
                                 ++m_active_texture_count,
                                 0, GL_NEAREST);
-    std::vector<float> initial_a(1, 1.0f);
-    initial_a.resize(frames_per_buffer * num_channels, 0.0f); // Pad with 0s
-    a_coeff_texture->set_value(initial_a.data());
+    auto audio_history = std::vector<float>(MAX_TEXTURE_SIZE * num_channels, 0.0f);
+    audio_history_texture->set_value(audio_history.data());
 
-    auto input_zi_texture =
-        new AudioTexture2DParameter("input_zi_texture",
-                                AudioParameter::ConnectionType::INPUT,
-                                frames_per_buffer, num_channels,
-                                ++m_active_texture_count,
-                                0, GL_NEAREST);
-    std::vector<float> initial_zi(frames_per_buffer * num_channels, 0.0f);
-    input_zi_texture->set_value(initial_zi.data());
-
-    auto output_zi_texture =
-        new AudioTexture2DParameter("output_zi_texture",
-                                    AudioParameter::ConnectionType::OUTPUT,
-                                    frames_per_buffer, num_channels,
-                                    0,
-                                    ++m_color_attachment_count,
-                                    GL_NEAREST);
-
+    for (int i = 0; i < num_channels; i++) {
+        m_history_buffer.push_back(std::vector<float>(MAX_TEXTURE_SIZE, 0.0f));
+    }
     
-
     //auto resonance_parameter =
     //    new AudioFloatParameter("resonance",
     //                            AudioParameter::ConnectionType::INPUT);
@@ -209,11 +188,8 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     if (!this->add_parameter(b_coeff_texture)) {
         std::cerr << "Failed to add b_coeff_texture" << std::endl;
     }
-    if (!this->add_parameter(input_zi_texture)) {
-        std::cerr << "Failed to add input_zi_texture" << std::endl;
-    }
-    if (!this->add_parameter(output_zi_texture)) {
-        std::cerr << "Failed to add output_zi_texture" << std::endl;
+    if (!this->add_parameter(audio_history_texture)) {
+        std::cerr << "Failed to add audio_history_texture" << std::endl;
     }
     //if (!this->add_parameter(resonance_parameter)) {
     //    std::cerr << "Failed to add resonance_parameter" << std::endl;
@@ -342,12 +318,19 @@ const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin
 void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     AudioRenderStage::render(time);
 
-    auto * data = (float *)this->find_parameter("output_zi_texture")->get_value();
-    for (int i = 0; i < m_frames_per_buffer * m_num_channels; i++) {
-        std::cout << data[i] << " ";
-        if (i % m_frames_per_buffer== m_frames_per_buffer - 1) {
-            std::cout << std::endl;
-        }
+    auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
+
+    std::vector<float> total_data;
+    for (int i = 0; i < m_num_channels; i++) {
+        float * channel_pointer = data + i * m_frames_per_buffer;
+
+        std::copy(m_history_buffer[i].begin() + m_frames_per_buffer, m_history_buffer[i].end(), m_history_buffer[i].begin());
+        std::copy(channel_pointer, channel_pointer + m_frames_per_buffer, m_history_buffer[i].end() - m_frames_per_buffer);
+
+        total_data.insert(total_data.end(), m_history_buffer[i].begin(), m_history_buffer[i].end());
     }
-    printf("\n");
+
+    // FIXME: audio_history_texture is only not getting updated correctly if running at high FPS,
+    // My theory is audio_history_texture is only getting set wrong when multiples of the same frame get rendered
+    this->find_parameter("audio_history_texture")->set_value(total_data.data());
 }

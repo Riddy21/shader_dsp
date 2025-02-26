@@ -179,6 +179,7 @@ bool AudioRenderGraph::bind_render_stages() {
 
 void AudioRenderGraph::render(unsigned int time) {
     std::lock_guard<std::mutex> guard(m_graph_mutex);
+
     // Render the render stages in order
     for (auto & gid : m_render_order) {
         m_render_stages_map[gid]->render(time);

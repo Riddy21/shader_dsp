@@ -244,16 +244,26 @@ void AudioRenderer::render()
         param->render();
     }
 
-    // Render the render graph
-    m_render_graph->render(m_frame_count);
+    static unsigned int prev_time = 0;
+
+    if (m_frame_count == 0 || m_frame_count != prev_time) {
+        // Render the render graph
+        m_render_graph->render(m_frame_count);
+
+        calculate_frame_rate();
+    } else {
+        // TODO: Do something else instead of sleep here, come up with way to save some compute
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    prev_time = m_frame_count;
+
 
     // Push to output buffers
     push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data());
 
     // Unbind everything
     glBindVertexArray(0);
-
-    calculate_frame_rate();
 }
 
 
@@ -281,6 +291,7 @@ void AudioRenderer::push_to_output_buffers(const float * data)
         return;
     }
 
+    // Set the lead output to the first one on the list by default
     if (m_lead_output == nullptr) {
         m_lead_output = m_render_outputs[0].get();
     }
