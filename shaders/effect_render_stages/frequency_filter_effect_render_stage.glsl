@@ -30,10 +30,25 @@ float get_data(int index) {
 }
 
 void main() {
-    int n_states = num_taps - 1;
+    // Map the horizontal coordinate to an output index.
+    int outputIndex = int(TexCoord.x * float(buffer_size));
 
-    // FIXME: Start here
-    output_audio_texture = vec4(get_data(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001;
+    float y = 0.0;
+    // Loop over the FIR taps. Note: many GLSL compilers require the loop bound to be constant.
+    for (int i = 0; i < num_taps; i++) {
+        // Retrieve the FIR coefficient from the b_coeff_texture.
+        float b_val = get_tex_value(b_coeff_texture, i);
+        // Get the corresponding sample from the extended input:
+        // extended_input[outputIndex - i] (this automatically reverses the window relative to b)
+        float smpl = get_data(outputIndex - i);
+        y += b_val * smpl;
+    }
+    
+    // Output the result to the red channel.
+
+    output_audio_texture = vec4(y, 0.0, 0.0, 0.0);
+
+    //output_audio_texture = vec4(get_data(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001;
     //output_audio_texture = vec4(get_data(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001;
     //output_audio_texture = vec4(float(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001 * get_data(0);
 }
