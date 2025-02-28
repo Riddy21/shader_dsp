@@ -127,18 +127,18 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     auto low_pass_parameter =
         new AudioFloatParameter("low_pass",
                                 AudioParameter::ConnectionType::INPUT);
-    low_pass_parameter->set_value(300.0f);
+    low_pass_parameter->set_value(261.0f);
 
     auto high_pass_parameter =
         new AudioFloatParameter("high_pass",
                                 AudioParameter::ConnectionType::INPUT);
-    high_pass_parameter->set_value(1000.0f);
+    high_pass_parameter->set_value(300.0f);
 
     // Valid range is 1 - buffer_size * num_channels
     auto num_taps_parameter =
         new AudioIntParameter("num_taps",
                                 AudioParameter::ConnectionType::INPUT);
-    num_taps_parameter->set_value(101); // Strange restriction, this cannot be larger than the buffer size
+    num_taps_parameter->set_value(1001); // Strange restriction, this cannot be larger than the buffer size
 
     auto b_coeff_texture =
         new AudioTexture2DParameter("b_coeff_texture",
