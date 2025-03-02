@@ -62,21 +62,23 @@ public:
 
     void set_low_pass(const float low_pass) { m_low_pass = low_pass; update_b_coefficients(); };
     void set_high_pass(const float high_pass) { m_high_pass = high_pass; update_b_coefficients(); };
+    void set_filter_follower(const float filter_follower) { m_filter_follower = filter_follower; };
 
     const float get_low_pass() { return m_low_pass; };
     const float get_high_pass() { return m_high_pass; };
-
-    void update_b_coefficients();
+    const float get_filter_follower() { return m_filter_follower; };
 
     ~AudioFrequencyFilterEffectRenderStage() {};
 
 private:
     static const std::vector<float> calculate_firwin_b_coefficients(const float low_pass, const float high_pass, const unsigned int num_taps);
+    void update_b_coefficients(const float current_amplitude = 0.0);
     void render(const unsigned int time) override;
 
     std::vector<std::vector<float>> m_history_buffer;
     float m_low_pass;
     float m_high_pass;
+    float m_filter_follower;
     const float NYQUIST;
 
 };
