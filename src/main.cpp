@@ -96,6 +96,34 @@ int main(int argc, char** argv) {
     });
     keyboard.add_key(playback_key);
 
+    auto filter_high_band_decrement_key = new Key('z');
+    filter_high_band_decrement_key->set_key_down_callback([&filter_render_stage]() {
+        filter_render_stage->set_high_pass(filter_render_stage->get_high_pass() - 10.0f);
+        printf("High pass: %f\n", filter_render_stage->get_high_pass());
+    });
+    keyboard.add_key(filter_high_band_decrement_key);
+
+    auto filter_high_band_increment_key = new Key('x');
+    filter_high_band_increment_key->set_key_down_callback([&filter_render_stage]() {
+        filter_render_stage->set_high_pass(filter_render_stage->get_high_pass() + 10.0f);
+        printf("High pass: %f\n", filter_render_stage->get_high_pass());
+    });
+    keyboard.add_key(filter_high_band_increment_key);
+
+    auto filter_low_band_decrement_key = new Key('c');
+    filter_low_band_decrement_key->set_key_down_callback([&filter_render_stage]() {
+        filter_render_stage->set_low_pass(filter_render_stage->get_low_pass() - 10.0f);
+        printf("Low pass: %f\n", filter_render_stage->get_low_pass());
+    });
+    keyboard.add_key(filter_low_band_decrement_key);
+
+    auto filter_low_band_increment_key = new Key('v');
+    filter_low_band_increment_key->set_key_down_callback([&filter_render_stage]() {
+        filter_render_stage->set_low_pass(filter_render_stage->get_low_pass() + 10.0f);
+        printf("Low pass: %f\n", filter_render_stage->get_low_pass());
+    });
+    keyboard.add_key(filter_low_band_increment_key);
+
     auto audio_render_graph = new AudioRenderGraph(final_render_stage);
 
     audio_renderer.add_render_graph(audio_render_graph);

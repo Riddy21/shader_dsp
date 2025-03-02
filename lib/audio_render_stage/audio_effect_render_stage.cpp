@@ -121,18 +121,10 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
                                                const unsigned int num_channels,
                                                const std::string & fragment_shader_path,
                                                const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
-
-    // Add new parameter objects to the parameter list
-    auto low_pass_parameter =
-        new AudioFloatParameter("low_pass",
-                                AudioParameter::ConnectionType::INPUT);
-    low_pass_parameter->set_value(261.0f);
-
-    auto high_pass_parameter =
-        new AudioFloatParameter("high_pass",
-                                AudioParameter::ConnectionType::INPUT);
-    high_pass_parameter->set_value(300.0f);
+    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
+      NYQUIST(sample_rate / 2.0f),
+      m_low_pass(1.0f),
+      m_high_pass(0.0f) {
 
     // Valid range is 1 - buffer_size * num_channels
     auto num_taps_parameter =
@@ -147,26 +139,13 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
                                 ++m_active_texture_count,
                                 0, GL_NEAREST);
 
-    // TODO: Calculate initial b based on low pass high pass parameters
-    float nyquist = sample_rate / 2.0f;
-    float low_pass = *(float *)low_pass_parameter->get_value()/nyquist;
-    float high_pass = *(float *)high_pass_parameter->get_value()/nyquist;
-    auto b_coeff = calculate_firwin_b_coefficients(low_pass, high_pass, *(int *)num_taps_parameter->get_value());
-    b_coeff.resize(MAX_TEXTURE_SIZE, 0.0);
-    b_coeff_texture->set_value(b_coeff.data());
-
     auto audio_history_texture = new AudioTexture2DParameter("audio_history_texture",
                                 AudioParameter::ConnectionType::INPUT,
                                 MAX_TEXTURE_SIZE, num_channels, // Due to restriction of the shader only can be as big as the buffer size
                                 ++m_active_texture_count,
                                 0, GL_NEAREST);
-    auto audio_history = std::vector<float>(MAX_TEXTURE_SIZE * num_channels, 0.0f);
-    audio_history_texture->set_value(audio_history.data());
-
-    for (int i = 0; i < num_channels; i++) {
-        m_history_buffer.push_back(std::vector<float>(MAX_TEXTURE_SIZE, 0.0f));
-    }
     
+    // FIXME: Add functionality for resonance
     //auto resonance_parameter =
     //    new AudioFloatParameter("resonance",
     //                            AudioParameter::ConnectionType::INPUT);
@@ -177,12 +156,6 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     //                            AudioParameter::ConnectionType::INPUT);
     //filter_follower_parameter->set_value(0.0f);
 
-    if (!this->add_parameter(low_pass_parameter)) {
-        std::cerr << "Failed to add low_pass_parameter" << std::endl;
-    }
-    if (!this->add_parameter(high_pass_parameter)) {
-        std::cerr << "Failed to add high_pass_parameter" << std::endl;
-    }
     if (!this->add_parameter(num_taps_parameter)) {
         std::cerr << "Failed to add num_taps_parameter" << std::endl;
     }
@@ -198,6 +171,15 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     //if (!this->add_parameter(filter_follower_parameter)) {
     //    std::cerr << "Failed to add filter_follower_parameter" << std::endl;
     //}
+
+    update_b_coefficients();
+
+    auto audio_history = std::vector<float>(MAX_TEXTURE_SIZE * num_channels, 0.0f);
+    audio_history_texture->set_value(audio_history.data());
+
+    for (int i = 0; i < num_channels; i++) {
+        m_history_buffer.push_back(std::vector<float>(MAX_TEXTURE_SIZE, 0.0f));
+    }
 }
 
 // Assume this function is a member of AudioFrequencyFilterEffectRenderStage.
@@ -316,6 +298,8 @@ const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin
     return h;
 }
 
+
+
 void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     AudioRenderStage::render(time);
 
@@ -333,4 +317,12 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
 
     // My theory is audio_history_texture is only getting set wrong when multiples of the same frame get rendered
     this->find_parameter("audio_history_texture")->set_value(total_data.data());
+}
+
+void AudioFrequencyFilterEffectRenderStage::update_b_coefficients() {
+    float low_pass = m_low_pass;
+    float high_pass = m_high_pass;
+    auto b_coeff = calculate_firwin_b_coefficients(low_pass/NYQUIST, high_pass/NYQUIST, *(int *)this->find_parameter("num_taps")->get_value());
+    b_coeff.resize(MAX_TEXTURE_SIZE, 0.0);
+    this->find_parameter("b_coeff_texture")->set_value(b_coeff.data());
 }

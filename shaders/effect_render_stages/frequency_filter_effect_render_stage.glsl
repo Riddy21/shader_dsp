@@ -1,6 +1,3 @@
-uniform float low_pass;
-uniform float high_pass;
-
 uniform int num_taps;
 
 uniform sampler2D b_coeff_texture;
@@ -47,8 +44,4 @@ void main() {
     // Output the result to the red channel.
 
     output_audio_texture = vec4(y, 0.0, 0.0, 0.0);
-
-    //output_audio_texture = vec4(get_data(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001;
-    //output_audio_texture = vec4(get_data(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001;
-    //output_audio_texture = vec4(float(int(TexCoord.x * float(buffer_size))), 0.0, 0.0, 0.0) + texture(b_coeff_texture, TexCoord) * 0.0000001 * get_data(0);
 }
