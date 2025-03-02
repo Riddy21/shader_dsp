@@ -314,7 +314,9 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
     if (m_filter_follower != 0.0f) {
-        float current_amplitude = std::accumulate(data, data + m_frames_per_buffer * m_num_channels, 0.0f) / (m_frames_per_buffer * m_num_channels);
+        float current_amplitude = std::accumulate(data, data + m_frames_per_buffer * m_num_channels, 0.0f, [](float sum, float value) {
+            return sum + std::fabs(value);
+        }) / (m_frames_per_buffer * m_num_channels);
         update_b_coefficients(current_amplitude);
     }
 
@@ -335,6 +337,7 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
 void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float current_amplitude) {
     float low_pass = m_low_pass + m_filter_follower * current_amplitude;
     float high_pass = m_high_pass + m_filter_follower * current_amplitude;
+    printf("Low pass: %f, High pass: %f\n", low_pass, high_pass);
     auto b_coeff = calculate_firwin_b_coefficients(low_pass/NYQUIST, high_pass/NYQUIST, *(int *)this->find_parameter("num_taps")->get_value());
     b_coeff.resize(MAX_TEXTURE_SIZE, 0.0);
     this->find_parameter("b_coeff_texture")->set_value(b_coeff.data());
