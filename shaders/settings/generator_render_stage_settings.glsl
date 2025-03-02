@@ -4,8 +4,6 @@ uniform bool play;
 uniform float tone;
 uniform float gain;
 
-const float PI = 3.14159265359;
-const float TWO_PI = 6.28318530718;
 const float MAX_TIME = 83880.0; // This is the maximum time in seconds before precision is lost
 const float MIDDLE_C = 261.63; // Middle C in Hz
 
@@ -40,6 +38,3 @@ float calculatePhase(int time, vec2 TexCoord, float tone) {
     // Convert to float time in [0,1).
     return float(modSamples) / float(sample_rate);
 }
-
-// FIXME: Add function for interpretting larger stream texture
-// FIXME: Add final render stage shader with a different sized output texture

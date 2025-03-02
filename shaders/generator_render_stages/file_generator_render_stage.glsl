@@ -1,10 +1,10 @@
 uniform sampler2D full_audio_data_texture;
 
-vec2 translate_coord(vec2 coord, int time, float speed) {
+vec2 translate_coord(vec2 coord, int time, float speed, int channel) {
     // Get the chunk size
     ivec2 audio_size = textureSize(full_audio_data_texture, 0);
 
-    int total_audio_size = audio_size.x * audio_size.y / 2; // divide by 2 because spacing
+    int total_audio_size = audio_size.x * audio_size.y / 2 / num_channels; // divide by 2 because spacing
 
     ivec2 chunk_size = ivec2(float(buffer_size) * speed, 1);
 
@@ -18,10 +18,13 @@ vec2 translate_coord(vec2 coord, int time, float speed) {
                               total_offset / audio_size.x);
 
     // Comput normalized texture coordinates
-    return vec2(float(total_coord.x) / float(audio_size.x),
-                2.0 * (float(total_coord.y) + 0.25 * coord.y + 0.25) / float(audio_size.y));
+    // FIXME: Add the channel offset to the y coordinate as well
+    vec2 data = vec2(float(total_coord.x) / float(audio_size.x),
+                4.0 * (float(total_coord.y) + 0.5 * float(channel) + 0.25) / float(audio_size.y));
                 // For some reason, only the above line works for raspberry pi
-                //2.0 * (float(total_coord.y) + 0.25 * coord.y) / float(audio_size.y));
+                 //4.0 * (float(total_coord.y) + 0.25 * coord.y) / float(audio_size.y));
+
+    return data;
 }
 
 void main() {
@@ -30,12 +33,14 @@ void main() {
     float end_time = calculateTime(stop_position, vec2(0.0, 0.0));
     float time = calculateTime(global_time_val, TexCoord);
 
+    int channel = int(TexCoord.y * float(num_channels));
+    
     // Translate the texture coordinates
-    vec2 coord = translate_coord(TexCoord, global_time_val - play_position, tone / MIDDLE_C);
+    vec2 coord = translate_coord(TexCoord, global_time_val - play_position, tone / MIDDLE_C, channel);
 
     // Get the audio sample
     vec4 audio_sample = texture(full_audio_data_texture, coord) * adsr_envelope(start_time, end_time, time);
 
     // Output the result
-    output_audio_texture = audio_sample * gain + texture(stream_audio_texture, TexCoord);
+    output_audio_texture = audio_sample * gain + texture(stream_audio_texture, vec2(TexCoord));
 }

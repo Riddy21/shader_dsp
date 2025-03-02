@@ -72,12 +72,12 @@ bool AudioRenderer::initialize_quad() {
     // Just a default set of vertices to cover the screen
     GLfloat vertices[] = {
         // Position    Texcoords
-        -1.0f, -1.0f, 0.0f, 1.0f,  // Bottom-left
-        -1.0f,  1.0f, 0.0f, 0.0f, // Top-left
-         1.0f, -1.0f, 1.0f, 1.0f, // Bottom-right
-         1.0f,  1.0f, 1.0f, 0.0f, // Top-right
-        -1.0f,  1.0f, 0.0f, 0.0f, // Top-left
-         1.0f, -1.0f, 1.0f, 1.0f // Bottom-right
+        -1.0f, -1.0f, 0.0f, 0.0f,  // Bottom-left
+        -1.0f,  1.0f, 0.0f, 1.0f,  // Top-left
+         1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right
+         1.0f,  1.0f, 1.0f, 1.0f,  // Top-right
+        -1.0f,  1.0f, 0.0f, 1.0f,  // Top-left
+         1.0f, -1.0f, 1.0f, 0.0f   // Bottom-right
     };
 
     // Generate Textures and Framebuffers
@@ -124,7 +124,7 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     this->m_sample_rate = sample_rate;
 
     // Initialize GLUT
-    initialize_glut(buffer_size*num_channels, 200);
+    initialize_glut(buffer_size, num_channels);
     
     // Initialize GLEW
     GLenum glewInitResult = glewInit();
@@ -244,16 +244,26 @@ void AudioRenderer::render()
         param->render();
     }
 
-    // Render the render graph
-    m_render_graph->render(m_frame_count);
+    static unsigned int prev_time = 0;
+
+    if (m_frame_count == 0 || m_frame_count != prev_time) {
+        // Render the render graph
+        m_render_graph->render(m_frame_count);
+
+        calculate_frame_rate();
+    } else {
+        // TODO: Do something else instead of sleep here, come up with way to save some compute
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    prev_time = m_frame_count;
+
 
     // Push to output buffers
     push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data());
 
     // Unbind everything
     glBindVertexArray(0);
-
-    calculate_frame_rate();
 }
 
 
@@ -281,6 +291,7 @@ void AudioRenderer::push_to_output_buffers(const float * data)
         return;
     }
 
+    // Set the lead output to the first one on the list by default
     if (m_lead_output == nullptr) {
         m_lead_output = m_render_outputs[0].get();
     }

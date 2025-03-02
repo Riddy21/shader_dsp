@@ -25,13 +25,13 @@ public:
     AudioFileGeneratorRenderStage(const unsigned int frames_per_buffer,
                                   const unsigned int sample_rate,
                                   const unsigned int num_channels,
-                                  const char * audio_filepath) ;
+                                  const std::string& audio_filepath) ;
     /**
      * @brief Destroys the AudioFileGeneratorRenderStage object.
      */
     ~AudioFileGeneratorRenderStage() {}
 
-    const char * m_audio_filepath; // Default audio file path
+    const std::string & m_audio_filepath; // Default audio file path
 
 private:
     // Load audio file
@@ -40,7 +40,7 @@ private:
      * 
      * This function is responsible for loading audio data from the specified audio file into the full_audio_data vector.
      */
-    static std::vector<float> load_audio_data_from_file(const char * audio_filepath);
+    static const std::vector<float> load_audio_data_from_file(const std::string & audio_filepath);
 };
 
 #endif // AUDIO_FILE_GENERATOR_RENDER_STAGE_H

@@ -4,6 +4,9 @@
 
 #include "audio_render_stage/audio_render_stage.h"
 
+#define MIDDLE_C 261.63f
+#define SEMI_TONE 1.059463f
+
 /**
  * @class AudioGenerator
  * @brief The AudioGenerator class is responsible for generating audio data for the shader DSP.
@@ -29,7 +32,7 @@ public:
     AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
                               const unsigned int sample_rate,
                               const unsigned int num_channels,
-                              const char * fragment_shader_path,
+                              const std::string& fragment_shader_path,
                               const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 
     /**
