@@ -13,9 +13,8 @@ const std::vector<std::string> AudioRecordRenderStage::default_frag_shader_impor
 
 void AudioRecordRenderStage::render(unsigned int time) {
 
-    auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
-
-    if (m_recording && time != m_time) {
+    if (m_recording) {
+        auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
         unsigned int record_time = time - m_record_start_time + m_record_position;
         // If the tape is smaller than the record time, then resize the tape
@@ -60,7 +59,7 @@ AudioPlaybackRenderStage::AudioPlaybackRenderStage(const unsigned int frames_per
 
     auto playback_texture = new AudioTexture2DParameter("playback_texture",
                                                         AudioParameter::ConnectionType::INPUT,
-                                                        m_frames_per_buffer * m_num_channels, M_TAPE_SIZE, // Store 2 seconds of sound at a time
+                                                        m_frames_per_buffer, M_TAPE_SIZE * m_num_channels, // Store 2 seconds of sound at a time
                                                         ++m_active_texture_count,
                                                         0,
                                                         GL_NEAREST);
