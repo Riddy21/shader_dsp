@@ -60,6 +60,14 @@ public:
 
     static const std::vector<std::string> default_frag_shader_imports;
 
+    void set_low_pass(const float low_pass) { m_low_pass = low_pass; update_b_coefficients(); };
+    void set_high_pass(const float high_pass) { m_high_pass = high_pass; update_b_coefficients(); };
+
+    const float get_low_pass() { return m_low_pass; };
+    const float get_high_pass() { return m_high_pass; };
+
+    void update_b_coefficients();
+
     ~AudioFrequencyFilterEffectRenderStage() {};
 
 private:
@@ -67,6 +75,10 @@ private:
     void render(const unsigned int time) override;
 
     std::vector<std::vector<float>> m_history_buffer;
+    float m_low_pass;
+    float m_high_pass;
+    const float NYQUIST;
+
 };
 
 #endif // AUDIO_EFFECT_RENDER_STAGE_H
