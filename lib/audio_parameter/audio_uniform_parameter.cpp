@@ -6,8 +6,8 @@ AudioUniformParameter::AudioUniformParameter(const std::string name,
     : AudioParameter(name, connection_type)
 {
     if (connection_type == ConnectionType::OUTPUT && connection_type == ConnectionType::PASSTHROUGH) {
-        char error_message[100];
-        sprintf(error_message, "Error: Cannot set parameter %s as OUTPUT or PASSTHROUGH\n", name.c_str());
+        printf("Error: Cannot set parameter %s as OUTPUT or PASSTHROUGH\n", name.c_str());
+        std::string error_message = "Cannot set parameter " + name + " as OUTPUT or PASSTHROUGH";
         throw std::invalid_argument(error_message);
     }
 }

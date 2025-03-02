@@ -77,7 +77,7 @@ bool AudioTexture2DParameter::initialize(GLuint frame_buffer, AudioShaderProgram
     
     GLenum status = glGetError();
     if (status != GL_NO_ERROR) {
-        printf("Error: OpenGL error in parameter %s\n", name);
+        printf("Error: OpenGL error in parameter %s\n", name.c_str());
         return false;
     }
 

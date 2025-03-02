@@ -5,7 +5,7 @@
 bool AudioParameter::set_value(const void * value_ptr) {
     // Only allow setting value if the parameter is an input
     if (connection_type == ConnectionType::PASSTHROUGH || connection_type == ConnectionType::OUTPUT) {
-        printf("Error: Cannot set value for parameter %s\n", name);
+        printf("Error: Cannot set value for parameter %s\n", name.c_str());
         return false;
     }
 

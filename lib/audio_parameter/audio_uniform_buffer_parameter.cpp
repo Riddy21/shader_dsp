@@ -11,8 +11,8 @@ AudioUniformBufferParameter::AudioUniformBufferParameter(const std::string name,
 {
     // Cannot set value for output or passthrough parameters
     if (connection_type == ConnectionType::OUTPUT || connection_type == ConnectionType::PASSTHROUGH) {
-        char error_message[256];
-        sprintf(error_message, "Error: Cannot set parameter %s as OUTPUT or PASSTHROUGH\n", name.c_str());
+        printf("Error: Cannot set parameter %s as OUTPUT or PASSTHROUGH\n", name.c_str());
+        std::string error_message = "Cannot set parameter " + name + " as OUTPUT or PASSTHROUGH";
         throw std::invalid_argument(error_message);
     }
 }
@@ -49,7 +49,7 @@ bool AudioUniformBufferParameter::initialize(GLuint frame_buffer, AudioShaderPro
 
     GLenum status = glGetError();
     if (status != GL_NO_ERROR) {
-        printf("Error: OpenGL error in initializing parameter %s\n", name);
+        printf("Error: OpenGL error in initializing parameter %s\n", name.c_str());
         return false;
     }
 
