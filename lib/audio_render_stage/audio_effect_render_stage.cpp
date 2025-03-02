@@ -125,7 +125,8 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
       NYQUIST(sample_rate / 2.0f),
       m_low_pass(1.0f),
       m_high_pass(0.0f),
-      m_filter_follower(0.0f) {
+      m_filter_follower(0.0f),
+      m_resonance(1.0f) {
 
     // Valid range is 1 - buffer_size * num_channels
     auto num_taps_parameter =
@@ -146,17 +147,6 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
                                 ++m_active_texture_count,
                                 0, GL_NEAREST);
     
-    // FIXME: Add functionality for resonance
-    //auto resonance_parameter =
-    //    new AudioFloatParameter("resonance",
-    //                            AudioParameter::ConnectionType::INPUT);
-    //resonance_parameter->set_value(0.0f);
-
-    //auto filter_follower_parameter =
-    //    new AudioFloatParameter("filter_follower",
-    //                            AudioParameter::ConnectionType::INPUT);
-    //filter_follower_parameter->set_value(0.0f);
-
     if (!this->add_parameter(num_taps_parameter)) {
         std::cerr << "Failed to add num_taps_parameter" << std::endl;
     }
@@ -166,12 +156,6 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     if (!this->add_parameter(audio_history_texture)) {
         std::cerr << "Failed to add audio_history_texture" << std::endl;
     }
-    //if (!this->add_parameter(resonance_parameter)) {
-    //    std::cerr << "Failed to add resonance_parameter" << std::endl;
-    //}
-    //if (!this->add_parameter(filter_follower_parameter)) {
-    //    std::cerr << "Failed to add filter_follower_parameter" << std::endl;
-    //}
 
     update_b_coefficients();
 
@@ -187,7 +171,8 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
 const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin_b_coefficients(
     const float low_pass_param,
     const float high_pass_param,
-    const unsigned int num_taps)
+    const unsigned int num_taps,
+    const float resonance)
 {
     float low_pass = low_pass_param;
     float high_pass = high_pass_param;
@@ -291,6 +276,12 @@ const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin
         h[n] *= w;
     }
 
+    // Apply resonance by scaling the coefficients.
+    for (unsigned int n = 0; n < num_taps; n++)
+    {
+        h[n] *= std::pow(resonance, std::fabs(n - M) / M);
+    }
+
     // For filters that pass DC (lowpass and bandstop), normalize the coefficients so that their sum equals one.
     // (Highpass and bandpass filters naturally have zero DC gain.)
     if (filter_type == Lowpass || filter_type == Bandstop)
@@ -337,8 +328,7 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
 void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float current_amplitude) {
     float low_pass = m_low_pass + m_filter_follower * current_amplitude;
     float high_pass = m_high_pass + m_filter_follower * current_amplitude;
-    printf("Low pass: %f, High pass: %f\n", low_pass, high_pass);
-    auto b_coeff = calculate_firwin_b_coefficients(low_pass/NYQUIST, high_pass/NYQUIST, *(int *)this->find_parameter("num_taps")->get_value());
+    auto b_coeff = calculate_firwin_b_coefficients(low_pass/NYQUIST, high_pass/NYQUIST, *(int *)this->find_parameter("num_taps")->get_value(), m_resonance);
     b_coeff.resize(MAX_TEXTURE_SIZE, 0.0);
     this->find_parameter("b_coeff_texture")->set_value(b_coeff.data());
 }
