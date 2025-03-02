@@ -63,6 +63,8 @@ int main(int argc, char** argv) {
     auto playback_render_stage = new AudioPlaybackRenderStage(512, 44100, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
+    filter_render_stage->set_filter_follower(20.0f);
+
     effect_render_stage->find_parameter("gain")->set_value(1.0f);
     effect_render_stage->find_parameter("balance")->set_value(0.5f);
 

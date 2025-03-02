@@ -124,7 +124,8 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
       NYQUIST(sample_rate / 2.0f),
       m_low_pass(1.0f),
-      m_high_pass(0.0f) {
+      m_high_pass(0.0f),
+      m_filter_follower(0.0f) {
 
     // Valid range is 1 - buffer_size * num_channels
     auto num_taps_parameter =
@@ -184,13 +185,20 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
 
 // Assume this function is a member of AudioFrequencyFilterEffectRenderStage.
 const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin_b_coefficients(
-    const float low_pass,
-    const float high_pass,
+    const float low_pass_param,
+    const float high_pass_param,
     const unsigned int num_taps)
 {
+    float low_pass = low_pass_param;
+    float high_pass = high_pass_param;
+
     // Check that we have at least one positive cutoff.
-    if (low_pass <= 0.0f && high_pass <= 0.0f)
-        throw std::invalid_argument("At least one cutoff frequency must be positive.");
+    if (low_pass <= 0.0f) {
+        low_pass = 0.0f;
+    }
+    if (high_pass <= 0.0f) {
+        high_pass = 0.0f;
+    }
 
     // Create a vector for the filter coefficients.
     std::vector<float> h(num_taps, 0.0f);
@@ -305,6 +313,11 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
 
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
+    if (m_filter_follower != 0.0f) {
+        float current_amplitude = std::accumulate(data, data + m_frames_per_buffer * m_num_channels, 0.0f) / (m_frames_per_buffer * m_num_channels);
+        update_b_coefficients(current_amplitude);
+    }
+
     std::vector<float> total_data;
     for (int i = 0; i < m_num_channels; i++) {
         float * channel_pointer = data + i * m_frames_per_buffer;
@@ -319,9 +332,9 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     this->find_parameter("audio_history_texture")->set_value(total_data.data());
 }
 
-void AudioFrequencyFilterEffectRenderStage::update_b_coefficients() {
-    float low_pass = m_low_pass;
-    float high_pass = m_high_pass;
+void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float current_amplitude) {
+    float low_pass = m_low_pass + m_filter_follower * current_amplitude;
+    float high_pass = m_high_pass + m_filter_follower * current_amplitude;
     auto b_coeff = calculate_firwin_b_coefficients(low_pass/NYQUIST, high_pass/NYQUIST, *(int *)this->find_parameter("num_taps")->get_value());
     b_coeff.resize(MAX_TEXTURE_SIZE, 0.0);
     this->find_parameter("b_coeff_texture")->set_value(b_coeff.data());
