@@ -12,7 +12,8 @@
 #include "audio_parameter/audio_parameter.h"
 #include "audio_core/audio_shader_program.h"
 
-#define MAX_TEXTURE_SIZE 4096
+// TODO: Make this a setting global 
+#define MAX_TEXTURE_SIZE 4098
 
 class AudioRenderGraph;
 class AudioParameter;
