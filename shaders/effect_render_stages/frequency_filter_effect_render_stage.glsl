@@ -1,7 +1,6 @@
 uniform int num_taps;
 
 uniform sampler2D b_coeff_texture;
-uniform sampler2D audio_history_texture;
 
 // Treat the coefficient textures as an array by mapping tex coords
 float get_tex_value(sampler2D tex, int index) {
@@ -12,13 +11,14 @@ float get_tex_value(sampler2D tex, int index) {
 
 // function for joining the history and the current audio stream into one index to pull from
 float get_data(int index) {
+    int channel = int(TexCoord.y * float(num_channels));
     // Get the last num_taps - 1 samples of history and concat with current stream_audio_texture
-    int total_history_size = textureSize(audio_history_texture, 0).x;
+    int total_history_size = get_audio_history_size();
     int history_size = num_taps - 1;
     if (index < history_size) {
         // History texture
         int history_index = index + total_history_size - history_size;
-        return texture(audio_history_texture, vec2(float(history_index)/float(total_history_size), TexCoord.y)).r;
+        return get_audio_history_sample(history_index, channel);
     } else {
         // stream texture
         int history_index = index - history_size;
