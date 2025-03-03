@@ -16,10 +16,12 @@
 
 class AudioRenderGraph;
 class AudioParameter;
+class AudioRenderStageHistory;
 
 class AudioRenderStage {
 public:
     friend class AudioRenderGraph;
+    friend class AudioRenderStageHistory;
 
     // Constructor
     static const std::vector<std::string> default_frag_shader_imports;
@@ -31,7 +33,8 @@ public:
                      const std::string& fragment_shader_path = "build/shaders/render_stage_frag.glsl",
                      const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports,
                      const std::string& vertex_shader_path = "build/shaders/render_stage_vert.glsl",
-                     const std::vector<std::string> & vert_shader_imports = default_vert_shader_imports);
+                     const std::vector<std::string> & vert_shader_imports = default_vert_shader_imports,
+                     const unsigned int history_max_size = MAX_TEXTURE_SIZE);
 
     // Destructor
     virtual ~AudioRenderStage();
@@ -126,6 +129,10 @@ protected:
     // Initialized
     bool m_initialized = false;
 
+    // History buffer
+    std::vector<std::vector<float>> m_history_buffer;
+    const unsigned int HISTORY_MAX_SIZE;
+
     // Settings
     const unsigned int m_frames_per_buffer;
     const unsigned int m_sample_rate;
@@ -176,6 +183,7 @@ private:
      */
     bool initialize_framebuffer();
 
+    void update_history();
 
     unsigned int generate_id() {
         static unsigned int id = 1; // Render stage GIDs start at 1

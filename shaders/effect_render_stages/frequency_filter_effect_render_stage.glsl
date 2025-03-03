@@ -1,7 +1,6 @@
 uniform int num_taps;
 
 uniform sampler2D b_coeff_texture;
-uniform sampler2D audio_history_texture;
 
 // Treat the coefficient textures as an array by mapping tex coords
 float get_tex_value(sampler2D tex, int index) {

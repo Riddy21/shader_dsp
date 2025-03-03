@@ -69,8 +69,8 @@ int main(int argc, char** argv) {
     effect_render_stage->find_parameter("balance")->set_value(0.5f);
 
     keyboard.get_output_render_stage()->connect_render_stage(effect_render_stage);
-    effect_render_stage->connect_render_stage(filter_render_stage);
-    //echo_render_stage->connect_render_stage(filter_render_stage);
+    effect_render_stage->connect_render_stage(echo_render_stage);
+    echo_render_stage->connect_render_stage(filter_render_stage);
     filter_render_stage->connect_render_stage(record_render_stage);
     record_render_stage->connect_render_stage(playback_render_stage);
     playback_render_stage->connect_render_stage(final_render_stage);
