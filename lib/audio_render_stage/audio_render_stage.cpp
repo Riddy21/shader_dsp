@@ -24,13 +24,15 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                    const std::string & fragment_shader_path,
                                    const std::vector<std::string> & frag_shader_imports,
                                    const std::string & vertex_shader_path,
-                                   const std::vector<std::string> & vert_shader_imports)
+                                   const std::vector<std::string> & vert_shader_imports,
+                                   const unsigned int history_max_size)
                                   : gid(generate_id()),
                                     m_frames_per_buffer(frames_per_buffer),
                                     m_sample_rate(sample_rate),
                                     m_num_channels(num_channels),
                                     m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
-                                    m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
+                                    m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)),
+                                    HISTORY_MAX_SIZE(history_max_size) {
     
     int width = m_frames_per_buffer;
     int height = m_num_channels;
@@ -48,6 +50,7 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     width, height,
                                     0,
                                     ++m_color_attachment_count, GL_NEAREST);
+
 
     auto buffer_size =
         new AudioIntParameter("buffer_size",
