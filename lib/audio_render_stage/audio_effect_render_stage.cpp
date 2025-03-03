@@ -113,7 +113,8 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
 
 const std::vector<std::string> AudioFrequencyFilterEffectRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
-    "build/shaders/frag_shader_settings.glsl"
+    "build/shaders/frag_shader_settings.glsl",
+    "build/shaders/history_settings.glsl"
 };
 
 AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(const unsigned int frames_per_buffer,
@@ -124,9 +125,11 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
       NYQUIST(sample_rate / 2.0f),
       m_low_pass(1.0f),
-      m_high_pass(0.0f),
+      m_high_pass(230.0f),
       m_filter_follower(0.0f),
       m_resonance(1.0f) {
+
+    m_audio_history = std::make_unique<AudioRenderStageHistory>(MAX_TEXTURE_SIZE, frames_per_buffer, sample_rate, num_channels);
 
     // Valid range is 1 - buffer_size * num_channels
     auto num_taps_parameter =
@@ -140,12 +143,6 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
                                 MAX_TEXTURE_SIZE, 1, // Due to restriction of the shader only can be as big as the buffer size
                                 ++m_active_texture_count,
                                 0, GL_NEAREST);
-
-    auto audio_history_texture = new AudioTexture2DParameter("audio_history_texture",
-                                AudioParameter::ConnectionType::INPUT,
-                                MAX_TEXTURE_SIZE, num_channels, // Due to restriction of the shader only can be as big as the buffer size
-                                ++m_active_texture_count,
-                                0, GL_NEAREST);
     
     if (!this->add_parameter(num_taps_parameter)) {
         std::cerr << "Failed to add num_taps_parameter" << std::endl;
@@ -153,18 +150,11 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     if (!this->add_parameter(b_coeff_texture)) {
         std::cerr << "Failed to add b_coeff_texture" << std::endl;
     }
-    if (!this->add_parameter(audio_history_texture)) {
+    if (!this->add_parameter(m_audio_history->create_audio_history_texture(++m_active_texture_count))) {
         std::cerr << "Failed to add audio_history_texture" << std::endl;
     }
 
     update_b_coefficients();
-
-    auto audio_history = std::vector<float>(MAX_TEXTURE_SIZE * num_channels, 0.0f);
-    audio_history_texture->set_value(audio_history.data());
-
-    for (int i = 0; i < num_channels; i++) {
-        m_history_buffer.push_back(std::vector<float>(MAX_TEXTURE_SIZE, 0.0f));
-    }
 }
 
 // Assume this function is a member of AudioFrequencyFilterEffectRenderStage.
@@ -311,18 +301,8 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
         update_b_coefficients(current_amplitude);
     }
 
-    std::vector<float> total_data;
-    for (int i = 0; i < m_num_channels; i++) {
-        float * channel_pointer = data + i * m_frames_per_buffer;
-
-        std::copy(m_history_buffer[i].begin() + m_frames_per_buffer, m_history_buffer[i].end(), m_history_buffer[i].begin());
-        std::copy(channel_pointer, channel_pointer + m_frames_per_buffer, m_history_buffer[i].end() - m_frames_per_buffer);
-
-        total_data.insert(total_data.end(), m_history_buffer[i].begin(), m_history_buffer[i].end());
-    }
-
-    // My theory is audio_history_texture is only getting set wrong when multiples of the same frame get rendered
-    this->find_parameter("audio_history_texture")->set_value(total_data.data());
+    m_audio_history->save_stream_to_history(data);
+    this->find_parameter(m_audio_history->get_history_texture_name())->set_value(m_audio_history->get_history_data().data());
 }
 
 void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float current_amplitude) {

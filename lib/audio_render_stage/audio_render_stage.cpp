@@ -49,6 +49,7 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     0,
                                     ++m_color_attachment_count, GL_NEAREST);
 
+
     auto buffer_size =
         new AudioIntParameter("buffer_size",
                   AudioParameter::ConnectionType::INITIALIZATION);

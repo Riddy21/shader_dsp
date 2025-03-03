@@ -12,7 +12,8 @@
 #include "audio_parameter/audio_parameter.h"
 #include "audio_core/audio_shader_program.h"
 
-#define MAX_TEXTURE_SIZE 4096
+// TODO: Make this a setting global 
+#define MAX_TEXTURE_SIZE 4098
 
 class AudioRenderGraph;
 class AudioParameter;
@@ -20,6 +21,7 @@ class AudioParameter;
 class AudioRenderStage {
 public:
     friend class AudioRenderGraph;
+    friend class AudioRenderStageHistory;
 
     // Constructor
     static const std::vector<std::string> default_frag_shader_imports;
@@ -175,7 +177,6 @@ private:
      * This function is responsible for initializing the framebuffer.
      */
     bool initialize_framebuffer();
-
 
     unsigned int generate_id() {
         static unsigned int id = 1; // Render stage GIDs start at 1
