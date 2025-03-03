@@ -7,7 +7,7 @@ AudioRenderStageHistory::AudioRenderStageHistory(const unsigned int history_size
     m_frames_per_buffer(frames_per_buffer),
     m_sample_rate(sample_rate),
     m_num_channels(num_channels),
-    m_texture_rows(history_size/MAX_TEXTURE_SIZE + 1) {
+    m_texture_rows(history_size/MAX_TEXTURE_SIZE) {
 
     // Check history_size must be multiple of MAX_TEXTURE_SIZE
     if (history_size % MAX_TEXTURE_SIZE != 0) {
@@ -42,19 +42,21 @@ void AudioRenderStageHistory::save_stream_to_history(const float * audio_stream_
 
         std::copy(m_history_buffer[i].begin() + m_frames_per_buffer, m_history_buffer[i].end(), m_history_buffer[i].begin());
         std::copy(channel_pointer, channel_pointer + m_frames_per_buffer, m_history_buffer[i].end() - m_frames_per_buffer);
+
     }
 }
 
 const std::vector<float> AudioRenderStageHistory::get_history_data() {
     std::vector<float> total_data;
+    total_data.reserve(MAX_TEXTURE_SIZE * m_num_channels * m_texture_rows);
 
-    for (int i = 0; i < m_num_channels; i++) {
-        total_data.insert(total_data.end(), m_history_buffer[i].begin(), m_history_buffer[i].end());
+    for (unsigned int row = 0; row < m_texture_rows; ++row) {
+        for (unsigned int channel = 0; channel < m_num_channels; ++channel) {
+            unsigned int start_index = row * MAX_TEXTURE_SIZE;
+            unsigned int end_index = start_index + MAX_TEXTURE_SIZE;
+            total_data.insert(total_data.end(), m_history_buffer[channel].begin() + start_index, m_history_buffer[channel].begin() + end_index);
+        }
     }
 
     return total_data;
-}
-
-void AudioRenderStageHistory::update_audio_history_texture() {
-    m_audio_history_texture->set_value(get_history_data().data());
 }

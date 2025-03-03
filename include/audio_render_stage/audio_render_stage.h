@@ -16,7 +16,6 @@
 
 class AudioRenderGraph;
 class AudioParameter;
-class AudioRenderStageHistory;
 
 class AudioRenderStage {
 public:
