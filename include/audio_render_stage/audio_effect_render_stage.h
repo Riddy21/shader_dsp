@@ -3,7 +3,6 @@
 #define AUDIO_EFFECT_RENDER_STAGE_H
 
 #include "audio_render_stage/audio_render_stage.h"
-#include "audio_render_stage/audio_render_stage_history.h"
 
 class AudioEffectRenderStage : public AudioRenderStage {
 public:
@@ -78,13 +77,13 @@ private:
     void update_b_coefficients(const float current_amplitude = 0.0);
     void render(const unsigned int time) override;
 
-    std::unique_ptr<AudioRenderStageHistory> m_history;
+    std::vector<std::vector<float>> m_history_buffer;
     float m_low_pass;
     float m_high_pass;
     float m_filter_follower;
     float m_resonance;
     const float NYQUIST;
 
-};;
+};
 
 #endif // AUDIO_EFFECT_RENDER_STAGE_H
