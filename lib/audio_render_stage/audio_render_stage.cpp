@@ -24,8 +24,7 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                    const std::string & fragment_shader_path,
                                    const std::vector<std::string> & frag_shader_imports,
                                    const std::string & vertex_shader_path,
-                                   const std::vector<std::string> & vert_shader_imports,
-                                   const unsigned int history_max_size)
+                                   const std::vector<std::string> & vert_shader_imports)
                                   : gid(generate_id()),
                                     m_frames_per_buffer(frames_per_buffer),
                                     m_sample_rate(sample_rate),

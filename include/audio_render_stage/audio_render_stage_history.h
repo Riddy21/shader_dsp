@@ -27,6 +27,8 @@ public:
 
     void update_audio_history_texture();
 
+    std::string get_history_texture_name() { return "audio_history_texture"; }
+
 private:
     std::vector<std::vector<float>> m_history_buffer;
     AudioParameter * m_audio_history_texture;
