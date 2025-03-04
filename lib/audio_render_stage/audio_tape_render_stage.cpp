@@ -13,8 +13,9 @@ const std::vector<std::string> AudioRecordRenderStage::default_frag_shader_impor
 
 void AudioRecordRenderStage::render(unsigned int time) {
 
-    if (m_recording) {
-        auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
+    auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
+
+    if (m_recording && time != m_time) {
 
         unsigned int record_time = time - m_record_start_time + m_record_position;
         // If the tape is smaller than the record time, then resize the tape
