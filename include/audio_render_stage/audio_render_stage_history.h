@@ -8,7 +8,7 @@
 
 #include "audio_parameter/audio_texture2d_parameter.h"
 
-#define MAX_TEXTURE_SIZE 4098
+#define MAX_TEXTURE_SIZE 4096
 
 class AudioRenderStageHistory {
 public:
