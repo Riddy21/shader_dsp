@@ -1,4 +1,4 @@
-
+#include <stdexcept>
 #include "audio_parameter/audio_uniform_parameter.h"
 
 AudioUniformParameter::AudioUniformParameter(const std::string name,
