@@ -1,4 +1,5 @@
 #include <cstring>
+#include <stdexcept>
 
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
 
