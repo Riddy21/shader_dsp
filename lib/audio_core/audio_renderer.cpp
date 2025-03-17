@@ -51,7 +51,9 @@ bool AudioRenderer::initialize_glut(unsigned int window_width, unsigned int wind
 
     int argc = 0;
     char** argv = nullptr;
-    glutInit(&argc, argv);
+    if (!glutGet(GLUT_INIT_STATE)) {
+        glutInit(&argc, argv);
+    }
 
     // Init the OpenGL context
     glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE);
@@ -177,6 +179,7 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
 
     m_initialized = true;
 
+
     return true;
 }
 
@@ -202,6 +205,7 @@ bool AudioRenderer::terminate() {
         std::cerr << "Failed to clean up OpenGL context." << std::endl;
         return false;
     }
+
 
     return true;
 }
@@ -273,6 +277,15 @@ bool AudioRenderer::cleanup()
     glDeleteVertexArrays(1, &m_VAO);
     glDeleteBuffers(1, &m_VBO);
 
+    m_render_outputs.clear();
+    m_global_parameters.clear();
+    m_render_graph.reset();
+    m_initialized = false;
+    m_running = false;
+    m_paused = false;
+    m_frame_count = 0;
+    m_lead_output = nullptr;
+
     return true;
 }
 
@@ -282,11 +295,16 @@ AudioRenderer::~AudioRenderer()
     if (!cleanup()) {
         std::cerr << "Failed to clean up OpenGL context." << std::endl;
     }
-    m_render_outputs.clear();
 }
 
 void AudioRenderer::push_to_output_buffers(const float * data)
 {
+    // Check if there is outputs to push to 
+    if (m_render_outputs.size() == 0) {
+        std::cerr << "Error: No outputs to push to." << std::endl;
+        return;
+    }
+
     if (m_render_outputs.size() == 0) {
         return;
     }

@@ -58,6 +58,7 @@ TEST_CASE("AudioGeneratorRenderStage", "[audio]") {
 
             // terminate
             audio_renderer.terminate();
+            audio_renderer.cleanup();
         });
 
         REQUIRE(audio_renderer.initialize(512, 44100, 2));
@@ -68,5 +69,5 @@ TEST_CASE("AudioGeneratorRenderStage", "[audio]") {
         audio_renderer.start_main_loop();
 
         t1.detach();
-    }
+        t1.join();
 }
