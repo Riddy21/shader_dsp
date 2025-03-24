@@ -9,7 +9,7 @@
  * @brief The AudioFileGeneratorRenderStage class is responsible for generating audio data from a file.
  * 
  */
-class AudioFileGeneratorRenderStage : public AudioGeneratorRenderStage {
+class AudioSingleShaderFileGeneratorRenderStage : public AudioSingleShaderGeneratorRenderStage {
 public:
     /**
      * @brief Constructs an AudioFileGeneratorRenderStage object.
@@ -22,14 +22,14 @@ public:
      * @param num_channels The number of channels in the audio data.
      * @param audio_filepath The path to the audio file to use
      */
-    AudioFileGeneratorRenderStage(const unsigned int frames_per_buffer,
+    AudioSingleShaderFileGeneratorRenderStage(const unsigned int frames_per_buffer,
                                   const unsigned int sample_rate,
                                   const unsigned int num_channels,
                                   const std::string& audio_filepath) ;
     /**
      * @brief Destroys the AudioFileGeneratorRenderStage object.
      */
-    ~AudioFileGeneratorRenderStage() {}
+    ~AudioSingleShaderFileGeneratorRenderStage() {}
 
     const std::string & m_audio_filepath; // Default audio file path
 

@@ -277,14 +277,15 @@ bool AudioRenderer::cleanup()
     glDeleteVertexArrays(1, &m_VAO);
     glDeleteBuffers(1, &m_VBO);
 
-    m_render_outputs.clear();
-    m_global_parameters.clear();
-    m_render_graph.reset();
-    m_initialized = false;
-    m_running = false;
-    m_paused = false;
-    m_frame_count = 0;
-    m_lead_output = nullptr;
+    // TODO: Fix seg fault issues when this is enabled
+    //m_render_outputs.clear();
+    //m_global_parameters.clear();
+    //m_render_graph.reset();
+    //m_initialized = false;
+    //m_running = false;
+    //m_paused = false;
+    //m_frame_count = 0;
+    //m_lead_output = nullptr;
 
     return true;
 }
