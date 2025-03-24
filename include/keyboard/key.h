@@ -43,10 +43,10 @@ public:
     void set_tone(const float tone);
 
     // Getters
-    AudioGeneratorRenderStage * get_render_stage() {return m_audio_generator;}
+    AudioSingleShaderGeneratorRenderStage * get_render_stage() {return m_audio_generator;}
 
 private:
-    AudioGeneratorRenderStage * m_audio_generator;
+    AudioSingleShaderGeneratorRenderStage * m_audio_generator;
     AudioParameter * m_gain_param;
     AudioParameter * m_tone_param;
     AudioParameter * m_play_position_param;

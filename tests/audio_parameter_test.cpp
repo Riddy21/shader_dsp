@@ -148,3 +148,59 @@ TEST_CASE("MakeFloatArrayParameterTest") {
 
     REQUIRE(audio_renderer.terminate());
 }
+
+TEST_CASE("MakeBoolArrayParameterTest") {
+
+    AudioRenderer & audio_renderer = AudioRenderer::get_instance();
+    auto audio_final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
+
+    auto render_stage = new AudioRenderStage(512, 44100, 2,
+                                             "build/shaders/bool_array_parameter_test.glsl");
+
+    auto input_array = new AudioBoolArrayParameter("input_bool_array",
+                                                    AudioParameter::ConnectionType::INPUT,
+                                                    512);
+
+    bool * array_values = new bool[512];
+    for (int i = 0; i < 512; ++i) {
+        array_values[i] = i % 2 == 0;
+    }
+    input_array->set_value(array_values);
+
+    auto output_texture = new AudioTexture2DParameter("output_debug_texture",
+                                                      AudioParameter::ConnectionType::OUTPUT,
+                                                      512, 2,
+                                                      0,
+                                                      2,
+                                                      GL_NEAREST);
+
+    render_stage->add_parameter(input_array);
+    render_stage->add_parameter(output_texture);
+
+    render_stage->connect_render_stage(audio_final_render_stage);
+
+    auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
+    
+    auto audio_render_graph = new AudioRenderGraph({audio_final_render_stage});
+
+    audio_renderer.add_render_graph(audio_render_graph);
+    
+    audio_renderer.add_render_output(audio_driver);
+
+    REQUIRE(audio_renderer.initialize(512, 44100, 2));
+
+    REQUIRE(audio_driver->open());
+    REQUIRE(audio_driver->start());
+
+    audio_renderer.increment_main_loop();
+    float * debug_output = (float *)render_stage->find_parameter("output_debug_texture")->get_value();
+
+    for (int i = 0; i < 512; ++i) {
+        REQUIRE(debug_output[i] == static_cast<float>(array_values[i]));
+    }
+
+
+    delete[] array_values;
+
+    REQUIRE(audio_renderer.terminate());
+}
