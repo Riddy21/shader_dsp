@@ -205,3 +205,21 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
         std::cerr << "Failed to add release_time_parameter" << std::endl;
     }
 }
+
+void AudioGeneratorRenderStage::play_note(const float tone, const float gain)
+{
+    auto active_notes = find_parameter("active_notes");
+    auto play_positions = find_parameter("play_positions");
+    auto stop_positions = find_parameter("stop_positions");
+    auto tones = find_parameter("tones");
+    auto gains = find_parameter("gains");
+
+    // TODO: Modify the local copy of the parameters
+    m_active_notes++;
+
+    // TODO: Sync them with the shader
+}
+
+void AudioGeneratorRenderStage::stop_note(const float tone)
+{
+}
