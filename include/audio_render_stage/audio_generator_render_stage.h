@@ -74,8 +74,17 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
          */
         ~AudioGeneratorRenderStage() {}
 
+        void play_note(const float tone, const float gain);
+        void stop_note(const float tone);
+
     private:
         static const unsigned int MAX_NOTES_PLAYED_AT_ONCE = 24;
+
+        unsigned int m_active_notes = 0;
+        std::vector<int> m_play_positions = std::vector<int>(MAX_NOTES_PLAYED_AT_ONCE, 0);
+        std::vector<int> m_stop_positions = std::vector<int>(MAX_NOTES_PLAYED_AT_ONCE, 0);
+        std::vector<float> m_tones = std::vector<float>(MAX_NOTES_PLAYED_AT_ONCE, 0.f);
+        std::vector<float> m_gains = std::vector<float>(MAX_NOTES_PLAYED_AT_ONCE, 0.f);
     };
 
 #endif
