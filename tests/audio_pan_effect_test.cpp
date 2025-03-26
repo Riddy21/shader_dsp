@@ -10,7 +10,7 @@
 #include "audio_render_stage/audio_final_render_stage.h"
 
 TEST_CASE("AudioGainEffectRenderStage") {
-    auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto audio_generator = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);

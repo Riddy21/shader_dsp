@@ -21,6 +21,10 @@ SHADER_SOURCES = Glob(os.path.join(SHADER_DIR, '**', '*.glsl'), strings=True)
 # Define compiler and flags
 env = Environment(CXX='g++', CXXFLAGS='-std=c++20')
 
+if 'debug' in COMMAND_LINE_TARGETS:
+    env.Append(CXXFLAGS=['-g', '-O0'])
+    COMMAND_LINE_TARGETS.remove('debug')
+
 # Define include directories
 env.Append(CPPPATH=[INCLUDE_DIR])
 

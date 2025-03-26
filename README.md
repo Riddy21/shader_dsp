@@ -13,7 +13,7 @@ This project depends on the following libraries:
 - [OpenGL Version 3.1](https://www.opengl.org/)
 - [Catch2](https://github.com/catchorg/Catch2)
 ```
-sudo apt-get install libsdl2-dev libglew-dev freeglut3-dev g++ scons libportaudio2 mesa-utils
+sudo apt-get install libsdl2-dev libglew-dev freeglut3-dev g++ scons libportaudio2 mesa-utils xvbf
 ```
 
 
