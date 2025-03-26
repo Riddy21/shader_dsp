@@ -78,6 +78,9 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
         void stop_note(const float tone);
 
     private:
+        void delete_note(const unsigned int index);
+        void render(const unsigned int time) override;
+
         static const unsigned int MAX_NOTES_PLAYED_AT_ONCE = 24;
 
         unsigned int m_active_notes = 0;
@@ -85,6 +88,8 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
         std::vector<int> m_stop_positions = std::vector<int>(MAX_NOTES_PLAYED_AT_ONCE, 0);
         std::vector<float> m_tones = std::vector<float>(MAX_NOTES_PLAYED_AT_ONCE, 0.f);
         std::vector<float> m_gains = std::vector<float>(MAX_NOTES_PLAYED_AT_ONCE, 0.f);
+
+        std::unordered_map<int, int> m_delete_at_time;
     };
 
 #endif

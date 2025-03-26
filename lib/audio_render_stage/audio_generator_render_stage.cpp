@@ -214,12 +214,86 @@ void AudioGeneratorRenderStage::play_note(const float tone, const float gain)
     auto tones = find_parameter("tones");
     auto gains = find_parameter("gains");
 
-    // TODO: Modify the local copy of the parameters
+    // Set the corresponding notes
+    m_play_positions[m_active_notes] = m_time;
+    m_stop_positions[m_active_notes] = -1;
+    m_tones[m_active_notes] = tone;
+    m_gains[m_active_notes] = gain;
     m_active_notes++;
 
-    // TODO: Sync them with the shader
+    // Update the shader parameters
+    active_notes->set_value(m_active_notes);
+    play_positions->set_value(m_play_positions.data());
+    stop_positions->set_value(m_stop_positions.data());
+    tones->set_value(m_tones.data());
+    gains->set_value(m_gains.data());
 }
 
 void AudioGeneratorRenderStage::stop_note(const float tone)
 {
+    auto stop_positions = find_parameter("stop_positions");
+
+    // Search for the position of the tone in the active nodes
+    int tone_index = -1;
+    for (unsigned int i = 0; i < m_active_notes; i++) {
+        if (m_tones[i] == tone && m_stop_positions[i] == -1) {
+            tone_index = i;
+            break;
+        }
+    }
+    // Don't do anything if the tone is not found
+    if (tone_index == -1) {
+        return;
+    }
+
+    // Update the stop position of the note
+    m_stop_positions[tone_index] = m_time;
+
+    stop_positions->set_value(m_stop_positions.data());
+
+    static float last_release_time = -1.0f;
+    static int release_time_buffers = 0;
+
+    float release_time = *(float *)find_parameter("release_time")->get_value();
+    if (release_time != last_release_time) {
+        float seconds_per_buffer = (float)m_frames_per_buffer / (float)m_sample_rate;
+        release_time_buffers = (int)(release_time / seconds_per_buffer) + 1;
+        last_release_time = release_time;
+    }
+
+    m_delete_at_time[m_time + release_time_buffers] = tone_index;
+}
+
+void AudioGeneratorRenderStage::delete_note(const unsigned int index)
+{
+    // Shift the notes
+    for (unsigned int i = index; i < m_active_notes - 1; i++) {
+        m_play_positions[i] = m_play_positions[i + 1];
+        m_stop_positions[i] = m_stop_positions[i + 1];
+        m_tones[i] = m_tones[i + 1];
+        m_gains[i] = m_gains[i + 1];
+    }
+    m_active_notes--;
+
+    // Update the shader parameters
+    auto active_notes = find_parameter("active_notes");
+    auto play_positions = find_parameter("play_positions");
+    auto stop_positions = find_parameter("stop_positions");
+    auto tones = find_parameter("tones");
+    auto gains = find_parameter("gains");
+
+    active_notes->set_value(m_active_notes);
+    play_positions->set_value(m_play_positions.data());
+    stop_positions->set_value(m_stop_positions.data());
+    tones->set_value(m_tones.data());
+    gains->set_value(m_gains.data());
+}
+
+void AudioGeneratorRenderStage::render(const unsigned int time) {
+    AudioRenderStage::render(time);
+
+    if (m_delete_at_time.find(time) != m_delete_at_time.end()) {
+        delete_note(m_delete_at_time[time]);
+        m_delete_at_time.erase(time);
+    }
 }
