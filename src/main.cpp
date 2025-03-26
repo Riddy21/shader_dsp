@@ -16,8 +16,36 @@
 #include "keyboard/key.h"
 
 float middle_c = 261.63f;
-//float middle_c = 1.214879f;
 float semi_tone = 1.059463f;
+
+const std::unordered_map<unsigned char, float> KEY_TONE_MAPPING = {
+    {'a', MIDDLE_C},
+    {'w', MIDDLE_C * std::pow(SEMI_TONE, 1)},
+    {'s', MIDDLE_C * std::pow(SEMI_TONE, 2)},
+    {'e', MIDDLE_C * std::pow(SEMI_TONE, 3)},
+    {'d', MIDDLE_C * std::pow(SEMI_TONE, 4)},
+    {'f', MIDDLE_C * std::pow(SEMI_TONE, 5)},
+    {'t', MIDDLE_C * std::pow(SEMI_TONE, 6)},
+    {'g', MIDDLE_C * std::pow(SEMI_TONE, 7)},
+    {'y', MIDDLE_C * std::pow(SEMI_TONE, 8)},
+    {'h', MIDDLE_C * std::pow(SEMI_TONE, 9)},
+    {'u', MIDDLE_C * std::pow(SEMI_TONE, 10)},
+    {'j', MIDDLE_C * std::pow(SEMI_TONE, 11)},
+    {'k', MIDDLE_C * std::pow(SEMI_TONE, 12)},
+};
+
+void instantiate_piano_keyboard(Keyboard & keyboard, AudioGeneratorRenderStage & generator) {
+    for (const auto & [key, tone] : KEY_TONE_MAPPING) {
+        auto key_obj = new Key(key);
+        key_obj->set_key_down_callback([&generator, tone]() {
+            generator.play_note(tone, 0.2f);
+        });
+        key_obj->set_key_up_callback([&generator, tone]() {
+            generator.stop_note(tone);
+        });
+        keyboard.add_key(key_obj);
+    }
+}
 
 int main(int argc, char** argv) {
     //system("sudo renice -18 $(pgrep audio_program)");
@@ -56,6 +84,7 @@ int main(int argc, char** argv) {
     keyboard.add_key(increment_key);
 
     // add an effect render stage
+    auto generator_render_stage = new AudioGeneratorRenderStage(512, 44100, 2, "build/shaders/multinote_sine_generator_render_stage.glsl");
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
     auto echo_render_stage = new AudioEchoEffectRenderStage(512, 44100, 2);
     auto filter_render_stage = new AudioFrequencyFilterEffectRenderStage(512, 44100, 2);
@@ -63,12 +92,14 @@ int main(int argc, char** argv) {
     auto playback_render_stage = new AudioPlaybackRenderStage(512, 44100, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
+    instantiate_piano_keyboard(keyboard, *generator_render_stage);
+
     filter_render_stage->set_filter_follower(100.0f);
 
     effect_render_stage->find_parameter("gain")->set_value(1.0f);
     effect_render_stage->find_parameter("balance")->set_value(0.5f);
 
-    keyboard.get_output_render_stage()->connect_render_stage(effect_render_stage);
+    generator_render_stage->connect_render_stage(effect_render_stage);
     effect_render_stage->connect_render_stage(echo_render_stage);
     echo_render_stage->connect_render_stage(filter_render_stage);
     filter_render_stage->connect_render_stage(record_render_stage);

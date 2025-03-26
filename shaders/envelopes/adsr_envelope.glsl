@@ -20,6 +20,8 @@ float adsr_envelope(float start_time, float end_time, float time) {
     float from_start = time - start_time;  // Time since note-on
     float from_end   = time - end_time;    // Time since note-off
 
+    bool play = end_time < start_time;
+
     // If playback hasn't started yet, envelope is 0
     if (from_start < 0.0) {
         return 0.0;

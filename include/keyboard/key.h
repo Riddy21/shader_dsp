@@ -34,27 +34,4 @@ private:
     std::function<void()> m_key_down_callback;
     std::function<void()> m_key_up_callback;
 };
-
-class PianoKey : public Key {
-public:
-    PianoKey(const unsigned char key);
-
-    void set_gain(const float gain);
-    void set_tone(const float tone);
-
-    // Getters
-    AudioGeneratorRenderStage * get_render_stage() {return m_audio_generator;}
-
-private:
-    AudioGeneratorRenderStage * m_audio_generator;
-    AudioParameter * m_gain_param;
-    AudioParameter * m_tone_param;
-    AudioParameter * m_play_position_param;
-    AudioParameter * m_stop_position_param;
-    AudioParameter * m_time_param;
-    AudioParameter * m_play_param;
-    float m_gain;
-    float m_tone;
-};
-
 #endif // KEY_H

@@ -7,12 +7,12 @@
 #include "audio_render_stage/audio_render_stage.h"
 #include "audio_render_stage/audio_file_generator_render_stage.h"
 
-AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int frames_per_buffer,
+AudioSingleShaderFileGeneratorRenderStage::AudioSingleShaderFileGeneratorRenderStage(const unsigned int frames_per_buffer,
                                                              const unsigned int sample_rate,
                                                              const unsigned int num_channels,
                                                              const std::string & audio_filepath)
-    : AudioGeneratorRenderStage(frames_per_buffer, sample_rate, num_channels, "build/shaders/file_generator_render_stage.glsl"),
-      m_audio_filepath(audio_filepath) {
+    : AudioSingleShaderGeneratorRenderStage(frames_per_buffer, sample_rate, num_channels, "build/shaders/file_generator_render_stage.glsl"),
+      AudioFileGeneratorRenderStageBase(audio_filepath) {
 
     // Load the audio data filepath into the full_audio_data vector
     auto full_audio_data = load_audio_data_from_file(audio_filepath);
@@ -35,7 +35,35 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int 
     }
 }
 
-const std::vector<float> AudioFileGeneratorRenderStage::load_audio_data_from_file(const std::string & audio_filepath) {
+AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int frames_per_buffer,
+                                                             const unsigned int sample_rate,
+                                                             const unsigned int num_channels,
+                                                             const std::string & audio_filepath)
+    : AudioGeneratorRenderStage(frames_per_buffer, sample_rate, num_channels, "build/shaders/multinote_file_generator_render_stage.glsl"),
+      AudioFileGeneratorRenderStageBase(audio_filepath) {
+
+    // Load the audio data filepath into the full_audio_data vector
+    auto full_audio_data = load_audio_data_from_file(audio_filepath);
+
+    const unsigned int width = (unsigned)MAX_TEXTURE_SIZE;
+    const unsigned int height = full_audio_data.size() / width;
+
+    // Add new parameter objects to the parameter list
+    auto full_audio_texture =
+        new AudioTexture2DParameter("full_audio_data_texture",
+                              AudioParameter::ConnectionType::INITIALIZATION,
+                              width, height,
+                              ++m_active_texture_count,
+                              0, GL_LINEAR);
+
+    full_audio_texture->set_value(full_audio_data.data());
+
+    if (!this->add_parameter(full_audio_texture)) {
+        std::cerr << "Failed to add beginning_audio_texture" << std::endl;
+    }
+}
+
+const std::vector<float> AudioFileGeneratorRenderStageBase::load_audio_data_from_file(const std::string & audio_filepath) {
     // Open the audio file
     std::ifstream file(audio_filepath, std::ios::binary);
     if (!file) {
@@ -114,5 +142,4 @@ const std::vector<float> AudioFileGeneratorRenderStage::load_audio_data_from_fil
     }
 
     return full_audio_data;
-
 }

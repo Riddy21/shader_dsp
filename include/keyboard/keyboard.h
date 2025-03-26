@@ -5,7 +5,6 @@
 #include <unordered_map>
 
 #include "keyboard/key.h"
-#include "keyboard/piano.h"
 #include "audio_render_stage/audio_render_stage.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
 
@@ -24,8 +23,6 @@ public:
     bool initialize();
     void add_key(Key * key);
     Key * get_key(const unsigned char key) { return m_keys[key].get(); }
-    AudioRenderStage * get_input_render_stage() {return m_piano.get_first_render_stage();}
-    AudioRenderStage * get_output_render_stage() {return m_piano.get_last_render_stage();}
 
     static void key_down_callback(unsigned char key, int x, int y);
     static void key_up_callback(unsigned char key, int x, int y);
@@ -38,7 +35,6 @@ private:
 
     AudioRenderer & m_audio_renderer = AudioRenderer::get_instance();
     std::unordered_map<unsigned char, std::unique_ptr<Key>> m_keys;
-    Piano m_piano;
-};;
+};
 
 #endif // KEYBOARD_H

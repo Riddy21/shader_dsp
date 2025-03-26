@@ -15,10 +15,10 @@
 TEST_CASE("AudioRenderGraph_test") {
     // Generate a render stage graph
 
-    auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto audio_generator = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
 
-    auto audio_generator_2 = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto audio_generator_2 = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
 
     auto join_render_stage = new AudioMultitrackJoinRenderStage(512, 44100, 2, 2);
@@ -95,10 +95,10 @@ TEST_CASE("AudioRenderGraph_test") {
 TEST_CASE("AudioRenderGraph_inputs") {
     // Generate a render stage graph
 
-    auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto audio_generator = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
 
-    auto audio_generator_2 = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto audio_generator_2 = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
 
     auto join_render_stage = new AudioMultitrackJoinRenderStage(512, 44100, 2, 2);
@@ -175,10 +175,10 @@ TEST_CASE("AudioRenderGraph_inputs") {
 TEST_CASE("AudioRenderGraph_test_bad") {
     // Generate a render stage graph
 
-    auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto audio_generator = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
 
-    auto audio_generator_2 = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto audio_generator_2 = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
 
     auto join_render_stage = new AudioMultitrackJoinRenderStage(512, 44100, 2, 2);
@@ -203,7 +203,7 @@ TEST_CASE("AudioRenderGraph_test_bad") {
 
 TEST_CASE("AudioRenderGraph_modify_graph") {
     // Generate a render stage graph
-    auto audio_generator = new AudioFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
+    auto audio_generator = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
 
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 

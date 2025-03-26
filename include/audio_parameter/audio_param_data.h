@@ -24,6 +24,32 @@ private:
     int m_size;
 };
 
+class ParamIntArrayData : public ParamData {
+public:
+    ParamIntArrayData(unsigned int size)
+            : m_data(new int[size]()),
+              m_size(size) {}
+    ~ParamIntArrayData() override { delete[] m_data; }
+    void * get_data() const override { return m_data; }
+    size_t get_size() const override { return sizeof(int) * m_size; }
+private:
+    int * m_data;
+    int m_size;
+};
+
+class ParamBoolArrayData : public ParamData {
+public:
+    ParamBoolArrayData(unsigned int size)
+            : m_data(new bool[size]()),
+              m_size(size) {}
+    ~ParamBoolArrayData() override { delete[] m_data; }
+    void * get_data() const override { return m_data; }
+    size_t get_size() const override { return sizeof(bool) * m_size; }
+private:
+    bool * m_data;
+    int m_size;
+};
+
 class ParamVec2Data : public ParamData {
 public:
     ParamVec2Data()
