@@ -82,12 +82,13 @@ TEST_CASE("AudioMultitoneGeneratorRenderStage") {
         "build/shaders/multinote_static_generator_render_stage.glsl",
         "media/test.wav"
     };
-    };
 
     for (const auto& file_path : file_paths) {
         //auto audio_generator = (file_path == "media/test.wav") ?
         //    static_cast<AudioSingleShaderGeneratorRenderStage*>(new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, file_path)) :
-        auto audio_generator = new AudioGeneratorRenderStage(512, 44100, 2, file_path);
+        auto audio_generator = (file_path == "media/test.wav") ?
+            static_cast<AudioGeneratorRenderStage*>(new AudioFileGeneratorRenderStage(512, 44100, 2, file_path)) :
+            new AudioGeneratorRenderStage(512, 44100, 2, file_path);
 
         auto audio_final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
