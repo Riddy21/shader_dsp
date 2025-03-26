@@ -21,6 +21,7 @@ public:
     void operator=(Keyboard const&) = delete;
 
     bool initialize();
+    bool terminate();
     void add_key(Key * key);
     Key * get_key(const unsigned char key) { return m_keys[key].get(); }
 

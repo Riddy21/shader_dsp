@@ -186,6 +186,8 @@ int main(int argc, char** argv) {
     audio_player_output->close();
     audio_file_output->stop();
     audio_file_output->close();
+    // Deallocate the audio renderer and keyboard
+    keyboard.terminate();
 
     return 0;
 }
