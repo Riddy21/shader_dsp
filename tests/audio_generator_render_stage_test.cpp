@@ -11,71 +11,77 @@
 #include "audio_core/audio_render_graph.h"
 #include "keyboard/piano.h"
 
-//TEST_CASE("AudioGeneratorRenderStage") {
-//    std::vector<std::string> file_paths = {
-//        "build/shaders/sawtooth_generator_render_stage.glsl",
-//        "build/shaders/triangle_generator_render_stage.glsl",
-//        "build/shaders/square_generator_render_stage.glsl",
-//        "build/shaders/sine_generator_render_stage.glsl",
-//        "build/shaders/static_generator_render_stage.glsl",
-//        "media/test.wav"
-//    };
-//
-//    for (const auto& file_path : file_paths) {
-//        auto audio_generator = (file_path == "media/test.wav") ?
-//            static_cast<AudioSingleShaderGeneratorRenderStage*>(new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, file_path)) :
-//            new AudioSingleShaderGeneratorRenderStage(512, 44100, 2, file_path);
-//
-//        auto audio_final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
-//
-//        audio_generator->connect_render_stage(audio_final_render_stage);
-//
-//        auto audio_render_graph = new AudioRenderGraph({audio_final_render_stage});
-//
-//        auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
-//
-//        AudioRenderer & audio_renderer = AudioRenderer::get_instance();
-//
-//        auto play_param = audio_generator->find_parameter("play");
-//        auto gain_param = audio_generator->find_parameter("gain");
-//        auto play_position_param = audio_generator->find_parameter("play_position");
-//        auto stop_position_param = audio_generator->find_parameter("stop_position");
-//        auto time_param = audio_renderer.find_global_parameter("global_time");
-//
-//        gain_param->set_value(0.2f);
-//
-//        audio_renderer.add_render_graph(audio_render_graph);
-//        audio_renderer.add_render_output(audio_driver);
-//
-//        // Open a thread to wait few sec and the shut it down
-//        std::thread t1([&audio_renderer, &play_param, &play_position_param, &stop_position_param, &time_param]() {
-//            // Play the audio
-//            play_param->set_value(true);
-//            play_position_param->set_value(time_param->get_value());
-//            std::this_thread::sleep_for(std::chrono::seconds(3));
-//            play_param->set_value(false);
-//            stop_position_param->set_value(time_param->get_value());
-//
-//            // terminate
-//            audio_renderer.terminate();
-//            audio_renderer.cleanup();
-//        });
-//
-//        REQUIRE(audio_renderer.initialize(512, 44100, 2));
-//
-//        REQUIRE(audio_driver->open());
-//        REQUIRE(audio_driver->start());
-//
-//        audio_renderer.start_main_loop();
-//
-//        t1.detach();
-//        t1.join();
-//    }
-//}
+TEST_CASE("AudioGeneratorRenderStage") {
+    std::vector<std::string> file_paths = {
+        "build/shaders/sawtooth_generator_render_stage.glsl",
+        "build/shaders/triangle_generator_render_stage.glsl",
+        "build/shaders/square_generator_render_stage.glsl",
+        "build/shaders/sine_generator_render_stage.glsl",
+        "build/shaders/static_generator_render_stage.glsl",
+        "media/test.wav"
+    };
+
+    for (const auto& file_path : file_paths) {
+        auto audio_generator = (file_path == "media/test.wav") ?
+            static_cast<AudioSingleShaderGeneratorRenderStage*>(new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, file_path)) :
+            new AudioSingleShaderGeneratorRenderStage(512, 44100, 2, file_path);
+
+        auto audio_final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
+
+        audio_generator->connect_render_stage(audio_final_render_stage);
+
+        auto audio_render_graph = new AudioRenderGraph({audio_final_render_stage});
+
+        auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
+
+        AudioRenderer & audio_renderer = AudioRenderer::get_instance();
+
+        auto play_param = audio_generator->find_parameter("play");
+        auto gain_param = audio_generator->find_parameter("gain");
+        auto play_position_param = audio_generator->find_parameter("play_position");
+        auto stop_position_param = audio_generator->find_parameter("stop_position");
+        auto time_param = audio_renderer.find_global_parameter("global_time");
+
+        gain_param->set_value(0.2f);
+
+        audio_renderer.add_render_graph(audio_render_graph);
+        audio_renderer.add_render_output(audio_driver);
+
+        // Open a thread to wait few sec and the shut it down
+        std::thread t1([&audio_renderer, &play_param, &play_position_param, &stop_position_param, &time_param]() {
+            // Play the audio
+            play_param->set_value(true);
+            play_position_param->set_value(time_param->get_value());
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+            play_param->set_value(false);
+            stop_position_param->set_value(time_param->get_value());
+
+            // terminate
+            audio_renderer.terminate();
+            audio_renderer.cleanup();
+        });
+
+        REQUIRE(audio_renderer.initialize(512, 44100, 2));
+
+        REQUIRE(audio_driver->open());
+        REQUIRE(audio_driver->start());
+
+        audio_renderer.start_main_loop();
+
+        t1.detach();
+        t1.join();
+    }
+}
 
 TEST_CASE("AudioMultitoneGeneratorRenderStage") {
     std::vector<std::string> file_paths = {
+        "build/shaders/multinote_square_generator_render_stage.glsl",
+        "build/shaders/multinote_sawtooth_generator_render_stage.glsl",
+        "build/shaders/multinote_triangle_generator_render_stage.glsl",
         "build/shaders/multinote_sine_generator_render_stage.glsl",
+        "build/shaders/multinote_static_generator_render_stage.glsl",
+        "media/test.wav"
+    };
     };
 
     for (const auto& file_path : file_paths) {
@@ -107,32 +113,17 @@ TEST_CASE("AudioMultitoneGeneratorRenderStage") {
 
             auto time_param = audio_renderer.find_global_parameter("global_time");
 
+            audio_generator->play_note(MIDDLE_C, 0.2f);
 
-            // TODO: Change this to use a function for modifying the sound
-            active_notes->set_value(1);
-            // Play position is length 24 int array
-            play_position_param->set_value(new int[24]{*(int *)time_param->get_value(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                                                     0, 0 ,0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
-
-            stop_position_param->set_value(new int[24]{-1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                                                     0, 0 ,0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
-            tone_param->set_value(new float [24] {MIDDLE_C, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,0.f,0.f,0.f,0.f,0.f,
-                                                 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,0.f,0.f,0.f,0.f,0.f});
-            gain_param->set_value(new float [24] {0.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,0.f,0.f,0.f,0.f,0.f,
-                                                 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,0.f,0.f,0.f,0.f,0.f});
-
+            audio_generator->play_note(MIDDLE_C * std::pow(SEMI_TONE, 1), 0.2f);
 
             std::this_thread::sleep_for(std::chrono::seconds(3));
 
-            // TODO: Change this to use a function for modifying the sound
-            active_notes->set_value(1);
-            // Play position is length 24 int array
-            stop_position_param->set_value(new int[24]{*(int *)time_param->get_value(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                                                     0, 0 ,0, 0, 0, 0, 0, 0, 0, 0, 0, 0});
-            tone_param->set_value(new float [24] {MIDDLE_C, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,0.f,0.f,0.f,0.f,0.f,
-                                                 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,0.f,0.f,0.f,0.f,0.f});
-            gain_param->set_value(new float [24] {0.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,0.f,0.f,0.f,0.f,0.f,
-                                                 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f,0.f,0.f,0.f,0.f,0.f});
+            audio_generator->stop_note(MIDDLE_C);
+
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+
+            audio_generator->stop_note(MIDDLE_C * std::pow(SEMI_TONE, 1));
 
             std::this_thread::sleep_for(std::chrono::seconds(3));
             // terminate
