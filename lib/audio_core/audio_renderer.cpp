@@ -206,6 +206,13 @@ bool AudioRenderer::terminate() {
         return false;
     }
 
+    // FIXME: Instance does not clean up properly
+    // Clean up the instance
+    //if (instance) {
+    //    delete instance;
+    //    instance = nullptr;
+    //}
+
 
     return true;
 }
