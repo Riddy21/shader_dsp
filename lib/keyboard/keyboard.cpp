@@ -39,17 +39,28 @@ bool Keyboard::terminate() {
     return true;
 }
 
-void Keyboard::key_down_callback(unsigned char key, int x, int y) {
-    if (instance->m_keys.find(key) != instance->m_keys.end()) {
-        instance->m_keys[key]->key_down();
-        printf("Key down: %c\n", key);
+void Keyboard::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    // Translate GLFW key to ASCII if possible
+    // TODO: Keep these as numbers in the future
+    char ascii_key = '\0';
+    if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z) {
+        ascii_key = static_cast<char>(key + 32); // Convert to lowercase
+    } else if (key >= GLFW_KEY_SPACE && key <= GLFW_KEY_Z) {
+        ascii_key = static_cast<char>(key);
     }
-}
 
-void Keyboard::key_up_callback(unsigned char key, int x, int y) {
-    if (instance->m_keys.find(key) != instance->m_keys.end()) {
-        instance->m_keys[key]->key_up();
-        printf("Key up: %c\n", key);
+    if (ascii_key != '\0') {
+        if (action == GLFW_PRESS) {
+            if (instance->m_keys.find(ascii_key) != instance->m_keys.end()) {
+                instance->m_keys[ascii_key]->key_down();
+                printf("Key down: %c\n", ascii_key);
+            }
+        } else if (action == GLFW_RELEASE) {
+            if (instance->m_keys.find(ascii_key) != instance->m_keys.end()) {
+                instance->m_keys[ascii_key]->key_up();
+                printf("Key up: %c\n", ascii_key);
+            }
+        }
     }
 }
 
@@ -57,9 +68,8 @@ void Keyboard::add_key(Key * key) {
     m_keys[key->name] = std::unique_ptr<Key>(key);
 }
 
-bool Keyboard::initialize() {
-    glutKeyboardFunc(key_down_callback);
-    glutKeyboardUpFunc(key_up_callback);
+bool Keyboard::initialize(GLFWwindow* window) {
+    glfwSetKeyCallback(window, key_callback); // Set GLFW key callback
 
     // Disable key repeat
     Display *display = XOpenDisplay(nullptr);
