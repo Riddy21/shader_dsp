@@ -1,6 +1,5 @@
 #include <GL/glew.h>
-#include <GL/glut.h>
-#include <GL/freeglut.h>
+#include <GLFW/glfw3.h>
 #include <iostream>
 #include <vector>
 #include <cstring>
@@ -46,27 +45,32 @@ bool AudioRenderer::add_render_graph(AudioRenderGraph * render_graph)
     return true;
 }
 
-bool AudioRenderer::initialize_glut(unsigned int window_width, unsigned int window_height) {
-    printf("Initializing GLUT\n");
+bool AudioRenderer::initialize_glfw(unsigned int window_width, unsigned int window_height) {
+    printf("Initializing GLFW\n");
 
-    int argc = 0;
-    char** argv = nullptr;
-    if (!glutGet(GLUT_INIT_STATE)) {
-        glutInit(&argc, argv);
+    if (!glfwInit()) {
+        std::cerr << "Failed to initialize GLFW" << std::endl;
+        return false;
     }
 
-    // Init the OpenGL context
-    glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE);
-    glutInitWindowSize(window_width, window_height);
-    //glutInitWindowSize(buffer_size, 100);
-    glutCreateWindow("Audio Processing");
-    // Set the window close action to continue execution
-    glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    m_window = glfwCreateWindow(window_width, window_height, "Audio Processing", nullptr, nullptr);
+    if (!m_window) {
+        std::cerr << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return false;
+    }
+
+    glfwMakeContextCurrent(m_window);
 
     if (glewInit() != GLEW_OK) {
         std::cerr << "Failed to initialize GLEW" << std::endl;
         return false;
     }
+
     return true;
 }
 
@@ -125,13 +129,8 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     this->m_num_channels = num_channels;
     this->m_sample_rate = sample_rate;
 
-    // Initialize GLUT
-    initialize_glut(buffer_size, num_channels);
-    
-    // Initialize GLEW
-    GLenum glewInitResult = glewInit();
-    if (glewInitResult != GLEW_OK) {
-        std::cerr << "Failed to initialize GLEW: " << glewGetErrorString(glewInitResult) << std::endl;
+    // Initialize GLFW
+    if (!initialize_glfw(buffer_size, num_channels)) {
         return false;
     }
 
@@ -158,7 +157,7 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
         return false;
     }
 
-    // Intialize global parameters
+    // Initialize global parameters
     if (!initialize_global_parameters()) {
         std::cerr << "Failed to initialize time parameters." << std::endl;
         return false;
@@ -173,12 +172,7 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     // Initialize the textures with data
     render();
 
-    // Links to display and timer functions for updating audio data
-    glutIdleFunc(render_callback);
-    glutDisplayFunc(display_callback);
-
     m_initialized = true;
-
 
     return true;
 }
@@ -187,14 +181,19 @@ void AudioRenderer::start_main_loop() {
     if (m_initialized) {
         m_running = true;
 
-        glutMainLoop();
+        while (!glfwWindowShouldClose(m_window)) {
+            if (!m_paused) {
+                render();
+            }
+            glfwSwapBuffers(m_window);
+            glfwPollEvents();
+        }
     }
 }
 
 bool AudioRenderer::terminate() {
-    // Terminate the OpenGL context
-    glutLeaveMainLoop();
-    //glutDestroyWindow(glutGetWindow()); // Don't need this
+    // Terminate the GLFW context
+    glfwSetWindowShouldClose(m_window, GLFW_TRUE);
 
     // Stop the loop
     m_running = false;
@@ -206,18 +205,19 @@ bool AudioRenderer::terminate() {
         return false;
     }
 
+    glfwDestroyWindow(m_window);
+    glfwTerminate();
 
     return true;
 }
 
-void AudioRenderer::calculate_frame_rate()
-{
+void AudioRenderer::calculate_frame_rate() {
     static int frame_count = 0;
     static double previous_time = 0.0;
     static double fps = 0.0;
 
     frame_count++;
-    double current_time = glutGet(GLUT_ELAPSED_TIME) / 1000.0; // Get current time in seconds
+    double current_time = glfwGetTime();
     double elapsed_time = current_time - previous_time;
 
     if (elapsed_time > 1.0) { // Update FPS every second
@@ -229,7 +229,7 @@ void AudioRenderer::calculate_frame_rate()
     // Display the FPS on the window title
     char title[256];
     sprintf(title, "Audio Processing - FPS: %.2f", fps);
-    glutSetWindowTitle(title);
+    glfwSetWindowTitle(m_window, title);
 }
 
 void AudioRenderer::render()
