@@ -21,7 +21,7 @@ float semi_tone = 1.059463f;
 
 int main(int argc, char** argv) {
     //system("sudo renice -18 $(pgrep audio_program)");
-
+    // FIXME: use MultinoteGeneratorRenderStages instead!
 
     // Get the render program
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
