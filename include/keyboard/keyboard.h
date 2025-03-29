@@ -3,6 +3,7 @@
 #define KEYBOARD_H
 
 #include <unordered_map>
+#include <GLFW/glfw3.h>
 
 #include "keyboard/key.h"
 #include "audio_render_stage/audio_render_stage.h"
@@ -20,13 +21,12 @@ public:
     Keyboard(Keyboard const&) = delete;
     void operator=(Keyboard const&) = delete;
 
-    bool initialize();
+    bool initialize(GLFWwindow* window); // Updated to accept GLFWwindow*
     bool terminate();
     void add_key(Key * key);
     Key * get_key(const unsigned char key) { return m_keys[key].get(); }
 
-    static void key_down_callback(unsigned char key, int x, int y);
-    static void key_up_callback(unsigned char key, int x, int y);
+    static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 private:
     Keyboard();

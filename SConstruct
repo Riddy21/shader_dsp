@@ -38,7 +38,8 @@ env.Append(LIBS=[
     'Catch2',
     'glut',
     'pthread',
-    'X11'
+    'X11',
+    'glfw'
 ])
 
 # Function to create object files in the build directory
