@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
 
     // Initialize the audio renderer
     audio_renderer.initialize(512, 44100, 2);
-    keyboard.initialize();
+    keyboard.initialize(audio_renderer.get_window());
 
     audio_renderer.add_render_output(audio_player_output);
     audio_renderer.add_render_output(audio_file_output);

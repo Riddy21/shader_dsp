@@ -6,7 +6,7 @@
 #include <memory>
 #include <mutex>
 #include <GL/glew.h>
-#include <GL/glut.h>
+#include <GLFW/glfw3.h>
 #include <atomic>
 #include <thread>
 
@@ -170,6 +170,15 @@ public:
      */
     AudioParameter * find_global_parameter(const std::string name) const;
 
+    /**
+     * @brief Returns the GLFW window handle.
+     * 
+     * @return The GLFW window handle.
+     */
+    GLFWwindow* get_window() {
+        return m_window;
+    }
+
 private:
     static AudioRenderer * instance;
 
@@ -226,8 +235,7 @@ private:
      * @brief Static callback function for displaying.
      */
     static void display_callback() {
-        glutSwapBuffers(); // unlock framerate
-        glutPostRedisplay();
+        // GLFW does not require explicit swap or redisplay calls in the callback
     }
 
 // -------------Initialization Functions----------------
@@ -239,13 +247,13 @@ private:
     bool initialize_global_parameters();
 
     /**
-     * @brief Initializes the OpenGL context.
+     * @brief Initializes the GLFW context.
      * 
      * @param window_width The width of the window.
      * @param window_height The height of the window.
      * @return True if initialization is successful, false otherwise.
      */
-    bool initialize_glut(unsigned int window_width, unsigned int window_height);
+    bool initialize_glfw(unsigned int window_width, unsigned int window_height);
 
     /**
      * @brief Initializes the quad for rendering.
@@ -276,6 +284,8 @@ private:
     std::vector<std::unique_ptr<AudioOutput>> m_render_outputs; // Render outputs
     std::vector<std::unique_ptr<AudioParameter>> m_global_parameters; // Parameters for render stages
     std::unique_ptr<AudioRenderGraph> m_render_graph; // Render graph
+
+    GLFWwindow* m_window = nullptr; // GLFW window handle
 };
 
 #endif // AUDIO_RENDERER_H

@@ -1,25 +1,16 @@
 #include <GL/glew.h>
-#include <GL/freeglut.h>
-#include <thread>
+#include <GLFW/glfw3.h>
 #include <iostream>
-#include <X11/Xlib.h> // Include Xlib for XInitThreads
+#include <thread>
+#include <vector>
 
-// Function to initialize and run a GLUT window in a thread
-void render_loop(const char* window_title, int argc, char** argv, int width, int height) {
-    // Initialize GLUT
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-    glutInitWindowSize(width, height);
-    glutCreateWindow(window_title);
+// Function to render in a thread
+void render_loop(GLFWwindow* window) {
+    // Make the OpenGL context current for this thread
+    glfwMakeContextCurrent(window);
 
-    // Initialize GLEW
-    if (glewInit() != GLEW_OK) {
-        std::cerr << "Failed to initialize GLEW" << std::endl;
-        return;
-    }
-
-    // Set up the display function
-    glutDisplayFunc([]() {
+    // Rendering loop
+    while (!glfwWindowShouldClose(window)) {
         // Clear the screen
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -35,32 +26,49 @@ void render_loop(const char* window_title, int argc, char** argv, int width, int
         glEnd();
 
         // Swap buffers
-        glutSwapBuffers();
-    });
+        glfwSwapBuffers(window);
 
-    // Set up the idle function to continuously redraw
-    glutIdleFunc([]() {
-        glutPostRedisplay();
-    });
+        // Poll for events
+        glfwPollEvents();
+    }
 
-    // Enter the GLUT main loop
-    glutMainLoop();
+    // Destroy the window
+    glfwDestroyWindow(window);
 }
 
-int main(int argc, char** argv) {
-    // Initialize X for multithreaded use
-    if (!XInitThreads()) {
-        std::cerr << "Failed to initialize X for multithreaded use" << std::endl;
+int main() {
+    // Initialize GLFW on the main thread
+    if (!glfwInit()) {
+        std::cerr << "Failed to initialize GLFW" << std::endl;
         return -1;
     }
 
-    // Create two threads for rendering
-    std::thread thread1(render_loop, "Window 1", argc, argv, 400, 400);
-    std::thread thread2(render_loop, "Window 2", argc, argv, 800, 600);
+    // Create windows on the main thread
+    GLFWwindow* window1 = glfwCreateWindow(800, 600, "Window 1", nullptr, nullptr);
+    if (!window1) {
+        std::cerr << "Failed to create GLFW window 1" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+
+    GLFWwindow* window2 = glfwCreateWindow(500, 500, "Window 2", nullptr, nullptr);
+    if (!window2) {
+        std::cerr << "Failed to create GLFW window 2" << std::endl;
+        glfwDestroyWindow(window1);
+        glfwTerminate();
+        return -1;
+    }
+
+    // Create threads for rendering
+    std::thread thread1(render_loop, window1);
+    std::thread thread2(render_loop, window2);
 
     // Wait for threads to finish
     thread1.join();
     thread2.join();
+
+    // Terminate GLFW
+    glfwTerminate();
 
     return 0;
 }

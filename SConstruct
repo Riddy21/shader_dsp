@@ -39,6 +39,7 @@ env.Append(LIBS=[
     'glut',
     'pthread',
     'X11',
+    'glfw'
 ])
 
 # Function to create object files in the build directory
