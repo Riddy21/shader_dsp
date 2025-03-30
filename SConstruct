@@ -33,10 +33,8 @@ env.Append(LIBS=[
     'SDL2',
     'GLEW',
     'GL',
-    'GLU',
     'Catch2Main',
     'Catch2',
-    'glut',
     'pthread',
     'X11',
     'glfw'
