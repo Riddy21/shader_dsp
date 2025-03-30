@@ -1,8 +1,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <GL/glew.h>
-#include <GL/freeglut.h>
-#include <GL/glut.h>
+#include <GLFW/glfw3.h>
 #include <cstdlib>
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_graph.h"
@@ -167,7 +166,10 @@ int main(int argc, char** argv) {
 
     // Initialize the audio renderer
     audio_renderer.initialize(512, 44100, 2);
-    keyboard.initialize(audio_renderer.get_window());
+
+    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE); // Hide the window
+    auto window = glfwCreateWindow(500, 500, "Audio Processing", nullptr, nullptr);
+    keyboard.initialize(window);
 
     audio_renderer.add_render_output(audio_player_output);
     audio_renderer.add_render_output(audio_file_output);

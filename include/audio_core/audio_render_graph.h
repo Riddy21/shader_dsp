@@ -72,6 +72,8 @@ private:
 
     bool m_initialized = false;
 
+    bool insert_leading_render_stage(GID back, AudioRenderStage * render_stage);
+
     static AudioRenderStage * from_input_to_output(AudioRenderStage * node, std::unordered_set<GID> & visited);
     bool construct_render_order(AudioRenderStage * node);
     bool bind_render_stages();
