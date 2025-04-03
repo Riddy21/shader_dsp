@@ -1,74 +1,80 @@
+#include <SDL2/SDL.h>
 #include <GL/glew.h>
-#include <GLFW/glfw3.h>
 #include <iostream>
 #include <thread>
-#include <vector>
+#include <mutex>
 
-// Function to render in a thread
-void render_loop(GLFWwindow* window) {
-    // Make the OpenGL context current for this thread
-    glfwMakeContextCurrent(window);
+// Mutex for synchronizing access to SDL and OpenGL resources
+std::mutex glMutex;
 
-    // Rendering loop
-    while (!glfwWindowShouldClose(window)) {
-        // Clear the screen
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+// A simple function to initialize and render a window with OpenGL
+void renderWindow(int windowId, const std::string& windowName) {
+    SDL_Init(SDL_INIT_VIDEO);
 
-        // Draw a triangle
-        glBegin(GL_TRIANGLES);
-        glColor3f(1.0f, 0.0f, 0.0f);
-        glVertex2f(-0.5f, -0.5f);
-        glColor3f(0.0f, 1.0f, 0.0f);
-        glVertex2f(0.5f, -0.5f);
-        glColor3f(0.0f, 0.0f, 1.0f);
-        glVertex2f(0.0f, 0.5f);
-        glEnd();
-
-        // Swap buffers
-        glfwSwapBuffers(window);
-
-        // Poll for events
-        glfwPollEvents();
+    // Create a window
+    SDL_Window* window = SDL_CreateWindow(windowName.c_str(), SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL);
+    if (!window) {
+        std::cerr << "SDL CreateWindow Error: " << SDL_GetError() << std::endl;
+        return;
     }
 
-    // Destroy the window
-    glfwDestroyWindow(window);
+    // Create an OpenGL context for the window
+    SDL_GLContext context = SDL_GL_CreateContext(window);
+    if (!context) {
+        std::cerr << "SDL_GL_CreateContext Error: " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window);
+        return;
+    }
+
+    // Initialize GLEW
+    if (glewInit() != GLEW_OK) {
+        std::cerr << "GLEW Initialization Error" << std::endl;
+        SDL_GL_DeleteContext(context);
+        SDL_DestroyWindow(window);
+        return;
+    }
+
+    glEnable(GL_DEPTH_TEST);  // Enable depth testing for 3D rendering
+
+    // Render loop
+    bool isRunning = true;
+    while (isRunning) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                isRunning = false;
+            }
+        }
+
+        // Clear the screen with a color (different for each window)
+        if (windowId == 1) {
+            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);  // Dark blue
+        } else {
+            glClearColor(0.3f, 0.2f, 0.3f, 1.0f);  // Purple
+        }
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // Swap buffers to display the rendered image
+        SDL_GL_SwapWindow(window);
+        SDL_Delay(16);  // Frame delay to limit FPS
+    }
+
+    // Clean up
+    SDL_GL_DeleteContext(context);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+}
+
+// Function to run two windows on separate threads
+void createWindows() {
+    std::thread window1(renderWindow, 1, "Window 1 - Blue Background");
+    std::thread window2(renderWindow, 2, "Window 2 - Purple Background");
+
+    window1.join();
+    window2.join();
 }
 
 int main() {
-    // Initialize GLFW on the main thread
-    if (!glfwInit()) {
-        std::cerr << "Failed to initialize GLFW" << std::endl;
-        return -1;
-    }
-
-    // Create windows on the main thread
-    GLFWwindow* window1 = glfwCreateWindow(800, 600, "Window 1", nullptr, nullptr);
-    if (!window1) {
-        std::cerr << "Failed to create GLFW window 1" << std::endl;
-        glfwTerminate();
-        return -1;
-    }
-
-    GLFWwindow* window2 = glfwCreateWindow(500, 500, "Window 2", nullptr, nullptr);
-    if (!window2) {
-        std::cerr << "Failed to create GLFW window 2" << std::endl;
-        glfwDestroyWindow(window1);
-        glfwTerminate();
-        return -1;
-    }
-
-    // Create threads for rendering
-    std::thread thread1(render_loop, window1);
-    std::thread thread2(render_loop, window2);
-
-    // Wait for threads to finish
-    thread1.join();
-    thread2.join();
-
-    // Terminate GLFW
-    glfwTerminate();
-
+    createWindows();
     return 0;
 }

@@ -1,6 +1,8 @@
 #include <iostream>
 #include <unordered_set>
-#include <X11/Xlib.h>
+#include <SDL2/SDL.h>
+#include <thread>
+#include <atomic>
 
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
@@ -8,57 +10,81 @@
 
 Keyboard * Keyboard::instance = nullptr;
 
-Keyboard::Keyboard() {
+Keyboard::Keyboard() : m_running(false) {
 
 }
 
 Keyboard::~Keyboard() {
+    terminate();
 }
 
 bool Keyboard::terminate() {
-    // Enable key repeat
-    Display *display = XOpenDisplay(nullptr);
-    if (display == nullptr) {
-        std::cerr << "Unable to open X display" << std::endl;
-        return false;
+    // Stop the game loop
+    m_running = false;
+    if (m_game_loop_thread.joinable()) {
+        m_game_loop_thread.join();
     }
 
-    int result = XAutoRepeatOn(display);
-    printf("Enabled key repeat\n");
-
-    XCloseDisplay(display);
-
-    // clean up the keys
+    // Clean up the keys
     m_keys.clear();
 
-    // clean up the instance
+    // Clean up the instance
     if (instance) {
         delete instance;
         instance = nullptr;
     }
+
     return true;
 }
 
-void Keyboard::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-    // Translate GLFW key to ASCII if possible
-    // TODO: Keep these as numbers in the future
-    char ascii_key = '\0';
-    if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z) {
-        ascii_key = static_cast<char>(key + 32); // Convert to lowercase
-    } else if (key >= GLFW_KEY_SPACE && key <= GLFW_KEY_Z) {
-        ascii_key = static_cast<char>(key);
+bool Keyboard::initialize() {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "Unable to initialize SDL: " << SDL_GetError() << std::endl;
+        return false;
     }
 
-    if (ascii_key != '\0') {
-        if (action == GLFW_PRESS) {
-            if (instance->m_keys.find(ascii_key) != instance->m_keys.end()) {
-                instance->m_keys[ascii_key]->key_down();
-                printf("Key down: %c\n", ascii_key);
-            }
-        } else if (action == GLFW_RELEASE) {
-            if (instance->m_keys.find(ascii_key) != instance->m_keys.end()) {
-                instance->m_keys[ascii_key]->key_up();
-                printf("Key up: %c\n", ascii_key);
+    m_running = true;
+
+    // Start the game loop in a separate thread
+    m_game_loop_thread = std::thread(&Keyboard::game_loop, this);
+
+    return true;
+}
+
+void Keyboard::game_loop() {
+    while (m_running) {
+        process_events();
+    }
+}
+
+void Keyboard::process_events() {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        process_event(event);
+    }
+}
+
+void Keyboard::process_event(const SDL_Event &event) {
+    if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
+        SDL_Keycode key = event.key.keysym.sym;
+        char ascii_key = '\0';
+
+        if (key >= SDLK_a && key <= SDLK_z) {
+            ascii_key = static_cast<char>(key); // Lowercase letters
+        } else if (key >= SDLK_SPACE && key <= SDLK_z) {
+            ascii_key = static_cast<char>(key);
+        }
+
+        if (ascii_key != '\0') {
+            auto it = m_keys.find(ascii_key);
+            if (it != m_keys.end()) {
+                if (event.type == SDL_KEYDOWN) {
+                    if (!it->second->is_pressed()) { // Check if the key is already pressed
+                        it->second->key_down();
+                    }
+                } else if (event.type == SDL_KEYUP) {
+                    it->second->key_up();
+                }
             }
         }
     }
@@ -66,22 +92,4 @@ void Keyboard::key_callback(GLFWwindow* window, int key, int scancode, int actio
 
 void Keyboard::add_key(Key * key) {
     m_keys[key->name] = std::unique_ptr<Key>(key);
-}
-
-bool Keyboard::initialize(GLFWwindow* window) {
-    glfwSetKeyCallback(window, key_callback); // Set GLFW key callback
-
-    // Disable key repeat
-    Display *display = XOpenDisplay(nullptr);
-    if (display == nullptr) {
-        std::cerr << "Unable to open X display" << std::endl;
-        return false;
-    }
-
-    int result = XAutoRepeatOff(display);
-    printf("Disabled key repeat\n");
-
-    XCloseDisplay(display);
-
-    return true;
 }
