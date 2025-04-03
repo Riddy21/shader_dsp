@@ -5,9 +5,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
-#include <GL/glew.h>
-#include <GL/glut.h>
-#include <GLFW/glfw3.h>
+#include <SDL2/SDL.h>
 #include <atomic>
 #include <thread>
 
@@ -171,15 +169,6 @@ public:
      */
     AudioParameter * find_global_parameter(const std::string name) const;
 
-    /**
-     * @brief Returns the GLFW window pointer.
-     * 
-     * @return The GLFW window pointer.
-     */
-    GLFWwindow* get_window() {
-        return m_window;
-    }
-
 private:
     static AudioRenderer * instance;
 
@@ -241,13 +230,13 @@ private:
     bool initialize_global_parameters();
 
     /**
-     * @brief Initializes the GLFW context.
+     * @brief Initializes the SDL context.
      * 
      * @param window_width The width of the window.
      * @param window_height The height of the window.
      * @return True if initialization is successful, false otherwise.
      */
-    bool initialize_glfw(unsigned int window_width, unsigned int window_height);
+    bool initialize_sdl(unsigned int window_width, unsigned int window_height);
 
     /**
      * @brief Initializes the quad for rendering.
@@ -279,7 +268,8 @@ private:
     std::vector<std::unique_ptr<AudioParameter>> m_global_parameters; // Parameters for render stages
     std::unique_ptr<AudioRenderGraph> m_render_graph; // Render graph
 
-    GLFWwindow* m_window = nullptr; // GLFW window pointer
+    SDL_Window* m_window = nullptr; // SDL window pointer
+    SDL_GLContext m_gl_context = nullptr; // SDL OpenGL context
 };
 
 #endif // AUDIO_RENDERER_H

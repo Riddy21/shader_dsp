@@ -17,15 +17,19 @@ public:
         if (m_key_down_callback) {
             m_key_down_callback();
         }
+        m_key_pressed = true;
     }
     void key_up() {
         if (m_key_up_callback) {
             m_key_up_callback();
         }
+        m_key_pressed = false;
     }
 
     void set_key_down_callback(std::function<void()> callback) { m_key_down_callback = callback; }
     void set_key_up_callback(std::function<void()> callback) { m_key_up_callback = callback; }
+
+    bool is_pressed() const { return m_key_pressed; }
 
     const unsigned char name;
 
@@ -33,5 +37,8 @@ public:
 private:
     std::function<void()> m_key_down_callback;
     std::function<void()> m_key_up_callback;
+
+    bool m_key_pressed = false;
 };
+
 #endif // KEY_H

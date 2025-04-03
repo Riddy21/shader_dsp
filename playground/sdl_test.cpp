@@ -1,69 +1,68 @@
 #include <SDL2/SDL.h>
-#include <GL/glew.h>
 #include <iostream>
 
 int main() {
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
+        std::cerr << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
         return -1;
     }
 
-    // Set OpenGL ES context attributes
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
-    // Create SDL window with OpenGL ES 3.2 support
-    SDL_Window* window = SDL_CreateWindow("SDL2 + GLEW + OpenGL ES 3.2",
+    // Create SDL window
+    SDL_Window* window = SDL_CreateWindow("SDL2 Keyboard Input",
                                           SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                          800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+                                          800, 600, SDL_WINDOW_SHOWN);
     if (!window) {
-        std::cerr << "Failed to create SDL window: " << SDL_GetError() << std::endl;
+        std::cerr << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         SDL_Quit();
         return -1;
     }
 
-    // Create OpenGL ES context
-    SDL_GLContext glContext = SDL_GL_CreateContext(window);
-    if (!glContext) {
-        std::cerr << "Failed to create OpenGL ES context: " << SDL_GetError() << std::endl;
+    // Create SDL renderer
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (!renderer) {
+        std::cerr << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window);
         SDL_Quit();
         return -1;
     }
 
-    // Initialize GLEW for OpenGL ES
-    glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK) {
-        std::cerr << "Failed to initialize GLEW" << std::endl;
-        SDL_GL_DeleteContext(glContext);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return -1;
-    }
-
-    // Main loop
+    // Main loop flag
     bool running = true;
     SDL_Event event;
+
+    // Main event loop
     while (running) {
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                running = false;
+            switch (event.type) {
+                case SDL_QUIT:
+                    running = false;
+                    break;
+
+                case SDL_KEYDOWN:  // Key Pressed
+                    std::cout << "Key Pressed: " << SDL_GetKeyName(event.key.keysym.sym) << std::endl;
+                    
+                    if (event.key.keysym.sym == SDLK_ESCAPE) {  // Quit on ESC
+                        running = false;
+                    }
+                    break;
+
+                case SDL_KEYUP:  // Key Released
+                    std::cout << "Key Released: " << SDL_GetKeyName(event.key.keysym.sym) << std::endl;
+                    break;
             }
         }
 
-        // Clear screen
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        // Clear screen with black color
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
 
-        // Swap buffers
-        SDL_GL_SwapWindow(window);
+        // Present the renderer
+        SDL_RenderPresent(renderer);
     }
 
     // Cleanup
-    SDL_GL_DeleteContext(glContext);
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;

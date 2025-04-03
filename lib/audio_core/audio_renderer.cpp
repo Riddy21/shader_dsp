@@ -1,5 +1,5 @@
+#include <SDL2/SDL.h>
 #include <GL/glew.h>
-#include <GLFW/glfw3.h>
 #include <iostream>
 #include <vector>
 #include <cstring>
@@ -45,34 +45,28 @@ bool AudioRenderer::add_render_graph(AudioRenderGraph * render_graph)
     return true;
 }
 
-bool AudioRenderer::initialize_glfw(unsigned int window_width, unsigned int window_height) {
-    printf("Initializing GLFW\n");
+bool AudioRenderer::initialize_sdl(unsigned int window_width, unsigned int window_height) {
+    printf("Initializing SDL2\n");
 
-    if (!glfwInit()) {
-        std::cerr << "Failed to initialize GLFW" << std::endl;
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "Failed to initialize SDL2: " << SDL_GetError() << std::endl;
         return false;
     }
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE); // Hide the window
-
-    m_window = glfwCreateWindow(window_width, window_height, "Audio Processing", nullptr, nullptr);
+    //m_window = SDL_CreateWindow("Audio Processing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
+    m_window = SDL_CreateWindow("Audio Processing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_OPENGL);
     if (!m_window) {
-        std::cerr << "Failed to create GLFW window" << std::endl;
-        glfwTerminate();
+        std::cerr << "Failed to create SDL2 window: " << SDL_GetError() << std::endl;
         return false;
     }
 
-    glfwMakeContextCurrent(m_window);
+    m_gl_context = SDL_GL_CreateContext(m_window);
+    if (!m_gl_context) {
+        std::cerr << "Failed to create OpenGL context: " << SDL_GetError() << std::endl;
+        return false;
+    }
 
-    // Disable vsync
-    glfwSwapInterval(0);
-
-    glfwSetWindowCloseCallback(m_window, [](GLFWwindow* window) {
-        AudioRenderer::get_instance().terminate();
-    });
+    SDL_GL_SetSwapInterval(0); // Disable vsync
 
     if (glewInit() != GLEW_OK) {
         std::cerr << "Failed to initialize GLEW" << std::endl;
@@ -137,8 +131,8 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     this->m_num_channels = num_channels;
     this->m_sample_rate = sample_rate;
 
-    // Initialize GLFW
-    if (!initialize_glfw(buffer_size, num_channels)) {
+    // Initialize SDL2
+    if (!initialize_sdl(buffer_size, num_channels)) {
         return false;
     }
 
@@ -188,18 +182,21 @@ void AudioRenderer::start_main_loop() {
     if (m_initialized) {
         m_running = true;
 
-        while (!glfwWindowShouldClose(m_window)) {
+        while (m_running) {
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_QUIT) {
+                    terminate();
+                }
+            }
+
             render();
-            glfwSwapBuffers(m_window);
-            glfwPollEvents();
+            SDL_GL_SwapWindow(m_window);
         }
     }
 }
 
 bool AudioRenderer::terminate() {
-    // Terminate the GLFW context
-    glfwSetWindowShouldClose(m_window, GLFW_TRUE);
-
     // Stop the loop
     m_running = false;
     m_initialized = false;
@@ -210,8 +207,17 @@ bool AudioRenderer::terminate() {
         return false;
     }
 
-    glfwDestroyWindow(m_window);
-    glfwTerminate();
+    if (m_gl_context) {
+        SDL_GL_DeleteContext(m_gl_context);
+        m_gl_context = nullptr;
+    }
+
+    if (m_window) {
+        SDL_DestroyWindow(m_window);
+        m_window = nullptr;
+    }
+
+    SDL_Quit();
 
     return true;
 }
@@ -223,7 +229,7 @@ void AudioRenderer::calculate_frame_rate()
     static double fps = 0.0;
 
     frame_count++;
-    double current_time = glfwGetTime(); // Get current time in seconds
+    double current_time = SDL_GetTicks() / 1000.0; // Get current time in seconds
     double elapsed_time = current_time - previous_time;
 
     if (elapsed_time > 1.0) { // Update FPS every second
@@ -235,7 +241,7 @@ void AudioRenderer::calculate_frame_rate()
     // Display the FPS on the window title
     char title[256];
     sprintf(title, "Audio Processing - FPS: %.2f", fps);
-    glfwSetWindowTitle(m_window, title);
+    SDL_SetWindowTitle(m_window, title);
 }
 
 void AudioRenderer::render()

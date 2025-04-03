@@ -1,7 +1,6 @@
 #include <iostream>
 #include <unordered_map>
 #include <GL/glew.h>
-#include <GLFW/glfw3.h>
 #include <cstdlib>
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_graph.h"
@@ -164,17 +163,36 @@ int main(int argc, char** argv) {
     auto audio_player_output = new AudioPlayerOutput(512, 44100, 2);
     auto audio_file_output = new AudioFileOutput(512, 44100, 2, "build/output.wav");
 
-    // Initialize the audio renderer
-    audio_renderer.initialize(512, 44100, 2);
-
-    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE); // Hide the window
-    auto window = glfwCreateWindow(500, 500, "Audio Processing", nullptr, nullptr);
-    keyboard.initialize(window);
+    // Pass the SDL2 window to the keyboard initialization
+    keyboard.initialize();
 
     audio_renderer.add_render_output(audio_player_output);
     audio_renderer.add_render_output(audio_file_output);
 
     audio_renderer.set_lead_output(0);
+
+    // Initialize the audio renderer
+    audio_renderer.initialize(512, 44100, 2);
+
+    // Create an SDL window
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
+        return -1;
+    }
+
+    SDL_Window* window = SDL_CreateWindow(
+        "Audio Renderer",
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        800, 600,
+        SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN
+    );
+
+    if (!window) {
+        std::cerr << "Failed to create SDL window: " << SDL_GetError() << std::endl;
+        SDL_Quit();
+        return -1;
+    }
 
     audio_player_output->open();
     audio_player_output->start();
