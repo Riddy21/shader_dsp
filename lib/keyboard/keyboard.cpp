@@ -38,6 +38,7 @@ bool Keyboard::terminate() {
 }
 
 bool Keyboard::initialize() {
+    // FIXME: Keyboard loop seems to freeze and cause dropped key presses
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Unable to initialize SDL: " << SDL_GetError() << std::endl;
         return false;
