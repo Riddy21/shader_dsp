@@ -77,6 +77,8 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
         void play_note(const float tone, const float gain);
         void stop_note(const float tone);
 
+        bool debug = false;
+
     private:
         void delete_note(const unsigned int index);
         void render(const unsigned int time) override;

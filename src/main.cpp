@@ -90,6 +90,12 @@ int main(int argc, char** argv) {
     auto playback_render_stage = new AudioPlaybackRenderStage(512, 44100, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
+    auto debug_key = new Key('m');
+    debug_key->set_key_down_callback([&generator_render_stage]() {
+        generator_render_stage->debug = true;
+    });
+    keyboard.add_key(debug_key);
+
     instantiate_piano_keyboard(keyboard, *generator_render_stage);
 
     filter_render_stage->set_filter_follower(100.0f);
@@ -98,9 +104,10 @@ int main(int argc, char** argv) {
     effect_render_stage->find_parameter("balance")->set_value(0.5f);
 
     generator_render_stage->connect_render_stage(effect_render_stage);
-    effect_render_stage->connect_render_stage(echo_render_stage);
-    echo_render_stage->connect_render_stage(filter_render_stage);
-    filter_render_stage->connect_render_stage(record_render_stage);
+    effect_render_stage->connect_render_stage(record_render_stage);
+    //effect_render_stage->connect_render_stage(echo_render_stage);
+    //echo_render_stage->connect_render_stage(filter_render_stage);
+    //filter_render_stage->connect_render_stage(record_render_stage);
     record_render_stage->connect_render_stage(playback_render_stage);
     playback_render_stage->connect_render_stage(final_render_stage);
 
