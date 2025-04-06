@@ -179,6 +179,7 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
 }
 
 void AudioRenderer::start_main_loop() {
+    // FIXME: This game loop doesn't account for pausing and unpausing
     if (m_initialized) {
         m_running = true;
 
