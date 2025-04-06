@@ -3,6 +3,7 @@
 #include <fstream>
 #include <cstring>
 #include <cmath>
+#include <csignal>
 
 #include "audio_output/audio_wav.h"
 #include "audio_parameter/audio_uniform_parameter.h"
@@ -221,6 +222,10 @@ void AudioGeneratorRenderStage::play_note(const float tone, const float gain)
     m_gains[m_active_notes] = gain;
     m_active_notes++;
 
+    if (m_active_notes >= MAX_NOTES_PLAYED_AT_ONCE) {
+        delete_note(0);
+    }
+
     // Update the shader parameters
     active_notes->set_value(m_active_notes);
     play_positions->set_value(m_play_positions.data());
@@ -254,6 +259,7 @@ void AudioGeneratorRenderStage::stop_note(const float tone)
     static float last_release_time = -1.0f;
     static int release_time_buffers = 0;
 
+    // TODO: abstract this so that you can apply to other envelopes
     float release_time = *(float *)find_parameter("release_time")->get_value();
     if (release_time != last_release_time) {
         float seconds_per_buffer = (float)m_frames_per_buffer / (float)m_sample_rate;
@@ -273,6 +279,13 @@ void AudioGeneratorRenderStage::delete_note(const unsigned int index)
         m_tones[i] = m_tones[i + 1];
         m_gains[i] = m_gains[i + 1];
     }
+
+    for (auto & [delete_time, delete_index] : m_delete_at_time) {
+        if (delete_index >= index) {
+            m_delete_at_time[delete_time] = delete_index - 1;
+        }
+    }
+
     m_active_notes--;
 
     // Update the shader parameters
