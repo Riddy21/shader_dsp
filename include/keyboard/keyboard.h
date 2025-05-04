@@ -21,10 +21,10 @@ public:
     void operator=(const Keyboard&) = delete;
 
     // IEventLoopItem interface
-    bool initialize() override;
     bool is_ready() const override { return true; }
     void handle_event(const SDL_Event &event) override;
     void render() override {} // No rendering needed for keyboard
+
 
     void add_key(Key * key);
     Key * get_key(const unsigned char key) { return m_keys[key].get(); }

@@ -11,15 +11,10 @@ EventLoop& EventLoop::get_instance() {
     return *s_instance;
 }
 
-bool EventLoop::initialize() {
-    m_running = true;
-    // Initialize items
-    for (auto &item : m_items) {
-        if (!item->initialize()) {
-            return false;
-        }
-    }
-    return true;
+EventLoop::~EventLoop() {
+    m_items.clear();
+
+    SDL_Quit();
 }
 
 // Changed to accept reference and move to unique_ptr
@@ -33,7 +28,7 @@ void EventLoop::run_loop() {
         std::cerr << "Error: EventLoop::run_loop() must be called from the main thread!" << std::endl;
         std::abort();
     }
-    while (m_running) {
+    while (true) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             // Dispatch events to each registered item
@@ -45,7 +40,7 @@ void EventLoop::run_loop() {
             // If user requests exit through SDL window close
             if (event.type == SDL_QUIT) {
                 printf("Received SDL_QUIT event, terminating event loop.\n");
-                terminate();
+                return;
             }
         }
 
@@ -56,8 +51,11 @@ void EventLoop::run_loop() {
             }
         }
     }
+    SDL_Quit();
 }
 
 void EventLoop::terminate() {
-    m_running = false;
+    SDL_Event event;
+    event.type = SDL_QUIT;
+    SDL_PushEvent(&event);
 }

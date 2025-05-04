@@ -2,6 +2,7 @@
 #include "engine/event_loop.h"
 #include <memory>
 #include "keyboard/keyboard.h"
+#include "audio_core/audio_renderer.h"
 
 // Test case for EventLoop with simple items
 TEST_CASE("EventLoop handles keyboard and audio items", "[EventLoop]") {
@@ -19,13 +20,11 @@ TEST_CASE("EventLoop handles keyboard and audio items", "[EventLoop]") {
 
     // Get the EventLoop instance and initialize it
     EventLoop& loop = EventLoop::get_instance();
-    REQUIRE(loop.initialize());
 
     // Add items to the event loop by reference
     loop.add_loop_item(keyboard);
 
     // Simulate an SDL_KEYDOWN event for the Keyboard
-
     Key * key = new Key('a');
     key->set_key_down_callback([]() {
         std::cout << "Key 'a' pressed!" << std::endl;

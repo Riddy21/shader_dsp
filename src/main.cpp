@@ -12,6 +12,7 @@
 #include "audio_output/audio_file_output.h"
 #include "keyboard/keyboard.h"
 #include "keyboard/key.h"
+#include "engine/event_loop.h"
 
 float middle_c = 261.63f;
 float semi_tone = 1.059463f;
@@ -47,7 +48,7 @@ void instantiate_piano_keyboard(Keyboard & keyboard, AudioGeneratorRenderStage &
 
 int main(int argc, char** argv) {
     //system("sudo renice -18 $(pgrep audio_program)");
-
+    EventLoop& event_loop = EventLoop::get_instance();
 
     // Get the render program
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
@@ -57,28 +58,28 @@ int main(int argc, char** argv) {
 
     // Add a quit key
     auto quit_key = new Key('q');
-    quit_key->set_key_down_callback([]() {
-        AudioRenderer::get_instance().terminate();
+    quit_key->set_key_down_callback([&event_loop]() {
+        event_loop.terminate();
     });
     keyboard.add_key(quit_key);
 
     // Add pause key
     auto pause_key = new Key('p');
     pause_key->set_key_down_callback([]() {
-        AudioRenderer::get_instance().pause_main_loop();
+        //AudioRenderer::get_instance().pause_main_loop();
     });
     keyboard.add_key(pause_key);
 
     // Add unpause key
     auto unpause_key = new Key('o');
     unpause_key->set_key_down_callback([]() {
-        AudioRenderer::get_instance().unpause_main_loop();
+        //AudioRenderer::get_instance().unpause_main_loop();
     });
     keyboard.add_key(unpause_key);
 
     auto increment_key = new Key('i');
     increment_key->set_key_down_callback([]() {
-        AudioRenderer::get_instance().increment_main_loop();
+        //AudioRenderer::get_instance().increment_main_loop();
     });
     keyboard.add_key(increment_key);
 
@@ -171,9 +172,6 @@ int main(int argc, char** argv) {
     auto audio_player_output = new AudioPlayerOutput(512, 44100, 2);
     auto audio_file_output = new AudioFileOutput(512, 44100, 2, "build/output.wav");
 
-    // Pass the SDL2 window to the keyboard initialization
-    keyboard.initialize();
-
     audio_renderer.add_render_output(audio_player_output);
     audio_renderer.add_render_output(audio_file_output);
 
@@ -182,11 +180,6 @@ int main(int argc, char** argv) {
     // Initialize the audio renderer
     audio_renderer.initialize(512, 44100, 2);
 
-    // Create an SDL window
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
-        return -1;
-    }
 
     SDL_Window* window = SDL_CreateWindow(
         "Audio Renderer",
@@ -207,15 +200,17 @@ int main(int argc, char** argv) {
     audio_file_output->open();
     audio_file_output->start();
 
-    // Start the audio renderer main loop
-    audio_renderer.start_main_loop();
+    // Add renderer and keyboard to event loop
+    event_loop.add_loop_item(&keyboard);
+    event_loop.add_loop_item(&audio_renderer);
+
+    // Run the event loop (this will call render() on audio_renderer)
+    event_loop.run_loop();
 
     audio_player_output->stop();
     audio_player_output->close();
     audio_file_output->stop();
     audio_file_output->close();
-    // Deallocate the audio renderer and keyboard
-    keyboard.terminate();
 
     return 0;
 }
