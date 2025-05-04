@@ -52,7 +52,8 @@ int main(int argc, char** argv) {
     // Get the render program
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
 
-    Keyboard & keyboard = Keyboard::get_instance();
+    //Keyboard & keyboard = Keyboard::get_instance();
+    Keyboard keyboard;
 
     // Add a quit key
     auto quit_key = new Key('q');
