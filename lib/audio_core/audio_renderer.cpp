@@ -53,8 +53,12 @@ bool AudioRenderer::initialize_sdl(unsigned int window_width, unsigned int windo
         return false;
     }
 
-    //m_window = SDL_CreateWindow("Audio Processing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
-    m_window = SDL_CreateWindow("Audio Processing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_OPENGL);
+    // Set OpenGL version to 4.1 Core Profile for macOS compatibility
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+    m_window = SDL_CreateWindow("Audio Processing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
     if (!m_window) {
         std::cerr << "Failed to create SDL2 window: " << SDL_GetError() << std::endl;
         return false;
@@ -136,12 +140,6 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
         return false;
     }
 
-    // Print the OpenGL version
-    const GLubyte* glVersion = glGetString(GL_VERSION);
-    const GLubyte* glslVersion = glGetString(GL_SHADING_LANGUAGE_VERSION);
-    std::cout << "OpenGL Version: " << glVersion << std::endl;
-    std::cout << "GLSL Version: " << glslVersion << std::endl;
-
     // Set GL settings for audio rendering
     glDisable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
@@ -171,6 +169,10 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
         return false;
     }
 
+    if (m_render_outputs.size() != 0) {
+        set_lead_output(0);
+    }
+
     // Initialize the textures with data
     render();
 
@@ -178,35 +180,37 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     return true;
 }
 
-void AudioRenderer::start_main_loop() {
-    // FIXME: This game loop doesn't account for pausing and unpausing
-    if (m_initialized) {
-        m_running = true;
+void AudioRenderer::render()
+{
+    // This replaces the old render() and is called by the event loop
+    if (!m_initialized) return;
 
-        while (m_running) {
-            SDL_Event event;
-            while (SDL_PollEvent(&event)) {
-                if (event.type == SDL_QUIT) {
-                    terminate();
-                }
-            }
+    m_render_graph->bind();
 
-            render();
-            SDL_GL_SwapWindow(m_window);
-        }
+    // Set the time for the frame
+    auto time_param = find_global_parameter("global_time");
+    time_param->set_value(m_frame_count);
+
+    glBindVertexArray(m_VAO);
+
+    // render the global parameters
+    for (auto& param : m_global_parameters) {
+        param->render();
     }
+
+    m_render_graph->render(m_frame_count++);
+
+    // Push to output buffers
+    push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data());
+
+    // Unbind everything
+    glBindVertexArray(0);
 }
 
-bool AudioRenderer::terminate() {
+AudioRenderer::~AudioRenderer()
+{
     // Stop the loop
-    m_running = false;
     m_initialized = false;
-
-    // Clean up the OpenGL context
-    if (!cleanup()) {
-        std::cerr << "Failed to clean up OpenGL context." << std::endl;
-        return false;
-    }
 
     if (m_gl_context) {
         SDL_GL_DeleteContext(m_gl_context);
@@ -218,125 +222,34 @@ bool AudioRenderer::terminate() {
         m_window = nullptr;
     }
 
-    SDL_Quit();
-
-    return true;
-}
-
-void AudioRenderer::calculate_frame_rate()
-{
-    static int frame_count = 0;
-    static double previous_time = 0.0;
-    static double fps = 0.0;
-
-    frame_count++;
-    double current_time = SDL_GetTicks() / 1000.0; // Get current time in seconds
-    double elapsed_time = current_time - previous_time;
-
-    if (elapsed_time > 1.0) { // Update FPS every second
-        fps = frame_count / elapsed_time;
-        previous_time = current_time;
-        frame_count = 0;
-    }
-
-    // Display the FPS on the window title
-    char title[256];
-    sprintf(title, "Audio Processing - FPS: %.2f", fps);
-    SDL_SetWindowTitle(m_window, title);
-}
-
-void AudioRenderer::render()
-{
-    m_render_graph->bind();
-
-    // Set the time for the frame
-    // TODO: Encapsulate in a function once we have more parameters
-    auto time_param = find_global_parameter("global_time");
-    time_param->set_value(m_frame_count);
-
-    glBindVertexArray(m_VAO);
-
-    // render the global parameters
-    for (auto& param : m_global_parameters) {
-        param->render();
-    }
-
-    static unsigned int prev_time = 0;
-
-    if (m_frame_count == 0 || m_frame_count != prev_time) {
-        // Render the render graph
-        m_render_graph->render(m_frame_count);
-
-        calculate_frame_rate();
-    } else {
-        // TODO: Do something else instead of sleep here, come up with way to save some compute
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-
-    prev_time = m_frame_count;
-
-
-    // Push to output buffers
-    push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data());
-
-    // Unbind everything
-    glBindVertexArray(0);
-}
-
-
-bool AudioRenderer::cleanup()
-{
     // Delete the vertex array and buffer
     glDeleteVertexArrays(1, &m_VAO);
     glDeleteBuffers(1, &m_VBO);
 
-    // TODO: Fix seg fault issues when this is enabled
-    //m_render_outputs.clear();
-    //m_global_parameters.clear();
-    //m_render_graph.reset();
-    //m_initialized = false;
-    //m_running = false;
-    //m_paused = false;
-    //m_frame_count = 0;
-    //m_lead_output = nullptr;
-
-    return true;
-}
-
-AudioRenderer::~AudioRenderer()
-{
-    // Clean up the OpenGL context
-    if (!cleanup()) {
-        std::cerr << "Failed to clean up OpenGL context." << std::endl;
-    }
+    m_render_outputs.clear();
+    m_global_parameters.clear();
+    m_render_graph.reset();
+    m_initialized = false;
+    m_frame_count = 0;
+    m_lead_output = nullptr;
 }
 
 void AudioRenderer::push_to_output_buffers(const float * data)
 {
-    // Check if there is outputs to push to 
-    if (m_render_outputs.size() == 0) {
-        std::cerr << "Error: No outputs to push to." << std::endl;
-        return;
-    }
-
-    if (m_render_outputs.size() == 0) {
-        return;
-    }
-
-    // Set the lead output to the first one on the list by default
-    if (m_lead_output == nullptr) {
-        m_lead_output = m_render_outputs[0].get();
-    }
-
-    if (!m_lead_output->is_ready()) {
-        return;
-    }
-
-    m_frame_count++;
-
     for (auto& output : m_render_outputs) {
         output->push(data);
     }
+}
+
+bool AudioRenderer::is_ready() const {
+
+    // Check if there is outputs to push to 
+    if (m_render_outputs.size() == 0) {
+        std::cerr << "Error: No outputs to push to." << std::endl;
+        return false;
+    }
+
+    return m_lead_output->is_ready();
 }
 
 bool AudioRenderer::initialize_global_parameters()

@@ -17,11 +17,6 @@ Keyboard::~Keyboard() {
     m_keys.clear();
 }
 
-bool Keyboard::initialize() {
-    // Only set running flag, no SDL_Init or thread
-    return true;
-}
-
 // Remove game_loop and process_events, as event loop will call handle_event
 
 void Keyboard::handle_event(const SDL_Event &event) {

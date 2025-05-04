@@ -13,6 +13,7 @@
 #include "audio_output/audio_output.h"
 #include "audio_parameter/audio_parameter.h"
 #include "audio_core/audio_render_graph.h"
+#include "engine/event_loop.h"
 
 /**
  * @class AudioRenderer
@@ -21,7 +22,7 @@
  * The AudioRenderer class provides functionality to initialize and terminate the audio renderer,
  * as well as holding audio texture output and managing audio buffer size and number of channels.
  */
-class AudioRenderer {
+class AudioRenderer : public IEventLoopItem {
 public:
     /**
      * @brief Returns the singleton instance of AudioRenderer.
@@ -50,52 +51,12 @@ public:
      */
     bool initialize(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels);
 
-    /**
-     * @brief Starts the main loop of the audio renderer.
-     */
-    void start_main_loop();
+    // IEventLoopItem interface
+    bool is_ready() const override;
 
-    /**
-     * @brief Pause the main loop of the audio renderer.
-     */
-    void pause_main_loop() {
-        printf("Pausing\n");
-        m_paused = true;
-    }
+    void handle_event(const SDL_Event&) override {} // No event handling needed
 
-    /**
-     * @brief Unpause the main loop of the audio renderer.
-     */
-    void unpause_main_loop() {
-        printf("Unpausing\n");
-        m_paused = false;
-    }
-
-    /**
-     * @brief Increments the main loop of the audio renderer.
-     */
-    void increment_main_loop() {
-        printf("Incrementing\n");
-        render();
-    }
-
-    /**
-     * @brief Terminates the audio renderer.
-     * 
-     * @return True if termination is successful, false otherwise.
-     */
-    bool terminate();
-
-    /**
-     * @brief Cleans up the audio renderer.
-     * 
-     * @return True if cleanup is successful, false otherwise.
-     */
-    bool cleanup();
-
-    static void iterate() {
-        render_callback();
-    }
+    void render() override;
 
 // -------------Add Functions----------------
     /**
@@ -187,18 +148,7 @@ private:
      */
     ~AudioRenderer();
 
-// -------------Render Functions----------------
-    /**
-     * @brief Renders a frame.
-     */
-    void render();
-
 // -------------Helper Functions----------------
-
-    /**
-     * @brief Calculates the frame rate of the audio renderer.
-     */
-    void calculate_frame_rate();
 
     /**
      * @brief Pushes data to all output buffers.
@@ -207,19 +157,6 @@ private:
      */
     void push_to_output_buffers(const float * data);
 
-
-// -------------Callback Functions----------------
-    /**
-     * @brief Static callback function for rendering.
-     */
-    static void render_callback() {
-        if (instance->m_paused) {
-            // Sleep for a bit to reduce CPU usage
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            return;
-        }
-        instance->render();
-    }
 
 // -------------Initialization Functions----------------
     /**
@@ -258,9 +195,6 @@ private:
 
     unsigned int m_frame_count = 0; // Frame count for calculating frame rate
     AudioOutput * m_lead_output = nullptr; // Lead output for frame rate calculation
-
-    std::atomic<bool> m_running; // Flag to control the loop
-    std::atomic<bool> m_paused; // Flag to control the loop
 
     bool m_initialized = false; // Flag to mark initialization
 

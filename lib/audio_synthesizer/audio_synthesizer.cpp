@@ -94,9 +94,10 @@ bool AudioSynthesizer::start() {
         }
     }
 
-    m_synthesizer_thread.add_task([this]() {
-        m_audio_renderer.start_main_loop();
-    });
+    // FIXME: Fix this
+    //m_synthesizer_thread.add_task([this]() {
+    //    m_audio_renderer.start_main_loop();
+    //});
 
     return true;
 }
@@ -106,7 +107,8 @@ bool AudioSynthesizer::pause() {
         std::cerr << "Audio renderer is not initialized." << std::endl;
         return false;
     }
-    m_audio_renderer.pause_main_loop();
+    // FIXME: Fix this
+    //m_audio_renderer.pause_main_loop();
     
     // Stop the audio outputs
     for (auto& output : m_render_outputs) {
@@ -123,7 +125,8 @@ bool AudioSynthesizer::increment() {
         std::cerr << "Audio renderer is not initialized." << std::endl;
         return false;
     }
-    m_audio_renderer.increment_main_loop();
+    // FIXME: Fix this
+    //m_audio_renderer.increment_main_loop();
     return true;
 }
 
@@ -141,7 +144,8 @@ bool AudioSynthesizer::resume() {
         }
     }
 
-    m_audio_renderer.unpause_main_loop();
+    // FIXME: Fix this
+    //m_audio_renderer.unpause_main_loop();
 
     return true;
 }
@@ -153,7 +157,8 @@ bool AudioSynthesizer::close() {
     }
 
     // Stop the main loop
-    m_audio_renderer.terminate();
+    // FIXME: Fix this
+    // m_audio_renderer.terminate();
 
     // Stop the audio outputs
     for (auto& output : m_render_outputs) {
@@ -180,9 +185,11 @@ bool AudioSynthesizer::terminate() {
         std::cerr << "Audio renderer is not initialized." << std::endl;
         return false;
     }
-    if (!m_audio_renderer.terminate()) {
-        std::cerr << "Failed to terminate audio renderer." << std::endl;
-        return false;
-    }
+
+    // FIXME: Fix this
+    //if (!m_audio_renderer.terminate()) {
+    //    std::cerr << "Failed to terminate audio renderer." << std::endl;
+    //    return false;
+    //}
     return true;
 }
