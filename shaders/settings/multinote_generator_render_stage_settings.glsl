@@ -5,6 +5,8 @@ uniform int stop_positions[maxNotes];
 uniform float tones[maxNotes];
 uniform float gains[maxNotes];
 uniform int active_notes;
+uniform int buffer_size;
+uniform int sample_rate;
 
 const float MAX_TIME = 83880.0; // This is the maximum time in seconds before precision is lost
 const float MIDDLE_C = 261.63; // Middle C in Hz

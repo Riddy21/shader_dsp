@@ -1,3 +1,10 @@
+in vec2 TexCoord;
+uniform float tone, gain;
+uniform int play_position, stop_position, global_time_val;
+uniform sampler2D stream_audio_texture;
+out vec4 output_audio_texture;
+float adsr_envelope(float, float, float);
+float calculateTime(int, vec2);
 
 float generateNoise(float tone, float time) {
     // Generate random numbers between -1.0 and 1.0 based on current time

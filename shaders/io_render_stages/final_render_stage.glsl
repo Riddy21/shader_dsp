@@ -1,4 +1,9 @@
-layout(location = 1) out vec4 final_output_audio_texture;
+in vec2 TexCoord;
+uniform sampler2D stream_audio_texture;
+uniform int buffer_size;
+uniform int num_channels;
+out vec4 output_audio_texture;
+out vec4 final_output_audio_texture;
 
 void main(){
     // Convert from interpolated coordinates to non-interpolated coordinates.

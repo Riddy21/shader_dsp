@@ -1,7 +1,12 @@
+in vec2 TexCoord;
 uniform sampler2D playback_texture;
+uniform sampler2D stream_audio_texture;
 uniform int play_position;
 uniform bool play;
 uniform int time_at_start;
+uniform int global_time_val;
+uniform int num_channels;
+out vec4 output_audio_texture;
 
 void main() {
     vec4 playback = vec4(0.0, 0.0, 0.0, 0.0);

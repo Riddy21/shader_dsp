@@ -1,5 +1,8 @@
+in vec2 TexCoord;
 uniform float gain;
 uniform float balance;
+uniform sampler2D stream_audio_texture;
+out vec4 output_audio_texture;
 
 void main() {
     // Apply balance effect to the audio

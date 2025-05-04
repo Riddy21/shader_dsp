@@ -1,3 +1,12 @@
+in vec2 TexCoord;
+uniform float tone, gain;
+uniform int play_position, stop_position, global_time_val;
+uniform sampler2D stream_audio_texture;
+out vec4 output_audio_texture;
+float adsr_envelope(float, float, float);
+float calculateTime(int, vec2);
+float calculatePhase(int, vec2, float);
+
 float generateTriangle(float tone) {
     float phase = calculatePhase(global_time_val, TexCoord, tone);
     return 2.0 * abs(2.0 * tone * phase - 2.0 * floor(tone * phase + 0.5)) - 1.0;

@@ -1,4 +1,6 @@
+in vec2 TexCoord;
 uniform sampler2D audio_history_texture;
+uniform int num_channels;
 
 int get_audio_history_size() {
     ivec2 audio_size = textureSize(audio_history_texture, 0);
