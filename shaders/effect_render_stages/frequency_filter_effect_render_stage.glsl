@@ -1,8 +1,13 @@
+in vec2 TexCoord;
 uniform int num_taps;
-
 uniform sampler2D b_coeff_texture;
+uniform sampler2D stream_audio_texture;
+uniform int buffer_size;
+uniform int num_channels;
+out vec4 output_audio_texture;
+float get_audio_history_sample(int, int);
+int get_audio_history_size();
 
-// Treat the coefficient textures as an array by mapping tex coords
 float get_tex_value(sampler2D tex, int index) {
     ivec2 index_real = ivec2(index % buffer_size, index / buffer_size);
     ivec2 texture_size = textureSize(tex, 0);

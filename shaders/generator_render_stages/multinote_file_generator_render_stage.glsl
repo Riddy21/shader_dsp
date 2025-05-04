@@ -1,4 +1,17 @@
+in vec2 TexCoord;
+uniform int active_notes;
+uniform int play_positions[24];
+uniform int stop_positions[24];
+uniform float tones[24];
+uniform float gains[24];
+uniform int global_time_val;
+uniform sampler2D stream_audio_texture;
 uniform sampler2D full_audio_data_texture;
+uniform int buffer_size, num_channels;
+out vec4 output_audio_texture;
+float adsr_envelope(float, float, float);
+float calculateTime(int, vec2);
+const float MIDDLE_C = 261.63;
 
 vec2 translate_coord(vec2 coord, int time, float speed, int channel) {
     // Get the chunk size

@@ -1,5 +1,5 @@
-layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec2 aTexCoord;
+in vec2 aPos;
+in vec2 aTexCoord;
 out vec2 TexCoord;
 void main()
 {

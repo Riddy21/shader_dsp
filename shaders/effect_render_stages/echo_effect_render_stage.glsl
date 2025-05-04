@@ -1,7 +1,13 @@
+in vec2 TexCoord;
 uniform int num_echos;
 uniform float delay;
 uniform float decay;
 uniform sampler2D echo_audio_texture;
+uniform sampler2D stream_audio_texture;
+uniform int num_channels;
+uniform int buffer_size;
+uniform int sample_rate;
+out vec4 output_audio_texture;
 
 void main() {
     int channel = int(TexCoord.y * float(num_channels));

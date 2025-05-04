@@ -3,6 +3,8 @@ uniform int stop_position;
 uniform bool play;
 uniform float tone;
 uniform float gain;
+uniform int buffer_size;
+uniform int sample_rate;
 
 const float MAX_TIME = 83880.0; // This is the maximum time in seconds before precision is lost
 const float MIDDLE_C = 261.63; // Middle C in Hz

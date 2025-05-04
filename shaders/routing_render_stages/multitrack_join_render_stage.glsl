@@ -1,3 +1,5 @@
+in vec2 TexCoord;
+uniform sampler2D stream_audio_texture;
 uniform sampler2D stream_audio_texture_0;
 uniform sampler2D stream_audio_texture_1;
 uniform sampler2D stream_audio_texture_2;
@@ -7,6 +9,7 @@ uniform sampler2D stream_audio_texture_5;
 uniform sampler2D stream_audio_texture_6;
 uniform sampler2D stream_audio_texture_7;
 uniform sampler2D stream_audio_texture_8;
+out vec4 output_audio_texture;
 
 // NOTE: Can't use array of textures as a uniform because it's not supported in GLSL 3.00 ES
 
