@@ -5,6 +5,7 @@
 #include "keyboard/keyboard.h"
 #include "keyboard/key.h"
 #include "engine/event_loop.h"
+#include "graphics/graphics_display.h"
 
 #define MIDDLE_C 261.63f
 #define SEMI_TONE 1.059463f
@@ -58,10 +59,22 @@ void setup_keyboard(Keyboard& keyboard, AudioSynthesizer& synthesizer, EventLoop
         event_loop.terminate();
     });
     keyboard.add_key(quit_key);
+
 }
 
 int main() {
     EventLoop& event_loop = EventLoop::get_instance();
+
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "Failed to initialize SDL2: " << SDL_GetError() << std::endl;
+        return false;
+    }
+
+    // Set OpenGL version to 4.1 Core Profile for macOS compatibility
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    
     auto & synthesizer = AudioSynthesizer::get_instance();
     if (!synthesizer.initialize(512, 44100, 2)) {
         std::cerr << "Failed to initialize AudioSynthesizer." << std::endl;
@@ -76,23 +89,9 @@ int main() {
     Keyboard keyboard;
     setup_keyboard(keyboard, synthesizer, event_loop);
 
+    GraphicsDisplay graphics_display = GraphicsDisplay(800, 600, "Synthesizer");
+
     std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
-
-    event_loop.add_loop_item(&keyboard);
-
-    SDL_Window* window = SDL_CreateWindow(
-        "Audio Renderer",
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        800, 600,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN
-    );
-
-    if (!window) {
-        std::cerr << "Failed to create SDL window: " << SDL_GetError() << std::endl;
-        SDL_Quit();
-        return -1;
-    }
 
     event_loop.run_loop();
     return 0;

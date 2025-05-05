@@ -11,6 +11,8 @@
 // Removed: Keyboard * Keyboard::instance = nullptr;
 
 Keyboard::Keyboard() {
+    auto & event_loop = EventLoop::get_instance();
+    event_loop.add_loop_item(this); // Register this keyboard instance with the event loop
 }
 
 Keyboard::~Keyboard() {
