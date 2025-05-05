@@ -9,7 +9,7 @@
 #include <unordered_set>
 #include <GL/glew.h>
 
-#include "audio_parameter/audio_parameter.h"
+#include "audio_core/audio_parameter.h"
 #include "audio_core/audio_shader_program.h"
 
 // TODO: Make this a setting global 

@@ -1,6 +1,6 @@
 #include <cstring>
 
-#include "audio_parameter/audio_parameter.h"
+#include "audio_core/audio_parameter.h"
 
 bool AudioParameter::set_value(const void * value_ptr) {
     // Only allow setting value if the parameter is an input

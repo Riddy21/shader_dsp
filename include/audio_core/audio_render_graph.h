@@ -8,7 +8,7 @@
 #include <memory>
 #include <mutex>
 
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 
 //       This graph should be able to:

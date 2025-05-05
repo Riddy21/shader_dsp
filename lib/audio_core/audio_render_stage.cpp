@@ -4,7 +4,7 @@
 #include <algorithm>
 
 #include "audio_core/audio_renderer.h"
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_render_stage.h"
 #include "audio_parameter/audio_uniform_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
 #include "audio_core/audio_shader_program.h"

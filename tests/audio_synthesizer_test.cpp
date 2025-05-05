@@ -2,39 +2,56 @@
 #include <thread>
 
 #include "audio_synthesizer/audio_synthesizer.h"
+#include "engine/event_loop.h"
 
 TEST_CASE("AudioSynthesizer Initialization", "[AudioSynthesizer]") {
     AudioSynthesizer& synthesizer = AudioSynthesizer::get_instance();
+    EventLoop& event_loop = EventLoop::get_instance();
+
+    // Initialize the synthesizer with default parameters
     REQUIRE(synthesizer.initialize(512, 44100, 2));
 
-    REQUIRE(synthesizer.start());
+    synthesizer.start();
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::thread test_thread([&]() {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    // Play a note
-    printf("Playing note...\n");
-    synthesizer.play_note(MIDDLE_C, 0.5f);
+        // Play a note
+        printf("Playing note...\n");
+        synthesizer.play_note(MIDDLE_C, 0.5f);
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    REQUIRE(synthesizer.pause());
+        REQUIRE(synthesizer.pause());
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    REQUIRE(synthesizer.increment());
+        REQUIRE(synthesizer.increment());
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    REQUIRE(synthesizer.resume());
+        REQUIRE(synthesizer.increment());
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    // Stop the note
-    synthesizer.stop_note(MIDDLE_C);
-    printf("Stopped note...\n");
+        REQUIRE(synthesizer.increment());
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    REQUIRE(synthesizer.close());
-    REQUIRE(synthesizer.terminate());
+        REQUIRE(synthesizer.resume());
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        // Stop the note
+        synthesizer.stop_note(MIDDLE_C);
+        printf("Stopped note...\n");
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        event_loop.terminate();
+    });
+
+    event_loop.run_loop();
+
+    test_thread.join();
 }

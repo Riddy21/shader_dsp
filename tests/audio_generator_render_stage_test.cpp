@@ -9,7 +9,7 @@
 #include "audio_render_stage/audio_file_generator_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_core/audio_render_graph.h"
-#include "keyboard/piano.h"
+#include "engine/event_loop.h"
 
 TEST_CASE("AudioGeneratorRenderStage") {
     std::vector<std::string> file_paths = {
@@ -47,8 +47,10 @@ TEST_CASE("AudioGeneratorRenderStage") {
         audio_renderer.add_render_graph(audio_render_graph);
         audio_renderer.add_render_output(audio_driver);
 
+        EventLoop & event_loop = EventLoop::get_instance();
+
         // Open a thread to wait few sec and the shut it down
-        std::thread t1([&audio_renderer, &play_param, &play_position_param, &stop_position_param, &time_param]() {
+        std::thread t1([&audio_renderer, &play_param, &play_position_param, &stop_position_param, &time_param, &event_loop]() {
             // Play the audio
             play_param->set_value(true);
             play_position_param->set_value(time_param->get_value());
@@ -56,9 +58,7 @@ TEST_CASE("AudioGeneratorRenderStage") {
             play_param->set_value(false);
             stop_position_param->set_value(time_param->get_value());
 
-            // terminate
-            audio_renderer.terminate();
-            audio_renderer.cleanup();
+            event_loop.terminate();
         });
 
         REQUIRE(audio_renderer.initialize(512, 44100, 2));
@@ -66,7 +66,8 @@ TEST_CASE("AudioGeneratorRenderStage") {
         REQUIRE(audio_driver->open());
         REQUIRE(audio_driver->start());
 
-        audio_renderer.start_main_loop();
+        event_loop.add_loop_item(&audio_renderer);
+        event_loop.run_loop();
 
         t1.detach();
         t1.join();
@@ -103,8 +104,10 @@ TEST_CASE("AudioMultitoneGeneratorRenderStage") {
         audio_renderer.add_render_graph(audio_render_graph);
         audio_renderer.add_render_output(audio_driver);
 
+        EventLoop & event_loop = EventLoop::get_instance();
+
         // Open a thread to wait few sec and the shut it down
-        std::thread t1([&audio_generator, &audio_renderer]() {
+        std::thread t1([&audio_generator, &audio_renderer, &event_loop]() {
 
             auto play_position_param = audio_generator->find_parameter("play_positions");
             auto stop_position_param = audio_generator->find_parameter("stop_positions");
@@ -127,9 +130,9 @@ TEST_CASE("AudioMultitoneGeneratorRenderStage") {
             audio_generator->stop_note(MIDDLE_C * std::pow(SEMI_TONE, 1));
 
             std::this_thread::sleep_for(std::chrono::seconds(3));
+
             // terminate
-            audio_renderer.terminate();
-            audio_renderer.cleanup();
+            event_loop.terminate();
         });
 
         REQUIRE(audio_renderer.initialize(512, 44100, 2));
@@ -137,7 +140,8 @@ TEST_CASE("AudioMultitoneGeneratorRenderStage") {
         REQUIRE(audio_driver->open());
         REQUIRE(audio_driver->start());
 
-        audio_renderer.start_main_loop();
+        event_loop.add_loop_item(&audio_renderer);
+        event_loop.run_loop();
 
         t1.detach();
         t1.join();

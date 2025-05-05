@@ -15,78 +15,11 @@
 
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_graph.h"
+#include "audio_core/audio_render_stage.h"
 #include "audio_output/audio_output.h"
-#include "audio_parameter/audio_parameter.h"
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_parameter.h"
 // FIXME: Delete this after testing
 #include "audio_render_stage/audio_generator_render_stage.h"
-
-class TaskThread {
-public:
-    TaskThread() : m_running(true) {
-        m_thread = std::thread([this]() { this->thread_loop(); });
-    }
-
-    ~TaskThread() {
-        stop();
-    }
-
-    // Add a task that returns a result (blocking or non-blocking)
-    template <typename Func, typename... Args>
-    auto add_task(Func&& func, Args&&... args) -> std::future<decltype(func(args...))> {
-        using ReturnType = decltype(func(args...));
-
-        auto task = std::make_shared<std::packaged_task<ReturnType()>>(
-            std::bind(std::forward<Func>(func), std::forward<Args>(args)...)
-        );
-
-        std::future<ReturnType> result = task->get_future();
-
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_task_queue.push([task]() { (*task)(); });
-        }
-
-        m_condition.notify_one();
-        return result;
-    }
-
-    void stop() {
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_running = false;
-        }
-        m_condition.notify_all();
-        if (m_thread.joinable()) {
-            m_thread.join();
-        }
-    }
-
-private:
-    void thread_loop() {
-        while (m_running) {
-            std::function<void()> task;
-            {
-                std::unique_lock<std::mutex> lock(m_mutex);
-                m_condition.wait(lock, [this]() { return !m_task_queue.empty() || !m_running; });
-
-                if (!m_running && m_task_queue.empty()) {
-                    return;
-                }
-
-                task = m_task_queue.front();
-                m_task_queue.pop();
-            }
-            task(); // Execute the task
-        }
-    }
-
-    std::thread m_thread;
-    std::queue<std::function<void()>> m_task_queue;
-    std::mutex m_mutex;
-    std::condition_variable m_condition;
-    std::atomic<bool> m_running;
-};
 
 class AudioSynthesizer {
 public:
@@ -149,8 +82,6 @@ private:
     // TODO: Should be able to take in Output objects
     // TODO: Should be able to take in effect objects
     // TODO: Should be able to take in engine objects
-
-    TaskThread m_synthesizer_thread;
 
     static AudioSynthesizer* instance;
 };

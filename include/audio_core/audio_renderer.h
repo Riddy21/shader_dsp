@@ -9,9 +9,9 @@
 #include <atomic>
 #include <thread>
 
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_render_stage.h"
 #include "audio_output/audio_output.h"
-#include "audio_parameter/audio_parameter.h"
+#include "audio_core/audio_parameter.h"
 #include "audio_core/audio_render_graph.h"
 #include "engine/event_loop.h"
 
@@ -52,11 +52,24 @@ public:
     bool initialize(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels);
 
     // IEventLoopItem interface
-    bool is_ready() const override;
+    bool is_ready() override;
 
     void handle_event(const SDL_Event&) override {} // No event handling needed
 
     void render() override;
+
+// Loop Control
+    void pause() {
+        m_paused = true;
+    }
+
+    void increment() {
+        m_increment = true;
+    }
+
+    void resume() {
+        m_paused = false;
+    }
 
 // -------------Add Functions----------------
     /**
@@ -197,6 +210,8 @@ private:
     AudioOutput * m_lead_output = nullptr; // Lead output for frame rate calculation
 
     bool m_initialized = false; // Flag to mark initialization
+    bool m_paused = false; // Flag to mark pause state
+    bool m_increment = false; // Flag to mark increment state
 
     std::vector<std::unique_ptr<AudioOutput>> m_render_outputs; // Render outputs
     std::vector<std::unique_ptr<AudioParameter>> m_global_parameters; // Parameters for render stages
