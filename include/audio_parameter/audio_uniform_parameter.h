@@ -5,7 +5,7 @@
 #include <GL/glew.h>
 #include <GL/glut.h>
 
-#include "audio_parameter/audio_parameter.h"
+#include "audio_core/audio_parameter.h"
 
 class AudioUniformParameter : public AudioParameter {
 

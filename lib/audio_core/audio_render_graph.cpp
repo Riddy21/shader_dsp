@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <algorithm>
 
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_render_stage/audio_multitrack_join_render_stage.h"
 

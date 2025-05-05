@@ -32,7 +32,7 @@ TEST_CASE("EventLoop handles keyboard and audio items", "[EventLoop]") {
     keyboard->add_key(key); // Register a key for Keyboard
 
     // Run in another thread the keypress simulation and then sent quit event
-    std::thread keypress_thread([&loop, keyboard]() {
+    std::thread keypress_thread([&loop]() {
         // Sleep for 1 second
         std::this_thread::sleep_for(std::chrono::seconds(1));
 

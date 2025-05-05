@@ -131,6 +131,7 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
         return false;
     }
 
+    // TODO: Move these to the constructor
     this->m_buffer_size = buffer_size;
     this->m_num_channels = num_channels;
     this->m_sample_rate = sample_rate;
@@ -167,10 +168,6 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     if (!initialize_quad()) {
         std::cerr << "Failed to create quad." << std::endl;
         return false;
-    }
-
-    if (m_render_outputs.size() != 0) {
-        set_lead_output(0);
     }
 
     // Initialize the textures with data
@@ -241,12 +238,25 @@ void AudioRenderer::push_to_output_buffers(const float * data)
     }
 }
 
-bool AudioRenderer::is_ready() const {
+bool AudioRenderer::is_ready() {
+
+    if (m_increment) {
+        m_increment = false;
+        return true;
+    }
+
+    if (m_paused) {
+        return false;
+    }
 
     // Check if there is outputs to push to 
     if (m_render_outputs.size() == 0) {
         std::cerr << "Error: No outputs to push to." << std::endl;
         return false;
+    }
+
+    if (m_render_outputs.size() != 0) {
+        set_lead_output(0);
     }
 
     return m_lead_output->is_ready();

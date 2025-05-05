@@ -8,7 +8,7 @@
 class IEventLoopItem {
 public:
     virtual ~IEventLoopItem() {}
-    virtual bool is_ready() const = 0;
+    virtual bool is_ready() = 0;
     virtual void handle_event(const SDL_Event &event) = 0;
     virtual void render() = 0;
 };

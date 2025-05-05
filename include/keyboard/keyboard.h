@@ -8,7 +8,7 @@
 #include <atomic>
 
 #include "keyboard/key.h"
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_render_stage.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "engine/event_loop.h"
 
@@ -21,7 +21,7 @@ public:
     void operator=(const Keyboard&) = delete;
 
     // IEventLoopItem interface
-    bool is_ready() const override { return true; }
+    bool is_ready() override { return true; }
     void handle_event(const SDL_Event &event) override;
     void render() override {} // No rendering needed for keyboard
 
