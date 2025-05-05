@@ -48,17 +48,7 @@ bool AudioRenderer::add_render_graph(AudioRenderGraph * render_graph)
 bool AudioRenderer::initialize_sdl(unsigned int window_width, unsigned int window_height) {
     printf("Initializing SDL2\n");
 
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "Failed to initialize SDL2: " << SDL_GetError() << std::endl;
-        return false;
-    }
-
-    // Set OpenGL version to 4.1 Core Profile for macOS compatibility
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-
-    m_window = SDL_CreateWindow("Audio Processing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
+    m_window = SDL_CreateWindow("Audio Processing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_OPENGL);
     if (!m_window) {
         std::cerr << "Failed to create SDL2 window: " << SDL_GetError() << std::endl;
         return false;
@@ -70,7 +60,7 @@ bool AudioRenderer::initialize_sdl(unsigned int window_width, unsigned int windo
         return false;
     }
 
-    SDL_GL_SetSwapInterval(0); // Disable vsync
+    SDL_GL_MakeCurrent(m_window, m_gl_context); // Bind context to this thread
 
     if (glewInit() != GLEW_OK) {
         std::cerr << "Failed to initialize GLEW" << std::endl;
@@ -182,6 +172,7 @@ void AudioRenderer::render()
     // This replaces the old render() and is called by the event loop
     if (!m_initialized) return;
 
+    SDL_GL_MakeCurrent(m_window, m_gl_context); // Ensure this context is active
     m_render_graph->bind();
 
     // Set the time for the frame

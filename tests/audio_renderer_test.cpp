@@ -8,8 +8,10 @@
 #include "audio_parameter/audio_texture2d_parameter.h"
 #include "audio_parameter/audio_uniform_parameter.h"
 #include "audio_render_stage/audio_final_render_stage.h"
+#include "engine/event_loop.h"
 
 TEST_CASE("AudioRenderer") {
+    EventLoop & event_loop = EventLoop::get_instance();
     AudioRenderer & audio_renderer = AudioRenderer::get_instance();
     
     auto render_stage2 = new AudioRenderStage(512, 44100, 2);
@@ -76,13 +78,15 @@ TEST_CASE("AudioRenderer") {
 
     REQUIRE(audio_renderer.initialize(512, 44100, 2));
 
+    event_loop.add_loop_item(&audio_renderer);
+
     // Open a thread to wait 1 sec and the shut it down
-    std::thread t1([&audio_renderer](){
+    std::thread t1([&audio_renderer, &event_loop](){
         // Wait for 1 sec
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        audio_renderer.terminate();
+        event_loop.terminate();
     });
 
-    t1.detach();
-    audio_renderer.start_main_loop();
+    event_loop.run_loop();
+    t1.join();
 }
