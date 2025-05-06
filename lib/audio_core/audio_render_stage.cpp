@@ -7,7 +7,6 @@
 #include "audio_core/audio_render_stage.h"
 #include "audio_parameter/audio_uniform_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
-#include "audio_core/audio_shader_program.h"
 
 const std::vector<std::string> AudioRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
