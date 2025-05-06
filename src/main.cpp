@@ -6,6 +6,7 @@
 #include "keyboard/key.h"
 #include "engine/event_loop.h"
 #include "graphics/graphics_display.h"
+#include "graphics_views/debug_view.h"
 
 #define MIDDLE_C 261.63f
 #define SEMI_TONE 1.059463f
@@ -90,6 +91,8 @@ int main() {
     setup_keyboard(keyboard, synthesizer, event_loop);
 
     GraphicsDisplay graphics_display = GraphicsDisplay(800, 600, "Synthesizer");
+    graphics_display.register_view("debug", new DebugView());
+    graphics_display.change_view("debug");
 
     std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
 

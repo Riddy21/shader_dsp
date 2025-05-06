@@ -35,6 +35,10 @@ env.Append(CPPPATH=[INCLUDE_DIR])
 
 # Link libraries
 env.Append(LIBS=[
+    'SDL2_image',
+    'SDL2_mixer',
+    'SDL2_gfx',
+    'SDL2_ttf',
     'SDL2',
     'GLEW',
     'GL',

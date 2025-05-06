@@ -48,7 +48,7 @@ bool AudioRenderer::add_render_graph(AudioRenderGraph * render_graph)
 bool AudioRenderer::initialize_sdl(unsigned int window_width, unsigned int window_height) {
     printf("Initializing SDL2\n");
 
-    m_window = SDL_CreateWindow("Audio Processing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_OPENGL);
+    m_window = SDL_CreateWindow("Audio Processing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
     if (!m_window) {
         std::cerr << "Failed to create SDL2 window: " << SDL_GetError() << std::endl;
         return false;

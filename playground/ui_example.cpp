@@ -1,0 +1,110 @@
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL2_gfxPrimitives.h>
+#include <iostream>
+
+// Function to render text
+SDL_Texture* render_text(SDL_Renderer* renderer, TTF_Font* font, const std::string& text, SDL_Color color) {
+    SDL_Surface* surface = TTF_RenderText_Blended(font, text.c_str(), color);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_FreeSurface(surface);
+    return texture;
+}
+
+int main() {
+    // Initialize SDL
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
+        std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
+        return -1;
+    }
+
+    // Initialize SDL_ttf
+    if (TTF_Init() != 0) {
+        std::cerr << "Failed to initialize SDL_ttf: " << TTF_GetError() << std::endl;
+        SDL_Quit();
+        return -1;
+    }
+
+    // Initialize SDL_image
+    if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) {
+        std::cerr << "Failed to initialize SDL_image: " << IMG_GetError() << std::endl;
+        TTF_Quit();
+        SDL_Quit();
+        return -1;
+    }
+
+    // Create SDL window and renderer
+    SDL_Window* window = SDL_CreateWindow("SDL2 UI Example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_SHOWN);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+    // Load font
+    TTF_Font* font = TTF_OpenFont("/path/to/font.ttf", 24); // Replace with your font path
+    if (!font) {
+        std::cerr << "Failed to load font: " << TTF_GetError() << std::endl;
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        IMG_Quit();
+        TTF_Quit();
+        SDL_Quit();
+        return -1;
+    }
+
+    // Load image
+    SDL_Texture* image = IMG_LoadTexture(renderer, "/path/to/image.png"); // Replace with your image path
+    if (!image) {
+        std::cerr << "Failed to load image: " << IMG_GetError() << std::endl;
+        TTF_CloseFont(font);
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        IMG_Quit();
+        TTF_Quit();
+        SDL_Quit();
+        return -1;
+    }
+
+    // Main loop
+    bool running = true;
+    SDL_Event event;
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                running = false;
+            }
+        }
+
+        // Clear screen
+        SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
+        SDL_RenderClear(renderer);
+
+        // Render image
+        SDL_Rect img_rect = {300, 100, 200, 200};
+        SDL_RenderCopy(renderer, image, nullptr, &img_rect);
+
+        // Render text
+        SDL_Color white = {255, 255, 255, 255};
+        SDL_Texture* text_texture = render_text(renderer, font, "Welcome to SDL2 UI!", white);
+        int text_w, text_h;
+        SDL_QueryTexture(text_texture, nullptr, nullptr, &text_w, &text_h);
+        SDL_Rect text_rect = {400 - text_w / 2, 350, text_w, text_h};
+        SDL_RenderCopy(renderer, text_texture, nullptr, &text_rect);
+        SDL_DestroyTexture(text_texture);
+
+        // Draw a rectangle using SDL2_gfx
+        boxRGBA(renderer, 100, 450, 700, 500, 0, 128, 255, 255);
+
+        // Present the renderer
+        SDL_RenderPresent(renderer);
+    }
+
+    // Cleanup
+    SDL_DestroyTexture(image);
+    TTF_CloseFont(font);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    IMG_Quit();
+    TTF_Quit();
+    SDL_Quit();
+
+    return 0;
+}
