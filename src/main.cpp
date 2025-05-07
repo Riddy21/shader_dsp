@@ -46,12 +46,19 @@ void setup_keyboard(Keyboard& keyboard, AudioSynthesizer& synthesizer, EventLoop
     });
     keyboard.add_key(pause_key);
 
-    auto resume_key = new Key('r');
+    auto resume_key = new Key('o');
     resume_key->set_key_down_callback([&synthesizer]() {
         synthesizer.resume();
         std::cout << "Resumed synthesizer." << std::endl;
     });
     keyboard.add_key(resume_key);
+
+    auto increment_key = new Key('i');
+    increment_key->set_key_down_callback([&synthesizer]() {
+        synthesizer.increment();
+        std::cout << "Incremented synthesizer." << std::endl;
+    });
+    keyboard.add_key(increment_key);
 
     auto quit_key = new Key('q');
     quit_key->set_key_down_callback([&synthesizer, &event_loop]() {

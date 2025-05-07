@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 #include <GL/glew.h>
 #include <SDL2/SDL.h>
 
@@ -11,16 +12,16 @@
 
 class GraphComponent : public GraphicsComponent {
 public:
-    GraphComponent(float x, float y, float width, float height, const float* data, size_t size);
+    GraphComponent(const float x, const float y, const float width, const float height, const std::vector<float>& data, const bool is_dynamic = true);
     ~GraphComponent() override;
 
-    void set_data(const float* data, size_t size);
+    void set_data(const std::vector<float>& data);
     void handle_event(const SDL_Event& event) override;
     void render() override;
 
 private:
-    const float* m_data;
-    size_t m_data_size;
+    bool m_is_dynamic = true;
+    const std::vector<float> * m_data;
 
     std::unique_ptr<AudioShaderProgram> m_shader_program;
     GLuint m_vao, m_vbo;

@@ -28,6 +28,10 @@ void EventLoop::run_loop() {
         std::cerr << "Error: EventLoop::run_loop() must be called from the main thread!" << std::endl;
         std::abort();
     }
+
+    Uint32 last_time = SDL_GetTicks();
+    Uint32 frame_count = 0;
+
     while (true) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
@@ -46,11 +50,24 @@ void EventLoop::run_loop() {
 
         // Update and render each item
         for (auto &item : m_items) {
-            if (item->is_ready()) {
+            if (item->is_ready()) { // TODO: Instead of rendering when ready, render on interval, and push only when ready
                 item->render();
             }
         }
+
+        // Increment frame count
+        frame_count++;
+
+        // Calculate and print FPS every second
+        Uint32 current_time = SDL_GetTicks();
+        if (current_time - last_time >= 1000) {
+            float fps = frame_count / ((current_time - last_time) / 1000.0f);
+            std::cout << "FPS: " << fps << std::endl;
+            frame_count = 0;
+            last_time = current_time;
+        }
     }
+
     SDL_Quit();
 }
 
