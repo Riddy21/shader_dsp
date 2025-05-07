@@ -38,7 +38,9 @@ public:
      */
     ~AudioFinalRenderStage() {}
 
-    const float * get_output_buffer_data() const { return m_output_buffer_data; }
+    const std::vector<float> & get_output_buffer_data() const { return m_output_buffer_data; }
+    
+    const std::vector<std::vector<float>> & get_output_data_channel_seperated() const { return m_output_data_channel_seperated; }
 
 private:
     /**
@@ -48,7 +50,9 @@ private:
      */
     void render(unsigned int time) override;
 
-    float * m_output_buffer_data;
+    std::vector<float> m_output_buffer_data;
+
+    std::vector<std::vector<float>> m_output_data_channel_seperated;
 };
 
 #endif

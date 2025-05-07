@@ -189,7 +189,7 @@ void AudioRenderer::render()
     m_render_graph->render(m_frame_count++);
 
     // Push to output buffers
-    push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data());
+    push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data().data());
 
     // Unbind everything
     glBindVertexArray(0);
@@ -224,6 +224,7 @@ AudioRenderer::~AudioRenderer()
 
 void AudioRenderer::push_to_output_buffers(const float * data)
 {
+    m_increment = false;
     for (auto& output : m_render_outputs) {
         output->push(data);
     }
@@ -232,7 +233,6 @@ void AudioRenderer::push_to_output_buffers(const float * data)
 bool AudioRenderer::is_ready() {
 
     if (m_increment) {
-        m_increment = false;
         return true;
     }
 

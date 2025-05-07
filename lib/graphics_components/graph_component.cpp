@@ -3,8 +3,20 @@
 #include "graphics_components/graph_component.h"
 #include "utilities/shader_program.h"
 
-GraphComponent::GraphComponent(float x, float y, float width, float height, const float* data, size_t size)
-    : GraphicsComponent(x, y, width, height), m_data(data), m_data_size(size), m_shader_program(nullptr), m_vao(0), m_vbo(0) {
+GraphComponent::GraphComponent(
+    const float x, 
+    const float y, 
+    const float width, 
+    const float height, 
+    const std::vector<float>& data,
+    const bool is_dynamic
+) : GraphicsComponent(x, y, width, height),
+    m_data(&data),
+    m_shader_program(nullptr),
+    m_vao(0),
+    m_vbo(0),
+    m_is_dynamic(is_dynamic)
+{
     // Initialize shader program using AudioShaderProgram
     const std::string vertex_shader_src = R"(
         #version 330 core
@@ -35,7 +47,7 @@ GraphComponent::GraphComponent(float x, float y, float width, float height, cons
     glGenVertexArrays(1, &m_vao);
     glGenBuffers(1, &m_vbo);
 
-    set_data(data, size);
+    set_data(data);
 }
 
 GraphComponent::~GraphComponent() {
@@ -43,12 +55,15 @@ GraphComponent::~GraphComponent() {
     glDeleteBuffers(1, &m_vbo);
 }
 
-void GraphComponent::set_data(const float* data, size_t size) {
-    m_data = data;
-    m_data_size = size;
+void GraphComponent::set_data(const std::vector<float>& data) {
+    m_data = &data;
 
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, size * sizeof(float), data, GL_DYNAMIC_DRAW);
+    if (m_is_dynamic) {
+        glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), m_data, GL_DYNAMIC_DRAW);
+    } else {
+        glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), m_data, GL_STATIC_DRAW);
+    }   
 }
 
 void GraphComponent::handle_event(const SDL_Event& event) {
@@ -59,19 +74,25 @@ void GraphComponent::handle_event(const SDL_Event& event) {
 }
 
 void GraphComponent::render() {
-    if (!m_data || m_data_size == 0) return;
+    if (!m_data->size()) return;
 
     glUseProgram(m_shader_program->get_program());
-    glUniform1f(glGetUniformLocation(m_shader_program->get_program(), "data_size"), static_cast<float>(m_data_size));
+    glUniform1f(glGetUniformLocation(m_shader_program->get_program(), "data_size"), static_cast<float>(m_data->size()));
     glUniform2f(glGetUniformLocation(m_shader_program->get_program(), "position"), m_x, m_y);
     glUniform2f(glGetUniformLocation(m_shader_program->get_program(), "dimensions"), m_width, m_height);
 
     glBindVertexArray(m_vao);
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+
+    if (m_is_dynamic) {
+        glBufferData(GL_ARRAY_BUFFER, m_data->size() * sizeof(float), m_data->data(), GL_DYNAMIC_DRAW);
+    }
+
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
 
-    glDrawArrays(GL_LINE_STRIP, 0, m_data_size);
+    glLineWidth(5.0f); // Set the line width to 2.0 (in pixels)
+    glDrawArrays(GL_LINE_STRIP, 0, m_data->size());
 
     glDisableVertexAttribArray(0);
     glBindVertexArray(0);

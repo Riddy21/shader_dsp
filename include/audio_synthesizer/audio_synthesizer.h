@@ -63,6 +63,10 @@ public:
 
     // TODO: Should be able to get the sound after any render stage
 
+    const std::vector<std::vector<float>> & get_audio_data() {
+        return m_render_graph->get_output_render_stage()->get_output_data_channel_seperated();
+    }
+
 private:
     AudioSynthesizer();
     ~AudioSynthesizer();
