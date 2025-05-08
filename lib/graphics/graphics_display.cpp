@@ -95,13 +95,14 @@ bool GraphicsDisplay::is_ready() {
     return false;
 }
 
-void GraphicsDisplay::handle_event(const SDL_Event& event) {
+bool GraphicsDisplay::handle_event(const SDL_Event& event) {
     if (event.type == SDL_QUIT) {
         EventLoop::get_instance().terminate();
     }
     if (m_current_view) {
-        m_current_view->on_event(event);
+        return m_current_view->handle_event(event);
     }
+    return false;
 }
 
 void GraphicsDisplay::render() {
@@ -110,7 +111,7 @@ void GraphicsDisplay::render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (m_current_view) {
-        m_current_view->on_render();
+        m_current_view->render();
     }
 
     // Render additional components like the graph
@@ -122,8 +123,6 @@ void GraphicsDisplay::render() {
 }
 
 void GraphicsDisplay::present() {
-    IEventLoopItem::present(); // Call the base class present to update FPS
-
     SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
 
     SDL_GL_SwapWindow(m_window); // Swap buffers for this context

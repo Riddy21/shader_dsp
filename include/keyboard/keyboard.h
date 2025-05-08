@@ -22,7 +22,7 @@ public:
 
     // IEventLoopItem interface
     bool is_ready() override { return true; }
-    void handle_event(const SDL_Event &event) override;
+    bool handle_event(const SDL_Event &event) override;
 
 
     void add_key(Key * key);

@@ -100,20 +100,22 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
     unsigned int last_time = m_time;
     AudioRenderStage::render(time);
 
+    // Get the audio data
+    auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
+
+    // Update the echo buffer with the new data
+    std::copy(data, data + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin());
+
     if (time != last_time) {
         last_time = time;
 
-        // Get the audio data
-        auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
-
         // Shift the echo buffer
         std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels);
-
-        // Add the new data to the echo buffer
-        std::copy(data, data + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin());
-
-        this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
     }
+
+    // Always set echo_audio_texture to the current m_echo_buffer
+    this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
+
 }
 
 const std::vector<std::string> AudioFrequencyFilterEffectRenderStage::default_frag_shader_imports = {
@@ -298,21 +300,22 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     unsigned int last_time = m_time;
     AudioRenderStage::render(time);
 
-    if (time != last_time) {
-        last_time = time;
 
-        auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
+    auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
-        if (m_filter_follower != 0.0f) {
-            float current_amplitude = std::accumulate(data, data + m_frames_per_buffer * m_num_channels, 0.0f, [](float sum, float value) {
-                return sum + std::fabs(value);
-            }) / (m_frames_per_buffer * m_num_channels);
-            update_b_coefficients(current_amplitude);
-        }
-
-        m_audio_history->save_stream_to_history(data);
-        this->find_parameter(m_audio_history->get_history_texture_name())->set_value(m_audio_history->get_history_data().data());
+    if (m_filter_follower != 0.0f) {
+        float current_amplitude = std::accumulate(data, data + m_frames_per_buffer * m_num_channels, 0.0f, [](float sum, float value) {
+            return sum + std::fabs(value);
+        }) / (m_frames_per_buffer * m_num_channels);
+        update_b_coefficients(current_amplitude);
     }
+
+    if (time != last_time) {
+        m_audio_history->shift_history_buffer();
+    }
+
+    m_audio_history->save_stream_to_history(data);
+    m_audio_history->update_audio_history_texture();
 }
 
 void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float current_amplitude) {

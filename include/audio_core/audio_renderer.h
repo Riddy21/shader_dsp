@@ -54,7 +54,7 @@ public:
     // IEventLoopItem interface
     bool is_ready() override;
 
-    void handle_event(const SDL_Event&) override {} // No event handling needed
+    bool handle_event(const SDL_Event&) override { return false; } // No event handling needed
 
     void render() override;
 

@@ -43,21 +43,22 @@ void EventLoop::run_loop() {
         while (SDL_PollEvent(&event)) {
             // Dispatch events to each registered item
             for (auto &item : m_items) {
-                item->handle_event(event);
+                if (item->handle_event(event)) {
+                    event_occurred = true;
+                }
             }
             // If user requests exit through SDL window close
             if (event.type == SDL_QUIT) {
                 printf("Received SDL_QUIT event, terminating event loop.\n");
                 return;
             }
-            event_occurred = true;
         }
 
-        //if (!event_occurred) {
+        if (event_occurred) {
             for (auto &item : m_items) {
                 item->render();
             }
-        //}
+        }
 
         // Update and render each item
         for (auto &item : m_items) {

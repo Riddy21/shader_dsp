@@ -9,9 +9,9 @@ class IEventLoopItem {
 public:
     virtual ~IEventLoopItem() {}
     virtual bool is_ready() = 0;
-    virtual void handle_event(const SDL_Event &event) {};
-    virtual void render() {};
-    virtual void present() {}; // New function to model when the output gets put on the display
+    virtual bool handle_event(const SDL_Event &event) { return false; }
+    virtual void render() {}
+    virtual void present() {} // Returns true if the output state changes
 
     // Function to calculate FPS for rendering
     virtual float get_render_fps() const { return m_render_fps; }

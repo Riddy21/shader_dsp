@@ -21,6 +21,8 @@ public:
 
     AudioParameter * get_audio_history_texture() { return m_audio_history_texture; }
 
+    void shift_history_buffer();
+
     void save_stream_to_history(const float * audio_stream_data);
 
     const std::vector<float> get_history_data();
