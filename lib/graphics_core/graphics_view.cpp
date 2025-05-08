@@ -2,13 +2,19 @@
 
 #include "graphics_core/graphics_view.h"
 
-void GraphicsView::on_event(const SDL_Event& event) {
+bool GraphicsView::handle_event(const SDL_Event& event) {
+    bool state_changed = false;
+
     for (auto& component : m_components) {
-        component->handle_event(event);
+        if (component->handle_event(event)) {
+            state_changed = true;
+        }
     }
+
+    return state_changed;
 }
 
-void GraphicsView::on_render() {
+void GraphicsView::render() {
     for (auto& component : m_components) {
         component->render();
     }

@@ -186,13 +186,21 @@ void AudioRenderer::render()
         param->render();
     }
 
-    m_render_graph->render(m_frame_count++);
-
-    // Push to output buffers
-    push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data().data());
+    m_render_graph->render(m_frame_count);
 
     // Unbind everything
     glBindVertexArray(0);
+
+    IEventLoopItem::update_render_fps(); // Call the base class render to update FPS
+}
+
+void AudioRenderer::present()
+{
+    // Push to output buffers
+    push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data().data());
+    m_frame_count++;
+
+    IEventLoopItem::update_present_fps();
 }
 
 AudioRenderer::~AudioRenderer()
@@ -250,7 +258,11 @@ bool AudioRenderer::is_ready() {
         set_lead_output(0);
     }
 
-    return m_lead_output->is_ready();
+    if (!m_lead_output->is_ready()) {
+        return false;
+    }
+
+    return true;
 }
 
 bool AudioRenderer::initialize_global_parameters()

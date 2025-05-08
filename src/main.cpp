@@ -68,6 +68,19 @@ void setup_keyboard(Keyboard& keyboard, AudioSynthesizer& synthesizer, EventLoop
     });
     keyboard.add_key(quit_key);
 
+    auto record_key = new Key('r');
+    record_key->set_key_down_callback([&synthesizer]() {
+        synthesizer.record();
+        std::cout << "Recording..." << std::endl;
+    });
+    keyboard.add_key(record_key);
+    auto stop_record_key = new Key('l');
+    stop_record_key->set_key_down_callback([&synthesizer]() {
+        synthesizer.play_recording();
+        std::cout << "Stopped recording." << std::endl;
+    });
+    keyboard.add_key(stop_record_key);
+
 }
 
 int main() {

@@ -32,13 +32,19 @@ void EventLoop::run_loop() {
     Uint32 last_time = SDL_GetTicks();
     Uint32 frame_count = 0;
 
+    // Render everything to start
+    for (auto &item : m_items) {
+        item->render();
+    }
+
     while (true) {
         SDL_Event event;
+        bool event_occurred = false;
         while (SDL_PollEvent(&event)) {
             // Dispatch events to each registered item
             for (auto &item : m_items) {
-                if (item->is_ready()) {
-                    item->handle_event(event);
+                if (item->handle_event(event)) {
+                    event_occurred = true;
                 }
             }
             // If user requests exit through SDL window close
@@ -48,9 +54,17 @@ void EventLoop::run_loop() {
             }
         }
 
+        // Render again if an event occurred
+        if (event_occurred) {
+            for (auto &item : m_items) {
+                item->render();
+            }
+        }
+
         // Update and render each item
         for (auto &item : m_items) {
             if (item->is_ready()) { // TODO: Instead of rendering when ready, render on interval, and push only when ready
+                item->present(); // Call present to update the display
                 item->render();
             }
         }
@@ -63,6 +77,13 @@ void EventLoop::run_loop() {
         if (current_time - last_time >= 1000) {
             float fps = frame_count / ((current_time - last_time) / 1000.0f);
             std::cout << "FPS: " << fps << std::endl;
+
+            // Print individual FPS for each item
+            for (const auto &item : m_items) {
+                std::cout << "Render FPS: " << item->get_render_fps()
+                          << ", Present FPS: " << item->get_present_fps() << std::endl;
+            }
+
             frame_count = 0;
             last_time = current_time;
         }
@@ -76,3 +97,4 @@ void EventLoop::terminate() {
     event.type = SDL_QUIT;
     SDL_PushEvent(&event);
 }
+

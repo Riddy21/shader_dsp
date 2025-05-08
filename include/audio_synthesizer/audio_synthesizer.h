@@ -20,6 +20,8 @@
 #include "audio_core/audio_parameter.h"
 // FIXME: Delete this after testing
 #include "audio_render_stage/audio_generator_render_stage.h"
+#include "audio_render_stage/audio_tape_render_stage.h"
+
 
 class AudioSynthesizer {
 public:
@@ -60,6 +62,9 @@ public:
     // TODO: Add track architeture
 
     // TODO: Add recording feature
+    void record(); // TODO: add which track to record to  Add wheree to start recording
+    void stop_recording(); // TODO: add which track to stop recording to
+    void play_recording(); // TODO: add which track to play recording from
 
     // TODO: Should be able to get the sound after any render stage
 
@@ -82,6 +87,8 @@ private:
 
     // FIXME: Delete this after testing
     AudioGeneratorRenderStage * m_audio_generator = nullptr;
+    AudioRecordRenderStage * m_audio_recorder = nullptr;
+    AudioPlaybackRenderStage * m_audio_playback = nullptr;
 
     // TODO: Should be able to take in Output objects
     // TODO: Should be able to take in effect objects
