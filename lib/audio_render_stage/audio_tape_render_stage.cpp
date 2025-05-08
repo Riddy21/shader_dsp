@@ -13,18 +13,20 @@ const std::vector<std::string> AudioRecordRenderStage::default_frag_shader_impor
 
 void AudioRecordRenderStage::render(unsigned int time) {
 
+    unsigned int current_block = (time - m_record_start_time);
+
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
-    if (m_recording && time != m_time) {
+    if (m_recording) {
+        unsigned int record_time = current_block + m_record_position;
 
-        unsigned int record_time = time - m_record_start_time + m_record_position;
         // If the tape is smaller than the record time, then resize the tape
         if (m_tape.size() <= record_time * m_frames_per_buffer * m_num_channels) {
             m_tape.resize((record_time + 1) * m_frames_per_buffer * m_num_channels); // Fill with 0s
         }
 
         // Copy the audio data to the tape
-        std::copy(data, data + m_frames_per_buffer * m_num_channels, m_tape.begin() + record_time*m_frames_per_buffer*m_num_channels);
+        std::copy(data, data + m_frames_per_buffer * m_num_channels, m_tape.begin() + record_time * m_frames_per_buffer * m_num_channels);
     }
 
     AudioRenderStage::render(time);
@@ -145,9 +147,9 @@ void AudioPlaybackRenderStage::load_tape_data_to_texture(const Tape & tape, cons
 
 void AudioPlaybackRenderStage::render(const unsigned int time) {
     // Only load the data into the playback_texture if 
-        // Play parameter is true
-        // tape is loaded
-        // There is still data left to play
+    // Play parameter is true
+    // tape is loaded
+    // There is still data left to play
     auto offset = get_current_tape_position(time);
 
     // Use a member variable instead of a static variable
@@ -169,6 +171,7 @@ void AudioPlaybackRenderStage::render(const unsigned int time) {
             stop();
         }
     }
+    
 
     AudioRenderStage::render(time);
 }

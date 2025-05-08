@@ -10,8 +10,8 @@
 
 GLuint m_shaderProgram;
 
-GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const std::string& title)
-    : m_width(width), m_height(height), m_title(title) {
+GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const std::string& title, unsigned int refresh_rate)
+    : m_width(width), m_height(height), m_title(title), m_refresh_rate(refresh_rate) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
         throw std::runtime_error("SDL initialization failed");
@@ -85,7 +85,14 @@ void GraphicsDisplay::change_view(const std::string& name) {
 
 // Render graphics less often
 bool GraphicsDisplay::is_ready() {
-    return m_window != nullptr && m_context != nullptr;
+    static Uint32 last_time = 0;
+    Uint32 current_time = SDL_GetTicks();
+    Uint32 frame_duration = 1000 / m_refresh_rate; // Calculate frame duration in milliseconds
+    if (current_time - last_time >= frame_duration) {
+        last_time = current_time;
+        return m_window != nullptr && m_context != nullptr;
+    }
+    return false;
 }
 
 void GraphicsDisplay::handle_event(const SDL_Event& event) {
@@ -111,5 +118,15 @@ void GraphicsDisplay::render() {
         component->render();
     }
 
+    IEventLoopItem::update_render_fps(); // Call the base class render to update FPS
+}
+
+void GraphicsDisplay::present() {
+    IEventLoopItem::present(); // Call the base class present to update FPS
+
+    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
+
     SDL_GL_SwapWindow(m_window); // Swap buffers for this context
+
+    IEventLoopItem::update_present_fps(); // Call the base class present to update FPS
 }

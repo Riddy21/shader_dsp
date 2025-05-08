@@ -58,6 +58,8 @@ public:
 
     void render() override;
 
+    void present() override;
+
 // Loop Control
     void pause() {
         m_paused = true;
