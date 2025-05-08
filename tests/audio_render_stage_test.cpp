@@ -3,7 +3,7 @@
 #include <GL/glut.h>
 
 #include "audio_parameter/audio_texture2d_parameter.h"
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_render_stage.h"
 
 class TestFixture {
 public:

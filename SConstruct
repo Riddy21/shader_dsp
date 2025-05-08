@@ -35,15 +35,17 @@ env.Append(CPPPATH=[INCLUDE_DIR])
 
 # Link libraries
 env.Append(LIBS=[
+    'SDL2_image',
+    'SDL2_mixer',
+    'SDL2_gfx',
+    'SDL2_ttf',
     'SDL2',
     'GLEW',
     'GL',
-    'GLU',
     'Catch2Main',
     'Catch2',
-    'glut',
     'pthread',
-    'X11'
+    'X11',
 ])
 
 # Function to create object files in the build directory

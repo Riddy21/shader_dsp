@@ -2,7 +2,7 @@
 #ifndef AUDIO_FINAL_RENDER_STAGE_H
 #define AUDIO_FINAL_RENDER_STAGE_H
 
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_render_stage.h"
 
 /**
  * @class AudioFinalRenderStage
@@ -38,7 +38,9 @@ public:
      */
     ~AudioFinalRenderStage() {}
 
-    const float * get_output_buffer_data() const { return m_output_buffer_data; }
+    const std::vector<float> & get_output_buffer_data() const { return m_output_buffer_data; }
+    
+    const std::vector<std::vector<float>> & get_output_data_channel_seperated() const { return m_output_data_channel_seperated; }
 
 private:
     /**
@@ -48,7 +50,9 @@ private:
      */
     void render(unsigned int time) override;
 
-    float * m_output_buffer_data;
+    std::vector<float> m_output_buffer_data;
+
+    std::vector<std::vector<float>> m_output_data_channel_seperated;
 };
 
 #endif

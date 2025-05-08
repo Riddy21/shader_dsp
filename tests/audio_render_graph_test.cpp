@@ -10,44 +10,37 @@
 #include "audio_render_stage/audio_multitrack_join_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_core/audio_render_graph.h"
-
+#include "engine/event_loop.h"
 
 TEST_CASE("AudioRenderGraph_test") {
     // Generate a render stage graph
-
     auto audio_generator = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
-
     auto audio_generator_2 = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
-
     auto join_render_stage = new AudioMultitrackJoinRenderStage(512, 44100, 2, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
-    // Get the parameters from the audio_generator render stage
+    // Connect render stages
     audio_generator->connect_render_stage(effect_render_stage);
     audio_generator_2->connect_render_stage(effect_render_stage_2);
-
     effect_render_stage->connect_render_stage(join_render_stage);
     effect_render_stage_2->connect_render_stage(join_render_stage);
-
     join_render_stage->connect_render_stage(final_render_stage);
 
     auto audio_render_graph = new AudioRenderGraph(final_render_stage);
-
     REQUIRE(audio_render_graph != nullptr);
 
-    // set up the audio renderer
+    // Set up the audio renderer
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
-
-    AudioRenderer & audio_renderer = AudioRenderer::get_instance();
-
+    AudioRenderer& audio_renderer = AudioRenderer::get_instance();
     audio_renderer.add_render_graph(audio_render_graph);
-
     audio_renderer.add_render_output(audio_driver);
 
-    // Open a thread to wait few sec and the shut it down
-    std::thread t1([&audio_renderer, &audio_driver, &audio_generator, &audio_generator_2, &effect_render_stage, &effect_render_stage_2](){
+    EventLoop& event_loop = EventLoop::get_instance();
+
+    // Open a thread to control playback and terminate the event loop
+    std::thread t1([&audio_renderer, &audio_generator, &audio_generator_2, &effect_render_stage, &effect_render_stage_2, &event_loop]() {
         auto time_param = audio_renderer.find_global_parameter("global_time");
 
         auto position_param = audio_generator->find_parameter("play_position");
@@ -79,55 +72,48 @@ TEST_CASE("AudioRenderGraph_test") {
 
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
-        audio_renderer.terminate();
+        event_loop.terminate();
     });
 
     REQUIRE(audio_renderer.initialize(512, 44100, 2));
-
     REQUIRE(audio_driver->open());
     REQUIRE(audio_driver->start());
 
-    audio_renderer.start_main_loop();
+    event_loop.add_loop_item(&audio_renderer);
+    event_loop.run_loop();
 
-    t1.detach();
+    t1.join();
 }
 
 TEST_CASE("AudioRenderGraph_inputs") {
     // Generate a render stage graph
-
     auto audio_generator = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
-
     auto audio_generator_2 = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
     auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
-
     auto join_render_stage = new AudioMultitrackJoinRenderStage(512, 44100, 2, 2);
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
 
-    // Get the parameters from the audio_generator render stage
+    // Connect render stages
     audio_generator->connect_render_stage(effect_render_stage);
     audio_generator_2->connect_render_stage(effect_render_stage_2);
-
     effect_render_stage->connect_render_stage(join_render_stage);
     effect_render_stage_2->connect_render_stage(join_render_stage);
-
     join_render_stage->connect_render_stage(final_render_stage);
 
     auto audio_render_graph = new AudioRenderGraph({audio_generator, audio_generator_2});
-
     REQUIRE(audio_render_graph != nullptr);
 
-    // set up the audio renderer
+    // Set up the audio renderer
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
-
-    AudioRenderer & audio_renderer = AudioRenderer::get_instance();
-
+    AudioRenderer& audio_renderer = AudioRenderer::get_instance();
     audio_renderer.add_render_graph(audio_render_graph);
-
     audio_renderer.add_render_output(audio_driver);
 
-    // Open a thread to wait few sec and the shut it down
-    std::thread t1([&audio_renderer, &audio_driver, &audio_generator, &audio_generator_2, &effect_render_stage, &effect_render_stage_2](){
+    EventLoop& event_loop = EventLoop::get_instance();
+
+    // Open a thread to control playback and terminate the event loop
+    std::thread t1([&audio_renderer, &audio_generator, &audio_generator_2, &effect_render_stage, &effect_render_stage_2, &event_loop]() {
         auto time_param = audio_renderer.find_global_parameter("global_time");
 
         auto position_param = audio_generator->find_parameter("play_position");
@@ -159,17 +145,17 @@ TEST_CASE("AudioRenderGraph_inputs") {
 
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
-        audio_renderer.terminate();
+        event_loop.terminate();
     });
 
     REQUIRE(audio_renderer.initialize(512, 44100, 2));
-
     REQUIRE(audio_driver->open());
     REQUIRE(audio_driver->start());
 
-    audio_renderer.start_main_loop();
+    event_loop.add_loop_item(&audio_renderer);
+    event_loop.run_loop();
 
-    t1.detach();
+    t1.join();
 }
 
 TEST_CASE("AudioRenderGraph_test_bad") {
@@ -204,31 +190,25 @@ TEST_CASE("AudioRenderGraph_test_bad") {
 TEST_CASE("AudioRenderGraph_modify_graph") {
     // Generate a render stage graph
     auto audio_generator = new AudioSingleShaderFileGeneratorRenderStage(512, 44100, 2, "media/test.wav");
-
     auto final_render_stage = new AudioFinalRenderStage(512, 44100, 2);
-
     auto effect_render_stage = new AudioGainEffectRenderStage(512, 44100, 2);
-    auto balance_param = effect_render_stage->find_parameter("balance");
-    balance_param->set_value(0.8f);
-
     auto effect_render_stage_2 = new AudioGainEffectRenderStage(512, 44100, 2);
-    auto balance_param_2 = effect_render_stage_2->find_parameter("balance");
-    balance_param_2->set_value(0.2f);
 
     audio_generator->connect_render_stage(final_render_stage);
 
-    std::vector<AudioRenderStage *> inputs = {audio_generator};
-    auto graph = new AudioRenderGraph(inputs);
+    auto graph = new AudioRenderGraph({audio_generator});
+    REQUIRE(graph != nullptr);
 
-    AudioRenderer & audio_renderer = AudioRenderer::get_instance();
-
+    AudioRenderer& audio_renderer = AudioRenderer::get_instance();
     audio_renderer.add_render_graph(graph);
 
     auto audio_driver = new AudioPlayerOutput(512, 44100, 2);
-
     audio_renderer.add_render_output(audio_driver);
 
-    std::thread t1([&audio_renderer, &audio_generator, &graph, &effect_render_stage, &effect_render_stage_2](){
+    EventLoop& event_loop = EventLoop::get_instance();
+
+    // Open a thread to modify the graph and terminate the event loop
+    std::thread t1([&audio_renderer, &audio_generator, &graph, &effect_render_stage, &effect_render_stage_2, &event_loop]() {
         auto time_param = audio_renderer.find_global_parameter("global_time");
 
         auto position_param = audio_generator->find_parameter("play_position");
@@ -237,40 +217,34 @@ TEST_CASE("AudioRenderGraph_modify_graph") {
         play_param->set_value(0.0f);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        // Play from left speaker on track 1
+        // Play audio
         position_param->set_value(time_param->get_value());
         play_param->set_value(1.0f);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
-
+        // Modify the graph
         graph->insert_render_stage_behind(audio_generator->gid, effect_render_stage);
         std::this_thread::sleep_for(std::chrono::seconds(1));
         graph->insert_render_stage_infront(effect_render_stage->gid, effect_render_stage_2);
         std::this_thread::sleep_for(std::chrono::seconds(1));
         auto removed = graph->remove_render_stage(effect_render_stage->gid);
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        auto replaced = graph->replace_render_stage(effect_render_stage_2->gid, removed.get());
+        graph->replace_render_stage(effect_render_stage_2->gid, removed.get());
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
-        audio_renderer.terminate();
-
-        // TODO: Fix termination deletion of render stages;
-        // For now just sleep
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        event_loop.terminate();
     });
 
     REQUIRE(audio_renderer.initialize(512, 44100, 2));
-
-    effect_render_stage->initialize();
-    effect_render_stage_2->initialize();
-
+    REQUIRE(effect_render_stage->initialize());
+    REQUIRE(effect_render_stage_2->initialize());
     REQUIRE(audio_driver->open());
     REQUIRE(audio_driver->start());
 
-    audio_renderer.start_main_loop();
+    event_loop.add_loop_item(&audio_renderer);
+    event_loop.run_loop();
 
-    t1.detach();
-
+    t1.join();
 }
 
 

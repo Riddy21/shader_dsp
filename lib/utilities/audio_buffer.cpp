@@ -4,7 +4,7 @@
 #include <GL/glew.h>
 #include <GL/glut.h>
 
-#include "audio_buffers/audio_buffer.h"
+#include "utilities/audio_buffer.h"
 
 AudioBuffer::AudioBuffer(unsigned int max_size, unsigned int buffer_size)
     : m_buffer_size(buffer_size), m_max_size(max_size) {

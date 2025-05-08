@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "audio_core/audio_shader_program.h"
+#include "utilities/shader_program.h"
 
 AudioShaderProgram::AudioShaderProgram(const std::string& vertex_shader_source, const std::string& fragment_shader_source)
     : m_vertex_shader_source(vertex_shader_source), m_fragment_shader_source(fragment_shader_source),

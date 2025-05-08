@@ -3,38 +3,33 @@
 #define KEYBOARD_H
 
 #include <unordered_map>
+#include <SDL2/SDL.h>
+#include <thread>
+#include <atomic>
 
 #include "keyboard/key.h"
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_render_stage.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
+#include "engine/event_loop.h"
 
-class Keyboard {
+class Keyboard : public IEventLoopItem {
 public:
-    static Keyboard & get_instance() {
-        if (!instance) {
-            instance = new Keyboard();
-        }
-        return *instance;
-    }
-
-    Keyboard(Keyboard const&) = delete;
-    void operator=(Keyboard const&) = delete;
-
-    bool initialize();
-    bool terminate();
-    void add_key(Key * key);
-    Key * get_key(const unsigned char key) { return m_keys[key].get(); }
-
-    static void key_down_callback(unsigned char key, int x, int y);
-    static void key_up_callback(unsigned char key, int x, int y);
-
-private:
     Keyboard();
     ~Keyboard();
 
-    static Keyboard * instance;
+    Keyboard(const Keyboard&) = delete;
+    void operator=(const Keyboard&) = delete;
 
-    AudioRenderer & m_audio_renderer = AudioRenderer::get_instance();
+    // IEventLoopItem interface
+    bool is_ready() override { return true; }
+    void handle_event(const SDL_Event &event) override;
+    void render() override {} // No rendering needed for keyboard
+
+
+    void add_key(Key * key);
+    Key * get_key(const unsigned char key) { return m_keys[key].get(); }
+
+private:
     std::unordered_map<unsigned char, std::unique_ptr<Key>> m_keys;
 };
 

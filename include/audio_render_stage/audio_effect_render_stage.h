@@ -2,7 +2,7 @@
 #ifndef AUDIO_EFFECT_RENDER_STAGE_H
 #define AUDIO_EFFECT_RENDER_STAGE_H
 
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_render_stage.h"
 #include "audio_render_stage/audio_render_stage_history.h"
 
 class AudioEffectRenderStage : public AudioRenderStage {
