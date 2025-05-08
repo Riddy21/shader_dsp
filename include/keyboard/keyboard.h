@@ -21,7 +21,7 @@ public:
     void operator=(const Keyboard&) = delete;
 
     // IEventLoopItem interface
-    bool is_ready() override { return true; }
+    bool is_ready() override { return false; }
     bool handle_event(const SDL_Event &event) override;
 
 

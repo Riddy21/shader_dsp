@@ -54,6 +54,7 @@ void EventLoop::run_loop() {
             }
         }
 
+        // Render again if an event occurred
         if (event_occurred) {
             for (auto &item : m_items) {
                 item->render();
