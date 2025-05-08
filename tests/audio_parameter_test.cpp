@@ -3,7 +3,7 @@
 
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_graph.h"
-#include "audio_parameter/audio_parameter.h"
+#include "audio_core/audio_parameter.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"

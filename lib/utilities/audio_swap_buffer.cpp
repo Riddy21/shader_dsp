@@ -1,4 +1,4 @@
-#include "audio_buffers/audio_swap_buffer.h"
+#include "utilities/audio_swap_buffer.h"
 
 AudioSwapBuffer::AudioSwapBuffer(const unsigned int buffer_size)
     : m_buffer_size(buffer_size),

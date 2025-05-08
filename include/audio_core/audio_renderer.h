@@ -5,15 +5,15 @@
 #include <vector>
 #include <memory>
 #include <mutex>
-#include <GL/glew.h>
-#include <GL/glut.h>
+#include <SDL2/SDL.h>
 #include <atomic>
 #include <thread>
 
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_render_stage.h"
 #include "audio_output/audio_output.h"
-#include "audio_parameter/audio_parameter.h"
+#include "audio_core/audio_parameter.h"
 #include "audio_core/audio_render_graph.h"
+#include "engine/event_loop.h"
 
 /**
  * @class AudioRenderer
@@ -22,7 +22,7 @@
  * The AudioRenderer class provides functionality to initialize and terminate the audio renderer,
  * as well as holding audio texture output and managing audio buffer size and number of channels.
  */
-class AudioRenderer {
+class AudioRenderer : public IEventLoopItem {
 public:
     /**
      * @brief Returns the singleton instance of AudioRenderer.
@@ -51,51 +51,24 @@ public:
      */
     bool initialize(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels);
 
-    /**
-     * @brief Starts the main loop of the audio renderer.
-     */
-    void start_main_loop();
+    // IEventLoopItem interface
+    bool is_ready() override;
 
-    /**
-     * @brief Pause the main loop of the audio renderer.
-     */
-    void pause_main_loop() {
-        printf("Pausing\n");
+    void handle_event(const SDL_Event&) override {} // No event handling needed
+
+    void render() override;
+
+// Loop Control
+    void pause() {
         m_paused = true;
     }
 
-    /**
-     * @brief Unpause the main loop of the audio renderer.
-     */
-    void unpause_main_loop() {
-        printf("Unpausing\n");
+    void increment() {
+        m_increment = true;
+    }
+
+    void resume() {
         m_paused = false;
-    }
-
-    /**
-     * @brief Increments the main loop of the audio renderer.
-     */
-    void increment_main_loop() {
-        printf("Incrementing\n");
-        render();
-    }
-
-    /**
-     * @brief Terminates the audio renderer.
-     * 
-     * @return True if termination is successful, false otherwise.
-     */
-    bool terminate();
-
-    /**
-     * @brief Cleans up the audio renderer.
-     * 
-     * @return True if cleanup is successful, false otherwise.
-     */
-    bool cleanup();
-
-    static void iterate() {
-        render_callback();
     }
 
 // -------------Add Functions----------------
@@ -188,18 +161,7 @@ private:
      */
     ~AudioRenderer();
 
-// -------------Render Functions----------------
-    /**
-     * @brief Renders a frame.
-     */
-    void render();
-
 // -------------Helper Functions----------------
-
-    /**
-     * @brief Calculates the frame rate of the audio renderer.
-     */
-    void calculate_frame_rate();
 
     /**
      * @brief Pushes data to all output buffers.
@@ -208,27 +170,6 @@ private:
      */
     void push_to_output_buffers(const float * data);
 
-
-// -------------Callback Functions----------------
-    /**
-     * @brief Static callback function for rendering.
-     */
-    static void render_callback() {
-        if (instance->m_paused) {
-            // Sleep for a bit to reduce CPU usage
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            return;
-        }
-        instance->render();
-    }
-
-    /**
-     * @brief Static callback function for displaying.
-     */
-    static void display_callback() {
-        glutSwapBuffers(); // unlock framerate
-        glutPostRedisplay();
-    }
 
 // -------------Initialization Functions----------------
     /**
@@ -239,13 +180,13 @@ private:
     bool initialize_global_parameters();
 
     /**
-     * @brief Initializes the OpenGL context.
+     * @brief Initializes the SDL context.
      * 
      * @param window_width The width of the window.
      * @param window_height The height of the window.
      * @return True if initialization is successful, false otherwise.
      */
-    bool initialize_glut(unsigned int window_width, unsigned int window_height);
+    bool initialize_sdl(unsigned int window_width, unsigned int window_height);
 
     /**
      * @brief Initializes the quad for rendering.
@@ -268,14 +209,16 @@ private:
     unsigned int m_frame_count = 0; // Frame count for calculating frame rate
     AudioOutput * m_lead_output = nullptr; // Lead output for frame rate calculation
 
-    std::atomic<bool> m_running; // Flag to control the loop
-    std::atomic<bool> m_paused; // Flag to control the loop
-
     bool m_initialized = false; // Flag to mark initialization
+    bool m_paused = false; // Flag to mark pause state
+    bool m_increment = false; // Flag to mark increment state
 
     std::vector<std::unique_ptr<AudioOutput>> m_render_outputs; // Render outputs
     std::vector<std::unique_ptr<AudioParameter>> m_global_parameters; // Parameters for render stages
     std::unique_ptr<AudioRenderGraph> m_render_graph; // Render graph
+
+    SDL_Window* m_window = nullptr; // SDL window pointer
+    SDL_GLContext m_gl_context = nullptr; // SDL OpenGL context
 };
 
 #endif // AUDIO_RENDERER_H

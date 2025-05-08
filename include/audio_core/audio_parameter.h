@@ -8,8 +8,8 @@
 #include <memory>
 #include <vector>
 
-#include "audio_parameter/audio_param_data.h"
-#include "audio_core/audio_shader_program.h"
+#include "audio_core/audio_param_data.h"
+#include "utilities/shader_program.h"
 
 // TODO: Look into making required arguments const for all classes
 

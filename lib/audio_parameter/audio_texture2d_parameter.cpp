@@ -1,11 +1,9 @@
 #include <GL/glew.h>
-#include <GL/glut.h>
-#include <GL/freeglut.h>
 #include <cstring>
 #include <regex>
 #include <string>
 
-#include "audio_render_stage/audio_render_stage.h"
+#include "audio_core/audio_render_stage.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
 
 const float AudioTexture2DParameter::FLAT_COLOR[4] = { 0.0f, 0.0f, 0.0f, 0.0f };

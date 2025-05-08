@@ -1,77 +1,52 @@
 #include <iostream>
 #include <unordered_set>
-#include <X11/Xlib.h>
+#include <SDL2/SDL.h>
+#include <thread>
+#include <atomic>
 
 #include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "keyboard/keyboard.h"
 
-Keyboard * Keyboard::instance = nullptr;
+// Removed: Keyboard * Keyboard::instance = nullptr;
 
 Keyboard::Keyboard() {
-
+    auto & event_loop = EventLoop::get_instance();
+    event_loop.add_loop_item(this); // Register this keyboard instance with the event loop
 }
 
 Keyboard::~Keyboard() {
-}
-
-bool Keyboard::terminate() {
-    // Enable key repeat
-    Display *display = XOpenDisplay(nullptr);
-    if (display == nullptr) {
-        std::cerr << "Unable to open X display" << std::endl;
-        return false;
-    }
-
-    int result = XAutoRepeatOn(display);
-    printf("Enabled key repeat\n");
-
-    XCloseDisplay(display);
-
-    // clean up the keys
     m_keys.clear();
-
-    // clean up the instance
-    if (instance) {
-        delete instance;
-        instance = nullptr;
-    }
-    return true;
 }
 
-void Keyboard::key_down_callback(unsigned char key, int x, int y) {
-    if (instance->m_keys.find(key) != instance->m_keys.end()) {
-        instance->m_keys[key]->key_down();
-        printf("Key down: %c\n", key);
-    }
-}
+// Remove game_loop and process_events, as event loop will call handle_event
 
-void Keyboard::key_up_callback(unsigned char key, int x, int y) {
-    if (instance->m_keys.find(key) != instance->m_keys.end()) {
-        instance->m_keys[key]->key_up();
-        printf("Key up: %c\n", key);
+void Keyboard::handle_event(const SDL_Event &event) {
+    if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
+        SDL_Keycode key = event.key.keysym.sym;
+        char ascii_key = '\0';
+
+        if (key >= SDLK_a && key <= SDLK_z) {
+            ascii_key = static_cast<char>(key); // Lowercase letters
+        } else if (key >= SDLK_SPACE && key <= SDLK_z) {
+            ascii_key = static_cast<char>(key);
+        }
+
+        if (ascii_key != '\0') {
+            auto it = m_keys.find(ascii_key);
+            if (it != m_keys.end()) {
+                if (event.type == SDL_KEYDOWN) {
+                    if (!it->second->is_pressed()) { // Check if the key is already pressed
+                        it->second->key_down();
+                    }
+                } else if (event.type == SDL_KEYUP) {
+                    it->second->key_up();
+                }
+            }
+        }
     }
 }
 
 void Keyboard::add_key(Key * key) {
     m_keys[key->name] = std::unique_ptr<Key>(key);
-}
-
-bool Keyboard::initialize() {
-    glutKeyboardFunc(key_down_callback);
-    glutKeyboardUpFunc(key_up_callback);
-
-    // Disable key repeat
-    Display *display = XOpenDisplay(nullptr);
-    if (display == nullptr) {
-        std::cerr << "Unable to open X display" << std::endl;
-        return false;
-    }
-
-    int result = XAutoRepeatOff(display);
-    printf("Disabled key repeat\n");
-
-    XCloseDisplay(display);
-
-    return true;
 }

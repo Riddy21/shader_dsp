@@ -24,6 +24,8 @@ AudioFinalRenderStage::AudioFinalRenderStage(const unsigned int frames_per_buffe
                                     ++m_color_attachment_count,
                                     GL_NEAREST);
 
+    m_output_data_channel_seperated.resize(m_num_channels);
+
     if (!this->add_parameter(output_audio_texture)) {
         std::cerr << "Failed to add output_audio_texture" << std::endl;
     }
@@ -40,21 +42,17 @@ void AudioFinalRenderStage::render(unsigned int time) {
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glUseProgram(0);
 
-    m_output_buffer_data = (float *)this->find_parameter("final_output_audio_texture")->get_value();
+    auto output_audio_texture_param = this->find_parameter("final_output_audio_texture");
+    if (output_audio_texture_param) {
+        float * output_buffer_data = (float*)output_audio_texture_param->get_value();
+        m_output_buffer_data.assign(output_buffer_data, output_buffer_data + (m_frames_per_buffer * m_num_channels));
+    }
 
-    auto * data = (float *)this->find_parameter("output_audio_texture")->get_value();
-
-    ////Print out the sound 
-    //for (int i = 0; i < m_frames_per_buffer; i++) {
-    //    printf("%f ", data[i]);
-    //}
-    //printf("\n");
-    //for (int i = m_frames_per_buffer; i < m_frames_per_buffer * 2; i++) {
-    //    printf("%f ", data[i]);
-    //}
-
-    //printf("\n");
-    //printf("\n");
-    //printf("\n");
-
+    auto channel_seperated = this->find_parameter("output_audio_texture");
+    if (channel_seperated) {
+        float * output_buffer_data = (float*)channel_seperated->get_value();
+        for (unsigned int i = 0; i < m_num_channels; ++i) {
+            m_output_data_channel_seperated[i].assign(output_buffer_data + (i * m_frames_per_buffer), output_buffer_data + ((i + 1) * m_frames_per_buffer));
+        }
+    }
 }
