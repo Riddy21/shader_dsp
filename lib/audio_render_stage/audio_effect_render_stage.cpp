@@ -97,18 +97,21 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
 }
 
 void AudioEchoEffectRenderStage::render(unsigned int time) {
-    AudioRenderStage::render(time);
-
     // Get the audio data
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
-    // shift the echo buffer
-    std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels);
-
-    // Add the new data to the echo buffer
+    // Update the echo buffer with the new data
     std::copy(data, data + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin());
 
+    if (time != m_time) {
+        // Shift the echo buffer
+        std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels);
+    }
+
+    // Always set echo_audio_texture to the current m_echo_buffer
     this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
+
+    AudioRenderStage::render(time);
 }
 
 const std::vector<std::string> AudioFrequencyFilterEffectRenderStage::default_frag_shader_imports = {
@@ -290,8 +293,6 @@ const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin
 
 
 void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
-    AudioRenderStage::render(time);
-
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
     if (m_filter_follower != 0.0f) {
@@ -301,8 +302,14 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
         update_b_coefficients(current_amplitude);
     }
 
+    if (time != m_time) {
+        m_audio_history->shift_history_buffer();
+    }
+
     m_audio_history->save_stream_to_history(data);
-    this->find_parameter(m_audio_history->get_history_texture_name())->set_value(m_audio_history->get_history_data().data());
+    m_audio_history->update_audio_history_texture();
+
+    AudioRenderStage::render(time);
 }
 
 void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float current_amplitude) {

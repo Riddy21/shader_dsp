@@ -8,8 +8,8 @@
 class GraphicsView {
 public:
     virtual ~GraphicsView() = default;
-    virtual void on_event(const SDL_Event& event);
-    virtual void on_render();
+    virtual bool handle_event(const SDL_Event& event);
+    virtual void render();
     virtual void on_enter() {}
     virtual void on_exit() {}
 

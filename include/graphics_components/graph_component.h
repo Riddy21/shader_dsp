@@ -16,7 +16,7 @@ public:
     ~GraphComponent() override;
 
     void set_data(const std::vector<float>& data);
-    void handle_event(const SDL_Event& event) override;
+    bool handle_event(const SDL_Event& event) override;
     void render() override;
 
 private:

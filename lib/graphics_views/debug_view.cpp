@@ -20,7 +20,7 @@ DebugView::DebugView() {
     }
 }
 
-void DebugView::on_render() {
+void DebugView::render() {
     // Call the base class render method
-    GraphicsView::on_render();
+    GraphicsView::render();
 }

@@ -7,5 +7,5 @@ public:
     DebugView();
     ~DebugView() override = default;
 
-    void on_render() override;
+    void render() override;
 };

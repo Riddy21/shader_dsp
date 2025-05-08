@@ -4,6 +4,8 @@
 #include "audio_core/audio_render_graph.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
+#include "audio_render_stage/audio_tape_render_stage.h"
+#include "audio_render_stage/audio_effect_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "engine/event_loop.h"
 
@@ -60,33 +62,32 @@ bool AudioSynthesizer::initialize(const unsigned int buffer_size,
     m_audio_generator = new AudioGeneratorRenderStage(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sine_generator_render_stage.glsl");
     m_render_graph->insert_render_stage_infront(m_render_stages["final"]->gid, m_audio_generator);
 
+    auto audio_echo_effect = new AudioEchoEffectRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    m_render_graph->insert_render_stage_infront(m_render_stages["final"]->gid, audio_echo_effect);
+
+    auto audio_filter_effect = new AudioFrequencyFilterEffectRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    m_render_graph->insert_render_stage_infront(m_render_stages["final"]->gid, audio_filter_effect);
+
+    m_audio_recorder = new AudioRecordRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    m_render_graph->insert_render_stage_infront(m_render_stages["final"]->gid, m_audio_recorder);
+
+    m_audio_playback = new AudioPlaybackRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    m_render_graph->insert_render_stage_infront(m_render_stages["final"]->gid, m_audio_playback);
+
     return true;
 }
 
 // FIXME: Delete this after testing / or modify to use engine object
 void AudioSynthesizer::play_note(const float tone, const float volume) {
-    if (!m_audio_generator->is_initialized()) {
-        std::cerr << "Audio generator is not initialized." << std::endl;
-        return;
-    }
     m_audio_generator->play_note(tone, volume);
 }
 
 // FIXME: Delete this after testing / or modify to use engine object
 void AudioSynthesizer::stop_note(const float tone) {
-    if (!m_audio_generator->is_initialized()) {
-        std::cerr << "Audio generator is not initialized." << std::endl;
-        return;
-    }
     m_audio_generator->stop_note(tone);
 }
 
 bool AudioSynthesizer::start() {
-    if (!m_audio_renderer.is_initialized()) {
-        std::cerr << "Audio renderer is not initialized." << std::endl;
-        return false;
-    }
-
     // Start the audio outputs
     for (auto& output : m_render_outputs) {
         if (!output->open()) {
@@ -103,11 +104,6 @@ bool AudioSynthesizer::start() {
 }
 
 bool AudioSynthesizer::pause() {
-    if (!m_audio_renderer.is_initialized()) {
-        std::cerr << "Audio renderer is not initialized." << std::endl;
-        return false;
-    }
-
     m_audio_renderer.pause();
     
     // Stop the audio outputs
@@ -121,22 +117,12 @@ bool AudioSynthesizer::pause() {
 }
 
 bool AudioSynthesizer::increment() {
-    if (!m_audio_renderer.is_initialized()) {
-        std::cerr << "Audio renderer is not initialized." << std::endl;
-        return false;
-    }
-
     m_audio_renderer.increment();
 
     return true;
 }
 
 bool AudioSynthesizer::resume() {
-    if (!m_audio_renderer.is_initialized()) {
-        std::cerr << "Audio renderer is not initialized." << std::endl;
-        return false;
-    }
-
     // Start the audio outputs
     for (auto& output : m_render_outputs) {
         if (!output->start()) {
@@ -151,11 +137,6 @@ bool AudioSynthesizer::resume() {
 }
 
 bool AudioSynthesizer::close() {
-    if (!m_audio_renderer.is_initialized()) {
-        std::cerr << "Audio renderer is not initialized." << std::endl;
-        return false;
-    }
-
     // Stop the audio outputs
     for (auto& output : m_render_outputs) {
         if (!output->stop()) {
@@ -175,10 +156,34 @@ bool AudioSynthesizer::terminate() {
         std::cerr << "Failed to close audio synthesizer." << std::endl;
         return false;
     }
-    if (!m_audio_renderer.is_initialized()) {
-        std::cerr << "Audio renderer is not initialized." << std::endl;
-        return false;
-    }
-
     return true;
 }
+
+
+void AudioSynthesizer::record() {
+    if (!m_audio_recorder->is_initialized()) {
+        std::cerr << "Audio recorder is not initialized." << std::endl;
+        return;
+    }
+    m_audio_playback->stop();
+    m_audio_recorder->record(0);
+}
+
+void AudioSynthesizer::stop_recording() {
+    if (!m_audio_recorder->is_initialized()) {
+        std::cerr << "Audio recorder is not initialized." << std::endl;
+        return;
+    }
+    m_audio_recorder->stop();
+}
+
+void AudioSynthesizer::play_recording() {
+    if (!m_audio_recorder->is_initialized()) {
+        std::cerr << "Audio recorder is not initialized." << std::endl;
+        return;
+    }
+    m_audio_recorder->stop();
+    m_audio_playback->load_tape(m_audio_recorder->get_tape());
+    m_audio_playback->play(0);
+}
+

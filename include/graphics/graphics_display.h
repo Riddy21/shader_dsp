@@ -11,7 +11,7 @@
 
 class GraphicsDisplay : public IEventLoopItem {
 public:
-    GraphicsDisplay(unsigned int width = 800, unsigned int height = 600, const std::string& title = "Graphics Display");
+    GraphicsDisplay(unsigned int width = 800, unsigned int height = 600, const std::string& title = "Graphics Display", unsigned int refresh_rate = 60);
     ~GraphicsDisplay();
 
     GraphicsDisplay(const GraphicsDisplay&) = delete;
@@ -19,8 +19,9 @@ public:
 
     // IEventLoopItem interface
     bool is_ready() override;
-    void handle_event(const SDL_Event& event) override;
+    bool handle_event(const SDL_Event& event) override;
     void render() override;
+    void present() override;
 
     // View management
     void register_view(const std::string& name, GraphicsView* view);
@@ -30,6 +31,7 @@ private:
     unsigned int m_width;
     unsigned int m_height;
     std::string m_title;
+    unsigned int m_refresh_rate; // Refresh rate in FPS
 
     SDL_Window* m_window = nullptr;
     SDL_GLContext m_context = nullptr;

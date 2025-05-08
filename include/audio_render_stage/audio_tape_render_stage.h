@@ -56,6 +56,8 @@ public:
     bool is_playing();
 
 private:
+    bool m_playing = false;
+    
     void render(const unsigned int time) override;
 
     const unsigned int get_current_tape_position(const unsigned int time);

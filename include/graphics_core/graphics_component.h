@@ -7,7 +7,7 @@ public:
         : m_x(x), m_y(y), m_width(width), m_height(height) {}
     virtual ~GraphicsComponent() = default;
     virtual void render() = 0;
-    virtual void handle_event(const SDL_Event&) {}
+    virtual bool handle_event(const SDL_Event&) { return false;}
     void set_position(const float x, const float y) {
         m_x = x;
         m_y = y;
