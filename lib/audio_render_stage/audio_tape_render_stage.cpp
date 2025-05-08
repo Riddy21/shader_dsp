@@ -150,16 +150,14 @@ void AudioPlaybackRenderStage::render(const unsigned int time) {
         // There is still data left to play
     auto offset = get_current_tape_position(time);
 
-    static bool was_playing = false;
-
-    // Load immediately after start
-    if (is_playing() && !was_playing) {
-        load_tape_data_to_texture(*m_tape_ptr, offset);
+    // Use a member variable instead of a static variable
+    if (is_playing() && !m_playing) {
+        load_tape_data_to_texture(*m_tape_ptr, 0);
     }
 
-    was_playing = is_playing();
+    m_playing = is_playing();
 
-    // If its still currently playing and the time has changed
+    // If it's still currently playing and the time has changed
     if (is_playing()) {
         // If there is still audio to play
         if (m_tape_ptr != nullptr && offset < m_tape_ptr->size()) {

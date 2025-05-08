@@ -91,7 +91,7 @@ void GraphComponent::render() {
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
 
-    glLineWidth(5.0f); // Set the line width to 2.0 (in pixels)
+    glLineWidth(1.0f); // Set the line width to 2.0 (in pixels)
     glDrawArrays(GL_LINE_STRIP, 0, m_data->size());
 
     glDisableVertexAttribArray(0);

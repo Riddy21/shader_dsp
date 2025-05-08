@@ -186,13 +186,15 @@ void AudioRenderer::render()
         param->render();
     }
 
-    m_render_graph->render(m_frame_count++);
+    m_render_graph->render(m_frame_count);
 
     // Push to output buffers
     push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data().data());
 
     // Unbind everything
     glBindVertexArray(0);
+
+    m_frame_count++;
 }
 
 AudioRenderer::~AudioRenderer()
