@@ -1,4 +1,5 @@
 # OpenGL Shader Digital Audio Signal Processor
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Riddy21/shader_dsp)
 
 This project is an audio Digital Signal Processing (DSP) system that uses OpenGL shaders to process audio. 
 
