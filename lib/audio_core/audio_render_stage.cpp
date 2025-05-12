@@ -7,6 +7,7 @@
 #include "audio_core/audio_render_stage.h"
 #include "audio_parameter/audio_uniform_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
+#include "audio_render_stage/audio_effect_render_stage.h"
 
 const std::vector<std::string> AudioRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
@@ -47,7 +48,12 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     width, height,
                                     0,
                                     ++m_color_attachment_count, GL_NEAREST);
-
+    auto debug_audio_texture =
+        new AudioTexture2DParameter("debug_audio_texture",
+                                    AudioParameter::ConnectionType::OUTPUT,
+                                    width, height,
+                                    0,
+                                    ++m_color_attachment_count, GL_NEAREST);
 
     auto buffer_size =
         new AudioIntParameter("buffer_size",
@@ -69,6 +75,9 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
     }
     if (!this->add_parameter(stream_audio_texture)) {
         std::cerr << "Failed to add stream_audio_texture" << std::endl;
+    }
+    if (!this->add_parameter(debug_audio_texture)) {
+        std::cerr << "Failed to add debug_audio_texture" << std::endl;
     }
     if (!this->add_parameter(buffer_size)) {
         std::cerr << "Failed to add buffer_size" << std::endl;
