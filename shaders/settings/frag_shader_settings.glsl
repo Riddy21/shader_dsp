@@ -11,3 +11,4 @@ layout(std140) uniform global_time {
 };
 
 layout(location = 0) out vec4 output_audio_texture;
+layout(location = 1) out vec4 debug_audio_texture;

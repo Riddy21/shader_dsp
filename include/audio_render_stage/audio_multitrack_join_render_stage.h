@@ -13,7 +13,7 @@ public:
     AudioMultitrackJoinRenderStage(const unsigned int frames_per_buffer,
                                    const unsigned int sample_rate,
                                    const unsigned int num_channels,
-                                   const unsigned int num_tracks = 4,
+                                   const unsigned int num_tracks,
                                    const std::string& fragment_shader_path = "build/shaders/multitrack_join_render_stage.glsl",
                                    const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 

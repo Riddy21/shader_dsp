@@ -10,15 +10,15 @@ public:
     AudioEffectRenderStage(const unsigned int frames_per_buffer,
                            const unsigned int sample_rate,
                            const unsigned int num_channels,
-                           const std::string& fragment_shader_path,
-                           const std::vector<std::string> & frag_shader_imports) : 
+                           const std::string& fragment_shader_path = "build/shaders/render_stage_frag.glsl",
+                           const std::vector<std::string> & frag_shader_imports = AudioRenderStage::default_frag_shader_imports) : 
         AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
     }
 
     ~AudioEffectRenderStage() {};
 };
 
-class AudioGainEffectRenderStage : public AudioRenderStage {
+class AudioGainEffectRenderStage : public AudioEffectRenderStage {
 public:
     AudioGainEffectRenderStage(const unsigned int frames_per_buffer,
                            const unsigned int sample_rate,
@@ -31,7 +31,7 @@ public:
     ~AudioGainEffectRenderStage() {};
 };
 
-class AudioEchoEffectRenderStage : public AudioRenderStage {
+class AudioEchoEffectRenderStage : public AudioEffectRenderStage {
 public:
     AudioEchoEffectRenderStage(const unsigned int frames_per_buffer,
                            const unsigned int sample_rate,
@@ -51,7 +51,7 @@ private:
     static const unsigned int M_MAX_ECHO_BUFFER_SIZE = 300;
 };
 
-class AudioFrequencyFilterEffectRenderStage : public AudioRenderStage {
+class AudioFrequencyFilterEffectRenderStage : public AudioEffectRenderStage {
 public:
     AudioFrequencyFilterEffectRenderStage(const unsigned int frames_per_buffer,
                            const unsigned int sample_rate,

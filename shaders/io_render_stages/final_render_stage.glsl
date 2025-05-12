@@ -1,4 +1,4 @@
-layout(location = 1) out vec4 final_output_audio_texture;
+layout(location = 2) out vec4 final_output_audio_texture;
 
 void main(){
     // Convert from interpolated coordinates to non-interpolated coordinates.
