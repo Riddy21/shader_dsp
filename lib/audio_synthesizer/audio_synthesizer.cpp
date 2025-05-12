@@ -1,5 +1,4 @@
 #include <algorithm>
-
 #include "audio_synthesizer/audio_synthesizer.h"
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_graph.h"
@@ -7,6 +6,8 @@
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "audio_render_stage/audio_tape_render_stage.h"
 #include "audio_render_stage/audio_effect_render_stage.h"
+#include "audio_render_stage/audio_multitrack_join_render_stage.h"
+#include "audio_render_stage/audio_file_generator_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "engine/event_loop.h"
 
@@ -38,7 +39,6 @@ bool AudioSynthesizer::initialize(const unsigned int buffer_size,
     m_final_render_stage = new AudioFinalRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
 
     // Create the multitrack join render stage
-    // FIXME: Audio join is broken
     m_audio_join = new AudioMultitrackJoinRenderStage(m_buffer_size, m_sample_rate, m_num_channels, 2);
 
     m_audio_join->connect_render_stage(m_final_render_stage);
