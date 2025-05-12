@@ -63,6 +63,10 @@ public:
         return dynamic_cast<AudioFinalRenderStage *>(find_render_stage(m_outputs[0]));
     }
 
+    bool is_initialized() const {
+        return m_initialized;
+    }
+
 private:
     bool initialize();
 

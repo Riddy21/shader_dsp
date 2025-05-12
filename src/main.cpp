@@ -31,10 +31,10 @@ void setup_keyboard(Keyboard& keyboard, AudioSynthesizer& synthesizer, EventLoop
     for (const auto& [key, tone] : KEY_TONE_MAPPING) {
         auto key_obj = new Key(key);
         key_obj->set_key_down_callback([&synthesizer, tone]() {
-            synthesizer.play_note(tone, 0.2f);
+            synthesizer.get_track(0).play_note(tone, 0.2f);
         });
         key_obj->set_key_up_callback([&synthesizer, tone]() {
-            synthesizer.stop_note(tone);
+            synthesizer.get_track(0).stop_note(tone);
         });
         keyboard.add_key(key_obj);
     }
@@ -70,13 +70,13 @@ void setup_keyboard(Keyboard& keyboard, AudioSynthesizer& synthesizer, EventLoop
 
     auto record_key = new Key('r');
     record_key->set_key_down_callback([&synthesizer]() {
-        synthesizer.record();
+        //synthesizer.record();
         std::cout << "Recording..." << std::endl;
     });
     keyboard.add_key(record_key);
     auto stop_record_key = new Key('l');
     stop_record_key->set_key_down_callback([&synthesizer]() {
-        synthesizer.play_recording();
+        //synthesizer.play_recording();
         std::cout << "Stopped recording." << std::endl;
     });
     keyboard.add_key(stop_record_key);

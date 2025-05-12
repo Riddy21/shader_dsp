@@ -18,7 +18,7 @@ AudioGainEffectRenderStage::AudioGainEffectRenderStage(const unsigned int frames
                                                const unsigned int num_channels,
                                                const std::string & fragment_shader_path,
                                                const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+    : AudioEffectRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
 
     // TODO: Change balance to be an array of channels
     // Add new parameter objects to the parameter list
@@ -50,7 +50,7 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
                                                const unsigned int num_channels,
                                                const std::string & fragment_shader_path,
                                                const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+    : AudioEffectRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
 
     // Add new parameter objects to the parameter list
     auto feedback_parameter =
@@ -125,7 +125,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
                                                const unsigned int num_channels,
                                                const std::string & fragment_shader_path,
                                                const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
+    : AudioEffectRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
       NYQUIST(sample_rate / 2.0f),
       m_low_pass(1.0f),
       m_high_pass(230.0f),
