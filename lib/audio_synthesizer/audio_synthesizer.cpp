@@ -35,11 +35,10 @@ bool AudioSynthesizer::initialize(const unsigned int buffer_size,
     m_num_channels = num_channels;
 
     // Create the render stages
-    //auto first_render_stage = new AudioRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
     m_final_render_stage = new AudioFinalRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
 
     // Create the multitrack join render stage
-    m_audio_join = new AudioMultitrackJoinRenderStage(m_buffer_size, m_sample_rate, m_num_channels, 2);
+    m_audio_join = new AudioMultitrackJoinRenderStage(m_buffer_size, m_sample_rate, m_num_channels, 8);
 
     m_audio_join->connect_render_stage(m_final_render_stage);
 
