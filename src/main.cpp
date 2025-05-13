@@ -71,12 +71,16 @@ void setup_keyboard(Keyboard& keyboard, AudioSynthesizer& synthesizer, EventLoop
     auto record_key = new Key('r');
     record_key->set_key_down_callback([&synthesizer]() {
         //synthesizer.record();
+        synthesizer.get_track(0).change_effect("echo");
+        // FIXME: Rotate the list of effects next
         std::cout << "Recording..." << std::endl;
     });
     keyboard.add_key(record_key);
     auto stop_record_key = new Key('l');
     stop_record_key->set_key_down_callback([&synthesizer]() {
         //synthesizer.play_recording();
+        synthesizer.get_track(0).change_voice("saw");
+        // FIXME: Rotate the list of effects next
         std::cout << "Stopped recording." << std::endl;
     });
     keyboard.add_key(stop_record_key);
