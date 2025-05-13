@@ -5,6 +5,7 @@
 #include "audio_core/audio_render_stage.h"
 #include "audio_render_stage/audio_effect_render_stage.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
+#include "audio_render_stage/audio_file_generator_render_stage.h"
 
 AudioTrack::AudioTrack(AudioRenderGraph * render_graph, AudioRenderStage * root_stage,
                        const unsigned int buffer_size,
@@ -34,9 +35,10 @@ AudioTrack::AudioTrack(AudioRenderGraph * render_graph, AudioRenderStage * root_
     m_generators["saw"] = std::make_unique<AudioGeneratorRenderStage>(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sawtooth_generator_render_stage.glsl");
     m_generators["square"] = std::make_unique<AudioGeneratorRenderStage>(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_square_generator_render_stage.glsl");
     m_generators["triangle"] = std::make_unique<AudioGeneratorRenderStage>(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_triangle_generator_render_stage.glsl");
+    m_generators["file"] = std::make_unique<AudioFileGeneratorRenderStage>(m_buffer_size, m_sample_rate, m_num_channels, "media/test.wav");
 
     // Set the default effect and generator
-    m_current_effect = "none";
+    m_current_effect = "echo";
     m_current_voice = "sine";
 
     // set up the pipeline,

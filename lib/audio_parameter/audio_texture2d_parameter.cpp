@@ -69,8 +69,9 @@ bool AudioTexture2DParameter::initialize(GLuint frame_buffer, AudioShaderProgram
         glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, m_data->get_data());
 
     } else if (connection_type == ConnectionType::PASSTHROUGH || connection_type == ConnectionType::OUTPUT) {
-        // Allocate memory for the texture and data but don't update the data
-        glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, nullptr);
+        // Allocate memory for the texture and initialize it with 0s
+        std::vector<unsigned char> zero_data(m_parameter_width * m_parameter_height * 4, 0); // Assuming 4 channels (RGBA)
+        glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, zero_data.data());
     }
     
     GLenum status = glGetError();
