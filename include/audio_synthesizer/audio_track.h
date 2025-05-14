@@ -26,8 +26,8 @@ public:
     void change_voice(const std::string & voice_name);
 
     // FIXME: Change unique pointer to shared pointer
-    const std::unordered_map<std::string, std::unique_ptr<AudioRenderStage>> & get_effects();
-    const std::unordered_map<std::string, std::unique_ptr<AudioRenderStage>> & get_generators();
+    const std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> & get_effects();
+    const std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> & get_generators();
 
 private:
     void initialize_effects();
@@ -49,8 +49,8 @@ private:
     AudioRenderStage * m_current_effect = nullptr;
     AudioRenderStage * m_current_voice = nullptr;
 
-    std::unordered_map<std::string, std::unique_ptr<AudioRenderStage>> m_effects;
-    std::unordered_map<std::string, std::unique_ptr<AudioRenderStage>> m_generators;
+    std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> m_effects;
+    std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> m_generators;
 };
 
 #endif // AUDIO_TRACK_H
