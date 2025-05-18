@@ -29,6 +29,7 @@ AddOption('--gdb',
 
 if GetOption('debug'):
     env.Append(CXXFLAGS=['-g', '-O0'])
+    env.Append(LINKFLAGS=['-g'])
 
 # Define include directories
 env.Append(CPPPATH=[INCLUDE_DIR])
@@ -42,6 +43,7 @@ env.Append(LIBS=[
     'SDL2',
     'GLEW',
     'GL',
+    'glut',
     'Catch2Main',
     'Catch2',
     'pthread',

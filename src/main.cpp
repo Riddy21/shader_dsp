@@ -79,6 +79,7 @@ void setup_keyboard(Keyboard& keyboard, AudioSynthesizer& synthesizer, EventLoop
     auto stop_record_key = new Key('l');
     stop_record_key->set_key_down_callback([&synthesizer]() {
         //synthesizer.play_recording();
+        //synthesizer.get_track(0).change_voice("triangle");
         synthesizer.get_track(0).change_effect("frequency_filter");
         // FIXME: Rotate the list of effects next
         std::cout << "Stopped recording." << std::endl;

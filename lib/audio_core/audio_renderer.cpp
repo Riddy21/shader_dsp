@@ -173,7 +173,8 @@ void AudioRenderer::render()
     if (!m_initialized) return;
 
     SDL_GL_MakeCurrent(m_window, m_gl_context); // Ensure this context is active
-    m_render_graph->bind();
+    
+    m_render_graph->bind_render_stages();
 
     // Set the time for the frame
     auto time_param = find_global_parameter("global_time");

@@ -167,11 +167,27 @@ bool AudioRenderStage::bind() {
         std::cerr << "Error: Render stage not initialized." << std::endl;
         return false;
     }
+
     // Bind the framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
     // bind the parameters to the next render stage
     for (auto & [name, param] : m_parameters) {
         if (!param->bind()) {
+            printf("Error: Failed to process linked parameters for %s\n", param->name.c_str());
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            return false;
+        }
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    return true;
+}
+
+bool AudioRenderStage::unbind() {
+    // Unbind the framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // unbind the parameters to the next render stage
+    for (auto & [name, param] : m_parameters) {
+        if (!param->unbind()) {
             printf("Error: Failed to process linked parameters for %s\n", param->name.c_str());
             return false;
         }
@@ -214,7 +230,7 @@ void AudioRenderStage::render(const unsigned int time) {
     }
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
-    
+
     // unbind the framebuffer and texture and shader program
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(0);
@@ -283,6 +299,7 @@ const std::vector<AudioParameter *> AudioRenderStage::get_output_interface() {
 bool AudioRenderStage::release_output_interface(AudioRenderStage * next_stage)
 {
     auto output = find_parameter("output_audio_texture");
+
     if (!output->is_connected()) {
         printf("Output parameter %s in render stage %d is already unlinked\n", output->name.c_str(), this->gid);
         return false;
@@ -303,6 +320,16 @@ const std::vector<AudioParameter *> AudioRenderStage::get_stream_interface()
     
     inputs.push_back(find_parameter("stream_audio_texture"));
     return inputs;
+}
+
+bool AudioRenderStage::release_stream_interface(AudioRenderStage * prev_stage)
+{
+    // Clear all the stream parameters
+    auto * stream = find_parameter("stream_audio_texture");
+
+    stream->clear_value();
+
+    return true;
 }
 
 bool AudioRenderStage::connect_render_stage(AudioRenderStage * next_stage) {
@@ -340,6 +367,11 @@ bool AudioRenderStage::connect_render_stage(AudioRenderStage * next_stage) {
                    output_parameters[i]->name.c_str(), stream_parameters[i]->name.c_str(), this->gid, next_stage->gid);
             return false;
         }
+
+        //if (m_initialized && !bind()) {
+        //    printf("Failed to bind render stage %d\n", this->gid);
+        //    return false;
+        //}
     }
 
     m_connected_output_render_stages.insert(next_stage);
@@ -370,8 +402,14 @@ bool AudioRenderStage::disconnect_render_stage(AudioRenderStage * next_stage) {
         return false;
     }
 
+    //if (m_initialized && !unbind()) {
+    //    printf("Failed to unbind render stage %d\n", this->gid);
+    //    return false;
+    //}
+
     m_connected_output_render_stages.extract(next_stage);
     next_stage->m_connected_stream_render_stages.extract(this);
+
     return true;
 }
 
@@ -383,3 +421,65 @@ bool AudioRenderStage::disconnect_render_stage() {
     return false;
 }
 
+void AudioRenderStage::clear_frame_buffer() {
+    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+
+    // Iterate through all parameters and clear each color attachment
+    for (auto &[name, param] : m_parameters) {
+        if (auto *texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
+            if (texture_param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
+                GLuint color_attachment = GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment();
+                glDrawBuffer(color_attachment);
+                glClear(GL_COLOR_BUFFER_BIT);
+            }
+        }
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void AudioRenderStage::clear_textures() {
+    // Iterate through all parameters and clear each texture
+    for (auto &[name, param] : m_parameters) {
+        if (auto *texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
+            if (texture_param->connection_type == AudioParameter::ConnectionType::PASSTHROUGH) {
+                texture_param->clear_value();
+            }
+        }
+    }
+}
+
+void AudioRenderStage::print_input_textures() {
+    // Iterate through all parameters and print each input texture
+    for (auto &[name, param] : m_parameters) {
+        if (auto *texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
+            auto value = texture_param->get_value();
+            printf("Input Texture %s Value: %f\n", texture_param->name.c_str(), ((float *)value)[0]);
+        }
+    }
+}
+
+void AudioRenderStage::print_frame_buffer() {
+    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+
+    // Iterate through all parameters and print each color attachment
+    for (auto &[name, param] : m_parameters) {
+        if (auto *texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
+            if (texture_param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
+                GLuint color_attachment = GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment();
+                glReadBuffer(color_attachment);
+
+                std::vector<float> pixels(m_frames_per_buffer * m_num_channels * 4); // Assuming RGBA format
+                glReadPixels(0, 0, m_frames_per_buffer, m_num_channels, GL_RGBA, GL_FLOAT, pixels.data());
+
+                printf("Color Attachment %d, Texture %s:\n", color_attachment, texture_param->name.c_str());
+                for (int j = 0; j < std::min(10, static_cast<int>(pixels.size())); j += 4) {
+                    printf("(%f, %f, %f, %f) ", pixels[j], pixels[j + 1], pixels[j + 2], pixels[j + 3]);
+                }
+                printf("\n");
+            }
+        }
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}

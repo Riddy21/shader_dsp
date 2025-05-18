@@ -32,6 +32,13 @@ AudioTexture2DParameter::AudioTexture2DParameter(const std::string name,
     m_data = create_param_data();
 };
 
+AudioTexture2DParameter::~AudioTexture2DParameter() {
+    if (m_texture != 0) {
+        glDeleteTextures(1, &m_texture);
+        printf("Deleted texture %s: %d\n", name.c_str(), m_texture);
+    }
+}
+
 bool AudioTexture2DParameter::initialize(GLuint frame_buffer, AudioShaderProgram * shader_program) {
     m_framebuffer_linked = frame_buffer;
     m_shader_program_linked = shader_program;
@@ -164,6 +171,8 @@ bool AudioTexture2DParameter::bind() {
         return false;
     }
 
+    printf("Binding texture %s: %s\n", name.c_str(), linked_param->name.c_str());
+
     glBindTexture(GL_TEXTURE_2D, linked_param->get_texture());
 
     // Link the texture to the framebuffer
@@ -174,7 +183,13 @@ bool AudioTexture2DParameter::bind() {
     glBindTexture(GL_TEXTURE_2D, 0);
 
     return true;
+}
 
+bool AudioTexture2DParameter::unbind() {
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + m_color_attachment,
+                           GL_TEXTURE_2D, 0, 0);
+
+    return true;
 }
 
 const void * const AudioTexture2DParameter::get_value() const {
@@ -198,4 +213,13 @@ const void * const AudioTexture2DParameter::get_value() const {
 
         return m_data->get_data();
     }
+}
+
+void AudioTexture2DParameter::clear_value() {
+    AudioParameter::clear_value();
+
+    glBindTexture(GL_TEXTURE_2D, m_texture);
+    std::vector<unsigned char> zero_data(m_parameter_width * m_parameter_height * 4, 0); // Assuming 4 channels (RGBA)
+    glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, zero_data.data());
+    glBindTexture(GL_TEXTURE_2D, 0);
 }

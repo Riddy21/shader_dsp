@@ -29,7 +29,7 @@ AudioTrack::AudioTrack(AudioRenderGraph * render_graph, AudioRenderStage * root_
 
     // Set the default effect and generator
     m_current_effect_name = "frequency_filter";
-    m_current_voice_name = "sine";
+    m_current_voice_name = "triangle";
     m_current_effect = m_effects[m_current_effect_name].get();
     m_current_voice = m_generators[m_current_voice_name].get();
 

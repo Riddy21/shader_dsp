@@ -108,12 +108,22 @@ public:
 
 protected:
 
+    void clear_frame_buffer();
+
+    void clear_textures();
+
+    void print_frame_buffer();
+
+    void print_input_textures();
+
     /**
      * @brief Process linked parameters together
      * 
      * @return True if success
      */
     virtual bool bind();
+
+    virtual bool unbind();
 
     /**
      * @brief Render the stage.
@@ -140,7 +150,7 @@ protected:
     virtual const std::vector<AudioParameter *> get_output_interface();
     virtual bool release_output_interface(AudioRenderStage * next_stage);
     virtual const std::vector<AudioParameter *> get_stream_interface();
-    virtual bool release_stream_interface(AudioRenderStage * prev_stage) {return true;};
+    virtual bool release_stream_interface(AudioRenderStage * prev_stage);
 
     // Shader source
     std::unique_ptr<AudioShaderProgram> m_shader_program;
