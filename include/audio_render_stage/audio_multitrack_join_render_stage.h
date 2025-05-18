@@ -21,12 +21,17 @@ public:
 
     static const std::vector<std::string> default_frag_shader_imports;
 
+    void print_free_textures() ;
+
+    void print_used_textures() ;
+
 private:
     const std::vector<AudioParameter *> get_stream_interface() override;
     bool release_stream_interface(AudioRenderStage * prev_stage) override;
 
     std::queue<AudioParameter *> m_free_textures;
     std::unordered_set<AudioParameter *> m_used_textures;
+
 };
 
 #endif // AUDIO_MULTITRACK_JOIN_RENDER_STAGE_H

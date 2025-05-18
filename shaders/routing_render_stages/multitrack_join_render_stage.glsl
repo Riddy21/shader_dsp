@@ -26,4 +26,5 @@ void main() {
                            audio_texture_0 + audio_texture_1 + audio_texture_2 +
                            audio_texture_3 + audio_texture_4 + audio_texture_5 +
                            audio_texture_6 + audio_texture_7 + audio_texture_8;
+    debug_audio_texture = output_audio_texture;
 }
