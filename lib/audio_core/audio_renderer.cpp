@@ -60,7 +60,7 @@ bool AudioRenderer::initialize_sdl(unsigned int window_width, unsigned int windo
         return false;
     }
 
-    SDL_GL_MakeCurrent(m_window, m_gl_context); // Bind context to this thread
+    set_current_context(); // Set the current context for this thread
 
     if (glewInit() != GLEW_OK) {
         std::cerr << "Failed to initialize GLEW" << std::endl;
@@ -172,9 +172,11 @@ void AudioRenderer::render()
     // This replaces the old render() and is called by the event loop
     if (!m_initialized) return;
 
-    SDL_GL_MakeCurrent(m_window, m_gl_context); // Ensure this context is active
+    set_current_context();
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
-    m_render_graph->bind_render_stages();
+    m_render_graph->bind();
 
     // Set the time for the frame
     auto time_param = find_global_parameter("global_time");
@@ -206,6 +208,8 @@ void AudioRenderer::present()
 
 AudioRenderer::~AudioRenderer()
 {
+    set_current_context();
+
     // Stop the loop
     m_initialized = false;
 

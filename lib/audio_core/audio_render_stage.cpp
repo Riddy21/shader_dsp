@@ -203,6 +203,7 @@ void AudioRenderStage::render(const unsigned int time) {
 
     // Bind the framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     std::vector<GLenum> draw_buffers;
@@ -211,24 +212,16 @@ void AudioRenderStage::render(const unsigned int time) {
     for (auto & [name, param] : m_parameters) {
         param->render();
         // If the type is AudioTexture2DParameter, then add to the draw buffers
-
         if (auto * texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
             if (texture_param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
                 draw_buffers.push_back(GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment());
             }
         }
     }
-    // sort the draw buffers
+    // sort the draw buffers 
     std::sort(draw_buffers.begin(), draw_buffers.end());
 
     glDrawBuffers(draw_buffers.size(), draw_buffers.data());
-
-    // Check for errors 
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error: Framebuffer is not complete in render stage %d\n", gid);
-    }
-
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // unbind the framebuffer and texture and shader program
@@ -419,67 +412,4 @@ bool AudioRenderStage::disconnect_render_stage() {
     }
     printf("render stage %d is not connected\n", this->gid);
     return false;
-}
-
-void AudioRenderStage::clear_frame_buffer() {
-    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
-
-    // Iterate through all parameters and clear each color attachment
-    for (auto &[name, param] : m_parameters) {
-        if (auto *texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
-            if (texture_param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
-                GLuint color_attachment = GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment();
-                glDrawBuffer(color_attachment);
-                glClear(GL_COLOR_BUFFER_BIT);
-            }
-        }
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void AudioRenderStage::clear_textures() {
-    // Iterate through all parameters and clear each texture
-    for (auto &[name, param] : m_parameters) {
-        if (auto *texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
-            if (texture_param->connection_type == AudioParameter::ConnectionType::PASSTHROUGH) {
-                texture_param->clear_value();
-            }
-        }
-    }
-}
-
-void AudioRenderStage::print_input_textures() {
-    // Iterate through all parameters and print each input texture
-    for (auto &[name, param] : m_parameters) {
-        if (auto *texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
-            auto value = texture_param->get_value();
-            printf("Input Texture %s Value: %f\n", texture_param->name.c_str(), ((float *)value)[0]);
-        }
-    }
-}
-
-void AudioRenderStage::print_frame_buffer() {
-    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
-
-    // Iterate through all parameters and print each color attachment
-    for (auto &[name, param] : m_parameters) {
-        if (auto *texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
-            if (texture_param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
-                GLuint color_attachment = GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment();
-                glReadBuffer(color_attachment);
-
-                std::vector<float> pixels(m_frames_per_buffer * m_num_channels * 4); // Assuming RGBA format
-                glReadPixels(0, 0, m_frames_per_buffer, m_num_channels, GL_RGBA, GL_FLOAT, pixels.data());
-
-                printf("Color Attachment %d, Texture %s:\n", color_attachment, texture_param->name.c_str());
-                for (int j = 0; j < std::min(10, static_cast<int>(pixels.size())); j += 4) {
-                    printf("(%f, %f, %f, %f) ", pixels[j], pixels[j + 1], pixels[j + 2], pixels[j + 3]);
-                }
-                printf("\n");
-            }
-        }
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

@@ -146,13 +146,13 @@ void AudioTexture2DParameter::render() {
 }
 
 bool AudioTexture2DParameter::bind() {
-    const AudioTexture2DParameter* linked_param = nullptr;
+    AudioTexture2DParameter* linked_param = nullptr;
     if (m_linked_parameter == nullptr) {
         // If not linked, then tie off
         linked_param = this;
     } else {
         //Check if the linked parameter is an AudioTexture2DParameter
-        linked_param = dynamic_cast<const AudioTexture2DParameter*>(m_linked_parameter);
+        linked_param = dynamic_cast<AudioTexture2DParameter*>(m_linked_parameter);
     }
 
     if (linked_param == nullptr) {
@@ -170,8 +170,6 @@ bool AudioTexture2DParameter::bind() {
         printf("Error: Linked parameter is not a passthrough in parameter %s\n", name.c_str());
         return false;
     }
-
-    printf("Binding texture %s: %s\n", name.c_str(), linked_param->name.c_str());
 
     glBindTexture(GL_TEXTURE_2D, linked_param->get_texture());
 

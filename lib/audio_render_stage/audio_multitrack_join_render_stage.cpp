@@ -77,22 +77,3 @@ bool AudioMultitrackJoinRenderStage::release_stream_interface(AudioRenderStage *
 
     return true;
 }
-
-void AudioMultitrackJoinRenderStage::print_free_textures() {
-    std::cout << "Free Textures: ";
-    std::queue<AudioParameter *> temp_queue = m_free_textures;
-    while (!temp_queue.empty()) {
-        auto texture = temp_queue.front();
-        std::cout << texture->name << " ";
-        temp_queue.pop();
-    }
-    std::cout << std::endl;
-}
-
-void AudioMultitrackJoinRenderStage::print_used_textures() {
-    std::cout << "Used Textures: ";
-    for (auto & texture : m_used_textures) {
-        std::cout << texture->name << " ";
-    }
-    std::cout << std::endl;
-}
