@@ -1,5 +1,5 @@
 #include <GL/glew.h>
-#include <GL/freeglut.h>
+#include <SDL2/SDL.h>
 #include <iostream>
 
 // -----------------------------------------------------------------------------
@@ -30,6 +30,20 @@ static const GLfloat quadVertices[] = {
      1.f, -1.f,     1.f, 0.f,
      1.f,  1.f,     1.f, 1.f
 };
+
+// SDL Globals
+static SDL_Window* windowA = nullptr;
+static SDL_Window* windowB = nullptr;
+static SDL_GLContext contextA = nullptr;
+static SDL_GLContext contextB = nullptr;
+
+// Starting clear colors for each context
+static const GLfloat clearColorA[] = {0.2f, 0.2f, 0.2f, 1.0f};
+static const GLfloat clearColorB[] = {0.2f, 0.2f, 0.5f, 1.0f};
+
+// Offset for moving the graphic on windowA
+static float offsetX = 0.0f;
+static float offsetSpeed = 0.01f;
 
 // -----------------------------------------------------------------------------
 // Shaders
@@ -180,16 +194,70 @@ static void createFBO() {
     // We'll attach in the display() function, depending on useTextureB
 }
 
+// Helper function to rebind the texture to the FBO
+static void rebindFramebufferTexture() {
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    // Choose which texture to attach
+    GLuint chosenTex = (useTextureB ? colorTexB : colorTexA);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                           GL_TEXTURE_2D, chosenTex, 0);
+
+    // [Optional] Check completeness
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cerr << "FBO incomplete!" << std::endl;
+    }
+
+    // Unbind the framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 // -----------------------------------------------------------------------------
 // Initialization
 // -----------------------------------------------------------------------------
-static void initGL() {
+static void initSDL() {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+        std::cerr << "SDL init error: " << SDL_GetError() << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // Set OpenGL attributes
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+    // Create two windows
+    windowA = SDL_CreateWindow("Window A", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+    windowB = SDL_CreateWindow("Window B", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+
+    if (!windowA || !windowB) {
+        std::cerr << "SDL window creation error: " << SDL_GetError() << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // Create OpenGL contexts
+    contextA = SDL_GL_CreateContext(windowA);
+    contextB = SDL_GL_CreateContext(windowB);
+
+    if (!contextA || !contextB) {
+        std::cerr << "SDL context creation error: " << SDL_GetError() << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialize GLEW
     glewExperimental = GL_TRUE;
     GLenum err = glewInit();
     if (GLEW_OK != err) {
         std::cerr << "GLEW init error: " << glewGetErrorString(err) << std::endl;
+        exit(EXIT_FAILURE);
     }
 
+    // Enable VSync
+    SDL_GL_SetSwapInterval(1);
+}
+
+static void initGL() {
     // Create programs
     programFirstPass = createProgram(vsSource, fsFirstPass);
     programDisplay   = createProgram(vsSource, fsDisplay);
@@ -224,112 +292,101 @@ static void initGL() {
 // -----------------------------------------------------------------------------
 // Display function
 // -----------------------------------------------------------------------------
+static void renderToContext(SDL_Window* window, SDL_GLContext context, const GLfloat* clearColor, GLuint targetTexture, bool isWindowA) {
+    SDL_GL_MakeCurrent(window, context);
+
+    int w, h;
+    SDL_GetWindowSize(window, &w, &h);
+
+    if (isWindowA) {
+        // Render a moving solid color for windowA
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, w, h);
+        glClearColor(0.5f + 0.5f * sin(offsetX), 0.0f, 0.0f, 1.0f); // Moving red intensity
+        glClear(GL_COLOR_BUFFER_BIT);
+    } else {
+        // Pass 1: Render to FBO with the specified target texture
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, targetTexture, 0);
+        glViewport(0, 0, w, h);
+        glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glUseProgram(programFirstPass);
+        GLint locUseTexB = glGetUniformLocation(programFirstPass, "uUseTexB");
+        glUniform1f(locUseTexB, (useTextureB ? 1.0f : 0.0f));
+
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        // Pass 2: Render to the default framebuffer (the screen)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, w, h);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glUseProgram(programDisplay);
+        GLint locTex = glGetUniformLocation(programDisplay, "uTexture");
+        glUniform1i(locTex, 0);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, targetTexture);
+
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+    }
+
+    SDL_GL_SwapWindow(window);
+}
+
 static void display() {
-    int w = glutGet(GLUT_WINDOW_WIDTH);
-    int h = glutGet(GLUT_WINDOW_HEIGHT);
+    // Update the offset for windowA
+    offsetX += offsetSpeed;
 
-    // -------------------------------------------------------------
-    // Pass 1: Render to FBO, dynamically attaching colorTexA or colorTexB
-    // -------------------------------------------------------------
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    // Render a moving graphic to windowA
+    renderToContext(windowA, contextA, clearColorA, colorTexA, true);
 
-    // Choose which texture to attach
-    GLuint chosenTex = (useTextureB ? colorTexB : colorTexA);
-
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                           GL_TEXTURE_2D, chosenTex, 0);
-
-    // [Optional] Check completeness
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cerr << "FBO incomplete!" << std::endl;
-    }
-
-    glViewport(0, 0, w, h);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    // Use our first-pass program
-    glUseProgram(programFirstPass);
-
-    // Set a uniform so we know if we're using TexB
-    GLint locUseTexB = glGetUniformLocation(programFirstPass, "uUseTexB");
-    glUniform1f(locUseTexB, (useTextureB ? 1.0f : 0.0f));
-
-    glBindVertexArray(vao);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    // -------------------------------------------------------------
-    // Pass 2: Render to the default framebuffer (the screen),
-    // sampling whichever texture we used
-    // -------------------------------------------------------------
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, w, h);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glUseProgram(programDisplay);
-
-    GLint locTex = glGetUniformLocation(programDisplay, "uTexture");
-    glUniform1i(locTex, 0);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, chosenTex);
-
-    glBindVertexArray(vao);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-
-    // Done
-    glutSwapBuffers();
-}
-
-// -----------------------------------------------------------------------------
-// Reshape
-// -----------------------------------------------------------------------------
-static void reshape(int w, int h) {
-    // Re-create textures for new size
-    if (colorTexA) glDeleteTextures(1, &colorTexA);
-    if (colorTexB) glDeleteTextures(1, &colorTexB);
-
-    createTextures(w, h);
-    glViewport(0, 0, w, h);
-}
-
-// -----------------------------------------------------------------------------
-// Keyboard
-// -----------------------------------------------------------------------------
-static void keyboard(unsigned char key, int x, int y) {
-    if (key == 'p' || key == 'P') {
-        useTextureB = !useTextureB;
-        std::cout << "Now using " << (useTextureB ? "texture B" : "texture A") 
-                  << " for the FBO.\n";
-        glutPostRedisplay();
-    }
-    else if (key == 27) { // ESC
-        glutLeaveMainLoop();
-    }
+    // Render the existing gradient to windowB
+    renderToContext(windowB, contextB, clearColorB, colorTexB, false);
 }
 
 // -----------------------------------------------------------------------------
 // Main
 // -----------------------------------------------------------------------------
 int main(int argc, char** argv) {
-    // Init GLUT
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA);
-    glutInitWindowSize(800, 600);
-    glutCreateWindow("Dynamic FBO Texture Attachment");
-
-    // Initialize GL context (GLEW, etc.)
+    // Init SDL and OpenGL
+    initSDL();
     initGL();
 
     // Create offscreen textures & FBO
     createTextures(800, 600);
     createFBO();
 
-    // Register callbacks
-    glutReshapeFunc(reshape);
-    glutDisplayFunc(display);
-    glutKeyboardFunc(keyboard);
-
     // Main loop
-    glutMainLoop();
+    bool running = true;
+    SDL_Event event;
+    while (running) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                running = false;
+            } else if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_p) {
+                    useTextureB = !useTextureB;
+                    std::cout << "Now using " << (useTextureB ? "texture B" : "texture A") << " for the FBO.\n";
+                } else if (event.key.keysym.sym == SDLK_ESCAPE) {
+                    running = false;
+                }
+            }
+        }
+
+        display();
+    }
+
+    // Cleanup
+    SDL_GL_DeleteContext(contextA);
+    SDL_GL_DeleteContext(contextB);
+    SDL_DestroyWindow(windowA);
+    SDL_DestroyWindow(windowB);
+    SDL_Quit();
+
     return 0;
 }

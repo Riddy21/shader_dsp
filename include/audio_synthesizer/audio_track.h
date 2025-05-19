@@ -39,6 +39,7 @@ private:
 
     AudioRenderGraph * m_render_graph;
     AudioRenderStage * m_root_stage;
+    AudioRenderer * m_audio_renderer;
 
     // Current effect and voice
     // FIXME: Turn this to a list of current active effects and voices

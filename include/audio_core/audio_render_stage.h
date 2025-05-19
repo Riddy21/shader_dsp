@@ -108,14 +108,6 @@ public:
 
 protected:
 
-    void clear_frame_buffer();
-
-    void clear_textures();
-
-    void print_frame_buffer();
-
-    void print_input_textures();
-
     /**
      * @brief Process linked parameters together
      * 
@@ -123,6 +115,11 @@ protected:
      */
     virtual bool bind();
 
+    /**
+     * @brief Unbind the render stage
+     * 
+     * This function is responsible for unbinding the render stage.
+     */
     virtual bool unbind();
 
     /**

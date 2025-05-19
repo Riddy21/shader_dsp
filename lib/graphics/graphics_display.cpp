@@ -59,6 +59,7 @@ GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const 
 }
 
 GraphicsDisplay::~GraphicsDisplay() {
+    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
     if (m_context) {
         SDL_GL_DeleteContext(m_context);
     }
@@ -69,10 +70,14 @@ GraphicsDisplay::~GraphicsDisplay() {
 }
 
 void GraphicsDisplay::register_view(const std::string& name, GraphicsView* view) {
+    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
+
     m_views[name] = std::unique_ptr<GraphicsView>(view);
 }
 
 void GraphicsDisplay::change_view(const std::string& name) {
+    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
+
     if (m_current_view) {
         m_current_view->on_exit();
     }
@@ -96,6 +101,8 @@ bool GraphicsDisplay::is_ready() {
 }
 
 bool GraphicsDisplay::handle_event(const SDL_Event& event) {
+    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
+
     if (event.type == SDL_QUIT) {
         EventLoop::get_instance().terminate();
     }
