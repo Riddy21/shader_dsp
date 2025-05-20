@@ -16,7 +16,7 @@ public:
         unsigned int height = 600, 
         const std::string& title = "Graphics Display", 
         unsigned int refresh_rate = 60
-    145
+    );
     ~GraphicsDisplay();
 
     GraphicsDisplay(const GraphicsDisplay&) = delete;
