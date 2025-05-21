@@ -60,8 +60,6 @@ bool AudioRenderer::initialize_sdl(unsigned int window_width, unsigned int windo
         return false;
     }
 
-    set_current_context(); // Set the current context for this thread
-
     if (glewInit() != GLEW_OK) {
         std::cerr << "Failed to initialize GLEW" << std::endl;
         return false;
@@ -115,6 +113,17 @@ bool AudioRenderer::initialize_quad() {
     return true;
 }
 
+bool AudioRenderer::initialize_global_parameters()
+{
+    for (auto& param : m_global_parameters) {
+        if (!param->initialize()) {
+            std::cerr << "Failed to initialize global parameters" << std::endl;
+            return false;
+        }
+    }
+    return true;
+}
+
 bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned int sample_rate, const unsigned int num_channels) {
     if (m_initialized) {
         std::cerr << "Error: Audio renderer already initialized." << std::endl;
@@ -130,6 +139,8 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     if (!initialize_sdl(buffer_size, num_channels)) {
         return false;
     }
+
+    set_current_context(); // Set the current context for this thread
 
     // Set GL settings for audio rendering
     glDisable(GL_BLEND);
@@ -267,17 +278,6 @@ bool AudioRenderer::is_ready() {
         return false;
     }
 
-    return true;
-}
-
-bool AudioRenderer::initialize_global_parameters()
-{
-    for (auto& param : m_global_parameters) {
-        if (!param->initialize()) {
-            std::cerr << "Failed to initialize global parameters" << std::endl;
-            return false;
-        }
-    }
     return true;
 }
 

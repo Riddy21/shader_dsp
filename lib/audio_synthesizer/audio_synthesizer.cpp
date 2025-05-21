@@ -30,6 +30,8 @@ AudioSynthesizer::~AudioSynthesizer() {
 bool AudioSynthesizer::initialize(const unsigned int buffer_size,
                                  const unsigned int sample_rate,
                                  const unsigned int num_channels) {
+    m_audio_renderer.set_current_context();
+
     m_buffer_size = buffer_size;
     m_sample_rate = sample_rate;
     m_num_channels = num_channels;
@@ -72,6 +74,7 @@ bool AudioSynthesizer::initialize(const unsigned int buffer_size,
 }
 
 bool AudioSynthesizer::start() {
+    m_audio_renderer.set_current_context();
     // Start the audio outputs
     for (auto& output : m_render_outputs) {
         if (!output->open()) {
@@ -88,6 +91,7 @@ bool AudioSynthesizer::start() {
 }
 
 bool AudioSynthesizer::pause() {
+    m_audio_renderer.set_current_context();
     m_audio_renderer.pause();
     
     // Stop the audio outputs
@@ -101,12 +105,14 @@ bool AudioSynthesizer::pause() {
 }
 
 bool AudioSynthesizer::increment() {
+    m_audio_renderer.set_current_context();
     m_audio_renderer.increment();
 
     return true;
 }
 
 bool AudioSynthesizer::resume() {
+    m_audio_renderer.set_current_context();
     // Start the audio outputs
     for (auto& output : m_render_outputs) {
         if (!output->start()) {
@@ -121,6 +127,7 @@ bool AudioSynthesizer::resume() {
 }
 
 bool AudioSynthesizer::close() {
+    m_audio_renderer.set_current_context();
     // Stop the audio outputs
     for (auto& output : m_render_outputs) {
         if (!output->stop()) {
@@ -136,6 +143,7 @@ bool AudioSynthesizer::close() {
 }
 
 bool AudioSynthesizer::terminate() {
+    m_audio_renderer.set_current_context();
     if (!this->close()) {
         std::cerr << "Failed to close audio synthesizer." << std::endl;
         return false;

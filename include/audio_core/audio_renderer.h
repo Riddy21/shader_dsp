@@ -150,7 +150,7 @@ public:
      * @brief Sets the current OpenGL context for the audio renderer.
      */
     void set_current_context() {
-        if (m_window && m_gl_context) {
+        if (m_window && m_gl_context && SDL_GL_GetCurrentContext() != m_gl_context) {
             SDL_GL_MakeCurrent(m_window, m_gl_context);
         }
     }
