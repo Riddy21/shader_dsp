@@ -31,7 +31,8 @@ void setup_keyboard(EventHandler& event_handler, AudioSynthesizer& synthesizer, 
         event_handler.register_entry(new KeyboardEventHandlerEntry(
             &AudioRenderer::get_instance(),
             SDL_KEYDOWN, key,
-            [&synthesizer, tone](const SDL_Event&) {
+            [&synthesizer, tone, key](const SDL_Event&) {
+                printf("Playing note: %c\n", key);
                 synthesizer.get_track(0).play_note(tone, 0.2f);
                 return true;
             }
@@ -39,7 +40,8 @@ void setup_keyboard(EventHandler& event_handler, AudioSynthesizer& synthesizer, 
         event_handler.register_entry(new KeyboardEventHandlerEntry(
             &AudioRenderer::get_instance(),
             SDL_KEYUP, key,
-            [&synthesizer, tone](const SDL_Event&) {
+            [&synthesizer, tone, key](const SDL_Event&) {
+                printf("Stopping note: %c\n", key);
                 synthesizer.get_track(0).stop_note(tone);
                 return true;
             }
@@ -128,12 +130,15 @@ int main() {
 
     EventHandler* event_handler = new EventHandler();
     setup_keyboard(*event_handler, synthesizer, event_loop);
-    event_loop.add_event_handler(event_handler);
 
     GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
     graphics_display->register_view("debug", new DebugView());
     graphics_display->change_view("debug");
-    event_loop.add_loop_item(graphics_display);
+
+    // Create another  window 
+    GraphicsDisplay* interface_display = new GraphicsDisplay(800, 600, "Interface");
+    interface_display->register_view("debug", new DebugView());
+    interface_display->change_view("debug");
 
     std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
 

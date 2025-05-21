@@ -39,6 +39,8 @@ private:
     std::string m_title;
     unsigned int m_refresh_rate; // Refresh rate in FPS
 
+    Uint32 m_last_render_time = 0; // for FPS tracking
+
     GLuint m_VAO, m_VBO;
 
     std::unordered_map<std::string, std::unique_ptr<GraphicsView>> m_views;

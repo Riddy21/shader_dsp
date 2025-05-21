@@ -3,7 +3,10 @@
 #include "engine/event_handler.h"
 #include "engine/event_loop.h"
 
-EventHandler::EventHandler() {}
+EventHandler::EventHandler() {
+    auto & event_loop = EventLoop::get_instance();
+    event_loop.add_event_handler(this); // Register this event handler instance with the event loop
+}
 EventHandler::~EventHandler() {}
 
 void EventHandler::register_entry(EventHandlerEntry* entry) {
@@ -30,10 +33,11 @@ KeyboardEventHandlerEntry::KeyboardEventHandlerEntry(
 
 bool KeyboardEventHandlerEntry::matches(const SDL_Event& event) {
     if (event.type == SDL_KEYUP) {
-        pressed_keys.erase(keycode);
+        pressed_keys.erase(event.key.keysym.sym);
     }
-    if (event.type != event_type || event.key.keysym.sym != keycode)
+    if (event.type != event_type || event.key.keysym.sym != keycode) {
         return false;
+    }
     if (event.type == SDL_KEYDOWN) {
         if (!sticky_keys && pressed_keys.count(keycode)) {
             return false;
