@@ -46,8 +46,6 @@ AudioTrack::AudioTrack(AudioRenderGraph * render_graph, AudioRenderStage * root_
 }
 
 void AudioTrack::initialize_effects() {
-    m_audio_renderer->set_current_context();
-
     m_effects["gain"] = std::make_shared<AudioGainEffectRenderStage>(m_buffer_size, m_sample_rate, m_num_channels);
     m_effects["echo"] = std::make_shared<AudioEchoEffectRenderStage>(m_buffer_size, m_sample_rate, m_num_channels);
     m_effects["frequency_filter"] = std::make_shared<AudioFrequencyFilterEffectRenderStage>(m_buffer_size, m_sample_rate, m_num_channels);
@@ -59,8 +57,6 @@ void AudioTrack::initialize_effects() {
 }
 
 void AudioTrack::initialize_generators() {
-    m_audio_renderer->set_current_context();
-
     m_generators["sine"] = std::make_shared<AudioGeneratorRenderStage>(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sine_generator_render_stage.glsl");
     m_generators["saw"] = std::make_shared<AudioGeneratorRenderStage>(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sawtooth_generator_render_stage.glsl");
     m_generators["square"] = std::make_shared<AudioGeneratorRenderStage>(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_square_generator_render_stage.glsl");
