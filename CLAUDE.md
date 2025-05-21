@@ -88,3 +88,58 @@ Audio processing is primarily done through GLSL shaders in the `shaders` directo
 - Effect shaders (echo, filter, gain, etc.) in `shaders/effect_render_stages/`
 - Routing shaders in `shaders/routing_render_stages/`
 - Global settings in `shaders/settings/`
+
+## UI Architecture
+
+The UI system is built around the following components:
+
+1. **EventLoop** - Singleton that manages the main application loop, dispatches SDL events to event handlers.
+
+2. **EventHandler** - Manages event handler entries that respond to specific events (keyboard, mouse, etc.).
+
+3. **EventHandlerEntry** - Base class for specific event handlers, with subclasses for different event types:
+   - KeyboardEventHandlerEntry - Handles keyboard events
+   - MouseClickEventHandlerEntry - Handles mouse clicks in specific regions
+   - MouseMotionEventHandlerEntry - Handles mouse motion events within a region
+   - MouseEnterLeaveEventHandlerEntry - Detects when the mouse enters or leaves a region
+   - GlobalMouseUpEventHandlerEntry - Detects mouse button releases when a component is in pressed state
+
+4. **GraphicsDisplay** - Manages window and OpenGL context, renders views.
+
+5. **GraphicsView** - Container for UI components that can be rendered and handle events.
+   - DebugView - Shows audio visualization
+   - MockInterfaceView - Contains button controls
+
+6. **GraphicsComponent** - Base class for individual UI elements:
+   - GraphComponent - For visualizing audio data
+   - ButtonComponent - Interactive button for user input
+
+7. **Event Registration Flow**:
+   - Views register themselves with the GraphicsDisplay
+   - When a view becomes active, it registers its components' event handlers
+   - When a view becomes inactive, it unregisters its event handlers
+   - This ensures events are only processed by active components
+
+## Implementation Notes
+
+- **Component Access in Views**: Use the `for_each_component` template method in GraphicsView to iterate over components rather than directly accessing the private m_components vector.
+
+- **Event Handler Registration**: Components should implement `register_event_handlers` and `unregister_event_handlers` methods to manage their event handlers. These are called automatically when views are activated/deactivated.
+
+- **Custom Event Handlers**: When creating custom event handlers, extend EventHandlerEntry and implement the `matches` method to define when your handler should be triggered.
+
+- **Render Context**: 
+  - Each component has a render context (IRenderableEntity) passed in its constructor 
+  - This context is used to ensure OpenGL rendering happens in the correct context before event callbacks are executed
+  - For buttons in the mock interface, the AudioRenderer is used as the render context
+  - Components should never assume or create their own render context
+
+- **Normalized Coordinates**: The UI uses normalized device coordinates (-1 to 1) for positioning components, which are converted to screen coordinates internally based on the actual window size.
+
+- **Button Event Handling**: Buttons register five types of event handlers:
+  1. Mouse button down (when clicking on the button)
+  2. Mouse button up (when releasing the click on the button, triggering the callback)
+  3. Mouse motion (while hovering over the button)
+  4. Mouse enter (when the cursor enters the button area)
+  5. Mouse leave (when the cursor leaves the button area)
+  6. Global mouse up (to handle when the user clicks on the button but releases outside)

@@ -6,6 +6,7 @@
 #include "engine/event_handler.h"
 #include "graphics/graphics_display.h"
 #include "graphics_views/debug_view.h"
+#include "graphics_views/mock_interface_view.h"
 
 #define MIDDLE_C 261.63f
 #define SEMI_TONE 1.059463f
@@ -132,13 +133,16 @@ int main() {
     setup_keyboard(*event_handler, synthesizer, event_loop);
 
     GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
+    graphics_display->set_event_handler(event_handler);
     graphics_display->register_view("debug", new DebugView());
     graphics_display->change_view("debug");
 
-    // Create another  window 
+    // Create another window for the interface
     GraphicsDisplay* interface_display = new GraphicsDisplay(800, 600, "Interface");
+    interface_display->set_event_handler(event_handler);
     interface_display->register_view("debug", new DebugView());
-    interface_display->change_view("debug");
+    interface_display->register_view("interface", new MockInterfaceView());
+    interface_display->change_view("interface");
 
     std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
 

@@ -72,16 +72,40 @@ GraphicsDisplay::~GraphicsDisplay() {
 
 void GraphicsDisplay::register_view(const std::string& name, GraphicsView* view) {
     m_views[name] = std::unique_ptr<GraphicsView>(view);
+    
+    // If we have an event handler, pass it to the view
+    if (m_event_handler) {
+        view->set_event_handler(m_event_handler);
+    }
+    
+    // If this is a MockInterfaceView, set the parent display
+    view->set_parent_display(this);
 }
 
 void GraphicsDisplay::change_view(const std::string& name) {
-    if (m_current_view) {
-        m_current_view->on_exit();
-    }
     auto it = m_views.find(name);
+
     if (it != m_views.end()) {
+        if (m_current_view) {
+            m_current_view->on_exit();
+        }
         m_current_view = it->second.get();
         m_current_view->on_enter();
+    }
+}
+
+void GraphicsDisplay::set_event_handler(EventHandler* event_handler) {
+    m_event_handler = event_handler;
+    
+    // Update all views with the new event handler
+    for (auto& view_pair : m_views) {
+        view_pair.second->set_event_handler(m_event_handler);
+    }
+    
+    // If the current view is active, register its handlers
+    if (m_current_view) {
+        m_current_view->on_exit();  // Unregister old handlers
+        m_current_view->on_enter(); // Register new handlers
     }
 }
 
