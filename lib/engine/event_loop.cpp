@@ -83,20 +83,20 @@ void EventLoop::run_loop() {
         frame_count++;
 
         // Calculate and print FPS every second
-        //Uint32 current_time = SDL_GetTicks();
-        //if (current_time - last_time >= 1000) {
-        //    float fps = frame_count / ((current_time - last_time) / 1000.0f);
-        //    std::cout << "FPS: " << fps << std::endl;
+        Uint32 current_time = SDL_GetTicks();
+        if (current_time - last_time >= 1000) {
+            float fps = frame_count / ((current_time - last_time) / 1000.0f);
+            std::cout << "FPS: " << fps << std::endl;
 
-        //    // Print individual FPS for each item
-        //    for (const auto &item : m_items) {
-        //        std::cout << "Render FPS: " << item->get_render_fps()
-        //                  << ", Present FPS: " << item->get_present_fps() << std::endl;
-        //    }
+            // Print individual FPS for each item
+            for (const auto &item : m_items) {
+                std::cout << "Render FPS: " << item->get_render_fps()
+                          << ", Present FPS: " << item->get_present_fps() << std::endl;
+            }
 
-        //    frame_count = 0;
-        //    last_time = current_time;
-        //}
+            frame_count = 0;
+            last_time = current_time;
+        }
     }
 
     SDL_Quit();

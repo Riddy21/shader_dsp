@@ -87,11 +87,10 @@ void GraphicsDisplay::change_view(const std::string& name) {
 
 // Render graphics less often
 bool GraphicsDisplay::is_ready() {
-    static Uint32 last_time = 0;
     Uint32 current_time = SDL_GetTicks();
     Uint32 frame_duration = 1000 / m_refresh_rate; // Calculate frame duration in milliseconds
-    if (current_time - last_time >= frame_duration) {
-        last_time = current_time;
+    if (current_time - m_last_render_time >= frame_duration) {
+        m_last_render_time = current_time;
         return m_window != nullptr && m_context != nullptr;
     }
     return false;
