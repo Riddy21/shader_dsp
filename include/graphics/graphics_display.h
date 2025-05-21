@@ -10,6 +10,8 @@
 #include "engine/renderable_item.h"
 #include "graphics_core/graphics_view.h"
 
+class EventHandler;
+
 class GraphicsDisplay : public IRenderableEntity {
 public:
     GraphicsDisplay(
@@ -32,6 +34,10 @@ public:
     // View management
     void register_view(const std::string& name, GraphicsView* view);
     void change_view(const std::string& name);
+    
+    // Event handler management
+    void set_event_handler(EventHandler* event_handler);
+    EventHandler* get_event_handler() const { return m_event_handler; }
 
 private:
     unsigned int m_width;
@@ -44,8 +50,9 @@ private:
     GLuint m_VAO, m_VBO;
 
     std::unordered_map<std::string, std::unique_ptr<GraphicsView>> m_views;
-    std::vector<std::unique_ptr<GraphicsComponent>> m_components;
+    std::vector<std::unique_ptr<GraphicsComponent>> m_components; // TODO: Implement components management later
     GraphicsView* m_current_view = nullptr;
+    EventHandler* m_event_handler = nullptr;
 
     // SDL window/context management
     SDL_Window* m_window = nullptr;
