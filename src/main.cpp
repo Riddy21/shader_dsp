@@ -2,9 +2,8 @@
 #include <unordered_map>
 #include <cmath>
 #include "audio_synthesizer/audio_synthesizer.h"
-#include "keyboard/keyboard.h"
-#include "keyboard/key.h"
 #include "engine/event_loop.h"
+#include "engine/event_handler.h"
 #include "graphics/graphics_display.h"
 #include "graphics_views/debug_view.h"
 
@@ -27,65 +26,81 @@ const std::unordered_map<char, float> KEY_TONE_MAPPING = {
     {'k', MIDDLE_C * std::pow(SEMI_TONE, 12)},
 };
 
-void setup_keyboard(Keyboard& keyboard, AudioSynthesizer& synthesizer, EventLoop& event_loop) {
+void setup_keyboard(EventHandler& event_handler, AudioSynthesizer& synthesizer, EventLoop& event_loop) {
     for (const auto& [key, tone] : KEY_TONE_MAPPING) {
-        auto key_obj = new Key(key);
-        key_obj->set_key_down_callback([&synthesizer, tone]() {
-            synthesizer.get_track(0).play_note(tone, 0.2f);
-        });
-        key_obj->set_key_up_callback([&synthesizer, tone]() {
-            synthesizer.get_track(0).stop_note(tone);
-        });
-        keyboard.add_key(key_obj);
+        event_handler.register_entry(new KeyboardEventHandlerEntry(
+            &AudioRenderer::get_instance(),
+            SDL_KEYDOWN, key,
+            [&synthesizer, tone](const SDL_Event&) {
+                synthesizer.get_track(0).play_note(tone, 0.2f);
+                return true;
+            }
+        ));
+        event_handler.register_entry(new KeyboardEventHandlerEntry(
+            &AudioRenderer::get_instance(),
+            SDL_KEYUP, key,
+            [&synthesizer, tone](const SDL_Event&) {
+                synthesizer.get_track(0).stop_note(tone);
+                return true;
+            }
+        ));
     }
 
-    auto pause_key = new Key('p');
-    pause_key->set_key_down_callback([&synthesizer]() {
-        synthesizer.pause();
-        std::cout << "Paused synthesizer." << std::endl;
-    });
-    keyboard.add_key(pause_key);
-
-    auto resume_key = new Key('o');
-    resume_key->set_key_down_callback([&synthesizer]() {
-        synthesizer.resume();
-        std::cout << "Resumed synthesizer." << std::endl;
-    });
-    keyboard.add_key(resume_key);
-
-    auto increment_key = new Key('i');
-    increment_key->set_key_down_callback([&synthesizer]() {
-        synthesizer.increment();
-        std::cout << "Incremented synthesizer." << std::endl;
-    });
-    keyboard.add_key(increment_key);
-
-    auto quit_key = new Key('q');
-    quit_key->set_key_down_callback([&synthesizer, &event_loop]() {
-        std::cout << "Exiting program." << std::endl;
-        synthesizer.close();
-        event_loop.terminate();
-    });
-    keyboard.add_key(quit_key);
-
-    auto record_key = new Key('r');
-    record_key->set_key_down_callback([&synthesizer]() {
-        //synthesizer.record();
-        synthesizer.get_track(0).change_effect("echo");
-        // FIXME: Rotate the list of effects next
-        std::cout << "Recording..." << std::endl;
-    });
-    keyboard.add_key(record_key);
-    auto stop_record_key = new Key('l');
-    stop_record_key->set_key_down_callback([&synthesizer]() {
-        //synthesizer.play_recording();
-        //synthesizer.get_track(0).change_voice("triangle");
-        synthesizer.get_track(0).change_effect("frequency_filter");
-        // FIXME: Rotate the list of effects next
-        std::cout << "Stopped recording." << std::endl;
-    });
-    keyboard.add_key(stop_record_key);
-
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        &AudioRenderer::get_instance(),
+        SDL_KEYDOWN, 'p',
+        [&synthesizer](const SDL_Event&) {
+            synthesizer.pause();
+            std::cout << "Paused synthesizer." << std::endl;
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        &AudioRenderer::get_instance(),
+        SDL_KEYDOWN, 'o',
+        [&synthesizer](const SDL_Event&) {
+            synthesizer.resume();
+            std::cout << "Resumed synthesizer." << std::endl;
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        &AudioRenderer::get_instance(),
+        SDL_KEYDOWN, 'i',
+        [&synthesizer](const SDL_Event&) {
+            synthesizer.increment();
+            std::cout << "Incremented synthesizer." << std::endl;
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        &AudioRenderer::get_instance(),
+        SDL_KEYDOWN, 'q',
+        [&synthesizer, &event_loop](const SDL_Event&) {
+            std::cout << "Exiting program." << std::endl;
+            synthesizer.close();
+            event_loop.terminate();
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        &AudioRenderer::get_instance(),
+        SDL_KEYDOWN, 'r',
+        [&synthesizer](const SDL_Event&) {
+            synthesizer.get_track(0).change_effect("echo");
+            std::cout << "Recording..." << std::endl;
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        &AudioRenderer::get_instance(),
+        SDL_KEYDOWN, 'l',
+        [&synthesizer](const SDL_Event&) {
+            synthesizer.get_track(0).change_effect("frequency_filter");
+            std::cout << "Stopped recording." << std::endl;
+            return true;
+        }
+    ));
 }
 
 int main() {
@@ -96,7 +111,6 @@ int main() {
         return false;
     }
 
-    // Set OpenGL version to 4.1 Core Profile for macOS compatibility
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -112,12 +126,14 @@ int main() {
         return -1;
     }
 
-    Keyboard keyboard;
-    setup_keyboard(keyboard, synthesizer, event_loop);
+    EventHandler* event_handler = new EventHandler();
+    setup_keyboard(*event_handler, synthesizer, event_loop);
+    event_loop.add_event_handler(event_handler);
 
-    GraphicsDisplay graphics_display = GraphicsDisplay(800, 600, "Synthesizer");
-    graphics_display.register_view("debug", new DebugView());
-    graphics_display.change_view("debug");
+    GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
+    graphics_display->register_view("debug", new DebugView());
+    graphics_display->change_view("debug");
+    event_loop.add_loop_item(graphics_display);
 
     std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
 

@@ -12,7 +12,7 @@
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "engine/event_loop.h"
 
-class Keyboard : public IEventLoopItem {
+class Keyboard : public IRenderableEntity {
 public:
     Keyboard();
     ~Keyboard();
@@ -22,8 +22,7 @@ public:
 
     // IEventLoopItem interface
     bool is_ready() override { return false; }
-    bool handle_event(const SDL_Event &event) override;
-
+    bool handle_event(const SDL_Event &event);
 
     void add_key(Key * key);
     Key * get_key(const unsigned char key) { return m_keys[key].get(); }

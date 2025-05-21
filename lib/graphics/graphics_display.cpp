@@ -12,6 +12,7 @@ GLuint m_shaderProgram;
 
 GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const std::string& title, unsigned int refresh_rate)
     : m_width(width), m_height(height), m_title(title), m_refresh_rate(refresh_rate) {
+    
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
         throw std::runtime_error("SDL initialization failed");
@@ -70,14 +71,10 @@ GraphicsDisplay::~GraphicsDisplay() {
 }
 
 void GraphicsDisplay::register_view(const std::string& name, GraphicsView* view) {
-    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
-
     m_views[name] = std::unique_ptr<GraphicsView>(view);
 }
 
 void GraphicsDisplay::change_view(const std::string& name) {
-    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
-
     if (m_current_view) {
         m_current_view->on_exit();
     }
@@ -100,21 +97,8 @@ bool GraphicsDisplay::is_ready() {
     return false;
 }
 
-bool GraphicsDisplay::handle_event(const SDL_Event& event) {
-    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
-
-    if (event.type == SDL_QUIT) {
-        EventLoop::get_instance().terminate();
-    }
-    if (m_current_view) {
-        return m_current_view->handle_event(event);
-    }
-    return false;
-}
-
 void GraphicsDisplay::render() {
-    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
-
+    // No need to call activate_render_context() here, event loop will do it
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (m_current_view) {
@@ -126,13 +110,18 @@ void GraphicsDisplay::render() {
         component->render();
     }
 
-    IEventLoopItem::update_render_fps(); // Call the base class render to update FPS
+    IRenderableEntity::update_render_fps(); // Call the base class render to update FPS
 }
 
 void GraphicsDisplay::present() {
-    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
-
+    // No need to call activate_render_context() here, event loop will do it
     SDL_GL_SwapWindow(m_window); // Swap buffers for this context
 
-    IEventLoopItem::update_present_fps(); // Call the base class present to update FPS
+    IRenderableEntity::update_present_fps(); // Call the base class present to update FPS
+}
+
+void GraphicsDisplay::activate_render_context() {
+    if (m_window && m_context && SDL_GL_GetCurrentContext() != m_context) {
+        SDL_GL_MakeCurrent(m_window, m_context);
+    }
 }
