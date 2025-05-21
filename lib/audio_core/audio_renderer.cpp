@@ -18,6 +18,10 @@ AudioRenderer::AudioRenderer() {
     auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
     global_time->set_value(0);
     add_global_parameter(global_time);
+
+    // Add itself to the event loop
+    auto & event_loop = EventLoop::get_instance();
+    event_loop.add_loop_item(this); // Register this audio renderer instance with the event loop
 }
 
 bool AudioRenderer::add_render_output(AudioOutput * output_link)
@@ -54,8 +58,8 @@ bool AudioRenderer::initialize_sdl(unsigned int window_width, unsigned int windo
         return false;
     }
 
-    m_gl_context = SDL_GL_CreateContext(m_window);
-    if (!m_gl_context) {
+    m_context = SDL_GL_CreateContext(m_window);
+    if (!m_context) {
         std::cerr << "Failed to create OpenGL context: " << SDL_GetError() << std::endl;
         return false;
     }
@@ -140,7 +144,7 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
         return false;
     }
 
-    set_current_context(); // Set the current context for this thread
+    activate_render_context(); // Set the current context for this thread
 
     // Set GL settings for audio rendering
     glDisable(GL_BLEND);
@@ -180,10 +184,8 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
 
 void AudioRenderer::render()
 {
-    // This replaces the old render() and is called by the event loop
+    // No need to call activate_render_context() here, event loop will do it
     if (!m_initialized) return;
-
-    set_current_context();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
@@ -205,28 +207,28 @@ void AudioRenderer::render()
     // Unbind everything
     glBindVertexArray(0);
 
-    IEventLoopItem::update_render_fps(); // Call the base class render to update FPS
+    IRenderableEntity::update_render_fps(); // Call the base class render to update FPS
 }
 
 void AudioRenderer::present()
 {
-    // Push to output buffers
+    // No need to call activate_render_context() here, event loop will do it
     push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data().data());
     m_frame_count++;
 
-    IEventLoopItem::update_present_fps();
+    IRenderableEntity::update_present_fps();
 }
 
 AudioRenderer::~AudioRenderer()
 {
-    set_current_context();
+    activate_render_context();
 
     // Stop the loop
     m_initialized = false;
 
-    if (m_gl_context) {
-        SDL_GL_DeleteContext(m_gl_context);
-        m_gl_context = nullptr;
+    if (m_context) {
+        SDL_GL_DeleteContext(m_context);
+        m_context = nullptr;
     }
 
     if (m_window) {
@@ -299,4 +301,10 @@ AudioParameter * AudioRenderer::find_global_parameter(const std::string name) co
         }
     }
     return nullptr;
+}
+
+void AudioRenderer::activate_render_context() {
+    if (m_window && m_context && SDL_GL_GetCurrentContext() != m_context) {
+        SDL_GL_MakeCurrent(m_window, m_context);
+    }
 }

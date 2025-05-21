@@ -1,5 +1,8 @@
-#include "engine/event_loop.h"
 #include <iostream>
+
+#include "engine/event_loop.h"
+#include "engine/renderable_item.h"
+#include "engine/event_handler.h"
 
 // Define static instance pointer
 EventLoop* EventLoop::s_instance = nullptr;
@@ -18,8 +21,12 @@ EventLoop::~EventLoop() {
 }
 
 // Changed to accept reference and move to unique_ptr
-void EventLoop::add_loop_item(IEventLoopItem * item) {
-    m_items.push_back(std::unique_ptr<IEventLoopItem>(item));
+void EventLoop::add_loop_item(IRenderableEntity * item) {
+    m_items.push_back(std::unique_ptr<IRenderableEntity>(item));
+}
+
+void EventLoop::add_event_handler(EventHandler* handler) {
+    m_event_handlers.push_back(handler);
 }
 
 void EventLoop::run_loop() {
@@ -34,6 +41,7 @@ void EventLoop::run_loop() {
 
     // Render everything to start
     for (auto &item : m_items) {
+        item->activate_render_context();
         item->render();
     }
 
@@ -41,9 +49,9 @@ void EventLoop::run_loop() {
         SDL_Event event;
         bool event_occurred = false;
         while (SDL_PollEvent(&event)) {
-            // Dispatch events to each registered item
-            for (auto &item : m_items) {
-                if (item->handle_event(event)) {
+            // Dispatch SDL events to registered event handlers only
+            for (auto* handler : m_event_handlers) {
+                if (handler->handle_event(event)) {
                     event_occurred = true;
                 }
             }
@@ -57,6 +65,7 @@ void EventLoop::run_loop() {
         // Render again if an event occurred
         if (event_occurred) {
             for (auto &item : m_items) {
+                item->activate_render_context();
                 item->render();
             }
         }
@@ -64,6 +73,7 @@ void EventLoop::run_loop() {
         // Update and render each item
         for (auto &item : m_items) {
             if (item->is_ready()) { // TODO: Instead of rendering when ready, render on interval, and push only when ready
+                item->activate_render_context();
                 item->present(); // Call present to update the display
                 item->render();
             }

@@ -14,6 +14,7 @@
 #include "audio_core/audio_parameter.h"
 #include "audio_core/audio_render_graph.h"
 #include "engine/event_loop.h"
+#include "engine/renderable_item.h"
 
 /**
  * @class AudioRenderer
@@ -22,7 +23,7 @@
  * The AudioRenderer class provides functionality to initialize and terminate the audio renderer,
  * as well as holding audio texture output and managing audio buffer size and number of channels.
  */
-class AudioRenderer : public IEventLoopItem {
+class AudioRenderer : public IRenderableEntity {
 public:
     /**
      * @brief Returns the singleton instance of AudioRenderer.
@@ -54,11 +55,11 @@ public:
     // IEventLoopItem interface
     bool is_ready() override;
 
-    bool handle_event(const SDL_Event&) override { return false; } // No event handling needed
-
     void render() override;
 
     void present() override;
+
+    void activate_render_context() override; // Add this line
 
 // Loop Control
     void pause() {
@@ -146,15 +147,6 @@ public:
     AudioParameter * find_global_parameter(const std::string name) const;
 
 
-    /**
-     * @brief Sets the current OpenGL context for the audio renderer.
-     */
-    void set_current_context() {
-        if (m_window && m_gl_context && SDL_GL_GetCurrentContext() != m_gl_context) {
-            SDL_GL_MakeCurrent(m_window, m_gl_context);
-        }
-    }
-
 private:
     static AudioRenderer * instance;
 
@@ -230,7 +222,7 @@ private:
     std::unique_ptr<AudioRenderGraph> m_render_graph; // Render graph
 
     SDL_Window* m_window = nullptr; // SDL window pointer
-    SDL_GLContext m_gl_context = nullptr; // SDL OpenGL context
+    SDL_GLContext m_context = nullptr; // SDL OpenGL context
 };
 
 #endif // AUDIO_RENDERER_H
