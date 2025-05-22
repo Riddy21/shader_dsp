@@ -38,7 +38,7 @@ public:
     virtual bool matches(const SDL_Event& event) = 0;
     EventCallback callback;
     IRenderableEntity* render_context; // TODO: Consider encapsulating this in another class
-    IRenderableEntity* display_context;
+    IRenderableEntity* display_context; // FIXME: Add context for disaply so it only shows in the right window
 protected:
     EventHandlerEntry(IRenderableEntity* render_context_item, EventCallback cb)
         : render_context(render_context_item), callback(std::move(cb)) {}
