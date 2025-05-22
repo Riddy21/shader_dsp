@@ -80,8 +80,3 @@ void AudioUniformBufferParameter::render() {
     }
 
 }
-
-bool AudioUniformBufferParameter::bind() {
-    // Nothing to do for output or passthrough parameters
-    return true;
-}

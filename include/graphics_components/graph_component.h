@@ -8,16 +8,21 @@
 #include <SDL2/SDL.h>
 
 #include "utilities/shader_program.h"
+#include "engine/event_handler.h"
 #include "graphics_core/graphics_component.h"
 
 class GraphComponent : public GraphicsComponent {
 public:
-    GraphComponent(const float x, const float y, const float width, const float height, const std::vector<float>& data, const bool is_dynamic = true);
+    GraphComponent(const float x, const float y, const float width, const float height, 
+                  const std::vector<float>& data, const bool is_dynamic = true,
+                  IRenderableEntity* render_context = nullptr);
     ~GraphComponent() override;
 
     void set_data(const std::vector<float>& data);
-    bool handle_event(const SDL_Event& event) override;
     void render() override;
+
+    void register_event_handlers(EventHandler* event_handler) override;
+    void unregister_event_handlers() override;
 
 private:
     bool m_is_dynamic = true;

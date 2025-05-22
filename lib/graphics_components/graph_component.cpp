@@ -9,8 +9,9 @@ GraphComponent::GraphComponent(
     const float width, 
     const float height, 
     const std::vector<float>& data,
-    const bool is_dynamic
-) : GraphicsComponent(x, y, width, height),
+    const bool is_dynamic,
+    IRenderableEntity* render_context
+) : GraphicsComponent(x, y, width, height, render_context),
     m_data(&data),
     m_shader_program(nullptr),
     m_vao(0),
@@ -66,16 +67,6 @@ void GraphComponent::set_data(const std::vector<float>& data) {
     }   
 }
 
-bool GraphComponent::handle_event(const SDL_Event& event) {
-    // Handle knob-specific events
-    if (event.type == SDL_MOUSEBUTTONDOWN) {
-        std::cout << "Knob clicked!" << std::endl;
-        return true;
-    }
-
-    return false;
-}
-
 void GraphComponent::render() {
     if (!m_data->size()) return;
 
@@ -100,4 +91,12 @@ void GraphComponent::render() {
     glDisableVertexAttribArray(0);
     glBindVertexArray(0);
     glUseProgram(0);
+}
+
+void GraphComponent::register_event_handlers(EventHandler* event_handler) {
+    // Register event handlers if needed
+}
+
+void GraphComponent::unregister_event_handlers() {
+    // Unregister event handlers if needed
 }

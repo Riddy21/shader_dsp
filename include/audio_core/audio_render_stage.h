@@ -116,6 +116,13 @@ protected:
     virtual bool bind();
 
     /**
+     * @brief Unbind the render stage
+     * 
+     * This function is responsible for unbinding the render stage.
+     */
+    virtual bool unbind();
+
+    /**
      * @brief Render the stage.
      * 
      * This function is responsible for rendering the stage and all parameters
@@ -140,7 +147,7 @@ protected:
     virtual const std::vector<AudioParameter *> get_output_interface();
     virtual bool release_output_interface(AudioRenderStage * next_stage);
     virtual const std::vector<AudioParameter *> get_stream_interface();
-    virtual bool release_stream_interface(AudioRenderStage * prev_stage) {return true;};
+    virtual bool release_stream_interface(AudioRenderStage * prev_stage);
 
     // Shader source
     std::unique_ptr<AudioShaderProgram> m_shader_program;

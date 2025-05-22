@@ -21,27 +21,16 @@ public:
                           GLuint internal_format = GL_R32F
                           );
 
-    ~AudioTexture2DParameter() {
-        if (m_texture != 0) {
-            glDeleteTextures(1, &m_texture);
-            printf("Deleted texture %s: %d\n", name.c_str(), m_texture);
-        }
-    }
+    ~AudioTexture2DParameter() ;
 
     // Getters
     GLuint get_texture() const { return m_texture; }
 
     const void * const get_value() const override;
 
-    GLuint get_color_attachment() const { return m_color_attachment; }
+    void clear_value() override;
 
-    /**
-     * Transfers the texture data to the buffer, must be used between a OpenGL
-     * buffer, will transfer the data directly to that buffer
-     * 
-     * @return void
-     */
-    const void transfer_texture_data_to_buffer() const ;
+    GLuint get_color_attachment() const { return m_color_attachment; }
 
 private:
 
@@ -50,6 +39,8 @@ private:
     void render() override;
 
     bool bind() override;
+
+    bool unbind() override;
 
     std::unique_ptr<ParamData> create_param_data() override {
         return std::make_unique<ParamFloatArrayData>(m_parameter_width * m_parameter_height);

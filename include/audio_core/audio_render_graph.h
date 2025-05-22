@@ -46,21 +46,25 @@ public:
     ~AudioRenderGraph();
 
     // Render Stage Manipulation
-    AudioRenderStage * find_render_stage(GID gid) {return m_render_stages_map[gid].get();}
+    AudioRenderStage * find_render_stage(GID gid) { return m_render_stages_map[gid].get(); }
 
-    std::unique_ptr<AudioRenderStage> replace_render_stage(GID gid, AudioRenderStage * render_stage);
+    std::shared_ptr<AudioRenderStage> replace_render_stage(GID gid, std::shared_ptr<AudioRenderStage> render_stage);
 
-    std::unique_ptr<AudioRenderStage> remove_render_stage(GID gid);
+    std::shared_ptr<AudioRenderStage> remove_render_stage(GID gid);
 
-    bool insert_render_stage_infront(GID back, AudioRenderStage * render_stage);
+    bool insert_render_stage_infront(GID back, std::shared_ptr<AudioRenderStage> render_stage);
     
-    bool insert_render_stage_behind(GID front, AudioRenderStage * render_stage);
+    bool insert_render_stage_behind(GID front, std::shared_ptr<AudioRenderStage> render_stage);
 
-    bool insert_render_stage_between(GID front, GID back, AudioRenderStage * render_stage);
+    bool insert_render_stage_between(GID front, GID back, std::shared_ptr<AudioRenderStage> render_stage);
 
     // Getters
     AudioFinalRenderStage * get_output_render_stage() {
         return dynamic_cast<AudioFinalRenderStage *>(find_render_stage(m_outputs[0]));
+    }
+
+    bool is_initialized() const {
+        return m_initialized;
     }
 
 private:
@@ -72,7 +76,7 @@ private:
 
     bool m_initialized = false;
 
-    bool insert_leading_render_stage(GID back, AudioRenderStage * render_stage);
+    bool insert_leading_render_stage(GID back, std::shared_ptr<AudioRenderStage> render_stage);
 
     static AudioRenderStage * from_input_to_output(AudioRenderStage * node, std::unordered_set<GID> & visited);
     bool construct_render_order(AudioRenderStage * node);
@@ -86,7 +90,8 @@ private:
 
     bool m_needs_update = false;
 
-    std::unordered_map<GID, std::unique_ptr<AudioRenderStage>> m_render_stages_map;
+    // FIXME: Change unique pointer to shared pointer instead
+    std::unordered_map<GID, std::shared_ptr<AudioRenderStage>> m_render_stages_map;
 };
 
 #endif

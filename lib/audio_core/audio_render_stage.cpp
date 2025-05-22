@@ -7,6 +7,9 @@
 #include "audio_core/audio_render_stage.h"
 #include "audio_parameter/audio_uniform_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
+#include "audio_render_stage/audio_effect_render_stage.h"
+#include "audio_render_stage/audio_multitrack_join_render_stage.h"
+#include "audio_render_stage/audio_file_generator_render_stage.h"
 
 const std::vector<std::string> AudioRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
@@ -47,7 +50,12 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     width, height,
                                     0,
                                     ++m_color_attachment_count, GL_NEAREST);
-
+    auto debug_audio_texture =
+        new AudioTexture2DParameter("debug_audio_texture",
+                                    AudioParameter::ConnectionType::OUTPUT,
+                                    width, height,
+                                    0,
+                                    ++m_color_attachment_count, GL_NEAREST);
 
     auto buffer_size =
         new AudioIntParameter("buffer_size",
@@ -69,6 +77,9 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
     }
     if (!this->add_parameter(stream_audio_texture)) {
         std::cerr << "Failed to add stream_audio_texture" << std::endl;
+    }
+    if (!this->add_parameter(debug_audio_texture)) {
+        std::cerr << "Failed to add debug_audio_texture" << std::endl;
     }
     if (!this->add_parameter(buffer_size)) {
         std::cerr << "Failed to add buffer_size" << std::endl;
@@ -156,11 +167,27 @@ bool AudioRenderStage::bind() {
         std::cerr << "Error: Render stage not initialized." << std::endl;
         return false;
     }
+
     // Bind the framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
     // bind the parameters to the next render stage
     for (auto & [name, param] : m_parameters) {
         if (!param->bind()) {
+            printf("Error: Failed to process linked parameters for %s\n", param->name.c_str());
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            return false;
+        }
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    return true;
+}
+
+bool AudioRenderStage::unbind() {
+    // Unbind the framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // unbind the parameters to the next render stage
+    for (auto & [name, param] : m_parameters) {
+        if (!param->unbind()) {
             printf("Error: Failed to process linked parameters for %s\n", param->name.c_str());
             return false;
         }
@@ -176,6 +203,7 @@ void AudioRenderStage::render(const unsigned int time) {
 
     // Bind the framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     std::vector<GLenum> draw_buffers;
@@ -184,26 +212,18 @@ void AudioRenderStage::render(const unsigned int time) {
     for (auto & [name, param] : m_parameters) {
         param->render();
         // If the type is AudioTexture2DParameter, then add to the draw buffers
-
         if (auto * texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
             if (texture_param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
                 draw_buffers.push_back(GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment());
             }
         }
     }
-    // sort the draw buffers
+    // sort the draw buffers 
     std::sort(draw_buffers.begin(), draw_buffers.end());
 
     glDrawBuffers(draw_buffers.size(), draw_buffers.data());
-
-    // Check for errors 
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE) {
-        printf("Error: Framebuffer is not complete in render stage %d\n", gid);
-    }
-
     glDrawArrays(GL_TRIANGLES, 0, 6);
-    
+
     // unbind the framebuffer and texture and shader program
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(0);
@@ -272,6 +292,7 @@ const std::vector<AudioParameter *> AudioRenderStage::get_output_interface() {
 bool AudioRenderStage::release_output_interface(AudioRenderStage * next_stage)
 {
     auto output = find_parameter("output_audio_texture");
+
     if (!output->is_connected()) {
         printf("Output parameter %s in render stage %d is already unlinked\n", output->name.c_str(), this->gid);
         return false;
@@ -292,6 +313,16 @@ const std::vector<AudioParameter *> AudioRenderStage::get_stream_interface()
     
     inputs.push_back(find_parameter("stream_audio_texture"));
     return inputs;
+}
+
+bool AudioRenderStage::release_stream_interface(AudioRenderStage * prev_stage)
+{
+    // Clear all the stream parameters
+    auto * stream = find_parameter("stream_audio_texture");
+
+    stream->clear_value();
+
+    return true;
 }
 
 bool AudioRenderStage::connect_render_stage(AudioRenderStage * next_stage) {
@@ -329,6 +360,11 @@ bool AudioRenderStage::connect_render_stage(AudioRenderStage * next_stage) {
                    output_parameters[i]->name.c_str(), stream_parameters[i]->name.c_str(), this->gid, next_stage->gid);
             return false;
         }
+
+        //if (m_initialized && !bind()) {
+        //    printf("Failed to bind render stage %d\n", this->gid);
+        //    return false;
+        //}
     }
 
     m_connected_output_render_stages.insert(next_stage);
@@ -359,8 +395,14 @@ bool AudioRenderStage::disconnect_render_stage(AudioRenderStage * next_stage) {
         return false;
     }
 
+    //if (m_initialized && !unbind()) {
+    //    printf("Failed to unbind render stage %d\n", this->gid);
+    //    return false;
+    //}
+
     m_connected_output_render_stages.extract(next_stage);
     next_stage->m_connected_stream_render_stages.extract(this);
+
     return true;
 }
 
@@ -371,4 +413,3 @@ bool AudioRenderStage::disconnect_render_stage() {
     printf("render stage %d is not connected\n", this->gid);
     return false;
 }
-

@@ -19,9 +19,10 @@
 #include "audio_output/audio_output.h"
 #include "audio_core/audio_parameter.h"
 // FIXME: Delete this after testing
-#include "audio_render_stage/audio_generator_render_stage.h"
-#include "audio_render_stage/audio_tape_render_stage.h"
 
+#include "audio_synthesizer/audio_track.h"
+#include "audio_render_stage/audio_final_render_stage.h"
+#include "audio_render_stage/audio_multitrack_join_render_stage.h"
 
 class AudioSynthesizer {
 public:
@@ -39,8 +40,18 @@ public:
     bool initialize(const unsigned int buffer_size = 512,
                     const unsigned int sample_rate = 44100,
                     const unsigned int num_channels = 2);
-
     bool terminate();
+
+    // Track manipulation
+    bool add_track(AudioTrack * track);
+    bool remove_track(AudioTrack * track);
+    AudioTrack & get_track(const unsigned int track_id) {
+        if (track_id >= m_tracks.size()) {
+            std::cerr << "Track ID out of range." << std::endl;
+            return *m_tracks[0].get();
+        }
+        return *m_tracks[track_id].get();
+    }
 
     // Functions to start and stop the synthesizer
     bool start();
@@ -49,27 +60,12 @@ public:
     bool increment();
     bool close();
 
-    // Consider moving this function to engine object
-    void play_note(const float tone, const float volume);
-    void stop_note(const float tone);
+    // TODO: Add API for saving and recording to file
+    void save_to_file(const std::string & file_path);
 
-    // TODO: Add functions for parameter nobs and buttons
-
-    // TODO: Add functions to switch out the Outputs
-
-    // TODO: Add function to switch out effects
-
-    // TODO: Add track architeture
-
-    // TODO: Add recording feature
-    void record(); // TODO: add which track to record to  Add wheree to start recording
-    void stop_recording(); // TODO: add which track to stop recording to
-    void play_recording(); // TODO: add which track to play recording from
-
-    // TODO: Should be able to get the sound after any render stage
-
+    // Getting audio data output
     const std::vector<std::vector<float>> & get_audio_data() {
-        return m_render_graph->get_output_render_stage()->get_output_data_channel_seperated();
+        return m_final_render_stage->get_output_data_channel_seperated();
     }
 
 private:
@@ -83,16 +79,9 @@ private:
     AudioRenderer & m_audio_renderer;
     AudioRenderGraph * m_render_graph;
     std::vector<AudioOutput *> m_render_outputs;
-    std::unordered_map<std::string, AudioRenderStage *> m_render_stages;
-
-    // FIXME: Delete this after testing
-    AudioGeneratorRenderStage * m_audio_generator = nullptr;
-    AudioRecordRenderStage * m_audio_recorder = nullptr;
-    AudioPlaybackRenderStage * m_audio_playback = nullptr;
-
-    // TODO: Should be able to take in Output objects
-    // TODO: Should be able to take in effect objects
-    // TODO: Should be able to take in engine objects
+    AudioFinalRenderStage * m_final_render_stage;
+    AudioMultitrackJoinRenderStage * m_audio_join;
+    std::vector<std::unique_ptr<AudioTrack>> m_tracks;
 
     static AudioSynthesizer* instance;
 };

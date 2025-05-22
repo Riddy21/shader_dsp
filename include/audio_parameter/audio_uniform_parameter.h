@@ -27,6 +27,10 @@ private:
         return true;
     }
 
+    bool unbind() override {
+        return true;
+    }
+
     virtual void set_uniform(GLint location) = 0;
 
     bool m_initialized = false;

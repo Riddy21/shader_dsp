@@ -46,6 +46,7 @@ bool AudioShaderProgram::compile_shader(GLuint shader, const std::string& source
         GLchar info_log[512];
         glGetShaderInfoLog(shader, 512, NULL, info_log);
         std::cerr << "Error compiling shader: " << info_log << std::endl;
+        std::cerr << "Shader source: " << source << std::endl;
         return false;
     }
     return true;

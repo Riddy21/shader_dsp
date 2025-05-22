@@ -44,4 +44,5 @@ void main() {
     // Output the result to the red channel.
 
     output_audio_texture = vec4(y, 0.0, 0.0, 0.0);
+    debug_audio_texture = output_audio_texture;
 }

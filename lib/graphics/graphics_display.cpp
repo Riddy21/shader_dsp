@@ -12,6 +12,7 @@ GLuint m_shaderProgram;
 
 GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const std::string& title, unsigned int refresh_rate)
     : m_width(width), m_height(height), m_title(title), m_refresh_rate(refresh_rate) {
+    
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
         throw std::runtime_error("SDL initialization failed");
@@ -59,6 +60,7 @@ GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const 
 }
 
 GraphicsDisplay::~GraphicsDisplay() {
+    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
     if (m_context) {
         SDL_GL_DeleteContext(m_context);
     }
@@ -70,44 +72,56 @@ GraphicsDisplay::~GraphicsDisplay() {
 
 void GraphicsDisplay::register_view(const std::string& name, GraphicsView* view) {
     m_views[name] = std::unique_ptr<GraphicsView>(view);
+    
+    // If we have an event handler, pass it to the view
+    if (m_event_handler) {
+        view->set_event_handler(m_event_handler);
+    }
+    
+    // If this is a MockInterfaceView, set the parent display
+    view->set_parent_display(this);
 }
 
 void GraphicsDisplay::change_view(const std::string& name) {
-    if (m_current_view) {
-        m_current_view->on_exit();
-    }
     auto it = m_views.find(name);
+
     if (it != m_views.end()) {
+        if (m_current_view) {
+            m_current_view->on_exit();
+        }
         m_current_view = it->second.get();
         m_current_view->on_enter();
     }
 }
 
+void GraphicsDisplay::set_event_handler(EventHandler* event_handler) {
+    m_event_handler = event_handler;
+    
+    // Update all views with the new event handler
+    for (auto& view_pair : m_views) {
+        view_pair.second->set_event_handler(m_event_handler);
+    }
+    
+    // If the current view is active, register its handlers
+    if (m_current_view) {
+        m_current_view->on_exit();  // Unregister old handlers
+        m_current_view->on_enter(); // Register new handlers
+    }
+}
+
 // Render graphics less often
 bool GraphicsDisplay::is_ready() {
-    static Uint32 last_time = 0;
     Uint32 current_time = SDL_GetTicks();
     Uint32 frame_duration = 1000 / m_refresh_rate; // Calculate frame duration in milliseconds
-    if (current_time - last_time >= frame_duration) {
-        last_time = current_time;
+    if (current_time - m_last_render_time >= frame_duration) {
+        m_last_render_time = current_time;
         return m_window != nullptr && m_context != nullptr;
     }
     return false;
 }
 
-bool GraphicsDisplay::handle_event(const SDL_Event& event) {
-    if (event.type == SDL_QUIT) {
-        EventLoop::get_instance().terminate();
-    }
-    if (m_current_view) {
-        return m_current_view->handle_event(event);
-    }
-    return false;
-}
-
 void GraphicsDisplay::render() {
-    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
-
+    // No need to call activate_render_context() here, event loop will do it
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (m_current_view) {
@@ -119,13 +133,18 @@ void GraphicsDisplay::render() {
         component->render();
     }
 
-    IEventLoopItem::update_render_fps(); // Call the base class render to update FPS
+    IRenderableEntity::update_render_fps(); // Call the base class render to update FPS
 }
 
 void GraphicsDisplay::present() {
-    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
-
+    // No need to call activate_render_context() here, event loop will do it
     SDL_GL_SwapWindow(m_window); // Swap buffers for this context
 
-    IEventLoopItem::update_present_fps(); // Call the base class present to update FPS
+    IRenderableEntity::update_present_fps(); // Call the base class present to update FPS
+}
+
+void GraphicsDisplay::activate_render_context() {
+    if (m_window && m_context && SDL_GL_GetCurrentContext() != m_context) {
+        SDL_GL_MakeCurrent(m_window, m_context);
+    }
 }

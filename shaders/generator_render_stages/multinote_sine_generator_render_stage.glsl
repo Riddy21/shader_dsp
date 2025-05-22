@@ -16,5 +16,6 @@ void main() {
         output_audio_texture += vec4(sine_out * gains[i], 0.0, 0.0, 0.0);
     }
     output_audio_texture += texture(stream_audio_texture, TexCoord);
+    debug_audio_texture = output_audio_texture;
 }
 

@@ -69,6 +69,8 @@ public:
         return m_data->get_data();
     }
 
+    virtual void clear_value() {}
+
     AudioParameter * get_linked_parameter() const {
         return m_linked_parameter;
     }
@@ -89,6 +91,8 @@ protected:
     virtual bool initialize(GLuint frame_buffer=0, AudioShaderProgram * shader_program=nullptr) = 0;
 
     virtual bool bind() = 0;
+    
+    virtual bool unbind() = 0;
 
     virtual void render() = 0;
 
