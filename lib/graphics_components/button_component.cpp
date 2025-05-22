@@ -5,6 +5,7 @@
 #include "audio_synthesizer/audio_synthesizer.h"
 #include "engine/event_handler.h"
 #include "engine/renderable_item.h"
+#include "graphics_core/graphics_view.h"
 
 ButtonComponent::ButtonComponent(
     float x, 
@@ -13,8 +14,9 @@ ButtonComponent::ButtonComponent(
     float height, 
     const std::string& label,
     ButtonCallback callback,
-    IRenderableEntity* render_context
-) : GraphicsComponent(x, y, width, height, render_context),
+    IRenderableEntity* render_context,
+    IRenderableEntity* display_context
+) : GraphicsComponent(x, y, width, height, render_context, display_context),
     m_label(label),
     m_callback(callback)
 {
@@ -155,9 +157,9 @@ void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
         throw std::runtime_error("Event handler or render context is not set");
     }
     
-    // Convert normalized device coordinates to window coordinates based on component size
-    int screen_width = SDL_GetWindowSurface(SDL_GL_GetCurrentWindow())->w;
-    int screen_height = SDL_GetWindowSurface(SDL_GL_GetCurrentWindow())->h;
+    // Get window dimensions from the display context
+    int screen_width = 0, screen_height = 0;
+    SDL_GetWindowSize(m_display_context->get_window(), &screen_width, &screen_height);
     
     int window_x = (int)((m_x + 1.0f) * screen_width / 2);
     int window_y = (int)((1.0f - m_y) * screen_height / 2);
@@ -171,6 +173,7 @@ void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
     // Register mouse down handler for this button
     auto* mouse_down_handler = new MouseClickEventHandlerEntry(
         m_render_context,
+        m_display_context,
         SDL_MOUSEBUTTONDOWN,
         rect_x, rect_y, window_width, window_height,
         [this](const SDL_Event& event) {
@@ -184,6 +187,7 @@ void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
     // Register mouse up handler for this button globally
     auto* mouse_up_handler = new MouseClickEventHandlerEntry(
         m_render_context,
+        m_display_context,
         SDL_MOUSEBUTTONUP,
         0, 0, screen_width, screen_height,
         [this](const SDL_Event& event) {
@@ -202,6 +206,8 @@ void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
     // Register mouse motion handler for hover effect
     auto* mouse_motion_handler = new MouseMotionEventHandlerEntry(
         m_render_context,
+        m_display_context,
+        SDL_MOUSEMOTION,
         rect_x, rect_y, window_width, window_height,
         [this](const SDL_Event& event) {
             m_is_hovered = true;
@@ -214,6 +220,8 @@ void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
     // Register mouse enter handler
     auto* mouse_enter_handler = new MouseEnterLeaveEventHandlerEntry(
         m_render_context,
+        m_display_context,
+        SDL_MOUSEMOTION,
         rect_x, rect_y, window_width, window_height,
         MouseEnterLeaveEventHandlerEntry::Mode::ENTER,
         [this](const SDL_Event& event) {
@@ -227,6 +235,8 @@ void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
     // Register mouse leave handler
     auto* mouse_leave_handler = new MouseEnterLeaveEventHandlerEntry(
         m_render_context,
+        m_display_context,
+        SDL_MOUSEMOTION,
         rect_x, rect_y, window_width, window_height,
         MouseEnterLeaveEventHandlerEntry::Mode::LEAVE,
         [this](const SDL_Event& event) {

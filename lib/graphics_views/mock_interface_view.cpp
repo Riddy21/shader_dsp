@@ -57,7 +57,9 @@ MockInterfaceView::MockInterfaceView() {
         auto button = new ButtonComponent(
             x, y, button_width, button_height,
             info.label,
-            info.callback
+            info.callback,
+            &AudioRenderer::get_instance(), // render context
+            m_parent_display
         );
 
         button->set_colors(info.color[0], info.color[1], info.color[2], info.color[3]);

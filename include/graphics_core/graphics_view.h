@@ -25,7 +25,7 @@ public:
     EventHandler* get_event_handler() const { return m_event_handler; }
     
     // Set the parent display (which is the render context for event handlers)
-    void set_parent_display(IRenderableEntity* parent) { m_parent_display = parent; }
+    void set_parent_display(IRenderableEntity* parent);
     IRenderableEntity* get_parent_display() const { return m_parent_display; }
 
 protected:

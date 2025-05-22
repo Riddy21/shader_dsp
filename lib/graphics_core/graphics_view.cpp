@@ -63,6 +63,14 @@ void GraphicsView::set_event_handler(EventHandler* event_handler) {
     }
 }
 
+void GraphicsView::set_parent_display(IRenderableEntity* parent) {
+    m_parent_display = parent;
+
+    for (auto& component : m_components) {
+        component->set_display_context(m_parent_display);
+    }
+}
+
 void GraphicsView::register_event_handler(EventHandler* event_handler) {
 }
 

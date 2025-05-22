@@ -10,6 +10,7 @@
 // Forward declarations
 class EventHandlerEntry;
 class KeyboardEventHandlerEntry;
+class MouseEventHandlerEntry;
 class MouseClickEventHandlerEntry;
 class MouseMotionEventHandlerEntry;
 class MouseEnterLeaveEventHandlerEntry;
@@ -38,7 +39,6 @@ public:
     virtual bool matches(const SDL_Event& event) = 0;
     EventCallback callback;
     IRenderableEntity* render_context; // TODO: Consider encapsulating this in another class
-    IRenderableEntity* display_context; // FIXME: Add context for disaply so it only shows in the right window
 protected:
     EventHandlerEntry(IRenderableEntity* render_context_item, EventCallback cb)
         : render_context(render_context_item), callback(std::move(cb)) {}
@@ -57,40 +57,49 @@ private:
     std::unordered_set<SDL_Keycode> pressed_keys;
 };
 
-// Mouse event handler entry
-class MouseClickEventHandlerEntry : public EventHandlerEntry {
+// --- Mouse event handler base class ---
+class MouseEventHandlerEntry : public EventHandlerEntry {
 public:
-    MouseClickEventHandlerEntry(IRenderableEntity* render_context_item, Uint32 type, int x, int y, int w, int h, EventCallback cb);
-    bool matches(const SDL_Event& event) override;
-private:
+    MouseEventHandlerEntry(IRenderableEntity* render_context_item, IRenderableEntity* display_context_item, Uint32 type, int x, int y, int w, int h, EventCallback cb)
+        : EventHandlerEntry(render_context_item, std::move(cb)), event_type(type), rect_x(x), rect_y(y), rect_w(w), rect_h(h), display_context(display_context_item) {}
+    
+    // Constructor that uses render_context as display_context (for backward compatibility)
+    MouseEventHandlerEntry(IRenderableEntity* render_context_item, Uint32 type, int x, int y, int w, int h, EventCallback cb)
+        : EventHandlerEntry(render_context_item, std::move(cb)), event_type(type), rect_x(x), rect_y(y), rect_w(w), rect_h(h), display_context(render_context_item) {}
+    
+    virtual ~MouseEventHandlerEntry() = default;
+    // No matches() here, subclasses must implement
+protected:
     Uint32 event_type;
     int rect_x, rect_y, rect_w, rect_h;
+    IRenderableEntity* display_context;
+};
+
+// Mouse click event handler entry
+class MouseClickEventHandlerEntry : public MouseEventHandlerEntry {
+public:
+    MouseClickEventHandlerEntry(IRenderableEntity* render_context_item, IRenderableEntity* display_context_item, Uint32 type, int x, int y, int w, int h, EventCallback cb);
+    bool matches(const SDL_Event& event) override;
 };
 
 // Mouse motion handler entry for tracking cursor movement over a region
-class MouseMotionEventHandlerEntry : public EventHandlerEntry {
+class MouseMotionEventHandlerEntry : public MouseEventHandlerEntry {
 public:
-    MouseMotionEventHandlerEntry(IRenderableEntity* render_context_item, int x, int y, int w, int h, EventCallback cb);
+    MouseMotionEventHandlerEntry(IRenderableEntity* render_context_item, IRenderableEntity* display_context_item, Uint32 type, int x, int y, int w, int h, EventCallback cb);
     bool matches(const SDL_Event& event) override;
-private:
-    int rect_x, rect_y, rect_w, rect_h;
 };
 
 // Mouse enter/leave handler to detect when cursor enters or leaves a region
-class MouseEnterLeaveEventHandlerEntry : public EventHandlerEntry {
+class MouseEnterLeaveEventHandlerEntry : public MouseEventHandlerEntry {
 public:
     enum class Mode { ENTER, LEAVE };
-    
-    MouseEnterLeaveEventHandlerEntry(IRenderableEntity* render_context_item, int x, int y, int w, int h, 
-                                   Mode mode, EventCallback cb);
+    MouseEnterLeaveEventHandlerEntry(IRenderableEntity* render_context_item, IRenderableEntity* display_context_item, Uint32 type, int x, int y, int w, int h, Mode mode, EventCallback cb);
     bool matches(const SDL_Event& event) override;
-    
 private:
     // Helper methods for state tracking
     bool is_inside(int mouse_x, int mouse_y) const;
     void update_last_position(int mouse_x, int mouse_y);
 
-    int rect_x, rect_y, rect_w, rect_h;
     Mode mode;
     mutable bool was_inside = false;
     mutable int last_x = -1, last_y = -1;

@@ -85,14 +85,14 @@ int main() {
     EventHandler* event_handler = new EventHandler();
     setup_keyboard(*event_handler, synthesizer, event_loop);
 
-    GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
+    GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer", 60, false);
     graphics_display->set_event_handler(event_handler);
     graphics_display->register_view("debug", new DebugView());
     graphics_display->change_view("debug");
 
     // Create another window for the interface
-    GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
-    interface_display->set_event_handler(event_handler);
+    GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface", 60, false);
+    interface_display->set_event_handler(event_handler); // TODO: Consider making the event handler global
     interface_display->register_view("debug", new DebugView());
     interface_display->register_view("interface", new MockInterfaceView());
     interface_display->change_view("interface");

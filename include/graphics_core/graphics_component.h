@@ -7,8 +7,9 @@
 class GraphicsComponent {
 public:
     GraphicsComponent(const float x = 0.0f, const float y = 0.0f, const float width = 0.0f, const float height = 0.0f, 
-                    IRenderableEntity* render_context = nullptr)
-        : m_x(x), m_y(y), m_width(width), m_height(height), m_render_context(render_context) {}
+                    IRenderableEntity* render_context = nullptr, IRenderableEntity* display_context = nullptr)
+        : m_x(x), m_y(y), m_width(width), m_height(height), 
+          m_render_context(render_context), m_display_context(display_context) {}
     virtual ~GraphicsComponent() = default;
     virtual void render() = 0;
 
@@ -27,6 +28,14 @@ public:
     IRenderableEntity* get_render_context() const {
         return m_render_context;
     }
+    
+    void set_display_context(IRenderableEntity* display_context) {
+        m_display_context = display_context;
+    }
+    
+    IRenderableEntity* get_display_context() const {
+        return m_display_context ? m_display_context : m_render_context;
+    }
 
 protected:
     float m_x = 0.0f;
@@ -34,4 +43,5 @@ protected:
     float m_width = 0.0f;
     float m_height = 0.0f;
     IRenderableEntity* m_render_context = nullptr;
+    IRenderableEntity* m_display_context = nullptr;
 };

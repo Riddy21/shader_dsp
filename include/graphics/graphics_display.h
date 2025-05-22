@@ -18,7 +18,8 @@ public:
         unsigned int width = 800, 
         unsigned int height = 600, 
         const std::string& title = "Graphics Display", 
-        unsigned int refresh_rate = 60
+        unsigned int refresh_rate = 60,
+        bool hidden = false
     );
     ~GraphicsDisplay();
 
@@ -53,10 +54,6 @@ private:
     std::vector<std::unique_ptr<GraphicsComponent>> m_components; // TODO: Implement components management later
     GraphicsView* m_current_view = nullptr;
     EventHandler* m_event_handler = nullptr;
-
-    // SDL window/context management
-    SDL_Window* m_window = nullptr;
-    SDL_GLContext m_context = nullptr;
 };
 
 #endif // GRAPHICS_DISPLAY_H

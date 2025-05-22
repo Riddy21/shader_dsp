@@ -10,7 +10,7 @@
 
 GLuint m_shaderProgram;
 
-GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const std::string& title, unsigned int refresh_rate)
+GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const std::string& title, unsigned int refresh_rate, bool hidden)
     : m_width(width), m_height(height), m_title(title), m_refresh_rate(refresh_rate) {
     
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -18,30 +18,12 @@ GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const 
         throw std::runtime_error("SDL initialization failed");
     }
 
-    m_window = SDL_CreateWindow(
-        m_title.c_str(),
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        m_width,
-        m_height,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN
-    );
-
-    if (!m_window) {
-        std::cerr << "Failed to create SDL window: " << SDL_GetError() << std::endl;
-        SDL_Quit();
-        throw std::runtime_error("SDL window creation failed");
+    // Use the parent class method to initialize window and context
+    if (!initialize_window(width, height, title, hidden)) {
+        throw std::runtime_error("Window initialization failed");
     }
 
-    m_context = SDL_GL_CreateContext(m_window);
-    if (!m_context) {
-        std::cerr << "Failed to create OpenGL context: " << SDL_GetError() << std::endl;
-        SDL_DestroyWindow(m_window);
-        SDL_Quit();
-        throw std::runtime_error("OpenGL context creation failed");
-    }
-
-    SDL_GL_MakeCurrent(m_window, m_context); // Bind context to the main thread initially
+    activate_render_context(); // Ensure the context is active
 
     if (SDL_GL_SetSwapInterval(0) < 0) { // Disable VSync
         std::cerr << "Warning: Unable to disable VSync: " << SDL_GetError() << std::endl;
@@ -49,9 +31,6 @@ GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const 
 
     if (glewInit() != GLEW_OK) {
         std::cerr << "Failed to initialize GLEW" << std::endl;
-        SDL_GL_DeleteContext(m_context);
-        SDL_DestroyWindow(m_window);
-        SDL_Quit();
         throw std::runtime_error("GLEW initialization failed");
     }
 
@@ -60,14 +39,7 @@ GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const 
 }
 
 GraphicsDisplay::~GraphicsDisplay() {
-    SDL_GL_MakeCurrent(m_window, m_context); // Ensure this context is active
-    if (m_context) {
-        SDL_GL_DeleteContext(m_context);
-    }
-    if (m_window) {
-        SDL_DestroyWindow(m_window);
-    }
-    SDL_Quit();
+    // The parent class destructor will handle cleanup of window and context
 }
 
 void GraphicsDisplay::register_view(const std::string& name, GraphicsView* view) {
@@ -144,7 +116,7 @@ void GraphicsDisplay::present() {
 }
 
 void GraphicsDisplay::activate_render_context() {
-    if (m_window && m_context && SDL_GL_GetCurrentContext() != m_context) {
-        SDL_GL_MakeCurrent(m_window, m_context);
+    if (SDL_GL_GetCurrentContext() != m_context) {
+        IRenderableEntity::activate_render_context();
     }
 }
