@@ -51,6 +51,9 @@ void AudioTrack::initialize_effects() {
     m_effects["frequency_filter"] = std::make_shared<AudioFrequencyFilterEffectRenderStage>(m_buffer_size, m_sample_rate, m_num_channels);
     m_effects["none"] = std::make_shared<AudioEffectRenderStage>(m_buffer_size, m_sample_rate, m_num_channels);
 
+    m_echo_effect = m_effects["echo"].get();
+    m_filter_effect = m_effects["frequency_filter"].get();
+
     for (auto & [name, effect] : m_effects) {
         effect->initialize();
     }
@@ -82,11 +85,11 @@ void AudioTrack::stop_note(const float tone) {
     }
 }
 
-// FIXME: Fix modifying effect in the middle of a note
 void AudioTrack::change_effect(const std::string & effect_name) {
     if (m_effects.find(effect_name) != m_effects.end()) {
         // Move the current effect back to the hash map
         AudioRenderGraph::GID gid = m_effects[effect_name]->gid;
+        m_old_effect = m_current_effect;
         m_effects[m_current_effect_name] = m_render_graph->replace_render_stage(m_current_effect->gid, m_effects[effect_name]);
         m_effects.erase(effect_name);
         m_current_effect_name = effect_name;

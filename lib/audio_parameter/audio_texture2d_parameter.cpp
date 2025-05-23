@@ -220,4 +220,9 @@ void AudioTexture2DParameter::clear_value() {
     std::vector<unsigned char> zero_data(m_parameter_width * m_parameter_height * 4, 0); // Assuming 4 channels (RGBA)
     glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, zero_data.data());
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Clear the color attachment of the frame buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);
+    glClearBufferfv(GL_COLOR, GL_COLOR_ATTACHMENT0 + m_color_attachment, FLAT_COLOR);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

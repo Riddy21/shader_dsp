@@ -304,6 +304,8 @@ bool AudioRenderStage::release_output_interface(AudioRenderStage * next_stage)
         return false;
     }
 
+    output->clear_value();
+
     return true;
 }
 
@@ -412,4 +414,79 @@ bool AudioRenderStage::disconnect_render_stage() {
     }
     printf("render stage %d is not connected\n", this->gid);
     return false;
+}
+
+void AudioRenderStage::print_input_textures() {
+    for (auto & [name, input] : m_parameters) {
+        if (input->connection_type == AudioParameter::ConnectionType::PASSTHROUGH) {
+            if (dynamic_cast<AudioTexture2DParameter *>(input.get())) {
+                printf("Input 2DTexture parameter %s in render stage %d\n", input->name.c_str(), this->gid);
+                // Print the data
+                for (int i = 0; i < 5; i++) {
+                    printf("%f ", ((float *)input->get_value())[i]);
+                }
+                printf("\n");
+            }
+        }
+    }
+}
+
+void AudioRenderStage::clear_input_textures() {
+    for (auto & [name, input] : m_parameters) {
+        if (input->connection_type == AudioParameter::ConnectionType::PASSTHROUGH) {
+            if (dynamic_cast<AudioTexture2DParameter *>(input.get())) {
+                printf("Clearing input 2DTexture parameter %s in render stage %d\n", input->name.c_str(), this->gid);
+                input->clear_value();
+            }
+        }
+    }
+}
+
+void AudioRenderStage::print_output_textures() {
+    for (auto & [name, output] : m_parameters) {
+        if (output->connection_type == AudioParameter::ConnectionType::OUTPUT) {
+            if (auto * texture_param = dynamic_cast<AudioTexture2DParameter *>(output.get())) {
+                printf("Output 2DTexture parameter %s in render stage %d\n", output->name.c_str(), this->gid);
+                // Bind the framebuffer to read the output
+                glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+
+                // Set the read buffer to the correct color attachment
+                glReadBuffer(GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment());
+
+                // Read the first few pixels from the framebuffer
+                float pixel_data[5];
+                glReadPixels(0, 0, 5, 1, GL_RED, GL_FLOAT, pixel_data);
+
+                // Print the data
+                for (int i = 0; i < 5; i++) {
+                    printf("%f ", pixel_data[i]);
+                }
+                printf("\n");
+
+                // Unbind the framebuffer
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            }
+        }
+    }
+}
+
+void AudioRenderStage::clear_output_textures() {
+    for (auto & [name, output] : m_parameters) {
+        if (output->connection_type == AudioParameter::ConnectionType::OUTPUT) {
+            if (auto * texture_param = dynamic_cast<AudioTexture2DParameter *>(output.get())) {
+                printf("Clearing output 2DTexture parameter %s in render stage %d\n", output->name.c_str(), this->gid);
+                // Bind the framebuffer
+                glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
+
+                // Set the draw buffer to the correct color attachment
+                glDrawBuffer(GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment());
+
+                // Clear the color attachment
+                glClear(GL_COLOR_BUFFER_BIT);
+
+                // Unbind the framebuffer
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            }
+        }
+    }
 }
