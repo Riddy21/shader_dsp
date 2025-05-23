@@ -69,7 +69,6 @@ void AudioTrack::initialize_generators() {
 }
 
 void AudioTrack::play_note(const float tone, const float gain) {
-    m_audio_renderer->activate_render_context();
     auto generator = dynamic_cast<AudioGeneratorRenderStage *>(m_current_voice);
     if (generator) {
         generator->play_note(tone, gain);
@@ -77,7 +76,6 @@ void AudioTrack::play_note(const float tone, const float gain) {
 }
 
 void AudioTrack::stop_note(const float tone) {
-    m_audio_renderer->activate_render_context();
     auto generator = dynamic_cast<AudioGeneratorRenderStage *>(m_current_voice);
     if (generator) {
         generator->stop_note(tone);
@@ -86,7 +84,6 @@ void AudioTrack::stop_note(const float tone) {
 
 // FIXME: Fix modifying effect in the middle of a note
 void AudioTrack::change_effect(const std::string & effect_name) {
-    m_audio_renderer->activate_render_context();
     if (m_effects.find(effect_name) != m_effects.end()) {
         // Move the current effect back to the hash map
         AudioRenderGraph::GID gid = m_effects[effect_name]->gid;
@@ -103,7 +100,6 @@ void AudioTrack::change_effect(const std::string & effect_name) {
 }
 
 void AudioTrack::change_voice(const std::string & voice_name) {
-    m_audio_renderer->activate_render_context();
     if (m_generators.find(voice_name) != m_generators.end()) {
         // Move the current generator back to the hash map
         AudioRenderGraph::GID gid = m_generators[voice_name]->gid;

@@ -54,12 +54,8 @@ public:
 
     // IEventLoopItem interface
     bool is_ready() override;
-
     void render() override;
-
     void present() override;
-
-    void activate_render_context() override; // Add this line
 
 // Loop Control
     void pause() {
@@ -184,15 +180,6 @@ private:
     bool initialize_global_parameters();
 
     /**
-     * @brief Initializes the SDL context.
-     * 
-     * @param window_width The width of the window.
-     * @param window_height The height of the window.
-     * @return True if initialization is successful, false otherwise.
-     */
-    bool initialize_sdl(unsigned int window_width, unsigned int window_height);
-
-    /**
      * @brief Initializes the quad for rendering.
      * 
      * @param VAO The Vertex Array Object.
@@ -220,9 +207,6 @@ private:
     std::vector<std::unique_ptr<AudioOutput>> m_render_outputs; // Render outputs
     std::vector<std::unique_ptr<AudioParameter>> m_global_parameters; // Parameters for render stages
     std::unique_ptr<AudioRenderGraph> m_render_graph; // Render graph
-
-    SDL_Window* m_window = nullptr; // SDL window pointer
-    SDL_GLContext m_context = nullptr; // SDL OpenGL context
 };
 
 #endif // AUDIO_RENDERER_H

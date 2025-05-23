@@ -70,7 +70,6 @@ bool AudioSynthesizer::initialize(const unsigned int buffer_size,
 }
 
 bool AudioSynthesizer::start() {
-    m_audio_renderer.activate_render_context();
     // Start the audio outputs
     for (auto& output : m_render_outputs) {
         if (!output->open()) {
@@ -87,7 +86,6 @@ bool AudioSynthesizer::start() {
 }
 
 bool AudioSynthesizer::pause() {
-    m_audio_renderer.activate_render_context();
     m_audio_renderer.pause();
     
     // Stop the audio outputs
@@ -101,14 +99,12 @@ bool AudioSynthesizer::pause() {
 }
 
 bool AudioSynthesizer::increment() {
-    m_audio_renderer.activate_render_context();
     m_audio_renderer.increment();
 
     return true;
 }
 
 bool AudioSynthesizer::resume() {
-    m_audio_renderer.activate_render_context();
     // Start the audio outputs
     for (auto& output : m_render_outputs) {
         if (!output->start()) {
@@ -123,7 +119,6 @@ bool AudioSynthesizer::resume() {
 }
 
 bool AudioSynthesizer::close() {
-    m_audio_renderer.activate_render_context();
     // Stop the audio outputs
     for (auto& output : m_render_outputs) {
         if (!output->stop()) {
@@ -139,7 +134,6 @@ bool AudioSynthesizer::close() {
 }
 
 bool AudioSynthesizer::terminate() {
-    m_audio_renderer.activate_render_context();
     if (!this->close()) {
         std::cerr << "Failed to close audio synthesizer." << std::endl;
         return false;

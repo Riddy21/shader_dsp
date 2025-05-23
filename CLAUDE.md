@@ -10,20 +10,19 @@ This project is an OpenGL Shader Digital Audio Signal Processor (DSP) that uses 
 
 ```bash
 # Build the project
-scons
+scons -j15
 
 # Build with debug symbols
-scons --gdb
+scons --gdb -j15
 
 # Build and run tests
-scons tests
+scons tests -j15
 
 # Build and run playground examples
-scons playground
+scons playground -j15
 
 # Build documentation
-scons docs
-```
+scons docs -j15
 
 ## Running the Application
 

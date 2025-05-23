@@ -3,51 +3,48 @@
 
 #include <SDL2/SDL.h> // For SDL_GetTicks
 #include <cstdint>    // For standard integer types like Uint32
+#include <string>
 
 // Base interface for any system that participates in the event loop.
 class IRenderableEntity {
 public:
-    virtual ~IRenderableEntity() {}
+    virtual ~IRenderableEntity();
     virtual bool is_ready() = 0;
-    virtual void render() = 0;
-    virtual void present() = 0;
+    virtual void render();
+    virtual void present();
 
-    virtual void activate_render_context() = 0;
+    virtual void activate_render_context();
 
     // Function to calculate FPS for rendering
-    virtual float get_render_fps() const { return m_render_fps; }
+    virtual float get_render_fps() const;
 
     // Function to calculate FPS for presentation
-    virtual float get_present_fps() const { return m_present_fps; }
+    virtual float get_present_fps() const;
 
+    // SDL window/context initialization
+    virtual bool initialize_sdl(
+        unsigned int width, 
+        unsigned int height, 
+        const std::string& title = "OpenGL Window", 
+        Uint32 window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN,
+        bool visible = true
+    );
+
+    SDL_Window* get_window() const;
+    SDL_GLContext get_context() const;
+    unsigned int get_window_id() const;
+    
+    
 protected:
-    void update_render_fps() {
-        auto now = SDL_GetTicks();
-        if (m_last_render_time > 0) {
-            m_render_frame_count++;
-            if (now - m_last_render_time >= 1000) {
-                m_render_fps = m_render_frame_count * 1000.0f / (now - m_last_render_time);
-                m_render_frame_count = 0;
-                m_last_render_time = now;
-            }
-        } else {
-            m_last_render_time = now;
-        }
-    }
+    void update_render_fps();
+    void update_present_fps();
+    void cleanup_sdl();
 
-    void update_present_fps() {
-        auto now = SDL_GetTicks();
-        if (m_last_present_time > 0) {
-            m_present_frame_count++;
-            if (now - m_last_present_time >= 1000) {
-                m_present_fps = m_present_frame_count * 1000.0f / (now - m_last_present_time);
-                m_present_frame_count = 0;
-                m_last_present_time = now;
-            }
-        } else {
-            m_last_present_time = now;
-        }
-    }
+    // SDL window/context
+    SDL_Window* m_window = nullptr;
+    SDL_GLContext m_context = nullptr;
+
+    std::string m_title;
 
 private:
     float m_render_fps{0.0f};
@@ -56,6 +53,7 @@ private:
     Uint32 m_last_present_time{0};
     int m_render_frame_count{0};
     int m_present_frame_count{0};
+    bool m_visible;
 };
 
 #endif // ENGINE_RENDERABLE_ITEM_H
