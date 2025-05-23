@@ -27,7 +27,6 @@ AudioRenderer::AudioRenderer() {
 bool AudioRenderer::add_render_output(AudioOutput * output_link)
 {
     m_render_outputs.push_back(std::unique_ptr<AudioOutput>(output_link));
-
     return true;
 }
 
@@ -49,28 +48,7 @@ bool AudioRenderer::add_render_graph(AudioRenderGraph * render_graph)
     return true;
 }
 
-bool AudioRenderer::initialize_sdl(unsigned int window_width, unsigned int window_height) {
-    printf("Initializing SDL2\n");
-
-    m_window = SDL_CreateWindow("Audio Processing", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_width, window_height, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN);
-    if (!m_window) {
-        std::cerr << "Failed to create SDL2 window: " << SDL_GetError() << std::endl;
-        return false;
-    }
-
-    m_context = SDL_GL_CreateContext(m_window);
-    if (!m_context) {
-        std::cerr << "Failed to create OpenGL context: " << SDL_GetError() << std::endl;
-        return false;
-    }
-
-    if (glewInit() != GLEW_OK) {
-        std::cerr << "Failed to initialize GLEW" << std::endl;
-        return false;
-    }
-
-    return true;
-}
+// Now uses parent class initialize_sdl method
 
 bool AudioRenderer::initialize_quad() {
     // Just a default set of vertices to cover the screen
@@ -139,8 +117,8 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
     this->m_num_channels = num_channels;
     this->m_sample_rate = sample_rate;
 
-    // Initialize SDL2
-    if (!initialize_sdl(buffer_size, num_channels)) {
+    // Initialize SDL2 using the parent class method
+    if (!initialize_sdl(buffer_size, num_channels, "Audio Processing", SDL_WINDOW_OPENGL, false)) {
         return false;
     }
 
@@ -184,6 +162,8 @@ bool AudioRenderer::initialize(const unsigned int buffer_size, const unsigned in
 
 void AudioRenderer::render()
 {
+    IRenderableEntity::render();
+
     // No need to call activate_render_context() here, event loop will do it
     if (!m_initialized) return;
 
@@ -206,17 +186,14 @@ void AudioRenderer::render()
 
     // Unbind everything
     glBindVertexArray(0);
-
-    IRenderableEntity::update_render_fps(); // Call the base class render to update FPS
 }
 
 void AudioRenderer::present()
 {
+    IRenderableEntity::present();
     // No need to call activate_render_context() here, event loop will do it
     push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data().data());
     m_frame_count++;
-
-    IRenderableEntity::update_present_fps();
 }
 
 AudioRenderer::~AudioRenderer()
@@ -225,16 +202,6 @@ AudioRenderer::~AudioRenderer()
 
     // Stop the loop
     m_initialized = false;
-
-    if (m_context) {
-        SDL_GL_DeleteContext(m_context);
-        m_context = nullptr;
-    }
-
-    if (m_window) {
-        SDL_DestroyWindow(m_window);
-        m_window = nullptr;
-    }
 
     // Delete the vertex array and buffer
     glDeleteVertexArrays(1, &m_VAO);
@@ -303,8 +270,4 @@ AudioParameter * AudioRenderer::find_global_parameter(const std::string name) co
     return nullptr;
 }
 
-void AudioRenderer::activate_render_context() {
-    if (m_window && m_context && SDL_GL_GetCurrentContext() != m_context) {
-        SDL_GL_MakeCurrent(m_window, m_context);
-    }
-}
+// Now using the base class implementation of activate_render_context()

@@ -16,7 +16,8 @@ EventLoop& EventLoop::get_instance() {
 
 EventLoop::~EventLoop() {
     m_items.clear();
-
+    
+    // The render context items will clean up their SDL resources
     SDL_Quit();
 }
 

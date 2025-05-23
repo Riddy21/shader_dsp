@@ -5,9 +5,11 @@
 
 #include <graphics_core/graphics_component.h>
 #include <engine/event_handler.h>
+
+class GraphicsDisplay;
 class GraphicsView {
 public:
-    GraphicsView();
+    GraphicsView(GraphicsDisplay * parent_display, EventHandler * event_handler);
     virtual ~GraphicsView();
     
     virtual void render();

@@ -1,11 +1,13 @@
 #include <algorithm>
 
 #include "graphics_core/graphics_view.h"
+#include "graphics/graphics_display.h"
 
 #include "engine/event_handler.h"
 
-GraphicsView::GraphicsView()
-    : m_event_handler(nullptr)
+GraphicsView::GraphicsView(GraphicsDisplay * parent_display, EventHandler * event_handler)
+    : m_event_handler(event_handler),
+      m_parent_display(parent_display)
 {
 }
 

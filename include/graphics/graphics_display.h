@@ -3,14 +3,16 @@
 #define GRAPHICS_DISPLAY_H
 
 #include <string>
-#include <SDL2/SDL.h>
 #include <GL/glew.h>
 #include <unordered_map>
+#include <memory>
+#include <vector>
 
 #include "engine/renderable_item.h"
 #include "graphics_core/graphics_view.h"
 
 class EventHandler;
+class GraphicsComponent;
 
 class GraphicsDisplay : public IRenderableEntity {
 public:
@@ -28,8 +30,6 @@ public:
     // IEventLoopItem interface
     bool is_ready() override;
     void render() override;
-    void present() override;
-    void activate_render_context() override;
 
     // View management
     void register_view(const std::string& name, GraphicsView* view);
@@ -53,10 +53,6 @@ private:
     std::vector<std::unique_ptr<GraphicsComponent>> m_components; // TODO: Implement components management later
     GraphicsView* m_current_view = nullptr;
     EventHandler* m_event_handler = nullptr;
-
-    // SDL window/context management
-    SDL_Window* m_window = nullptr;
-    SDL_GLContext m_context = nullptr;
 };
 
 #endif // GRAPHICS_DISPLAY_H

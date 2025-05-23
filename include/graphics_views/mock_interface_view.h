@@ -10,7 +10,7 @@ class GraphicsDisplay;
 
 class MockInterfaceView : public GraphicsView {
 public:
-    MockInterfaceView();
+    MockInterfaceView(GraphicsDisplay* parent_display, EventHandler* event_handler);
     ~MockInterfaceView() override = default;
 
 protected:

@@ -4,7 +4,9 @@
 #include "audio_core/audio_renderer.h"
 #include <iostream>
 
-MockInterfaceView::MockInterfaceView() {
+MockInterfaceView::MockInterfaceView(GraphicsDisplay* parent_display, EventHandler* event_handler)
+    : GraphicsView(parent_display, event_handler)
+{
     auto& synthesizer = AudioSynthesizer::get_instance();
     
     // Define button properties
@@ -57,7 +59,9 @@ MockInterfaceView::MockInterfaceView() {
         auto button = new ButtonComponent(
             x, y, button_width, button_height,
             info.label,
-            info.callback
+            info.callback,
+            &AudioRenderer::get_instance(),
+            m_parent_display
         );
 
         button->set_colors(info.color[0], info.color[1], info.color[2], info.color[3]);

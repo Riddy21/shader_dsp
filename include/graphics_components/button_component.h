@@ -23,7 +23,8 @@ public:
 
     ButtonComponent(float x, float y, float width, float height, 
                    const std::string& label, ButtonCallback callback,
-                   IRenderableEntity* render_context = &AudioRenderer::get_instance());
+                   IRenderableEntity* render_context,
+                   IRenderableEntity* display_context);
     ~ButtonComponent() override;
 
     void render() override;

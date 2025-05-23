@@ -31,6 +31,7 @@ void setup_keyboard(EventHandler& event_handler, AudioSynthesizer& synthesizer, 
     for (const auto& [key, tone] : KEY_TONE_MAPPING) {
         event_handler.register_entry(new KeyboardEventHandlerEntry(
             &AudioRenderer::get_instance(),
+            nullptr,
             SDL_KEYDOWN, key,
             [&synthesizer, tone, key](const SDL_Event&) {
                 synthesizer.get_track(0).play_note(tone, 0.2f);
@@ -39,6 +40,7 @@ void setup_keyboard(EventHandler& event_handler, AudioSynthesizer& synthesizer, 
         ));
         event_handler.register_entry(new KeyboardEventHandlerEntry(
             &AudioRenderer::get_instance(),
+            nullptr,
             SDL_KEYUP, key,
             [&synthesizer, tone, key](const SDL_Event&) {
                 synthesizer.get_track(0).stop_note(tone);
@@ -49,6 +51,7 @@ void setup_keyboard(EventHandler& event_handler, AudioSynthesizer& synthesizer, 
 
     event_handler.register_entry(new KeyboardEventHandlerEntry(
         &AudioRenderer::get_instance(),
+        nullptr,
         SDL_KEYDOWN, 'q',
         [&synthesizer, &event_loop](const SDL_Event&) {
             std::cout << "Exiting program." << std::endl;
@@ -87,14 +90,14 @@ int main() {
 
     GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
     graphics_display->set_event_handler(event_handler);
-    graphics_display->register_view("debug", new DebugView());
+    graphics_display->register_view("debug", new DebugView(graphics_display, event_handler));
     graphics_display->change_view("debug");
 
     // Create another window for the interface
     GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
     interface_display->set_event_handler(event_handler);
-    interface_display->register_view("debug", new DebugView());
-    interface_display->register_view("interface", new MockInterfaceView());
+    interface_display->register_view("debug", new DebugView(interface_display, event_handler));
+    interface_display->register_view("interface", new MockInterfaceView(interface_display, event_handler));
     interface_display->change_view("interface");
 
     std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
