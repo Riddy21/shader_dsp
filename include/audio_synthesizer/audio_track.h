@@ -49,6 +49,9 @@ private:
     std::string m_current_voice_name;
     AudioRenderStage * m_current_effect = nullptr;
     AudioRenderStage * m_current_voice = nullptr;
+    AudioRenderStage * m_old_effect = nullptr;
+    AudioRenderStage * m_filter_effect = nullptr;
+    AudioRenderStage * m_echo_effect = nullptr;
 
     std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> m_effects;
     std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> m_generators;

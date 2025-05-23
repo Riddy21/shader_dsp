@@ -189,6 +189,14 @@ private:
         static unsigned int id = 1; // Render stage GIDs start at 1
         return id++;
     }
+
+    void print_input_textures();
+
+    void print_output_textures();
+
+    void clear_input_textures();
+
+    void clear_output_textures();
 };
 
 #endif // AUDIO_RENDER_STAGE_H
