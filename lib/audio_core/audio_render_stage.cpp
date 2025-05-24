@@ -204,8 +204,6 @@ void AudioRenderStage::render(const unsigned int time) {
     // Bind the framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     std::vector<GLenum> draw_buffers;
 
     // Render parameters
@@ -221,12 +219,20 @@ void AudioRenderStage::render(const unsigned int time) {
     // sort the draw buffers 
     std::sort(draw_buffers.begin(), draw_buffers.end());
 
+    // Ensure the draw buffers are cleared before rendering
     glDrawBuffers(draw_buffers.size(), draw_buffers.data());
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // unbind the framebuffer and texture and shader program
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(0);
+
+    // Print the first few numbers in the input textures and the output frame buffers
+    print_input_textures();
+    print_output_textures();
 }
 
 bool AudioRenderStage::add_parameter(AudioParameter * parameter) {
@@ -396,11 +402,6 @@ bool AudioRenderStage::disconnect_render_stage(AudioRenderStage * next_stage) {
         printf("Failed to release output interface between render stage %d and %d\n", this->gid, next_stage->gid);
         return false;
     }
-
-    //if (m_initialized && !unbind()) {
-    //    printf("Failed to unbind render stage %d\n", this->gid);
-    //    return false;
-    //}
 
     m_connected_output_render_stages.extract(next_stage);
     next_stage->m_connected_stream_render_stages.extract(this);
