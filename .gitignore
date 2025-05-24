@@ -29,3 +29,7 @@ yarn-error.log
 
 # Docker
 .docker/
+
+# Claude
+.build_completed
+.claude
