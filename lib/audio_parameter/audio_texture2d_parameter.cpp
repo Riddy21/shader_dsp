@@ -223,6 +223,10 @@ void AudioTexture2DParameter::clear_value() {
 
     // Clear the color attachment of the frame buffer
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);
-    glClearBufferfv(GL_COLOR, GL_COLOR_ATTACHMENT0 + m_color_attachment, FLAT_COLOR);
+    // Set the draw buffer to the correct color attachment
+    glDrawBuffer(GL_COLOR_ATTACHMENT0 + m_color_attachment);
+
+    // Clear the color attachment
+    glClear(GL_COLOR_BUFFER_BIT);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
