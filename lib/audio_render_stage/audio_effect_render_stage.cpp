@@ -114,6 +114,18 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
     AudioRenderStage::render(time);
 }
 
+bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * render_stage) {
+    // Disconnect the render stage
+    if (!AudioEffectRenderStage::disconnect_render_stage(render_stage)) {
+        std::cerr << "Failed to disconnect render stage" << std::endl;
+        return false;
+    }
+
+    // Clear the echo buffer
+    std::fill(m_echo_buffer.begin(), m_echo_buffer.end(), 0.0f);
+    return true;
+}
+
 const std::vector<std::string> AudioFrequencyFilterEffectRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
     "build/shaders/frag_shader_settings.glsl",
@@ -318,4 +330,16 @@ void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float cu
     auto b_coeff = calculate_firwin_b_coefficients(low_pass/NYQUIST, high_pass/NYQUIST, *(int *)this->find_parameter("num_taps")->get_value(), m_resonance);
     b_coeff.resize(MAX_TEXTURE_SIZE, 0.0);
     this->find_parameter("b_coeff_texture")->set_value(b_coeff.data());
+}
+
+bool AudioFrequencyFilterEffectRenderStage::disconnect_render_stage(AudioRenderStage * render_stage) {
+    // Disconnect the render stage
+    if (!AudioEffectRenderStage::disconnect_render_stage(render_stage)) {
+        std::cerr << "Failed to disconnect render stage" << std::endl;
+        return false;
+    }
+
+    // Clear history buffer
+    m_audio_history->clear_history_buffer();
+    return true;
 }

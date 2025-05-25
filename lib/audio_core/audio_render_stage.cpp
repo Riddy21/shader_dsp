@@ -229,10 +229,6 @@ void AudioRenderStage::render(const unsigned int time) {
     // unbind the framebuffer and texture and shader program
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(0);
-
-    // Print the first few numbers in the input textures and the output frame buffers
-    print_input_textures();
-    print_output_textures();
 }
 
 bool AudioRenderStage::add_parameter(AudioParameter * parameter) {

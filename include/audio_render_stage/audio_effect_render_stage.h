@@ -46,6 +46,8 @@ public:
 private:
     void render(const unsigned int time) override;
 
+    bool disconnect_render_stage(AudioRenderStage * render_stage) override;
+
     std::vector<float> m_echo_buffer;
 
     static const unsigned int M_MAX_ECHO_BUFFER_SIZE = 300;
@@ -77,6 +79,7 @@ private:
     static const std::vector<float> calculate_firwin_b_coefficients(const float low_pass, const float high_pass, const unsigned int num_taps, const float resonance);
     void update_b_coefficients(const float current_amplitude = 0.0);
     void render(const unsigned int time) override;
+    bool disconnect_render_stage(AudioRenderStage * render_stage) override;
 
     std::unique_ptr<AudioRenderStageHistory> m_audio_history;
     float m_low_pass;

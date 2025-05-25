@@ -45,6 +45,10 @@ static const GLfloat clearColorB[] = {0.2f, 0.2f, 0.5f, 1.0f};
 static float offsetX = 0.0f;
 static float offsetSpeed = 0.01f;
 
+// Add a time variable for animation
+static float animTime = 0.0f;
+static float animSpeed = 0.016f; // ~60fps
+
 // -----------------------------------------------------------------------------
 // Shaders
 // -----------------------------------------------------------------------------
@@ -72,20 +76,35 @@ precision mediump float;
 in vec2 vTexCoord;
 out vec4 FragColor;
 
-// We'll make the gradient slightly different if "usingTexB" is true
 uniform float uUseTexB; 
+uniform float uTime;
+
+// Function to draw a moving triangle mask
+float movingTriangle(vec2 uv, float t) {
+    // Move triangle horizontally with time
+    uv.x -= 0.3 + 0.3 * sin(t);
+    uv.y -= 0.5;
+    float a = step(0.0, uv.x + uv.y);
+    float b = step(0.0, -uv.x + uv.y);
+    float c = step(0.0, 0.3 - uv.y);
+    return a * b * c;
+}
 
 void main() {
     // Basic gradient: (vTexCoord.x, vTexCoord.y, 0.5)
     vec3 base = vec3(vTexCoord.x, vTexCoord.y, 0.5);
 
-    // If usingTexB=1.0, shift color a bit to distinguish
-    // e.g. add some green or something
-    if (uUseTexB > 0.5) {
-        base.g += 0.3;  // a small green tint
+    // Animate color shift for texture A
+    if (uUseTexB < 0.5) {
+        base.r += 0.3 + 0.2 * sin(uTime);
+        base.g += 0.2 * cos(uTime * 0.7);
     } else {
-        base.r += 0.3;  // a small red tint
+        base.g += 0.3;  // a small green tint
     }
+
+    // Overlay a moving triangle as a solid yellow shape
+    float tri = movingTriangle(vTexCoord, uTime);
+    base = mix(base, vec3(1.0, 1.0, 0.2), tri);
 
     FragColor = vec4(base, 1.0);
 }
@@ -315,6 +334,9 @@ static void renderToContext(SDL_Window* window, SDL_GLContext context, const GLf
         glUseProgram(programFirstPass);
         GLint locUseTexB = glGetUniformLocation(programFirstPass, "uUseTexB");
         glUniform1f(locUseTexB, (useTextureB ? 1.0f : 0.0f));
+        // Pass time to shader
+        GLint locTime = glGetUniformLocation(programFirstPass, "uTime");
+        glUniform1f(locTime, animTime);
 
         glBindVertexArray(vao);
         glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -341,12 +363,16 @@ static void renderToContext(SDL_Window* window, SDL_GLContext context, const GLf
 static void display() {
     // Update the offset for windowA
     offsetX += offsetSpeed;
+    // Update animation time for windowB
+    animTime += animSpeed;
 
     // Render a moving graphic to windowA
     renderToContext(windowA, contextA, clearColorA, colorTexA, true);
 
-    // Render the existing gradient to windowB
-    renderToContext(windowB, contextB, clearColorB, colorTexB, false);
+    // Render the triangle and gradient to the currently selected texture,
+    // then display that texture in windowB.
+    GLuint targetTex = useTextureB ? colorTexB : colorTexA;
+    renderToContext(windowB, contextB, clearColorB, targetTex, false);
 }
 
 // -----------------------------------------------------------------------------
