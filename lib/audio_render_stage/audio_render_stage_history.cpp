@@ -67,3 +67,9 @@ const std::vector<float> AudioRenderStageHistory::get_history_data() {
 void AudioRenderStageHistory::update_audio_history_texture() {
     m_audio_history_texture->set_value(get_history_data().data());
 }
+
+void AudioRenderStageHistory::clear_history_buffer() {
+    for (int i = 0; i < m_num_channels; i++) {
+        std::fill(m_history_buffer[i].begin(), m_history_buffer[i].end(), 0.0f);
+    }
+}
