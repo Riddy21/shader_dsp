@@ -23,7 +23,6 @@ float IRenderableEntity::get_present_fps() const {
     return m_present_fps; 
 }
 
-// TODO: Move this to the constructor
 bool IRenderableEntity::initialize_sdl(
     unsigned int width, 
     unsigned int height, 

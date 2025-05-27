@@ -14,17 +14,12 @@
 #include "engine/event_handler.h"
 #include "audio_core/audio_renderer.h"
 
-class EventHandler;
-class EventHandlerEntry;
-
 class ButtonComponent : public GraphicsComponent {
 public:
     using ButtonCallback = std::function<void()>;
 
     ButtonComponent(float x, float y, float width, float height, 
-                   const std::string& label, ButtonCallback callback,
-                   IRenderableEntity* render_context,
-                   IRenderableEntity* display_context);
+                   const std::string& label, ButtonCallback callback);
     ~ButtonComponent() override;
 
     void render() override;
@@ -55,10 +50,6 @@ private:
     GLuint m_vao = 0;
     GLuint m_vbo = 0;
     
-    // Event handler entries
-    EventHandler* m_event_handler = nullptr;
-    std::vector<EventHandlerEntry*> m_event_handler_entries;
-
     void initialize_graphics();
 };
 

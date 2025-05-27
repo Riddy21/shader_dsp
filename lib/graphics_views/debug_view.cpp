@@ -2,8 +2,8 @@
 #include "audio_synthesizer/audio_synthesizer.h"
 #include "graphics_components/graph_component.h"
 
-DebugView::DebugView(GraphicsDisplay* parent_display, EventHandler* event_handler)
-    : GraphicsView(parent_display, event_handler)
+DebugView::DebugView()
+    : GraphicsView()
 {
     auto & audio_synthesizer = AudioSynthesizer::get_instance();
     const auto & channel_seperated_audio = audio_synthesizer.get_audio_data();
@@ -17,8 +17,4 @@ DebugView::DebugView(GraphicsDisplay* parent_display, EventHandler* event_handle
         auto graph = new GraphComponent(x, y, width, height, channel_seperated_audio[i], true);
         add_component(graph);
     }
-}
-
-void DebugView::render() {
-    GraphicsView::render();
 }

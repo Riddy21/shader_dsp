@@ -9,9 +9,8 @@ GraphComponent::GraphComponent(
     const float width, 
     const float height, 
     const std::vector<float>& data,
-    const bool is_dynamic,
-    IRenderableEntity* render_context
-) : GraphicsComponent(x, y, width, height, render_context),
+    const bool is_dynamic
+) : GraphicsComponent(x, y, width, height),
     m_data(&data),
     m_shader_program(nullptr),
     m_vao(0),

@@ -9,18 +9,20 @@
 #include <vector>
 
 #include "engine/renderable_item.h"
+#include "engine/event_handler.h"
 #include "graphics_core/graphics_view.h"
-
-class EventHandler;
-class GraphicsComponent;
+#include "graphics_core/graphics_component.h"
 
 class GraphicsDisplay : public IRenderableEntity {
 public:
+    friend class GraphicsView; // Allow GraphicsView to access private members
+
     GraphicsDisplay(
         unsigned int width = 800, 
         unsigned int height = 600, 
         const std::string& title = "Graphics Display", 
-        unsigned int refresh_rate = 60
+        unsigned int refresh_rate = 60,
+        EventHandler& event_handler = EventHandler::get_instance()
     );
     ~GraphicsDisplay();
 
@@ -32,13 +34,9 @@ public:
     void render() override;
 
     // View management
-    void register_view(const std::string& name, GraphicsView* view);
+    void add_view(const std::string& name, GraphicsView* view);
     void change_view(const std::string& name);
     
-    // Event handler management
-    void set_event_handler(EventHandler* event_handler);
-    EventHandler* get_event_handler() const { return m_event_handler; }
-
 private:
     unsigned int m_width;
     unsigned int m_height;
@@ -52,7 +50,7 @@ private:
     std::unordered_map<std::string, std::unique_ptr<GraphicsView>> m_views;
     std::vector<std::unique_ptr<GraphicsComponent>> m_components; // TODO: Implement components management later
     GraphicsView* m_current_view = nullptr;
-    EventHandler* m_event_handler = nullptr;
+    EventHandler& m_event_handler; // REference cannot be re-assigned
 };
 
 #endif // GRAPHICS_DISPLAY_H

@@ -86,6 +86,7 @@ bool AudioSynthesizer::start() {
 }
 
 bool AudioSynthesizer::pause() {
+    m_audio_renderer.activate_render_context();
     m_audio_renderer.pause();
     
     // Stop the audio outputs
@@ -99,6 +100,7 @@ bool AudioSynthesizer::pause() {
 }
 
 bool AudioSynthesizer::increment() {
+    m_audio_renderer.activate_render_context();
     m_audio_renderer.increment();
 
     return true;
@@ -113,6 +115,7 @@ bool AudioSynthesizer::resume() {
         }
     }
 
+    m_audio_renderer.activate_render_context();
     m_audio_renderer.resume();
 
     return true;
