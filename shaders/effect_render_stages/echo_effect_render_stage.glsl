@@ -26,4 +26,5 @@ void main() {
     }
 
     output_audio_texture = texture(stream_audio_texture, TexCoord) + echo;
+    //debug_audio_texture = output_audio_texture;
 }

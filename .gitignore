@@ -17,3 +17,19 @@ build/
 *.pyo
 venv/
 __pycache__/
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+
+# Docker
+.docker/
+
+# Claude
+.build_completed
+.claude

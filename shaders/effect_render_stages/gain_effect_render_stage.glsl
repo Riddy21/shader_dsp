@@ -9,4 +9,5 @@ void main() {
 
     //Output the result
     output_audio_texture = texture(stream_audio_texture, TexCoord) * gain * balance_effect;
+    debug_audio_texture = output_audio_texture;
 }

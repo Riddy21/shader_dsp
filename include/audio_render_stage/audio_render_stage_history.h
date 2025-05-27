@@ -29,6 +29,8 @@ public:
 
     void update_audio_history_texture();
 
+    void clear_history_buffer();
+
     std::string get_history_texture_name() { return "audio_history_texture"; }
 
 private:

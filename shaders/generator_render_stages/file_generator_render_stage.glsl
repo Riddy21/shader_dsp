@@ -43,4 +43,5 @@ void main() {
 
     // Output the result
     output_audio_texture = audio_sample * gain + texture(stream_audio_texture, vec2(TexCoord));
+    debug_audio_texture = output_audio_texture;
 }

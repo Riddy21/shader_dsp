@@ -10,15 +10,15 @@ public:
     AudioEffectRenderStage(const unsigned int frames_per_buffer,
                            const unsigned int sample_rate,
                            const unsigned int num_channels,
-                           const std::string& fragment_shader_path,
-                           const std::vector<std::string> & frag_shader_imports) : 
+                           const std::string& fragment_shader_path = "build/shaders/render_stage_frag.glsl",
+                           const std::vector<std::string> & frag_shader_imports = AudioRenderStage::default_frag_shader_imports) : 
         AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
     }
 
     ~AudioEffectRenderStage() {};
 };
 
-class AudioGainEffectRenderStage : public AudioRenderStage {
+class AudioGainEffectRenderStage : public AudioEffectRenderStage {
 public:
     AudioGainEffectRenderStage(const unsigned int frames_per_buffer,
                            const unsigned int sample_rate,
@@ -31,7 +31,7 @@ public:
     ~AudioGainEffectRenderStage() {};
 };
 
-class AudioEchoEffectRenderStage : public AudioRenderStage {
+class AudioEchoEffectRenderStage : public AudioEffectRenderStage {
 public:
     AudioEchoEffectRenderStage(const unsigned int frames_per_buffer,
                            const unsigned int sample_rate,
@@ -46,12 +46,14 @@ public:
 private:
     void render(const unsigned int time) override;
 
+    bool disconnect_render_stage(AudioRenderStage * render_stage) override;
+
     std::vector<float> m_echo_buffer;
 
     static const unsigned int M_MAX_ECHO_BUFFER_SIZE = 300;
 };
 
-class AudioFrequencyFilterEffectRenderStage : public AudioRenderStage {
+class AudioFrequencyFilterEffectRenderStage : public AudioEffectRenderStage {
 public:
     AudioFrequencyFilterEffectRenderStage(const unsigned int frames_per_buffer,
                            const unsigned int sample_rate,
@@ -77,6 +79,7 @@ private:
     static const std::vector<float> calculate_firwin_b_coefficients(const float low_pass, const float high_pass, const unsigned int num_taps, const float resonance);
     void update_b_coefficients(const float current_amplitude = 0.0);
     void render(const unsigned int time) override;
+    bool disconnect_render_stage(AudioRenderStage * render_stage) override;
 
     std::unique_ptr<AudioRenderStageHistory> m_audio_history;
     float m_low_pass;

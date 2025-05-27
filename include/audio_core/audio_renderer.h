@@ -14,6 +14,7 @@
 #include "audio_core/audio_parameter.h"
 #include "audio_core/audio_render_graph.h"
 #include "engine/event_loop.h"
+#include "engine/renderable_item.h"
 
 /**
  * @class AudioRenderer
@@ -22,7 +23,7 @@
  * The AudioRenderer class provides functionality to initialize and terminate the audio renderer,
  * as well as holding audio texture output and managing audio buffer size and number of channels.
  */
-class AudioRenderer : public IEventLoopItem {
+class AudioRenderer : public IRenderableEntity {
 public:
     /**
      * @brief Returns the singleton instance of AudioRenderer.
@@ -53,11 +54,7 @@ public:
 
     // IEventLoopItem interface
     bool is_ready() override;
-
-    bool handle_event(const SDL_Event&) override { return false; } // No event handling needed
-
     void render() override;
-
     void present() override;
 
 // Loop Control
@@ -145,6 +142,7 @@ public:
      */
     AudioParameter * find_global_parameter(const std::string name) const;
 
+
 private:
     static AudioRenderer * instance;
 
@@ -182,15 +180,6 @@ private:
     bool initialize_global_parameters();
 
     /**
-     * @brief Initializes the SDL context.
-     * 
-     * @param window_width The width of the window.
-     * @param window_height The height of the window.
-     * @return True if initialization is successful, false otherwise.
-     */
-    bool initialize_sdl(unsigned int window_width, unsigned int window_height);
-
-    /**
      * @brief Initializes the quad for rendering.
      * 
      * @param VAO The Vertex Array Object.
@@ -218,9 +207,6 @@ private:
     std::vector<std::unique_ptr<AudioOutput>> m_render_outputs; // Render outputs
     std::vector<std::unique_ptr<AudioParameter>> m_global_parameters; // Parameters for render stages
     std::unique_ptr<AudioRenderGraph> m_render_graph; // Render graph
-
-    SDL_Window* m_window = nullptr; // SDL window pointer
-    SDL_GLContext m_gl_context = nullptr; // SDL OpenGL context
 };
 
 #endif // AUDIO_RENDERER_H
