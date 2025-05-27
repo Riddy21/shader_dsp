@@ -7,6 +7,22 @@ This project is an audio Digital Signal Processing (DSP) system that uses OpenGL
 
 This project aims to leverage the power of OpenGL shaders to process audio signals. By using the parallel processing capabilities of modern GPUs, we can achieve high performance audio processing. This project is perfect for anyone interested in audio processing, digital signal processing, or computer graphics.
 
+### Inspiration
+
+This project was built from the ground up inspired by the [Teenage Engineering OP-1 Synthesizer](https://teenage.engineering/products/op-1), a portable hardware synthesizer known for its innovative design and unique sound engines. The goal is to implement a software-based version that utilizes the GPU for audio processing, making it both efficient and capable of complex sound manipulation.
+
+### Vision
+
+The primary objectives of this project are:
+
+- Create a fully functional synthesizer using OpenGL/OpenGL ES for audio processing
+- Implement a version that runs smoothly on Raspberry Pi hardware
+- Provide an open-source alternative to proprietary synthesizer software
+- Explore novel approaches to audio synthesis through GPU shaders
+- Eventually develop a standalone hardware device running this software
+
+The use of shaders for audio processing opens up possibilities for unique sound design that wouldn't be practical with traditional CPU-based processing, allowing for complex, real-time audio manipulation with minimal latency.
+
 ## Dependencies
 
 This project depends on the following libraries:
@@ -18,12 +34,6 @@ sudo apt-get install libsdl2-dev libglew-dev freeglut3-dev g++ scons libportaudi
 ```
 
 ## How to Build
-
-### Native Build
-
-1. Clone the repository to your local machine.
-2. `scons`
-3. `./build/bin/main`
 
 ### Docker Setup (Recommended)
 
@@ -51,7 +61,7 @@ This script will:
 
 ```bash
 scons
-./build/bin/main
+./build/bin/AudioSynthesizer
 ```
 
 3. To exit the container, type `exit` or press `Ctrl+D`.
@@ -98,6 +108,81 @@ claude fix [issue description]
 claude add [feature description]
 claude help
 ```
+
+### Native Build
+
+#### Compatible Systems
+- Linux (x86_64, ARM)
+- Raspberry Pi OS (ARM)
+
+#### Installation
+1. Clone the repository to your local machine.
+2. Install dependencies:
+   ```bash
+   sudo apt-get install libsdl2-dev libglew-dev freeglut3-dev g++ scons libportaudio2 mesa-utils xvbf libx11-dev libsdl2-ttf-dev libsdl2-image-dev libsdl2-gfx-dev libsdl2-mixer-dev
+   ```
+3. Build the project:
+   ```bash
+   scons -j$(nproc)
+   ```
+4. Run the application:
+   ```bash
+   ./build/bin/AudioSynthesizer
+   ```
+
+#### Raspberry Pi Specific Notes
+For Raspberry Pi OS, ensure you have OpenGL drivers enabled:
+```bash
+sudo raspi-config
+```
+Navigate to "Advanced Options" > "GL Driver" and select "GL (Fake KMS)".
+
+### Mac and Windows Setup Using Raspberry Pi VM
+
+If you're using macOS or Windows and want to experiment with the Raspberry Pi version, you can set up a virtual machine:
+
+#### Prerequisites
+- [VirtualBox](https://www.virtualbox.org/wiki/Downloads) or [VMware](https://www.vmware.com/products/workstation-player.html)
+- [Raspberry Pi OS Desktop Image](https://www.raspberrypi.org/software/raspberry-pi-desktop/)
+
+#### Setup Instructions
+
+1. **Install a virtualization platform**:
+   - Download and install VirtualBox or VMware on your system
+
+2. **Create a new Raspberry Pi VM**:
+   - Open VirtualBox/VMware and create a new virtual machine
+   - Select "Linux" as the type and "Debian (32-bit)" as the version
+   - Allocate at least 2GB RAM and 20GB disk space
+   - Mount the Raspberry Pi OS Desktop ISO file
+
+3. **Install Raspberry Pi OS**:
+   - Boot the VM and follow the installation wizard
+   - Once installed, restart the VM
+
+4. **Configure OpenGL support**:
+   - In VirtualBox: Enable 3D acceleration in VM settings > Display
+   - In VMware: Enable 3D acceleration in VM settings > Hardware > Display
+
+5. **Install project dependencies**:
+   ```bash
+   sudo apt-get update
+   sudo apt-get install git
+   sudo apt-get install libsdl2-dev libglew-dev freeglut3-dev g++ scons libportaudio2 mesa-utils xvbf libx11-dev libsdl2-ttf-dev libsdl2-image-dev libsdl2-gfx-dev libsdl2-mixer-dev
+   ```
+
+6. **Clone and build the project**:
+   ```bash
+   git clone https://github.com/yourusername/shader_dsp.git
+   cd shader_dsp
+   scons -j$(nproc)
+   ./build/bin/AudioSynthesizer
+   ```
+
+#### Performance Notes
+- VM performance will be slower than native installation
+- For best results on non-Linux systems, use the Docker setup described below
+- If you experience performance issues, reduce the window size of the application or lower audio buffer settings
 
 ## Usage
 
