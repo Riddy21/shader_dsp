@@ -18,7 +18,7 @@ AudioGainEffectRenderStage::AudioGainEffectRenderStage(const unsigned int frames
                                                const unsigned int num_channels,
                                                const std::string & fragment_shader_path,
                                                const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+    : AudioEffectRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
 
     // TODO: Change balance to be an array of channels
     // Add new parameter objects to the parameter list
@@ -50,7 +50,7 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
                                                const unsigned int num_channels,
                                                const std::string & fragment_shader_path,
                                                const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+    : AudioEffectRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
 
     // Add new parameter objects to the parameter list
     auto feedback_parameter =
@@ -114,6 +114,18 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
     AudioRenderStage::render(time);
 }
 
+bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * render_stage) {
+    // Disconnect the render stage
+    if (!AudioEffectRenderStage::disconnect_render_stage(render_stage)) {
+        std::cerr << "Failed to disconnect render stage" << std::endl;
+        return false;
+    }
+
+    // Clear the echo buffer
+    std::fill(m_echo_buffer.begin(), m_echo_buffer.end(), 0.0f);
+    return true;
+}
+
 const std::vector<std::string> AudioFrequencyFilterEffectRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
     "build/shaders/frag_shader_settings.glsl",
@@ -125,7 +137,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
                                                const unsigned int num_channels,
                                                const std::string & fragment_shader_path,
                                                const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
+    : AudioEffectRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
       NYQUIST(sample_rate / 2.0f),
       m_low_pass(1.0f),
       m_high_pass(230.0f),
@@ -318,4 +330,16 @@ void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float cu
     auto b_coeff = calculate_firwin_b_coefficients(low_pass/NYQUIST, high_pass/NYQUIST, *(int *)this->find_parameter("num_taps")->get_value(), m_resonance);
     b_coeff.resize(MAX_TEXTURE_SIZE, 0.0);
     this->find_parameter("b_coeff_texture")->set_value(b_coeff.data());
+}
+
+bool AudioFrequencyFilterEffectRenderStage::disconnect_render_stage(AudioRenderStage * render_stage) {
+    // Disconnect the render stage
+    if (!AudioEffectRenderStage::disconnect_render_stage(render_stage)) {
+        std::cerr << "Failed to disconnect render stage" << std::endl;
+        return false;
+    }
+
+    // Clear history buffer
+    m_audio_history->clear_history_buffer();
+    return true;
 }

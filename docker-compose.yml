@@ -1,0 +1,30 @@
+services:
+  shader-dsp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TZ: ${TZ:-UTC}
+    volumes:
+      - .:/workspace
+      - shader-dsp-history:/commandhistory
+      - shader-dsp-config:/home/developer/.claude
+      - /tmp/.X11-unix:/tmp/.X11-unix # Share X11 socket for GUI
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=4096
+      - CLAUDE_CONFIG_DIR=/home/developer/.claude
+      - DISPLAY=${DISPLAY:-host.docker.internal:0}
+    working_dir: /workspace
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    network_mode: "host" # Use host network for X11 forwarding
+    tty: true
+    stdin_open: true
+    command: /bin/zsh
+    # Set the user to match the UID:GID in Dockerfile (2000:2000)
+    user: "2000:2000"
+
+volumes:
+  shader-dsp-history:
+  shader-dsp-config:

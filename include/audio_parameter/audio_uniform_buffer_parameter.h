@@ -19,7 +19,9 @@ private:
 
     void render() override;
 
-    bool bind() override;
+    bool bind() override {return true;}
+    
+    bool unbind() override {return true;}
 
     GLuint m_ubo;
 

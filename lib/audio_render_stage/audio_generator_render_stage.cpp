@@ -305,6 +305,13 @@ void AudioGeneratorRenderStage::delete_note(const unsigned int index)
 void AudioGeneratorRenderStage::render(const unsigned int time) {
     AudioRenderStage::render(time);
 
+    //printf("%d \n", m_active_notes);
+    //for (auto & note : m_tones) {
+    //    printf("%f ", note);
+    //}
+
+    //printf("\n");
+
     if (m_delete_at_time.find(time) != m_delete_at_time.end()) {
         delete_note(m_delete_at_time[time]);
         m_delete_at_time.erase(time);

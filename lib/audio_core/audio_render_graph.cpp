@@ -118,7 +118,7 @@ bool AudioRenderGraph::construct_render_order(AudioRenderStage * node) {
     m_render_order.insert(m_render_order.begin(), node->gid);
 
     if (m_render_stages_map.find(node->gid) == m_render_stages_map.end()){
-        m_render_stages_map[node->gid] = std::unique_ptr<AudioRenderStage>(node);
+        m_render_stages_map[node->gid] = std::shared_ptr<AudioRenderStage>(node);
     }
 
     // If nodes aren't connected in streams, that means it's input node
@@ -186,7 +186,7 @@ void AudioRenderGraph::render(unsigned int time) {
     }
 }
 
-bool AudioRenderGraph::insert_render_stage_behind(GID front, AudioRenderStage * render_stage) {
+bool AudioRenderGraph::insert_render_stage_behind(GID front, std::shared_ptr<AudioRenderStage> render_stage) {
     // If there is multiple outputs
     if (int size = m_render_stages_map[front]->m_connected_output_render_stages.size() < 1) {
         printf("Can't add render stage after the final render stage.");
@@ -203,7 +203,7 @@ bool AudioRenderGraph::insert_render_stage_behind(GID front, AudioRenderStage * 
     return insert_render_stage_between(front, back, render_stage);
 }
 
-bool AudioRenderGraph::insert_render_stage_infront(GID back, AudioRenderStage * render_stage) {
+bool AudioRenderGraph::insert_render_stage_infront(GID back, std::shared_ptr<AudioRenderStage> render_stage) {
     // If there is multiple inputs
     if (int size = m_render_stages_map[back]->m_connected_stream_render_stages.size() < 1) {
         return insert_leading_render_stage(back, render_stage);
@@ -219,7 +219,7 @@ bool AudioRenderGraph::insert_render_stage_infront(GID back, AudioRenderStage * 
     return insert_render_stage_between(front, back, render_stage);
 }
 
-bool AudioRenderGraph::insert_leading_render_stage(GID back, AudioRenderStage * render_stage) {
+bool AudioRenderGraph::insert_leading_render_stage(GID back, std::shared_ptr<AudioRenderStage> render_stage) {
     // Make sure back exists
     if (m_render_stages_map.find(back) == m_render_stages_map.end()) {
         printf("Did not find render stage %d in graph\n", back);
@@ -233,17 +233,18 @@ bool AudioRenderGraph::insert_leading_render_stage(GID back, AudioRenderStage * 
 
     // Initialize the render stage if not already initialized
     if (!render_stage->is_initialized()) {
-        if (!render_stage->initialize()) {
-            printf("Failed to initialize render stage %d\n", render_stage->gid);
-            return false;
-        }
+        printf("Render stage %d is not initialized\n", render_stage->gid);
     }
+
+    // Transfer ownership to the map first
+    GID render_stage_gid = render_stage->gid;
+    m_render_stages_map[render_stage_gid] = render_stage;
 
     auto * back_render_stage = find_render_stage(back);
 
     std::lock_guard<std::mutex> guard(m_graph_mutex);
 
-    render_stage->connect_render_stage(back_render_stage);
+    m_render_stages_map[render_stage_gid]->connect_render_stage(back_render_stage);
 
     GID output_node = m_outputs[0];
 
@@ -253,7 +254,8 @@ bool AudioRenderGraph::insert_leading_render_stage(GID back, AudioRenderStage * 
 
     // Re-generate graph
     if (!construct_render_order(find_render_stage(output_node))) {
-        // Undo the connection
+        // Undo the connection and remove from map
+        m_render_stages_map.erase(render_stage_gid);
         throw std::runtime_error("Failed to construct render order.");
     }
 
@@ -268,7 +270,7 @@ bool AudioRenderGraph::insert_leading_render_stage(GID back, AudioRenderStage * 
     return true;
 }
 
-bool AudioRenderGraph::insert_render_stage_between(GID front, GID back, AudioRenderStage * render_stage) {
+bool AudioRenderGraph::insert_render_stage_between(GID front, GID back, std::shared_ptr<AudioRenderStage> render_stage) {
     // Make sure front exists
     if (m_render_stages_map.find(front) == m_render_stages_map.end()) {
         printf("Did not find render stage %d in graph\n", front);
@@ -287,12 +289,13 @@ bool AudioRenderGraph::insert_render_stage_between(GID front, GID back, AudioRen
 
     // Initialize the render stage if not already initialized
     if (!render_stage->is_initialized()) {
-        if (!render_stage->initialize()) {
-            printf("Failed to initialize render stage %d\n", render_stage->gid);
-            return false;
-        }
+        printf("Render stage %d is not initialized\n", render_stage->gid);
     }
-    
+
+    // Transfer ownership to the map first
+    GID render_stage_gid = render_stage->gid;
+    m_render_stages_map[render_stage_gid] = render_stage;
+
     // Re-connect the render stages
     auto * front_render_stage = find_render_stage(front);
     auto * back_render_stage = find_render_stage(back);
@@ -301,16 +304,17 @@ bool AudioRenderGraph::insert_render_stage_between(GID front, GID back, AudioRen
     if (front_render_stage->m_connected_output_render_stages.find(back_render_stage) ==
         front_render_stage->m_connected_output_render_stages.end()) {
         printf("Render stage %d is not connected to render stage %d\n", back, front);
+        m_render_stages_map.erase(render_stage_gid); // Remove from map if connection fails
         return false;
     }
+
     std::lock_guard<std::mutex> guard(m_graph_mutex);
 
     front_render_stage->disconnect_render_stage(back_render_stage);
 
-    front_render_stage->connect_render_stage(render_stage);
-    render_stage->connect_render_stage(back_render_stage);
+    front_render_stage->connect_render_stage(m_render_stages_map[render_stage_gid].get());
+    m_render_stages_map[render_stage_gid]->connect_render_stage(back_render_stage);
 
-    // Save the output assuming one output
     GID output_node = m_outputs[0];
 
     m_render_order.clear();
@@ -319,7 +323,10 @@ bool AudioRenderGraph::insert_render_stage_between(GID front, GID back, AudioRen
 
     // Re-generate graph
     if (!construct_render_order(find_render_stage(output_node))) {
-        // Undo the connection
+        // Undo the connection and remove from map
+        front_render_stage->disconnect_render_stage(m_render_stages_map[render_stage_gid].get());
+        m_render_stages_map[render_stage_gid]->disconnect_render_stage(back_render_stage);
+        m_render_stages_map.erase(render_stage_gid);
         throw std::runtime_error("Failed to construct render order.");
     }
 
@@ -342,7 +349,7 @@ void AudioRenderGraph::bind() {
     }
 }
 
-std::unique_ptr<AudioRenderStage> AudioRenderGraph::remove_render_stage(GID gid) {
+std::shared_ptr<AudioRenderStage> AudioRenderGraph::remove_render_stage(GID gid) {
     // Make sure render stage exists
     if (m_render_stages_map.find(gid) == m_render_stages_map.end()) {
         printf("Did not find render stage %d in graph\n", gid);
@@ -367,7 +374,8 @@ std::unique_ptr<AudioRenderStage> AudioRenderGraph::remove_render_stage(GID gid)
 
     std::lock_guard<std::mutex> guard(m_graph_mutex);
     // move out the render stage
-    auto current = std::move(m_render_stages_map[gid]);
+    auto current = m_render_stages_map[gid];
+    m_render_stages_map.erase(gid);
 
     // Disconnect inputs
     for (AudioRenderStage * input : inputs) {
@@ -410,10 +418,10 @@ std::unique_ptr<AudioRenderStage> AudioRenderGraph::remove_render_stage(GID gid)
     }
     printf("\n");
 
-    return std::move(current);
+    return current;
 }
 
-std::unique_ptr<AudioRenderStage> AudioRenderGraph::replace_render_stage(GID gid, AudioRenderStage * render_stage) {
+std::shared_ptr<AudioRenderStage> AudioRenderGraph::replace_render_stage(GID gid, std::shared_ptr<AudioRenderStage> render_stage) {
     // Make sure render stage exists
     if (m_render_stages_map.find(gid) == m_render_stages_map.end()) {
         printf("Did not find render stage %d in graph\n", gid);
@@ -426,39 +434,48 @@ std::unique_ptr<AudioRenderStage> AudioRenderGraph::replace_render_stage(GID gid
         return nullptr;
     }
 
+    // Initialize the render stage if not already initialized
+    if (!render_stage->is_initialized()) {
+        printf("Render stage %d is not initialized\n", render_stage->gid);
+    }
+
+    // Ensure the old render stage is properly disconnected
     // Find associated render stages
     // NOTE: Must be copy
     auto inputs = m_render_stages_map[gid]->m_connected_stream_render_stages;
     auto outputs = m_render_stages_map[gid]->m_connected_output_render_stages;
 
-    // move out the render stage
-    auto current = std::move(m_render_stages_map[gid]);
+    printf("Replacing render stage %d with %d\n", gid, render_stage->gid);
 
     std::lock_guard<std::mutex> guard(m_graph_mutex);
     // Disconnect inputs
     for (AudioRenderStage * input : inputs) {
-        input->disconnect_render_stage(current.get());
+        input->disconnect_render_stage(m_render_stages_map[gid].get());
     }
 
     // Disconnect the outputs
     for (AudioRenderStage * output : outputs) {
-        current->disconnect_render_stage(output);
+        m_render_stages_map[gid]->disconnect_render_stage(output);
     }
 
     // Re-connect the render stages
     for (AudioRenderStage * input : inputs) {
-        input->connect_render_stage(render_stage);
+        input->connect_render_stage(render_stage.get());
     }
 
     for (AudioRenderStage * output : outputs) {
         render_stage->connect_render_stage(output);
     }
 
+    // Add the new render stage to the map
+    m_render_stages_map[render_stage->gid] = render_stage;
+
+    // Move the current render stage out of the map after disconnection
+    auto current = m_render_stages_map[gid];
+    m_render_stages_map.erase(gid);
+
     // Save the output assuming one output
     GID output_node = m_outputs[0];
-
-    // Remove the render stage
-    m_render_stages_map.erase(gid);
 
     m_render_order.clear();
     m_outputs.clear();
@@ -478,5 +495,5 @@ std::unique_ptr<AudioRenderStage> AudioRenderGraph::replace_render_stage(GID gid
     }
     printf("\n");
 
-    return std::move(current);
+    return current;
 }

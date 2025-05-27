@@ -29,11 +29,12 @@ AddOption('--gdb',
 
 if GetOption('debug'):
     env.Append(CXXFLAGS=['-g', '-O0'])
+    env.Append(LINKFLAGS=['-g'])
 
 # Define include directories
 env.Append(CPPPATH=[INCLUDE_DIR])
 
-# Link libraries
+# Link libraries for main executable
 env.Append(LIBS=[
     'SDL2_image',
     'SDL2_mixer',
@@ -42,11 +43,13 @@ env.Append(LIBS=[
     'SDL2',
     'GLEW',
     'GL',
-    'Catch2Main',
-    'Catch2',
     'pthread',
     'X11',
 ])
+
+# Create separate environment for tests with Catch2
+test_env = env.Clone()
+test_env.Append(LIBS=['Catch2Main', 'Catch2'])
 
 # Function to create object files in the build directory
 def create_objects(env, sources, build_dir):
@@ -76,9 +79,9 @@ for target in COMMAND_LINE_TARGETS:
     if 'tests' in target:
         for src in TEST_SOURCES:
             test_name = os.path.splitext(os.path.basename(src))[0]
-            test_objects = create_objects(env, [src] + LIB_SOURCES, BUILD_DIR)
-            test_executable = env.Program(target=os.path.join(BUILD_DIR, 'tests', test_name), source=test_objects)
-            env.Command(
+            test_objects = create_objects(test_env, [src] + LIB_SOURCES, BUILD_DIR)
+            test_executable = test_env.Program(target=os.path.join(BUILD_DIR, 'tests', test_name), source=test_objects)
+            test_env.Command(
                 target=test_executable[0].abspath + '.out',
                 source=test_executable,
                 action='xvfb-run -a ' + test_executable[0].abspath + ' -d yes > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
