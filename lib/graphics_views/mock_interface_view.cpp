@@ -4,8 +4,8 @@
 #include "audio_core/audio_renderer.h"
 #include <iostream>
 
-MockInterfaceView::MockInterfaceView(GraphicsDisplay* parent_display, EventHandler* event_handler)
-    : GraphicsView(parent_display, event_handler)
+MockInterfaceView::MockInterfaceView()
+    : GraphicsView()
 {
     auto& synthesizer = AudioSynthesizer::get_instance();
     
@@ -59,9 +59,7 @@ MockInterfaceView::MockInterfaceView(GraphicsDisplay* parent_display, EventHandl
         auto button = new ButtonComponent(
             x, y, button_width, button_height,
             info.label,
-            info.callback,
-            &AudioRenderer::get_instance(),
-            m_parent_display
+            info.callback
         );
 
         button->set_colors(info.color[0], info.color[1], info.color[2], info.color[3]);
@@ -69,28 +67,5 @@ MockInterfaceView::MockInterfaceView(GraphicsDisplay* parent_display, EventHandl
         button->set_active_colors(info.active_color[0], info.active_color[1], info.active_color[2], info.active_color[3]);
 
         add_component(button);
-    }
-}
-
-void MockInterfaceView::register_event_handler(EventHandler* event_handler) {
-    GraphicsView::register_event_handler(event_handler);
-
-    // Get the event handler from the parent class
-    if (!event_handler) {
-        std::cerr << "No event handler set for MockInterfaceView" << std::endl;
-        return;
-    }
-    
-    // Register event handlers for each button component
-    for (auto & component : m_components) {
-        component->register_event_handlers(event_handler);
-    }
-}
-
-void MockInterfaceView::unregister_event_handler(EventHandler* event_handler) {
-    GraphicsView::unregister_event_handler(event_handler);
-    // Unregister event handlers for each button component
-    for (auto & component : m_components) {
-        component->unregister_event_handlers();
     }
 }

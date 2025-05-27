@@ -5,8 +5,6 @@
 
 class DebugView : public GraphicsView {
 public:
-    DebugView(GraphicsDisplay* parent_display, EventHandler* event_handler);
+    DebugView();
     ~DebugView() override = default;
-
-    void render() override;
 };

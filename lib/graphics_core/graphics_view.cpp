@@ -5,17 +5,11 @@
 
 #include "engine/event_handler.h"
 
-GraphicsView::GraphicsView(GraphicsDisplay * parent_display, EventHandler * event_handler)
-    : m_event_handler(event_handler),
-      m_parent_display(parent_display)
-{
+GraphicsView::GraphicsView() {
 }
 
 GraphicsView::~GraphicsView() {
-    // Make sure all event handlers are unregistered
-    if (m_event_handler) {
-        unregister_event_handler(m_event_handler);
-    }
+    on_exit();
 }
 
 void GraphicsView::render() {
@@ -25,25 +19,26 @@ void GraphicsView::render() {
 }
 
 void GraphicsView::on_enter() {
-    // Register view-specific event handlers when the view becomes active
-    if (m_event_handler) {
-        register_event_handler(m_event_handler);
-    }
+    register_event_handler(*m_event_handler);
 }
 
 void GraphicsView::on_exit() {
-    // Unregister view-specific event handlers when the view becomes inactive
-    if (m_event_handler) {
-        unregister_event_handler(m_event_handler);
-    }
+    unregister_event_handler(*m_event_handler);
 }
 
 void GraphicsView::add_component(GraphicsComponent* component) {
-    std::unique_ptr<GraphicsComponent> ptr(component);
-    m_components.push_back(std::move(ptr));
+    m_components.push_back(std::unique_ptr<GraphicsComponent>(component));
+    // If event handlers are already registered, register for the new component as well
+    if (m_event_handlers_registered && m_event_handler) {
+        component->register_event_handlers(m_event_handler);
+    }
 }
 
 void GraphicsView::remove_component(GraphicsComponent* component) {
+    // If event handlers are registered, unregister for this component before removal
+    if (m_event_handlers_registered) {
+        component->unregister_event_handlers();
+    }
     auto it = std::remove_if(m_components.begin(), m_components.end(),
                              [component](const std::unique_ptr<GraphicsComponent>& ptr) {
                                  return ptr.get() == component;
@@ -51,24 +46,48 @@ void GraphicsView::remove_component(GraphicsComponent* component) {
     m_components.erase(it, m_components.end());
 }
 
-void GraphicsView::set_event_handler(EventHandler* event_handler) {
+void GraphicsView::initialize(EventHandler& event_handler, unsigned int display_id) {
+    set_display_id(display_id);
+
+    set_event_handler(event_handler);
+}
+
+void GraphicsView::set_display_id(unsigned int id) {
+    m_display_id = id;
+
+    // Update all components with the new display ID
+    for (auto& component :m_components) {
+        component->set_display_id(id);
+    }
+}
+
+
+void GraphicsView::set_event_handler(EventHandler& event_handler) {
     // If we already have an event handler, unregister from it first
-    if (m_event_handler) {
-        unregister_event_handler(m_event_handler);
+    if (m_event_handler && m_event_handlers_registered) {
+        unregister_event_handler(*m_event_handler);
     }
-    
-    m_event_handler = event_handler;
-    
-    // Register with the new event handler if we're already active
-    if (m_event_handler) {
-        register_event_handler(m_event_handler);
-    }
+
+    m_event_handler = &event_handler;
+
+    // Only register if not already registered
+    register_event_handler(*m_event_handler);
 }
 
-void GraphicsView::register_event_handler(EventHandler* event_handler) {
+void GraphicsView::register_event_handler(EventHandler& event_handler) {
+    if (m_event_handlers_registered) return;
+    // Register event handlers for each button component
+    for (auto & component : m_components) {
+        component->register_event_handlers(&event_handler);
+    }
+    m_event_handlers_registered = true;
 }
 
-void GraphicsView::unregister_event_handler(EventHandler* event_handler) {
-    // Clear the list of registered entries
-    m_registered_entries.clear();
+void GraphicsView::unregister_event_handler(EventHandler& event_handler) {
+    if (!m_event_handlers_registered) return;
+    // Unregister event handlers for each button component
+    for (auto & component : m_components) {
+        component->unregister_event_handlers();
+    }
+    m_event_handlers_registered = false;
 }

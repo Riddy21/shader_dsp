@@ -11,9 +11,9 @@
 
 GLuint m_shaderProgram;
 
-GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const std::string& title, unsigned int refresh_rate)
-    : m_width(width), m_height(height), m_title(title), m_refresh_rate(refresh_rate) {
-    
+GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const std::string& title, unsigned int refresh_rate, EventHandler& event_handler)
+    : m_width(width), m_height(height), m_title(title), m_refresh_rate(refresh_rate), m_event_handler(event_handler) {
+
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
         throw std::runtime_error("SDL initialization failed");
@@ -29,6 +29,7 @@ GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const 
         std::cerr << "Warning: Unable to disable VSync: " << SDL_GetError() << std::endl;
     }
 
+    // TODO: Consdier putting this in Constructor as a default
     auto& event_loop = EventLoop::get_instance();
     event_loop.add_loop_item(this); // Register this graphics display instance with the event loop
 }
@@ -37,16 +38,10 @@ GraphicsDisplay::~GraphicsDisplay() {
     // Base class destructor will handle SDL cleanup
 }
 
-void GraphicsDisplay::register_view(const std::string& name, GraphicsView* view) {
+void GraphicsDisplay::add_view(const std::string& name, GraphicsView* view) {
     m_views[name] = std::unique_ptr<GraphicsView>(view);
-    
-    // If we have an event handler, pass it to the view
-    if (m_event_handler) {
-        view->set_event_handler(m_event_handler);
-    }
-    
-    // If this is a MockInterfaceView, set the parent display
-    view->set_parent_display(this);
+
+    m_views[name]->initialize(m_event_handler, this->get_window_id());
 }
 
 void GraphicsDisplay::change_view(const std::string& name) {
@@ -58,21 +53,6 @@ void GraphicsDisplay::change_view(const std::string& name) {
         }
         m_current_view = it->second.get();
         m_current_view->on_enter();
-    }
-}
-
-void GraphicsDisplay::set_event_handler(EventHandler* event_handler) {
-    m_event_handler = event_handler;
-    
-    // Update all views with the new event handler
-    for (auto& view_pair : m_views) {
-        view_pair.second->set_event_handler(m_event_handler);
-    }
-    
-    // If the current view is active, register its handlers
-    if (m_current_view) {
-        m_current_view->on_exit();  // Unregister old handlers
-        m_current_view->on_enter(); // Register new handlers
     }
 }
 

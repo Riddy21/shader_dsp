@@ -46,6 +46,8 @@ AudioTrack::AudioTrack(AudioRenderGraph * render_graph, AudioRenderStage * root_
 }
 
 void AudioTrack::initialize_effects() {
+    m_audio_renderer->activate_render_context();
+
     m_effects["gain"] = std::make_shared<AudioGainEffectRenderStage>(m_buffer_size, m_sample_rate, m_num_channels);
     m_effects["echo"] = std::make_shared<AudioEchoEffectRenderStage>(m_buffer_size, m_sample_rate, m_num_channels);
     m_effects["frequency_filter"] = std::make_shared<AudioFrequencyFilterEffectRenderStage>(m_buffer_size, m_sample_rate, m_num_channels);
@@ -60,6 +62,8 @@ void AudioTrack::initialize_effects() {
 }
 
 void AudioTrack::initialize_generators() {
+    m_audio_renderer->activate_render_context();
+
     m_generators["sine"] = std::make_shared<AudioGeneratorRenderStage>(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sine_generator_render_stage.glsl");
     m_generators["saw"] = std::make_shared<AudioGeneratorRenderStage>(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sawtooth_generator_render_stage.glsl");
     m_generators["square"] = std::make_shared<AudioGeneratorRenderStage>(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_square_generator_render_stage.glsl");
@@ -72,6 +76,8 @@ void AudioTrack::initialize_generators() {
 }
 
 void AudioTrack::play_note(const float tone, const float gain) {
+    m_audio_renderer->activate_render_context();
+
     auto generator = dynamic_cast<AudioGeneratorRenderStage *>(m_current_voice);
     if (generator) {
         generator->play_note(tone, gain);
@@ -79,6 +85,8 @@ void AudioTrack::play_note(const float tone, const float gain) {
 }
 
 void AudioTrack::stop_note(const float tone) {
+    m_audio_renderer->activate_render_context();
+
     auto generator = dynamic_cast<AudioGeneratorRenderStage *>(m_current_voice);
     if (generator) {
         generator->stop_note(tone);
@@ -86,6 +94,8 @@ void AudioTrack::stop_note(const float tone) {
 }
 
 void AudioTrack::change_effect(const std::string & effect_name) {
+    m_audio_renderer->activate_render_context();
+
     if (m_effects.find(effect_name) != m_effects.end()) {
         // Move the current effect back to the hash map
         AudioRenderGraph::GID gid = m_effects[effect_name]->gid;
@@ -103,6 +113,8 @@ void AudioTrack::change_effect(const std::string & effect_name) {
 }
 
 void AudioTrack::change_voice(const std::string & voice_name) {
+    m_audio_renderer->activate_render_context();
+
     if (m_generators.find(voice_name) != m_generators.end()) {
         // Move the current generator back to the hash map
         AudioRenderGraph::GID gid = m_generators[voice_name]->gid;

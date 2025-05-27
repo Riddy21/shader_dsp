@@ -14,8 +14,7 @@
 class GraphComponent : public GraphicsComponent {
 public:
     GraphComponent(const float x, const float y, const float width, const float height, 
-                  const std::vector<float>& data, const bool is_dynamic = true,
-                  IRenderableEntity* render_context = nullptr);
+                  const std::vector<float>& data, const bool is_dynamic = true);
     ~GraphComponent() override;
 
     void set_data(const std::vector<float>& data);

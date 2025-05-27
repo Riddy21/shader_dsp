@@ -12,10 +12,8 @@ ButtonComponent::ButtonComponent(
     float width, 
     float height, 
     const std::string& label,
-    ButtonCallback callback,
-    IRenderableEntity* render_context,
-    IRenderableEntity* display_context
-) : GraphicsComponent(x, y, width, height, render_context, display_context),
+    ButtonCallback callback
+) : GraphicsComponent(x, y, width, height),
     m_label(label),
     m_callback(callback)
 {
@@ -148,10 +146,13 @@ void ButtonComponent::set_active_colors(float r, float g, float b, float a) {
 }
 
 void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
+    if (m_event_handlers_registered) return;
+    m_event_handlers_registered = true;
+
     // Store reference to the event handler
     m_event_handler = event_handler;
 
-    if (!m_event_handler || !m_render_context) {
+    if (!m_event_handler) {
         printf("Error: Event handler or render context is not set for ButtonComponent\n");
         throw std::runtime_error("Event handler or render context is not set");
     }
@@ -171,22 +172,19 @@ void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
     
     // Register mouse down handler for this button
     auto* mouse_down_handler = new MouseClickEventHandlerEntry(
-        m_render_context,
-        m_display_context,
         SDL_MOUSEBUTTONDOWN,
         rect_x, rect_y, window_width, window_height,
         [this](const SDL_Event& event) {
             m_is_pressed = true;
             return true;
-        }
+        },
+        m_window_id
     );
     m_event_handler->register_entry(mouse_down_handler);
     m_event_handler_entries.push_back(mouse_down_handler);
     
     // Register mouse up handler for this button globally
     auto* mouse_up_handler = new MouseClickEventHandlerEntry(
-        m_render_context,
-        m_display_context,
         SDL_MOUSEBUTTONUP,
         0, 0, screen_width, screen_height,
         [this](const SDL_Event& event) {
@@ -197,54 +195,55 @@ void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
                 }
             }
             return true;
-        }
+        },
+        m_window_id
     );
     m_event_handler->register_entry(mouse_up_handler);
     m_event_handler_entries.push_back(mouse_up_handler);
     
     // Register mouse motion handler for hover effect
     auto* mouse_motion_handler = new MouseMotionEventHandlerEntry(
-        m_render_context,
-        m_display_context,
         rect_x, rect_y, window_width, window_height,
         [this](const SDL_Event& event) {
             m_is_hovered = true;
             return true;
-        }
+        },
+        m_window_id
     );
     m_event_handler->register_entry(mouse_motion_handler);
     m_event_handler_entries.push_back(mouse_motion_handler);
     
     // Register mouse enter handler
     auto* mouse_enter_handler = new MouseEnterLeaveEventHandlerEntry(
-        m_render_context,
-        m_display_context,
         rect_x, rect_y, window_width, window_height,
         MouseEnterLeaveEventHandlerEntry::Mode::ENTER,
         [this](const SDL_Event& event) {
             m_is_hovered = true;
             return true;
-        }
+        },
+        m_window_id
     );
     m_event_handler->register_entry(mouse_enter_handler);
     m_event_handler_entries.push_back(mouse_enter_handler);
     
     // Register mouse leave handler
     auto* mouse_leave_handler = new MouseEnterLeaveEventHandlerEntry(
-        m_render_context,
-        m_display_context,
         rect_x, rect_y, window_width, window_height,
         MouseEnterLeaveEventHandlerEntry::Mode::LEAVE,
         [this](const SDL_Event& event) {
             m_is_hovered = false;
             return true;
-        }
+        },
+        m_window_id
     );
     m_event_handler->register_entry(mouse_leave_handler);
     m_event_handler_entries.push_back(mouse_leave_handler);
 }
 
 void ButtonComponent::unregister_event_handlers() {
+    if (!m_event_handlers_registered) return;
+    m_event_handlers_registered = false;
+
     // If we have an event handler, unregister all our entries
     if (m_event_handler) {
         for (auto* entry : m_event_handler_entries) {
