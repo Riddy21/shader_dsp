@@ -16,16 +16,12 @@ EventHandler::EventHandler() {
 EventHandler::~EventHandler() {}
 
 void EventHandler::register_entry(EventHandlerEntry* entry) {
-    m_entries.push_back(std::unique_ptr<EventHandlerEntry>(entry));
+    m_entries[entry] = std::unique_ptr<EventHandlerEntry>(entry);
 }
 
 bool EventHandler::unregister_entry(EventHandlerEntry* entry) {
-    auto it = std::find_if(m_entries.begin(), m_entries.end(),
-                          [entry](const std::unique_ptr<EventHandlerEntry>& ptr) {
-                              return ptr.get() == entry;
-                          });
+    auto it = m_entries.find(entry);
     if (it != m_entries.end()) {
-        printf("Unregistered event handler entry %d of type %s\n", m_entries.size(), typeid(*entry).name());
         m_entries.erase(it);
         return true;
     }
@@ -36,7 +32,8 @@ bool EventHandler::handle_event(const SDL_Event& event) {
     bool handled = false;
     std::vector<EventCallback> callbacks_to_execute;
 
-    for (const auto& entry : m_entries) {
+    for (const auto& pair : m_entries) {
+        const auto& entry = pair.second;
         if (entry->matches(event)) {
             callbacks_to_execute.push_back(entry->callback);
         }

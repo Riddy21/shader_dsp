@@ -4,19 +4,24 @@
 #include <vector>
 #include <memory>
 #include <unordered_set>
+#include <unordered_map>
 
 #include "engine/renderable_item.h"
 
 // Forward declarations
 class EventHandlerEntry;
-class KeyboardEventHandlerEntry;
-class MouseEventHandlerEntry;
-class MouseClickEventHandlerEntry;
-class MouseMotionEventHandlerEntry;
-class MouseEnterLeaveEventHandlerEntry;
-class GlobalMouseUpEventHandlerEntry;
-class GPIOEventHandlerEntry;
-class IDisplayContext; // <-- Add this forward declaration
+
+// Hash and equality functors for unique_ptr<EventHandlerEntry>
+struct EntryPtrHash {
+    std::size_t operator()(const std::unique_ptr<EventHandlerEntry>& ptr) const noexcept {
+        return std::hash<EventHandlerEntry*>()(ptr.get());
+    }
+};
+struct EntryPtrEqual {
+    bool operator()(const std::unique_ptr<EventHandlerEntry>& a, const std::unique_ptr<EventHandlerEntry>& b) const noexcept {
+        return a.get() == b.get();
+    }
+};
 
 class EventHandler {
 public:
@@ -40,7 +45,7 @@ private:
     ~EventHandler();
 
     static EventHandler* instance; // Singleton instance
-    std::vector<std::unique_ptr<EventHandlerEntry>> m_entries;
+    std::unordered_map<EventHandlerEntry*, std::unique_ptr<EventHandlerEntry>> m_entries;
 };
 
 // Base handler entry
@@ -48,7 +53,7 @@ class EventHandlerEntry {
 public:
     using EventCallback = std::function<bool(const SDL_Event&)>;
     virtual ~EventHandlerEntry() = default;
-    virtual bool matches(const SDL_Event& event) = 0;
+    virtual bool matches(const SDL_Event& event) { return false; }
     EventCallback callback;
     unsigned int window_id;
 protected:
