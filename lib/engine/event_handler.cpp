@@ -15,25 +15,32 @@ EventHandler::EventHandler() {
 }
 EventHandler::~EventHandler() {}
 
-void EventHandler::register_entry(EventHandlerEntry* entry) {
-    m_entries[entry] = std::unique_ptr<EventHandlerEntry>(entry);
+void EventHandler::register_entry(std::shared_ptr<EventHandlerEntry> entry) {
+    m_entries.insert(entry);
 }
 
-bool EventHandler::unregister_entry(EventHandlerEntry* entry) {
+void EventHandler::register_entry(EventHandlerEntry* entry) {
+    if (entry) {
+        auto shared_entry = std::shared_ptr<EventHandlerEntry>(entry);
+        m_entries.insert(shared_entry);
+    }
+}
+
+std::shared_ptr<EventHandlerEntry> EventHandler::unregister_entry(std::shared_ptr<EventHandlerEntry> entry) {
     auto it = m_entries.find(entry);
     if (it != m_entries.end()) {
+        auto removed = *it;
         m_entries.erase(it);
-        return true;
+        return removed;
     }
-    return false;
+    return nullptr;
 }
 
 bool EventHandler::handle_event(const SDL_Event& event) {
     bool handled = false;
     std::vector<EventCallback> callbacks_to_execute;
 
-    for (const auto& pair : m_entries) {
-        const auto& entry = pair.second;
+    for (const auto& entry : m_entries) {
         if (entry->matches(event)) {
             callbacks_to_execute.push_back(entry->callback);
         }

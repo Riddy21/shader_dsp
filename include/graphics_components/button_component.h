@@ -38,9 +38,6 @@ public:
     virtual void update_children();
 
 protected:
-    void register_event_handlers(EventHandler* event_handler) override;
-    void unregister_event_handlers() override;
-    
     ButtonCallback m_callback;
     bool m_is_hovered = false;
     bool m_is_pressed = false;
@@ -48,7 +45,6 @@ protected:
     float m_color[4] = {0.3f, 0.3f, 0.3f, 1.0f};         // Normal state color
     float m_hover_color[4] = {0.4f, 0.4f, 0.4f, 1.0f};   // Hover state color
     float m_active_color[4] = {0.2f, 0.2f, 0.2f, 1.0f};  // Pressed state color
-
 private:
     void initialize_graphics();
 

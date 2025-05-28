@@ -11,6 +11,45 @@ MenuSelectionComponent::MenuSelectionComponent(
     m_callback(callback)
 {
     set_items(items);
+
+    // Create keyboard event handler entries at construction time
+    auto key_up_handler = std::make_shared<KeyboardEventHandlerEntry>(
+        SDL_KEYDOWN, SDLK_UP,
+        [this](const SDL_Event& event) {
+            if (event.key.keysym.sym == SDLK_UP) {
+                select_previous();
+                return true;
+            }
+            return false;
+        }
+    );
+    auto key_down_handler = std::make_shared<KeyboardEventHandlerEntry>(
+        SDL_KEYDOWN, SDLK_DOWN,
+        [this](const SDL_Event& event) {
+            if (event.key.keysym.sym == SDLK_DOWN) {
+                select_next();
+                return true;
+            }
+            return false;
+        }
+    );
+    auto key_return_handler = std::make_shared<KeyboardEventHandlerEntry>(
+        SDL_KEYDOWN, SDLK_RETURN,
+        [this](const SDL_Event& event) {
+            if (event.key.keysym.sym == SDLK_RETURN) {
+                if (m_callback && m_selected_index >= 0) {
+                    m_callback(m_selected_index);
+                }
+                return true;
+            }
+            return false;
+        }
+    );
+    m_event_handler_entries = {
+        key_up_handler,
+        key_down_handler,
+        key_return_handler
+    };
 }
 
 MenuSelectionComponent::~MenuSelectionComponent() {
@@ -141,70 +180,6 @@ void MenuSelectionComponent::update_layout() {
         m_items[i]->set_position(m_x, item_y);
         m_items[i]->set_dimensions(m_width, m_item_height);
     }
-}
-
-void MenuSelectionComponent::register_event_handlers(EventHandler* event_handler) {
-    if (m_event_handlers_registered) return;
-    
-    // Call base class implementation to register children
-    GraphicsComponent::register_event_handlers(event_handler);
-    
-    if (!m_event_handler) {
-        printf("Error: Event handler is not set for MenuSelectionComponent\n");
-        throw std::runtime_error("Event handler is not set");
-    }
-    
-    // Convert normalized device coordinates to window coordinates
-    int screen_width = SDL_GetWindowSurface(SDL_GL_GetCurrentWindow())->w;
-    int screen_height = SDL_GetWindowSurface(SDL_GL_GetCurrentWindow())->h;
-    
-    // Register keyboard handlers for navigation
-    auto* key_down_handler = new KeyboardEventHandlerEntry(
-        SDL_KEYDOWN, SDLK_UP,
-        [this](const SDL_Event& event) {
-            if (event.key.keysym.sym == SDLK_UP) {
-                select_previous();
-                return true;
-            }
-            return false;
-        }
-    );
-    m_event_handler->register_entry(key_down_handler);
-    m_event_handler_entries.push_back(key_down_handler);
-
-    auto* key_down_handler_down = new KeyboardEventHandlerEntry(
-        SDL_KEYDOWN, SDLK_DOWN,
-        [this](const SDL_Event& event) {
-            if (event.key.keysym.sym == SDLK_DOWN) {
-                select_next();
-                return true;
-            }
-            return false;
-        }
-    );
-    m_event_handler->register_entry(key_down_handler_down);
-    m_event_handler_entries.push_back(key_down_handler_down);
-
-    auto* key_down_handler_return = new KeyboardEventHandlerEntry(
-        SDL_KEYDOWN, SDLK_RETURN,
-        [this](const SDL_Event& event) {
-            if (event.key.keysym.sym == SDLK_RETURN) {
-                // Trigger selection on Enter
-                if (m_callback && m_selected_index >= 0) {
-                    m_callback(m_selected_index);
-                }
-                return true;
-            }
-            return false;
-        }
-    );
-    m_event_handler->register_entry(key_down_handler_return);
-    m_event_handler_entries.push_back(key_down_handler_return);
-}
-
-void MenuSelectionComponent::unregister_event_handlers() {
-    // Call base class implementation to unregister children
-    GraphicsComponent::unregister_event_handlers();
 }
 
 void MenuSelectionComponent::set_normal_color(float r, float g, float b, float a) {

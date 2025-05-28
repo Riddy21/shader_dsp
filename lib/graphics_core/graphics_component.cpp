@@ -19,34 +19,27 @@ void GraphicsComponent::render() {
 
 void GraphicsComponent::register_event_handlers(EventHandler* event_handler) {
     if (m_event_handlers_registered) return;
-    m_event_handlers_registered = true;
-    
     m_event_handler = event_handler;
-    
-    // Register event handlers for all children
+    for (auto& entry : m_event_handler_entries) {
+        m_event_handler->register_entry(entry);
+    }
     for (auto& child : m_children) {
         child->register_event_handlers(event_handler);
     }
+    m_event_handlers_registered = true;
 }
 
 void GraphicsComponent::unregister_event_handlers() {
     if (!m_event_handlers_registered) return;
-    m_event_handlers_registered = false;
-    
-    // If we have an event handler, unregister all our entries
     if (m_event_handler) {
-        for (auto* entry : m_event_handler_entries) {
+        for (auto& entry : m_event_handler_entries) {
             m_event_handler->unregister_entry(entry);
         }
-        m_event_handler_entries.clear();
     }
-    
-    // Unregister event handlers for all children
     for (auto& child : m_children) {
         child->unregister_event_handlers();
     }
-    
-    m_event_handler = nullptr;
+    m_event_handlers_registered = false;
 }
 
 void GraphicsComponent::set_position(const float x, const float y) {

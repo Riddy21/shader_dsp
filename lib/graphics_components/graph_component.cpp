@@ -91,11 +91,3 @@ void GraphComponent::render() {
     glBindVertexArray(0);
     glUseProgram(0);
 }
-
-void GraphComponent::register_event_handlers(EventHandler* event_handler) {
-    // Register event handlers if needed
-}
-
-void GraphComponent::unregister_event_handlers() {
-    // Unregister event handlers if needed
-}
