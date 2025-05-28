@@ -7,6 +7,7 @@
 #include "graphics_core/graphics_display.h"
 #include "graphics_views/debug_view.h"
 #include "graphics_views/mock_interface_view.h"
+#include "graphics_views/menu_view.h"
 
 #define MIDDLE_C 261.63f
 #define SEMI_TONE 1.059463f
@@ -91,6 +92,7 @@ int main() {
     GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
     interface_display->add_view("debug", new DebugView());
     interface_display->add_view("interface", new MockInterfaceView());
+    interface_display->add_view("menu", new MenuView());
     interface_display->change_view("interface");
 
     auto & event_handler = EventHandler::get_instance();
@@ -106,6 +108,13 @@ int main() {
         SDL_KEYDOWN, 'x',
         [&interface_display](const SDL_Event&) {
             interface_display->change_view("debug");
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'c',
+        [&interface_display](const SDL_Event&) {
+            interface_display->change_view("menu");
             return true;
         }
     ));

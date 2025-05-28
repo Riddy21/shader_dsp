@@ -4,6 +4,9 @@
 #include "engine/event_handler.h"
 #include "engine/event_loop.h"
 
+// Define EventCallback if not already defined
+using EventCallback = std::function<bool(const SDL_Event&)>;
+
 EventHandler* EventHandler::instance = nullptr;
 
 EventHandler::EventHandler() {
@@ -22,6 +25,7 @@ bool EventHandler::unregister_entry(EventHandlerEntry* entry) {
                               return ptr.get() == entry;
                           });
     if (it != m_entries.end()) {
+        printf("Unregistered event handler entry %d of type %s\n", m_entries.size(), typeid(*entry).name());
         m_entries.erase(it);
         return true;
     }
@@ -30,10 +34,16 @@ bool EventHandler::unregister_entry(EventHandlerEntry* entry) {
 
 bool EventHandler::handle_event(const SDL_Event& event) {
     bool handled = false;
-    for (auto& entry : m_entries) {
+    std::vector<EventCallback> callbacks_to_execute;
+
+    for (const auto& entry : m_entries) {
         if (entry->matches(event)) {
-            handled |= entry->callback(event);
+            callbacks_to_execute.push_back(entry->callback);
         }
+    }
+
+    for (const auto& callback : callbacks_to_execute) {
+        handled |= callback(event);
     }
     return handled;
 }
