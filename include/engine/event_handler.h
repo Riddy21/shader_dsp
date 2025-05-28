@@ -11,14 +11,14 @@
 // Forward declarations
 class EventHandlerEntry;
 
-// Hash and equality functors for unique_ptr<EventHandlerEntry>
-struct EntryPtrHash {
-    std::size_t operator()(const std::unique_ptr<EventHandlerEntry>& ptr) const noexcept {
-        return std::hash<EventHandlerEntry*>()(ptr.get());
+// Hash and equality for shared_ptr by pointer value
+struct PtrHash {
+    size_t operator()(const std::shared_ptr<EventHandlerEntry>& p) const noexcept {
+        return std::hash<EventHandlerEntry*>()(p.get());
     }
 };
-struct EntryPtrEqual {
-    bool operator()(const std::unique_ptr<EventHandlerEntry>& a, const std::unique_ptr<EventHandlerEntry>& b) const noexcept {
+struct PtrEqual {
+    bool operator()(const std::shared_ptr<EventHandlerEntry>& a, const std::shared_ptr<EventHandlerEntry>& b) const noexcept {
         return a.get() == b.get();
     }
 };
@@ -35,8 +35,10 @@ public:
     EventHandler(const EventHandler&) = delete;
     EventHandler& operator=(const EventHandler&) = delete;
 
+    // Now returns void for the entry
+    void register_entry(std::shared_ptr<EventHandlerEntry> entry);
     void register_entry(EventHandlerEntry* entry);
-    bool unregister_entry(EventHandlerEntry* entry);
+    std::shared_ptr<EventHandlerEntry> unregister_entry(std::shared_ptr<EventHandlerEntry> entry);
 
     bool handle_event(const SDL_Event& event);
 
@@ -45,7 +47,7 @@ private:
     ~EventHandler();
 
     static EventHandler* instance; // Singleton instance
-    std::unordered_map<EventHandlerEntry*, std::unique_ptr<EventHandlerEntry>> m_entries;
+    std::unordered_set<std::shared_ptr<EventHandlerEntry>, PtrHash, PtrEqual> m_entries;
 };
 
 // Base handler entry

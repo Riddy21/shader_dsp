@@ -16,6 +16,86 @@ ButtonComponent::ButtonComponent(
     m_callback(callback)
 {
     initialize_graphics();
+
+    // Get window size at construction time
+    int screen_width = 1, screen_height = 1;
+    SDL_Window* win = SDL_GL_GetCurrentWindow();
+    if (win) {
+        SDL_Surface* surf = SDL_GetWindowSurface(win);
+        if (surf) {
+            screen_width = surf->w;
+            screen_height = surf->h;
+        }
+    }
+
+    int window_x = (int)((m_x + 1.0f) * screen_width / 2);
+    int window_y = (int)((1.0f - m_y) * screen_height / 2);
+    int window_width = (int)(m_width * screen_width);
+    int window_height = (int)(m_height * screen_height);
+
+    int rect_x = window_x - window_width / 2;
+    int rect_y = window_y - window_height / 2;
+
+    auto mouse_down_handler = std::make_shared<MouseClickEventHandlerEntry>(
+        SDL_MOUSEBUTTONDOWN,
+        rect_x, rect_y, window_width, window_height,
+        [this](const SDL_Event& event) {
+            m_is_pressed = true;
+            return true;
+        },
+        m_window_id
+    );
+
+    auto mouse_up_handler = std::make_shared<MouseClickEventHandlerEntry>(
+        SDL_MOUSEBUTTONUP,
+        0, 0, screen_width, screen_height,
+        [this](const SDL_Event& event) {
+            if (m_is_pressed) {
+                m_is_pressed = false;
+                if (m_callback) {
+                    m_callback();
+                }
+            }
+            return true;
+        }
+    );
+
+    auto mouse_motion_handler = std::make_shared<MouseMotionEventHandlerEntry>(
+        rect_x, rect_y, window_width, window_height,
+        [this](const SDL_Event& event) {
+            m_is_hovered = true;
+            return true;
+        },
+        m_window_id
+    );
+
+    auto mouse_enter_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
+        rect_x, rect_y, window_width, window_height,
+        MouseEnterLeaveEventHandlerEntry::Mode::ENTER,
+        [this](const SDL_Event& event) {
+            m_is_hovered = true;
+            return true;
+        },
+        m_window_id
+    );
+
+    auto mouse_leave_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
+        rect_x, rect_y, window_width, window_height,
+        MouseEnterLeaveEventHandlerEntry::Mode::LEAVE,
+        [this](const SDL_Event& event) {
+            m_is_hovered = false;
+            return true;
+        },
+        m_window_id
+    );
+
+    m_event_handler_entries = {
+        mouse_down_handler,
+        mouse_up_handler,
+        mouse_motion_handler,
+        mouse_enter_handler,
+        mouse_leave_handler
+    };
 }
 
 ButtonComponent::~ButtonComponent() {
@@ -147,102 +227,4 @@ void ButtonComponent::set_active_colors(float r, float g, float b, float a) {
 
 void ButtonComponent::update_children() {
     // Override this in derived classes to update child components based on button state
-}
-
-void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
-    if (m_event_handlers_registered) return;
-    
-    // Call base class implementation to register children
-    GraphicsComponent::register_event_handlers(event_handler);
-
-    if (!m_event_handler) {
-        printf("Error: Event handler is not set for ButtonComponent\n");
-        throw std::runtime_error("Event handler is not set");
-    }
-    
-    // Convert normalized device coordinates to window coordinates based on component size
-    int screen_width = SDL_GetWindowSurface(SDL_GL_GetCurrentWindow())->w;
-    int screen_height = SDL_GetWindowSurface(SDL_GL_GetCurrentWindow())->h;
-    
-    int window_x = (int)((m_x + 1.0f) * screen_width / 2);
-    int window_y = (int)((1.0f - m_y) * screen_height / 2);
-    int window_width = (int)(m_width * screen_width);
-    int window_height = (int)(m_height * screen_height);
-    
-    // Calculate the button's rectangle in screen coordinates
-    int rect_x = window_x - window_width / 2;
-    int rect_y = window_y - window_height / 2;
-    
-    // Register mouse down handler for this button
-    auto* mouse_down_handler = new MouseClickEventHandlerEntry(
-        SDL_MOUSEBUTTONDOWN,
-        rect_x, rect_y, window_width, window_height,
-        [this](const SDL_Event& event) {
-            m_is_pressed = true;
-            return true;
-        },
-        m_window_id
-    );
-    m_event_handler->register_entry(mouse_down_handler);
-    m_event_handler_entries.push_back(mouse_down_handler);
-    
-    // Register mouse up handler for this button globally
-    auto* mouse_up_handler = new MouseClickEventHandlerEntry(
-        SDL_MOUSEBUTTONUP,
-        0, 0, screen_width, screen_height,
-        [this](const SDL_Event& event) {
-            if (m_is_pressed) {
-                m_is_pressed = false;
-                if (m_callback) {
-                    m_callback();
-                }
-            }
-            return true;
-        } // Don't need window_id here, as this is a global handler
-    );
-    m_event_handler->register_entry(mouse_up_handler);
-    m_event_handler_entries.push_back(mouse_up_handler);
-    
-    // Register mouse motion handler for hover effect
-    auto* mouse_motion_handler = new MouseMotionEventHandlerEntry(
-        rect_x, rect_y, window_width, window_height,
-        [this](const SDL_Event& event) {
-            m_is_hovered = true;
-            return true;
-        },
-        m_window_id
-    );
-    m_event_handler->register_entry(mouse_motion_handler);
-    m_event_handler_entries.push_back(mouse_motion_handler);
-    
-    // Register mouse enter handler
-    auto* mouse_enter_handler = new MouseEnterLeaveEventHandlerEntry(
-        rect_x, rect_y, window_width, window_height,
-        MouseEnterLeaveEventHandlerEntry::Mode::ENTER,
-        [this](const SDL_Event& event) {
-            m_is_hovered = true;
-            return true;
-        },
-        m_window_id
-    );
-    m_event_handler->register_entry(mouse_enter_handler);
-    m_event_handler_entries.push_back(mouse_enter_handler);
-    
-    // Register mouse leave handler
-    auto* mouse_leave_handler = new MouseEnterLeaveEventHandlerEntry(
-        rect_x, rect_y, window_width, window_height,
-        MouseEnterLeaveEventHandlerEntry::Mode::LEAVE,
-        [this](const SDL_Event& event) {
-            m_is_hovered = false;
-            return true;
-        },
-        m_window_id
-    );
-    m_event_handler->register_entry(mouse_leave_handler);
-    m_event_handler_entries.push_back(mouse_leave_handler);
-}
-
-void ButtonComponent::unregister_event_handlers() {
-    // Call base class implementation to unregister children
-    GraphicsComponent::unregister_event_handlers();
 }

@@ -51,10 +51,6 @@ public:
     void set_font_size(int size);
     bool set_font(const std::string& font_name);
 
-protected:
-    void register_event_handlers(EventHandler* event_handler) override;
-    void unregister_event_handlers() override;
-
 private:
     void update_layout();
     

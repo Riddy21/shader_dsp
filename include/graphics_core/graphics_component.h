@@ -48,7 +48,7 @@ protected:
 
     // Event handler entries
     EventHandler* m_event_handler = nullptr;
-    std::vector<EventHandlerEntry*> m_event_handler_entries;
+    std::vector<std::shared_ptr<EventHandlerEntry>> m_event_handler_entries;
     bool m_event_handlers_registered = false; // Flag to prevent double registration
     
     // Child components (owned by this component)

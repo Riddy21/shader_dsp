@@ -20,9 +20,6 @@ public:
     void set_data(const std::vector<float>& data);
     void render() override;
 
-    void register_event_handlers(EventHandler* event_handler) override;
-    void unregister_event_handlers() override;
-
 private:
     bool m_is_dynamic = true;
     const std::vector<float> * m_data;
