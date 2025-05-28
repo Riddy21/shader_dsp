@@ -3,6 +3,10 @@
 
 #include "graphics_core/graphics_view.h"
 #include "graphics_components/button_component.h"
+#include "graphics_components/text_button_component.h"
+#include "graphics_components/image_button_component.h"
+#include "graphics_components/text_component.h"
+#include "graphics_components/image_component.h"
 #include "audio_synthesizer/audio_synthesizer.h"
 
 class IRenderableEntity;

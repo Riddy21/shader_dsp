@@ -4,7 +4,7 @@
 #include "audio_synthesizer/audio_synthesizer.h"
 #include "engine/event_loop.h"
 #include "engine/event_handler.h"
-#include "graphics/graphics_display.h"
+#include "graphics_core/graphics_display.h"
 #include "graphics_views/debug_view.h"
 #include "graphics_views/mock_interface_view.h"
 

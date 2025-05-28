@@ -11,10 +11,8 @@ ButtonComponent::ButtonComponent(
     float y, 
     float width, 
     float height, 
-    const std::string& label,
     ButtonCallback callback
 ) : GraphicsComponent(x, y, width, height),
-    m_label(label),
     m_callback(callback)
 {
     initialize_graphics();
@@ -108,16 +106,18 @@ void ButtonComponent::render() {
     glUniform4f(glGetUniformLocation(m_shader_program->get_program(), "uColor"), 
                 color[0], color[1], color[2], color[3]);
     
-    // Draw the button
+    // Draw the button background
     glBindVertexArray(m_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
     
     glUseProgram(0);
-}
-
-void ButtonComponent::set_label(const std::string& label) {
-    m_label = label;
+    
+    // Update child components based on button state
+    update_children();
+    
+    // Render all child components
+    GraphicsComponent::render();
 }
 
 void ButtonComponent::set_callback(ButtonCallback callback) {
@@ -145,16 +145,19 @@ void ButtonComponent::set_active_colors(float r, float g, float b, float a) {
     m_active_color[3] = a;
 }
 
+void ButtonComponent::update_children() {
+    // Override this in derived classes to update child components based on button state
+}
+
 void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
     if (m_event_handlers_registered) return;
-    m_event_handlers_registered = true;
-
-    // Store reference to the event handler
-    m_event_handler = event_handler;
+    
+    // Call base class implementation to register children
+    GraphicsComponent::register_event_handlers(event_handler);
 
     if (!m_event_handler) {
-        printf("Error: Event handler or render context is not set for ButtonComponent\n");
-        throw std::runtime_error("Event handler or render context is not set");
+        printf("Error: Event handler is not set for ButtonComponent\n");
+        throw std::runtime_error("Event handler is not set");
     }
     
     // Convert normalized device coordinates to window coordinates based on component size
@@ -195,8 +198,7 @@ void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
                 }
             }
             return true;
-        },
-        m_window_id
+        } // Don't need window_id here, as this is a global handler
     );
     m_event_handler->register_entry(mouse_up_handler);
     m_event_handler_entries.push_back(mouse_up_handler);
@@ -241,16 +243,6 @@ void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
 }
 
 void ButtonComponent::unregister_event_handlers() {
-    if (!m_event_handlers_registered) return;
-    m_event_handlers_registered = false;
-
-    // If we have an event handler, unregister all our entries
-    if (m_event_handler) {
-        for (auto* entry : m_event_handler_entries) {
-            m_event_handler->unregister_entry(entry);
-        }
-        m_event_handler_entries.clear();
-    }
-    
-    m_event_handler = nullptr;
+    // Call base class implementation to unregister children
+    GraphicsComponent::unregister_event_handlers();
 }

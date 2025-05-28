@@ -1,8 +1,6 @@
 #include <algorithm>
 
 #include "graphics_core/graphics_view.h"
-#include "graphics/graphics_display.h"
-
 #include "engine/event_handler.h"
 
 GraphicsView::GraphicsView() {
