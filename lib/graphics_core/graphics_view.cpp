@@ -46,7 +46,6 @@ void GraphicsView::remove_component(GraphicsComponent* component) {
 
 void GraphicsView::initialize(EventHandler& event_handler, unsigned int display_id) {
     set_display_id(display_id);
-
     set_event_handler(event_handler);
 }
 
@@ -67,9 +66,6 @@ void GraphicsView::set_event_handler(EventHandler& event_handler) {
     }
 
     m_event_handler = &event_handler;
-
-    // Only register if not already registered
-    register_event_handler(*m_event_handler);
 }
 
 void GraphicsView::register_event_handler(EventHandler& event_handler) {
