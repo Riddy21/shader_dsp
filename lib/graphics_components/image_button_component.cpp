@@ -68,10 +68,6 @@ void ImageButtonComponent::set_scale_mode(ImageComponent::ScaleMode mode) {
     }
 }
 
-float ImageButtonComponent::get_aspect_ratio() const {
-    return m_image_component ? m_image_component->get_aspect_ratio() : 1.0f;
-}
-
 void ImageButtonComponent::update_children() {
     // Update image tint color based on button state
     if (!m_image_component) return;

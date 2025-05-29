@@ -64,7 +64,7 @@ private:
     float m_selected_color[4] = {0.4f, 0.4f, 0.6f, 1.0f};
     float m_normal_text_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     float m_selected_text_color[4] = {1.0f, 1.0f, 0.8f, 1.0f};
-    int m_font_size = 16;
+    int m_font_size = 32;
     std::string m_font_name = "default";
 };
 

@@ -9,6 +9,7 @@
 
 #include "utilities/shader_program.h"
 #include "graphics_core/graphics_component.h"
+#include "graphics_core/content_scaling.h"
 
 class ImageComponent : public GraphicsComponent {
 public:
@@ -26,7 +27,13 @@ public:
     // Set tint color (applied as a multiplication to the image)
     void set_tint_color(float r, float g, float b, float a);
     
-    // Set how the image scales to fit the component size
+    // Content scaling methods (using the unified ContentScaling API)
+    void set_scale_mode(ContentScaling::ScaleMode mode);
+    void set_horizontal_alignment(const float alignment);
+    void set_vertical_alignment(const float alignment);
+    void set_aspect_ratio(const float ratio);
+    
+    // Legacy API for backward compatibility
     enum class ScaleMode {
         STRETCH,  // Stretch to fill the component size
         CONTAIN,  // Scale to fit while maintaining aspect ratio
@@ -35,7 +42,7 @@ public:
     void set_scale_mode(ScaleMode mode);
     
     // Get the aspect ratio of the loaded image
-    float get_aspect_ratio() const { return m_aspect_ratio; }
+    float get_natural_aspect_ratio() const { return m_natural_aspect_ratio; }
 
 private:
     void initialize_graphics();
@@ -43,8 +50,8 @@ private:
     
     std::string m_image_path;
     float m_tint_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-    float m_aspect_ratio = 1.0f;
-    ScaleMode m_scale_mode = ScaleMode::CONTAIN;
+    float m_natural_aspect_ratio = 1.0f;
+    ContentScaling::ScalingParams m_scaling_params;
     
     GLuint m_texture = 0;
     static std::unique_ptr<AudioShaderProgram> s_image_shader;

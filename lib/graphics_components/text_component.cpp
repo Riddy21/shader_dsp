@@ -20,6 +20,12 @@ TextComponent::TextComponent(
 ) : GraphicsComponent(x, y, width, height),
     m_text(text)
 {
+    // Initialize scaling parameters with defaults
+    m_scaling_params.scale_mode = ContentScaling::ScaleMode::FIT;
+    m_scaling_params.horizontal_alignment = 0.5;
+    m_scaling_params.vertical_alignment = 0.5;
+    m_scaling_params.custom_aspect_ratio = 1.0f; // Use natural aspect ratio
+    
     initialize_ttf();
     initialize_default_font();
     initialize_static_graphics();
@@ -171,7 +177,8 @@ void TextComponent::initialize_static_graphics() {
             uniform sampler2D uTexture;
             
             void main() {
-                FragColor = texture(uTexture, TexCoord);
+            vec4 textureColor = texture(uTexture, TexCoord);
+            FragColor = textureColor;
             }
         )";
         
@@ -296,47 +303,26 @@ void TextComponent::render_content() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
-    // Calculate vertices based on aspect ratio
-    float vertex_data[24]; // 6 vertices * 4 floats per vertex
-    
-    // Calculate aspect-corrected dimensions
+    // Calculate the component aspect ratio
     float component_aspect = m_width / m_height;
+    
+    // Calculate the texture aspect ratio
     float texture_aspect = static_cast<float>(m_texture_width) / static_cast<float>(m_texture_height);
     
-    // Invert the aspect ratio calculation to fix the direction
-    float corrected_aspect = (m_aspect_ratio * component_aspect) / texture_aspect;
+    // Get display aspect ratio from render context
+    float display_aspect = m_render_context.get_aspect_ratio();
     
-    // Always scale to fill the component dimensions
-    float width = 2.0f;  // Full component width (-1 to 1)
-    float height = 2.0f; // Full component height (-1 to 1)
-    
-    // Adjust one dimension to maintain the desired aspect ratio
-    if (corrected_aspect > 1.0f) {
-        // Component should be wider than texture's natural ratio
-        height = height / corrected_aspect;
-    } else {
-        // Component should be taller than texture's natural ratio
-        width = width * corrected_aspect;
-    }
-    
-    // Apply alignment
-    float left = -width * m_horizontal_alignment;
-    float right = left + width;
-    float top = -height * m_vertical_alignment;
-    float bottom = top + height;
-    
-    // positions        // texture coords
-    vertex_data[0] = left;  vertex_data[1] = bottom; vertex_data[2] = 0.0f; vertex_data[3] = 1.0f; // bottom left
-    vertex_data[4] = left;  vertex_data[5] = top;    vertex_data[6] = 0.0f; vertex_data[7] = 0.0f; // top left
-    vertex_data[8] = right; vertex_data[9] = top;    vertex_data[10] = 1.0f; vertex_data[11] = 0.0f; // top right
-    
-    vertex_data[12] = left;  vertex_data[13] = bottom; vertex_data[14] = 0.0f; vertex_data[15] = 1.0f; // bottom left
-    vertex_data[16] = right; vertex_data[17] = top;    vertex_data[18] = 1.0f; vertex_data[19] = 0.0f; // top right
-    vertex_data[20] = right; vertex_data[21] = bottom; vertex_data[22] = 1.0f; vertex_data[23] = 1.0f; // bottom right
+    // Calculate the vertex data using the content scaling utility
+    auto vertex_data = ContentScaling::calculateVertexData(
+        texture_aspect,
+        component_aspect, 
+        display_aspect,
+        m_scaling_params
+    );
     
     // Update the vertex buffer
     glBindBuffer(GL_ARRAY_BUFFER, s_text_vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex_data), vertex_data);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * vertex_data.size(), vertex_data.data());
     
     // Draw text
     glBindVertexArray(s_text_vao);
@@ -370,17 +356,18 @@ void TextComponent::set_font_size(int size) {
     initialize_text(); // Recreate text texture with new font size
 }
 
-void TextComponent::set_horizontal_alignment(float alignment) {
-    m_horizontal_alignment = alignment;
-    // No need to recreate texture, just affects positioning
+// New ContentScaling API
+void TextComponent::set_scale_mode(const ContentScaling::ScaleMode mode) {
+    m_scaling_params.scale_mode = mode;
+}
+void TextComponent::set_horizontal_alignment(const float alignment) {
+    m_scaling_params.horizontal_alignment = alignment;
 }
 
-void TextComponent::set_vertical_alignment(float alignment) {
-    m_vertical_alignment = alignment;
-    // No need to recreate texture, just affects positioning
+void TextComponent::set_vertical_alignment(const float alignment) {
+    m_scaling_params.vertical_alignment = alignment;
 }
 
 void TextComponent::set_aspect_ratio(float ratio) {
-    m_aspect_ratio = ratio;
-    // No need to recreate texture, just affects rendering
+    m_scaling_params.custom_aspect_ratio = ratio;
 }

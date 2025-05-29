@@ -44,6 +44,11 @@ struct RenderContext {
         }
         return {width, height};
     }
+
+    float get_aspect_ratio() const {
+        auto [width, height] = get_size();
+        return (height != 0) ? static_cast<float>(width) / height : 1.0f; // Avoid division by zero
+    }
 };
 
 // Base interface for any system that participates in the event loop.
