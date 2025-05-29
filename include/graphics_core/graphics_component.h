@@ -9,12 +9,16 @@
 
 class GraphicsComponent {
 public:
+    // Constructor with position, dimensions, event handler, and render context
     GraphicsComponent(
         const float x = 0.0f, 
         const float y = 0.0f, 
         const float width = 0.0f, 
-        const float height = 0.0f
+        const float height = 0.0f,
+        EventHandler* event_handler = nullptr,
+        const RenderContext& render_context = RenderContext()
     );
+    
     virtual ~GraphicsComponent() = default;
 
     // TODO: Change this to protected and make friend with GraphicsView
@@ -26,6 +30,11 @@ public:
     void get_position(float& x, float& y) const;
     void set_dimensions(const float width, const float height);
     void get_dimensions(float& width, float& height) const;
+    
+    // Set the render context for this component
+    void set_render_context(const RenderContext& render_context);
+    
+    // Legacy method - use set_render_context instead
     void set_display_id(unsigned int id);
 
     // Adding a child component (takes ownership)
@@ -59,7 +68,9 @@ protected:
     float m_y = 0.0f;
     float m_width = 0.0f;
     float m_height = 0.0f;
-    unsigned int m_window_id = 0; // Window ID for this component
+    
+    // Render context for this component
+    RenderContext m_render_context;
 
     // Event handler entries
     EventHandler* m_event_handler = nullptr;

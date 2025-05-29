@@ -38,15 +38,16 @@ std::shared_ptr<EventHandlerEntry> EventHandler::unregister_entry(std::shared_pt
 
 bool EventHandler::handle_event(const SDL_Event& event) {
     bool handled = false;
-    std::vector<EventCallback> callbacks_to_execute;
+    std::vector<std::pair<EventCallback, RenderContext>> callbacks_and_contexts;
 
     for (const auto& entry : m_entries) {
         if (entry->matches(event)) {
-            callbacks_to_execute.push_back(entry->callback);
+            callbacks_and_contexts.emplace_back(entry->callback, entry->render_context);
         }
     }
 
-    for (const auto& callback : callbacks_to_execute) {
+    for (const auto& [callback, context] : callbacks_and_contexts) {
+        context.activate(); // Activate the context before calling the callback
         handled |= callback(event);
     }
     return handled;
@@ -55,12 +56,17 @@ bool EventHandler::handle_event(const SDL_Event& event) {
 // --- KeyboardEventHandlerEntry ---
 
 KeyboardEventHandlerEntry::KeyboardEventHandlerEntry(
+    Uint32 type, SDL_Keycode key, EventCallback cb, bool sticky, RenderContext context)
+    : EventHandlerEntry(context, std::move(cb)),
+      event_type(type), keycode(key), sticky_keys(sticky) {}
+
+KeyboardEventHandlerEntry::KeyboardEventHandlerEntry(
     Uint32 type, SDL_Keycode key, EventCallback cb, bool sticky, unsigned int window_id)
     : EventHandlerEntry(window_id, std::move(cb)),
       event_type(type), keycode(key), sticky_keys(sticky) {}
 
 bool KeyboardEventHandlerEntry::matches(const SDL_Event& event) {
-    if (window_id && event.key.windowID != window_id) return false;
+    if (render_context.window_id && event.key.windowID != render_context.window_id) return false;
     if (event.type == SDL_KEYUP) {
         pressed_keys.erase(event.key.keysym.sym);
     }
@@ -79,11 +85,15 @@ bool KeyboardEventHandlerEntry::matches(const SDL_Event& event) {
 // --- MouseClickEventHandlerEntry ---
 
 MouseClickEventHandlerEntry::MouseClickEventHandlerEntry(
+    Uint32 type, int x, int y, int w, int h, EventCallback cb, RenderContext context)
+    : MouseEventHandlerEntry(x, y, w, h, std::move(cb), context), event_type(type) {}
+
+MouseClickEventHandlerEntry::MouseClickEventHandlerEntry(
     Uint32 type, int x, int y, int w, int h, EventCallback cb, unsigned int window_id)
     : MouseEventHandlerEntry(x, y, w, h, std::move(cb), window_id), event_type(type) {}
 
 bool MouseClickEventHandlerEntry::matches(const SDL_Event& event) {
-    if (window_id && event.button.windowID != window_id) return false;
+    if (render_context.window_id && event.button.windowID != render_context.window_id) return false;
     if (event.type != event_type) return false;
     int ex = event.button.x;
     int ey = event.button.y;
@@ -93,11 +103,15 @@ bool MouseClickEventHandlerEntry::matches(const SDL_Event& event) {
 // --- MouseMotionEventHandlerEntry ---
 
 MouseMotionEventHandlerEntry::MouseMotionEventHandlerEntry(
+    int x, int y, int w, int h, EventCallback cb, RenderContext context)
+    : MouseEventHandlerEntry(x, y, w, h, std::move(cb), context) {}
+
+MouseMotionEventHandlerEntry::MouseMotionEventHandlerEntry(
     int x, int y, int w, int h, EventCallback cb, unsigned int window_id)
     : MouseEventHandlerEntry(x, y, w, h, std::move(cb), window_id) {}
 
 bool MouseMotionEventHandlerEntry::matches(const SDL_Event& event) {
-    if (window_id && event.motion.windowID != window_id) return false;
+    if (render_context.window_id && event.motion.windowID != render_context.window_id) return false;
     if (event.type != SDL_MOUSEMOTION) return false;
     int ex = event.motion.x;
     int ey = event.motion.y;
@@ -105,6 +119,10 @@ bool MouseMotionEventHandlerEntry::matches(const SDL_Event& event) {
 }
 
 // --- MouseEnterLeaveEventHandlerEntry ---
+
+MouseEnterLeaveEventHandlerEntry::MouseEnterLeaveEventHandlerEntry(
+    int x, int y, int w, int h, Mode mode, EventCallback cb, RenderContext context)
+    : MouseEventHandlerEntry(x, y, w, h, std::move(cb), context), mode(mode) {}
 
 MouseEnterLeaveEventHandlerEntry::MouseEnterLeaveEventHandlerEntry(
     int x, int y, int w, int h, Mode mode, EventCallback cb, unsigned int window_id)
@@ -122,7 +140,7 @@ void MouseEnterLeaveEventHandlerEntry::update_last_position(int mouse_x, int mou
 }
 
 bool MouseEnterLeaveEventHandlerEntry::matches(const SDL_Event& event) {
-    if (window_id && event.motion.windowID != window_id) return false;
+    if (render_context.window_id && event.motion.windowID != render_context.window_id) return false;
     if (event.type != SDL_MOUSEMOTION) return false;
     int ex = event.motion.x;
     int ey = event.motion.y;
@@ -144,6 +162,13 @@ bool MouseEnterLeaveEventHandlerEntry::matches(const SDL_Event& event) {
 }
 
 // --- GPIOEventHandlerEntry ---
+
+GPIOEventHandlerEntry::GPIOEventHandlerEntry(
+    int pin, int value, EventCallback cb, RenderContext context)
+    : EventHandlerEntry(context, std::move(cb)) {
+    gpio_pin = pin;
+    gpio_value = value;
+}
 
 GPIOEventHandlerEntry::GPIOEventHandlerEntry(
     int pin, int value, EventCallback cb, unsigned int window_id)

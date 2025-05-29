@@ -40,7 +40,7 @@ GraphicsDisplay::~GraphicsDisplay() {
 
 void GraphicsDisplay::add_view(const std::string& name, GraphicsView* view) {
     m_views[name] = std::unique_ptr<GraphicsView>(view);
-    m_views[name]->initialize(m_event_handler, this->get_window_id());
+    m_views[name]->initialize(m_event_handler, this->get_render_context());
 }
 
 void GraphicsDisplay::change_view(const std::string& name) {
