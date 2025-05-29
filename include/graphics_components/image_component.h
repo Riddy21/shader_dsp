@@ -12,7 +12,9 @@
 
 class ImageComponent : public GraphicsComponent {
 public:
-    ImageComponent(float x, float y, float width, float height, const std::string& image_path);
+    ImageComponent(float x, float y, float width, float height, const std::string& image_path,
+                   EventHandler* event_handler = nullptr,
+                   const RenderContext& render_context = RenderContext());
     ~ImageComponent() override;
 
     void render_content() override;

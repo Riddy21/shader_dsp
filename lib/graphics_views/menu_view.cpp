@@ -1,13 +1,12 @@
 #include <iostream>
 
 #include "graphics_views/menu_view.h"
-
 #include "graphics_components/menu_selection_component.h"
 
-MenuView::MenuView()
-    : GraphicsView()
+MenuView::MenuView(EventHandler& event_handler, const RenderContext& render_context)
+    : GraphicsView(event_handler, render_context)
 {
-    // Empty for now
+    // Create menu component
     auto menu = new MenuSelectionComponent(
         -0.5f, 0.0f, 1.0f, 2.0f,
         {"Start Game", "Options", "Exit"},
@@ -24,7 +23,9 @@ MenuView::MenuView()
                     std::cout << "Exiting..." << std::endl;
                     break;
             }
-        }
+        },
+        m_event_handler,
+        m_render_context
     );
 
     add_component(menu);

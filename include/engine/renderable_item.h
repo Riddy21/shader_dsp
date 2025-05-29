@@ -5,6 +5,47 @@
 #include <cstdint>    // For standard integer types like Uint32
 #include <string>
 
+// Structure to encapsulate rendering context information
+struct RenderContext {
+    SDL_Window* window = nullptr;
+    SDL_GLContext gl_context = nullptr;
+    unsigned int window_id = 0;
+    std::string title;
+    bool visible = true;
+    
+    // Default constructor
+    RenderContext() = default;
+    
+    // Constructor with parameters
+    RenderContext(SDL_Window* win, SDL_GLContext ctx, const std::string& win_title = "OpenGL Window", bool is_visible = true)
+        : window(win), gl_context(ctx), title(win_title), visible(is_visible) 
+    {
+        if (window) {
+            window_id = SDL_GetWindowID(window);
+        }
+    }
+    
+    // Activate this render context
+    void activate() const {
+        if (window && gl_context && SDL_GL_GetCurrentContext() != gl_context) {
+            SDL_GL_MakeCurrent(window, gl_context);
+        }
+    }
+    
+    // Check if the context is valid
+    bool is_valid() const {
+        return window != nullptr && gl_context != nullptr;
+    }
+
+    std::pair<int, int> get_size() const {
+        int width = 0, height = 0;
+        if (window) {
+            SDL_GetWindowSize(window, &width, &height);
+        }
+        return {width, height};
+    }
+};
+
 // Base interface for any system that participates in the event loop.
 class IRenderableEntity {
 public:
@@ -34,16 +75,20 @@ public:
     SDL_GLContext get_context() const;
     unsigned int get_window_id() const;
     
+    // Get the render context
+    const RenderContext& get_render_context() const { return m_render_context; }
     
 protected:
     void update_render_fps();
     void update_present_fps();
     void cleanup_sdl();
 
-    // SDL window/context
+    // Render context
+    RenderContext m_render_context;
+
+    // Keeping these for backward compatibility during transition
     SDL_Window* m_window = nullptr;
     SDL_GLContext m_context = nullptr;
-
     std::string m_title;
 
 private:

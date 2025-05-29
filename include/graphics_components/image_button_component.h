@@ -10,7 +10,9 @@ class ImageButtonComponent : public ButtonComponent {
 public:
     ImageButtonComponent(
         float x, float y, float width, float height, 
-        const std::string& image_path, ButtonCallback callback
+        const std::string& image_path, ButtonCallback callback,
+        EventHandler* event_handler = nullptr,
+        const RenderContext& render_context = RenderContext()
     );
     ~ImageButtonComponent() override;
 

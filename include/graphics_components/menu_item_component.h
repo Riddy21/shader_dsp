@@ -16,7 +16,9 @@ public:
     
     MenuItemComponent(
         float x, float y, float width, float height,
-        const std::string& text, int item_index
+        const std::string& text, int item_index,
+        EventHandler* event_handler = nullptr,
+        const RenderContext& render_context = RenderContext()
     );
     ~MenuItemComponent() override;
 

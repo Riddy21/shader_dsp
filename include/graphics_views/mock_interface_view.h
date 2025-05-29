@@ -8,21 +8,15 @@
 #include "graphics_components/text_component.h"
 #include "graphics_components/image_component.h"
 #include "audio_synthesizer/audio_synthesizer.h"
+#include "engine/event_handler.h"
 
 class IRenderableEntity;
 class GraphicsDisplay;
 
 class MockInterfaceView : public GraphicsView {
 public:
-    MockInterfaceView();
+    MockInterfaceView(EventHandler& event_handler, const RenderContext& render_context);
     ~MockInterfaceView() override = default;
-    
-    // Debug helpers
-    void toggle_component_outlines();
-
-protected:
-    
-private:
 };
 
 #endif // MOCK_INTERFACE_VIEW_H

@@ -5,8 +5,6 @@
 
 // Initialize static members
 std::unique_ptr<AudioShaderProgram> TextComponent::s_text_shader = nullptr;
-GLuint TextComponent::s_text_vao = 0;
-GLuint TextComponent::s_text_vbo = 0;
 bool TextComponent::s_graphics_initialized = false;
 bool TextComponent::s_ttf_initialized = false;
 std::unordered_map<std::string, TextComponent::FontInfo> TextComponent::s_fonts;
@@ -16,13 +14,16 @@ TextComponent::TextComponent(
     float y, 
     float width, 
     float height, 
-    const std::string& text
-) : GraphicsComponent(x, y, width, height),
+    const std::string& text,
+    EventHandler* event_handler,
+    const RenderContext& render_context
+) : GraphicsComponent(x, y, width, height, event_handler, render_context),
     m_text(text)
 {
     initialize_ttf();
     initialize_default_font();
     initialize_static_graphics();
+    update_vertices(); // Initialize per-instance quad
     initialize_text();
 }
 
@@ -30,6 +31,12 @@ TextComponent::~TextComponent() {
     // Clean up OpenGL resources
     if (m_text_texture != 0) {
         glDeleteTextures(1, &m_text_texture);
+    }
+    if (m_instance_vao != 0) {
+        glDeleteVertexArrays(1, &m_instance_vao);
+    }
+    if (m_instance_vbo != 0) {
+        glDeleteBuffers(1, &m_instance_vbo);
     }
 }
 
@@ -147,6 +154,74 @@ bool TextComponent::set_font(const std::string& font_name) {
     return false;
 }
 
+void TextComponent::set_aspect_ratio(float aspect_ratio) {
+    if (aspect_ratio <= 0.0f) return;
+    if (m_aspect_ratio != aspect_ratio) {
+        m_aspect_ratio = aspect_ratio;
+        update_vertices();
+    }
+}
+
+void TextComponent::update_vertices() {
+    // Clean up previous VAO/VBO if any
+    if (m_instance_vao != 0) {
+        glDeleteVertexArrays(1, &m_instance_vao);
+        m_instance_vao = 0;
+    }
+    if (m_instance_vbo != 0) {
+        glDeleteBuffers(1, &m_instance_vbo);
+        m_instance_vbo = 0;
+    }
+
+    // Get screen resolution from the render context
+    auto [screen_width, screen_height] = m_render_context.get_size();
+
+    // --- End: Use texture buffer size for aspect ratio if available ---
+
+    float quad_width = 1.0f, quad_height = 1.0f;
+    if (ar >= 1.0f) {
+        quad_width = ar * (static_cast<float>(screen_width) / screen_height);
+        quad_height = 1.0f;
+    } else {
+        quad_width = 1.0f;
+        quad_height = (1.0f / ar) * (static_cast<float>(screen_height) / screen_width);
+    }
+
+    float left = -quad_width;
+    float right = quad_width;
+    float top = quad_height;
+    float bottom = -quad_height;
+
+    float vertices[] = {
+        // positions        // texture coords
+        left,  bottom,      0.0f, 1.0f,  // bottom left
+        left,  top,         0.0f, 0.0f,  // top left
+        right, top,         1.0f, 0.0f,  // top right
+
+        left,  bottom,      0.0f, 1.0f,  // bottom left
+        right, top,         1.0f, 0.0f,  // top right
+        right, bottom,      1.0f, 1.0f   // bottom right
+    };
+
+    glGenVertexArrays(1, &m_instance_vao);
+    glGenBuffers(1, &m_instance_vbo);
+
+    glBindVertexArray(m_instance_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, m_instance_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // Position attribute
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Texture coordinate attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
 void TextComponent::initialize_static_graphics() {
     if (!s_graphics_initialized) {
         // Create a simple texture rendering program
@@ -181,37 +256,8 @@ void TextComponent::initialize_static_graphics() {
             return;
         }
         
-        // TODO: Adjust the aspect ratio and sizing based ont he aligments and ratio
-        // Create a quad with texture coordinates for rendering text
-        float vertices[] = {
-            // positions    // texture coords
-            -1.0f, -1.0f,   0.0f, 1.0f,  // bottom left
-            -1.0f,  1.0f,   0.0f, 0.0f,  // top left
-             1.0f,  1.0f,   1.0f, 0.0f,  // top right
-            
-            -1.0f, -1.0f,   0.0f, 1.0f,  // bottom left
-             1.0f,  1.0f,   1.0f, 0.0f,  // top right
-             1.0f, -1.0f,   1.0f, 1.0f   // bottom right
-        };
-        
-        glGenVertexArrays(1, &s_text_vao);
-        glGenBuffers(1, &s_text_vbo);
-        
-        glBindVertexArray(s_text_vao);
-        glBindBuffer(GL_ARRAY_BUFFER, s_text_vbo);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        
-        // Position attribute
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        
-        // Texture coordinate attribute
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-        
-        glBindVertexArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        
+        // No static VAO/VBO needed anymore
+
         s_graphics_initialized = true;
     }
 }
@@ -275,7 +321,6 @@ void TextComponent::initialize_text() {
 
 void TextComponent::render_content() {
     if (m_text_texture == 0 || m_text.empty()) return;
-    
     // Bind texture
     glBindTexture(GL_TEXTURE_2D, m_text_texture);
     
@@ -292,8 +337,8 @@ void TextComponent::render_content() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
-    // Draw text
-    glBindVertexArray(s_text_vao);
+    // Draw text using per-instance VAO (with aspect ratio)
+    glBindVertexArray(m_instance_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     
     // Restore state

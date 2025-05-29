@@ -15,7 +15,16 @@
 
 class TextComponent : public GraphicsComponent {
 public:
-    TextComponent(float x, float y, float width, float height, const std::string& text);
+    // Constructor with position, dimensions, text, event handler, and render context
+    TextComponent(
+        float x, 
+        float y, 
+        float width, 
+        float height, 
+        const std::string& text,
+        EventHandler* event_handler = nullptr,
+        const RenderContext& render_context = RenderContext()
+    );
     ~TextComponent() override;
 
     void render_content() override;
@@ -27,6 +36,7 @@ public:
     void set_font_size(int size);
     void set_horizontal_alignment(float alignment); // 0.0 = left, 0.5 = center, 1.0 = right
     void set_vertical_alignment(float alignment);   // 0.0 = top, 0.5 = center, 1.0 = bottom
+    void set_aspect_ratio(float aspect_ratio); // width / height
     
     // Set font by name (must be loaded first)
     bool set_font(const std::string& font_name);
@@ -40,6 +50,7 @@ public:
 private:
     void initialize_graphics();
     void initialize_text();
+    void update_vertices(); // Update quad vertices based on aspect ratio
     
     // Get the appropriate font with current size
     TTF_Font* get_sized_font();
@@ -50,11 +61,13 @@ private:
     float m_horizontal_alignment = 0.5f; // Default to center
     float m_vertical_alignment = 0.5f;   // Default to center
     int m_font_size = DEFAULT_FONT_SIZE;
-    
+
+    float m_aspect_ratio = 1.0f; // Default aspect ratio (width / height)
+
     GLuint m_text_texture = 0;
+    GLuint m_instance_vao = 0;
+    GLuint m_instance_vbo = 0;
     static std::unique_ptr<AudioShaderProgram> s_text_shader;
-    static GLuint s_text_vao;
-    static GLuint s_text_vbo;
     static bool s_graphics_initialized;
     
     // Font management

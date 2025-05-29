@@ -14,10 +14,13 @@
 class GraphComponent : public GraphicsComponent {
 public:
     GraphComponent(const float x, const float y, const float width, const float height, 
-                  const std::vector<float>& data, const bool is_dynamic = true);
+                  const std::vector<float>& data, const bool is_dynamic = true,
+                  EventHandler* event_handler = nullptr,
+                  const RenderContext& render_context = RenderContext());
     ~GraphComponent() override;
 
     void set_data(const std::vector<float>& data);
+
     void render_content() override;
 
 private:

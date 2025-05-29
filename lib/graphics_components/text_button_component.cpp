@@ -2,12 +2,15 @@
 
 TextButtonComponent::TextButtonComponent(
     float x, float y, float width, float height, 
-    const std::string& text, ButtonCallback callback
-) : ButtonComponent(x, y, width, height, callback),
+    const std::string& text, ButtonCallback callback,
+    EventHandler* event_handler,
+    const RenderContext& render_context
+) : ButtonComponent(x, y, width, height, callback, event_handler, render_context),
     m_text_component(nullptr)
 {
     // Create the text component as a child of this button
-    m_text_component = new TextComponent(x, y, width, height, text);
+    // Pass the same event handler and render context to ensure consistency
+    m_text_component = new TextComponent(x, y, width, height, text, event_handler, render_context);
     
     // Add the raw pointer to the GraphicsComponent's children list
     // This transfers ownership to the parent component
