@@ -56,8 +56,8 @@ private:
     int m_selected_index = -1;
     SelectionCallback m_callback;
     
-    float m_item_height = 0.1f;
-    float m_item_padding = 0.01f;
+    float m_item_height = .50f;
+    float m_item_padding = 0.00f;
     
     // Appearance settings (passed to items)
     float m_normal_color[4] = {0.2f, 0.2f, 0.2f, 1.0f};

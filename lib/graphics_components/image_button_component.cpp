@@ -7,7 +7,7 @@ ImageButtonComponent::ImageButtonComponent(
     m_image_component(nullptr)
 {
     // Create the image component as a child of this button
-    m_image_component = new ImageComponent(x, y, width * 0.8f, height * 0.8f, image_path);
+    m_image_component = new ImageComponent(x, y, width, height, image_path);
     
     // Add the raw pointer to the GraphicsComponent's children list
     // This transfers ownership to the parent component

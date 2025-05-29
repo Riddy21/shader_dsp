@@ -94,7 +94,7 @@ int main() {
     interface_display->add_view("debug", new DebugView());
     interface_display->add_view("interface", new MockInterfaceView());
     interface_display->add_view("menu", new MenuView());
-    interface_display->change_view("interface");
+    interface_display->change_view("menu");
 
     auto & event_handler = EventHandler::get_instance();
 

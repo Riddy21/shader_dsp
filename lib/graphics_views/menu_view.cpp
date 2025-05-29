@@ -9,7 +9,7 @@ MenuView::MenuView()
 {
     // Empty for now
     auto menu = new MenuSelectionComponent(
-        0.0f, 0.0f, 1.0f, 1.0f,
+        -0.5f, 0.0f, 1.0f, 2.0f,
         {"Start Game", "Options", "Exit"},
         [](int index) {
             // Handle selection callback

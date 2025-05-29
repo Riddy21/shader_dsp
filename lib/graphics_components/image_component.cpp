@@ -53,13 +53,9 @@ void ImageComponent::initialize_static_graphics() {
             
             out vec2 TexCoord;
             
-            uniform vec2 uPosition;
-            uniform vec2 uDimensions;
-            
             void main() {
                 // Using our coordinate system: 1 is top, -1 is bottom
-                vec2 pos = aPos * uDimensions + uPosition;
-                gl_Position = vec4(pos, 0.0, 1.0);
+                gl_Position = vec4(aPos, 0.0, 1.0);
                 TexCoord = aTexCoord;
             }
         )";
@@ -247,8 +243,6 @@ void ImageComponent::render_content() {
     }
     
     // Set uniforms
-    glUniform2f(glGetUniformLocation(s_image_shader->get_program(), "uPosition"), m_x, m_y);
-    glUniform2f(glGetUniformLocation(s_image_shader->get_program(), "uDimensions"), width, height);
     glUniform1i(glGetUniformLocation(s_image_shader->get_program(), "uTexture"), 0);
     glUniform4f(glGetUniformLocation(s_image_shader->get_program(), "uTintColor"),
                 m_tint_color[0], m_tint_color[1], m_tint_color[2], m_tint_color[3]);

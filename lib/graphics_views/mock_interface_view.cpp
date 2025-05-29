@@ -27,7 +27,7 @@ MockInterfaceView::MockInterfaceView()
     const float button_height = 0.5f;
 
     // Create a title text at the bottom of the screen
-    auto title_text = new TextComponent(-1.0f, .8f, 2.0f, .2f, "Shader DSP");
+    auto title_text = new TextComponent(-1.0f, 1.0f, 2.0f, 1.f, "Shader DSP");
     title_text->set_font("space_mono"); // Use Space Mono for title
     title_text->set_text_color(1.0f, 1.0f, 1.0f, 1.0f);
     title_text->set_horizontal_alignment(0.5f); // Centered horizontally
@@ -82,7 +82,7 @@ MockInterfaceView::MockInterfaceView()
         
         // Calculate position based on row and column
         x = start_x + (i % columns) * button_width; // Horizontal position
-        y = start_y + (i / columns) * button_height; // Vertical position
+        y = start_y - (i / columns) * button_height; // Vertical position
 
         auto& info = buttons[i];
         

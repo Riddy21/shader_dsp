@@ -28,16 +28,16 @@ ButtonComponent::ButtonComponent(
         }
     }
     
-    // Convert from normalized coordinates (-1 to 1, with 1 at top and -1 at bottom)
-    // to screen coordinates (0,0 top-left to width,height bottom-right)
+    // Convert from normalized coordinates (-1 to 1, with -1 at top and 1 at bottom)
+    // to SDL event coordinates (0,0 top-left to width,height bottom-right)
     int window_x = (int)((m_x + 1.0f) * screen_width / 2);
-    // For Y, 1 is at top and -1 is at bottom, so we need to invert
+    // For Y, -1 is at top and 1 is at bottom, so we need to invert
     int window_y = (int)((1.0f - m_y) * screen_height / 2);
-    int window_width = (int)(m_width * screen_width);
-    int window_height = (int)(m_height * screen_height);
+    int window_width = (int)(m_width * screen_width / 2);
+    int window_height = (int)(m_height * screen_height / 2);
 
-    int rect_x = window_x - window_width / 2;
-    int rect_y = window_y - window_height / 2;
+    int rect_x = window_x;
+    int rect_y = window_y;
 
     auto mouse_down_handler = std::make_shared<MouseClickEventHandlerEntry>(
         SDL_MOUSEBUTTONDOWN,

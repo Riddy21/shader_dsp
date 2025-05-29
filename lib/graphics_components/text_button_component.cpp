@@ -7,7 +7,7 @@ TextButtonComponent::TextButtonComponent(
     m_text_component(nullptr)
 {
     // Create the text component as a child of this button
-    m_text_component = new TextComponent(x, y, width * 0.8f, height * 0.6f, text);
+    m_text_component = new TextComponent(x, y, width, height, text);
     
     // Add the raw pointer to the GraphicsComponent's children list
     // This transfers ownership to the parent component
