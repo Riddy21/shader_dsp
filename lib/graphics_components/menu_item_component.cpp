@@ -6,14 +6,16 @@
 
 MenuItemComponent::MenuItemComponent(
     float x, float y, float width, float height,
-    const std::string& text, int item_index
-) : GraphicsComponent(x, y, width, height),
+    const std::string& text, int item_index,
+    EventHandler* event_handler,
+    const RenderContext& render_context
+) : GraphicsComponent(x, y, width, height, event_handler, render_context),
     m_index(item_index)
 {
     initialize_graphics();
     
     // Create the text component as a child
-    m_text_component = new TextComponent(x, y, width, height, text);
+    m_text_component = new TextComponent(x, y, width, height, text, event_handler, render_context);
     m_text_component->set_horizontal_alignment(0.5f); // Center text
     m_text_component->set_vertical_alignment(0.5f);
     m_text_component->set_text_color(

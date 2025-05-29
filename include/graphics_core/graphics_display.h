@@ -37,6 +37,10 @@ public:
     void add_view(const std::string& name, GraphicsView* view);
     void change_view(const std::string& name);
     
+    // Get the current dimensions
+    unsigned int get_width() const { return m_width; }
+    unsigned int get_height() const { return m_height; }
+    
 private:
     unsigned int m_width;
     unsigned int m_height;
@@ -50,7 +54,7 @@ private:
     std::unordered_map<std::string, std::unique_ptr<GraphicsView>> m_views;
     std::vector<std::unique_ptr<GraphicsComponent>> m_components; // TODO: Implement components management later
     GraphicsView* m_current_view = nullptr;
-    EventHandler& m_event_handler; // REference cannot be re-assigned
+    EventHandler& m_event_handler; // Reference cannot be re-assigned
 };
 
 #endif // GRAPHICS_DISPLAY_H

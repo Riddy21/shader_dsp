@@ -15,8 +15,10 @@ ImageComponent::ImageComponent(
     float y, 
     float width, 
     float height, 
-    const std::string& image_path
-) : GraphicsComponent(x, y, width, height),
+    const std::string& image_path,
+    EventHandler* event_handler,
+    const RenderContext& render_context
+) : GraphicsComponent(x, y, width, height, event_handler, render_context),
     m_image_path(image_path)
 {
     initialize_img();

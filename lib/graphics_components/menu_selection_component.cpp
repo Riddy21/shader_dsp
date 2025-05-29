@@ -4,11 +4,14 @@
 #include "engine/event_handler.h"
 #include "graphics_core/graphics_display.h"
 
+// Constructor with event handler and render context
 MenuSelectionComponent::MenuSelectionComponent(
     float x, float y, float width, float height,
     const std::vector<std::string>& items,
-    SelectionCallback callback
-) : GraphicsComponent(x, y, width, height),
+    SelectionCallback callback,
+    EventHandler* event_handler,
+    const RenderContext& render_context
+) : GraphicsComponent(x, y, width, height, event_handler, render_context),
     m_callback(callback)
 {
     set_items(items);
@@ -19,14 +22,18 @@ MenuSelectionComponent::MenuSelectionComponent(
         [this](const SDL_Event& event) {
             select_previous();
             return true;
-        }
+        },
+        false,
+        m_render_context
     );
     auto key_down_handler = std::make_shared<KeyboardEventHandlerEntry>(
         SDL_KEYDOWN, SDLK_DOWN,
         [this](const SDL_Event& event) {
             select_next();
             return true;
-        }
+        },
+        false,
+        m_render_context
     );
     auto key_return_handler = std::make_shared<KeyboardEventHandlerEntry>(
         SDL_KEYDOWN, SDLK_RETURN,
@@ -35,7 +42,9 @@ MenuSelectionComponent::MenuSelectionComponent(
                 m_callback(m_selected_index);
             }
             return true;
-        }
+        },
+        false,
+        m_render_context
     );
     m_event_handler_entries = {
         key_up_handler,
@@ -58,7 +67,9 @@ int MenuSelectionComponent::add_item(const std::string& text) {
         m_width, 
         m_item_height,
         text,
-        index
+        index,
+        m_event_handler,
+        m_render_context
     );
     
     // Apply current appearance settings
@@ -105,7 +116,6 @@ void MenuSelectionComponent::clear_items() {
     for (auto* item : m_items) {
         remove_child(item);
     }
-    
     m_items.clear();
     m_selected_index = -1;
 }
@@ -146,14 +156,12 @@ MenuItemComponent* MenuSelectionComponent::get_item(int index) {
 
 void MenuSelectionComponent::select_next() {
     if (m_items.empty()) return;
-    
     int next_index = (m_selected_index + 1) % m_items.size();
     select_item(next_index);
 }
 
 void MenuSelectionComponent::select_previous() {
     if (m_items.empty()) return;
-    
     int prev_index = (m_selected_index > 0) ? m_selected_index - 1 : m_items.size() - 1;
     select_item(prev_index);
 }

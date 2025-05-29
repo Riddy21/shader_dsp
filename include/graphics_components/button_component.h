@@ -17,7 +17,16 @@ class ButtonComponent : public GraphicsComponent {
 public:
     using ButtonCallback = std::function<void()>;
 
-    ButtonComponent(float x, float y, float width, float height, ButtonCallback callback);
+    // Constructor with position, dimensions, callback, event handler, and render context
+    ButtonComponent(
+        float x, 
+        float y, 
+        float width, 
+        float height, 
+        ButtonCallback callback,
+        EventHandler* event_handler = nullptr,
+        const RenderContext& render_context = RenderContext()
+    );
     ~ButtonComponent() override;
 
     void render_content() override;

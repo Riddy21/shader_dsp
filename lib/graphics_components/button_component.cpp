@@ -11,20 +11,29 @@ ButtonComponent::ButtonComponent(
     float y, 
     float width, 
     float height, 
-    ButtonCallback callback
-) : GraphicsComponent(x, y, width, height),
+    ButtonCallback callback,
+    EventHandler* event_handler,
+    const RenderContext& render_context
+) : GraphicsComponent(x, y, width, height, event_handler, render_context),
     m_callback(callback)
 {
     initialize_graphics();
 
     // Get window size at construction time
     int screen_width = 1, screen_height = 1;
-    SDL_Window* win = SDL_GL_GetCurrentWindow();
-    if (win) {
-        SDL_Surface* surf = SDL_GetWindowSurface(win);
-        if (surf) {
-            screen_width = surf->w;
-            screen_height = surf->h;
+    
+    // Use the window from render context if available
+    if (m_render_context.window) {
+        SDL_GetWindowSize(m_render_context.window, &screen_width, &screen_height);
+    } else {
+        // Fallback to current window if render context doesn't have one
+        SDL_Window* win = SDL_GL_GetCurrentWindow();
+        if (win) {
+            SDL_Surface* surf = SDL_GetWindowSurface(win);
+            if (surf) {
+                screen_width = surf->w;
+                screen_height = surf->h;
+            }
         }
     }
     
@@ -46,7 +55,7 @@ ButtonComponent::ButtonComponent(
             m_is_pressed = true;
             return true;
         },
-        m_window_id
+        m_render_context
     );
 
     auto mouse_up_handler = std::make_shared<MouseClickEventHandlerEntry>(
@@ -60,7 +69,8 @@ ButtonComponent::ButtonComponent(
                 }
             }
             return true;
-        }
+        },
+        m_render_context
     );
 
     auto mouse_motion_handler = std::make_shared<MouseMotionEventHandlerEntry>(
@@ -69,7 +79,7 @@ ButtonComponent::ButtonComponent(
             m_is_hovered = true;
             return true;
         },
-        m_window_id
+        m_render_context
     );
 
     auto mouse_enter_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
@@ -79,7 +89,7 @@ ButtonComponent::ButtonComponent(
             m_is_hovered = true;
             return true;
         },
-        m_window_id
+        m_render_context
     );
 
     auto mouse_leave_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
@@ -89,7 +99,7 @@ ButtonComponent::ButtonComponent(
             m_is_hovered = false;
             return true;
         },
-        m_window_id
+        m_render_context
     );
 
     m_event_handler_entries = {

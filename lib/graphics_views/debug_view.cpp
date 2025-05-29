@@ -2,8 +2,9 @@
 #include "audio_synthesizer/audio_synthesizer.h"
 #include "graphics_components/graph_component.h"
 
-DebugView::DebugView()
-    : GraphicsView()
+// Constructor with event handler and render context
+DebugView::DebugView(EventHandler& event_handler, const RenderContext& render_context)
+    : GraphicsView(event_handler, render_context)
 {
     auto & audio_synthesizer = AudioSynthesizer::get_instance();
     const auto & channel_seperated_audio = audio_synthesizer.get_audio_data();

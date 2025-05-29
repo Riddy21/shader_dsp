@@ -10,7 +10,9 @@ class TextButtonComponent : public ButtonComponent {
 public:
     TextButtonComponent(
         float x, float y, float width, float height, 
-        const std::string& text, ButtonCallback callback
+        const std::string& text, ButtonCallback callback,
+        EventHandler* event_handler = nullptr,
+        const RenderContext& render_context = RenderContext()
     );
     ~TextButtonComponent() override;
 

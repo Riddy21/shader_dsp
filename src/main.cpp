@@ -85,18 +85,20 @@ int main() {
 
     setup_keyboard(synthesizer, event_loop);
 
+    auto & event_handler = EventHandler::get_instance();    
+
+    // Create graphics display for audio visualization
     GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
-    graphics_display->add_view("debug", new DebugView());
+    // Create debug view with event handler and render context
+    graphics_display->add_view("debug", new DebugView(event_handler, graphics_display->get_render_context()));
     graphics_display->change_view("debug");
 
     // Create another window for the interface
-    GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
-    interface_display->add_view("debug", new DebugView());
-    interface_display->add_view("interface", new MockInterfaceView());
-    interface_display->add_view("menu", new MenuView());
+    GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface", 1000);
+    interface_display->add_view("debug", new DebugView(event_handler, interface_display->get_render_context()));
+    interface_display->add_view("interface", new MockInterfaceView(event_handler, interface_display->get_render_context()));
+    interface_display->add_view("menu", new MenuView(event_handler, interface_display->get_render_context()));
     interface_display->change_view("menu");
-
-    auto & event_handler = EventHandler::get_instance();
 
     event_handler.register_entry(new KeyboardEventHandlerEntry(
         SDL_KEYDOWN, 'z',

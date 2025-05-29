@@ -15,7 +15,9 @@ public:
     MenuSelectionComponent(
         float x, float y, float width, float height,
         const std::vector<std::string>& items,
-        SelectionCallback callback = nullptr
+        SelectionCallback callback = nullptr,
+        EventHandler* event_handler = nullptr,
+        const RenderContext& render_context = RenderContext()
     );
     ~MenuSelectionComponent() override;
 

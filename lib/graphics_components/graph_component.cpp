@@ -9,8 +9,10 @@ GraphComponent::GraphComponent(
     const float width, 
     const float height, 
     const std::vector<float>& data,
-    const bool is_dynamic
-) : GraphicsComponent(x, y, width, height),
+    const bool is_dynamic,
+    EventHandler* event_handler,
+    const RenderContext& render_context
+) : GraphicsComponent(x, y, width, height, event_handler, render_context),
     m_data(&data),
     m_shader_program(nullptr),
     m_vao(0),

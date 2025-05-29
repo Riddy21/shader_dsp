@@ -3,7 +3,11 @@
 #include "graphics_core/graphics_view.h"
 #include "engine/event_handler.h"
 
-GraphicsView::GraphicsView() {
+// Constructor that initializes the view with event handler and render context
+GraphicsView::GraphicsView(EventHandler& event_handler, const RenderContext& render_context) 
+    : m_event_handler(&event_handler), m_render_context(render_context)
+{
+    // No need to call separate setters
 }
 
 GraphicsView::~GraphicsView() {
@@ -21,7 +25,9 @@ void GraphicsView::on_enter() {
 }
 
 void GraphicsView::on_exit() {
-    unregister_event_handler(*m_event_handler);
+    if (m_event_handler) {
+        unregister_event_handler(*m_event_handler);
+    }
 }
 
 void GraphicsView::add_component(GraphicsComponent* component) {
@@ -30,6 +36,9 @@ void GraphicsView::add_component(GraphicsComponent* component) {
     if (m_event_handlers_registered && m_event_handler) {
         component->register_event_handlers(m_event_handler);
     }
+    
+    // Set the render context for the component
+    component->set_render_context(m_render_context);
 }
 
 void GraphicsView::remove_component(GraphicsComponent* component) {
@@ -42,30 +51,6 @@ void GraphicsView::remove_component(GraphicsComponent* component) {
                                  return ptr.get() == component;
                              });
     m_components.erase(it, m_components.end());
-}
-
-void GraphicsView::initialize(EventHandler& event_handler, unsigned int display_id) {
-    set_display_id(display_id);
-    set_event_handler(event_handler);
-}
-
-void GraphicsView::set_display_id(unsigned int id) {
-    m_display_id = id;
-
-    // Update all components with the new display ID
-    for (auto& component :m_components) {
-        component->set_display_id(id);
-    }
-}
-
-
-void GraphicsView::set_event_handler(EventHandler& event_handler) {
-    // If we already have an event handler, unregister from it first
-    if (m_event_handler && m_event_handlers_registered) {
-        unregister_event_handler(*m_event_handler);
-    }
-
-    m_event_handler = &event_handler;
 }
 
 void GraphicsView::register_event_handler(EventHandler& event_handler) {

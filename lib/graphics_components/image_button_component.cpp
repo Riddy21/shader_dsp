@@ -2,12 +2,14 @@
 
 ImageButtonComponent::ImageButtonComponent(
     float x, float y, float width, float height, 
-    const std::string& image_path, ButtonCallback callback
-) : ButtonComponent(x, y, width, height, callback),
+    const std::string& image_path, ButtonCallback callback,
+    EventHandler* event_handler,
+    const RenderContext& render_context
+) : ButtonComponent(x, y, width, height, callback, event_handler, render_context),
     m_image_component(nullptr)
 {
     // Create the image component as a child of this button
-    m_image_component = new ImageComponent(x, y, width, height, image_path);
+    m_image_component = new ImageComponent(x, y, width, height, image_path, event_handler, render_context);
     
     // Add the raw pointer to the GraphicsComponent's children list
     // This transfers ownership to the parent component

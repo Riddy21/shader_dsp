@@ -8,8 +8,8 @@
 #include "audio_core/audio_renderer.h"
 #include <iostream>
 
-MockInterfaceView::MockInterfaceView()
-    : GraphicsView()
+MockInterfaceView::MockInterfaceView(EventHandler& event_handler, const RenderContext& render_context)
+    : GraphicsView(event_handler, render_context)
 {
     auto& synthesizer = AudioSynthesizer::get_instance();
     
@@ -27,7 +27,12 @@ MockInterfaceView::MockInterfaceView()
     const float button_height = 0.5f;
 
     // Create a title text at the bottom of the screen
-    auto title_text = new TextComponent(-1.0f, 1.0f, 2.0f, 1.f, "Shader DSP");
+    auto title_text = new TextComponent(
+        -1.0f, 1.0f, 2.0f, 1.f, 
+        "Shader DSP", 
+        m_event_handler, 
+        m_render_context
+    );
     title_text->set_font("space_mono"); // Use Space Mono for title
     title_text->set_text_color(1.0f, 1.0f, 1.0f, 1.0f);
     title_text->set_horizontal_alignment(0.5f); // Centered horizontally
@@ -87,11 +92,13 @@ MockInterfaceView::MockInterfaceView()
         auto& info = buttons[i];
         
         if (info.use_image) {
-            // Create an image button
+            // Create an image button with event handler and render context
             auto button = new ImageButtonComponent(
                 x, y, button_width, button_height,
                 dice_image_path,
-                info.callback
+                info.callback,
+                m_event_handler,
+                m_render_context
             );
 
             // Set button colors
@@ -109,11 +116,13 @@ MockInterfaceView::MockInterfaceView()
             
             add_component(button);
         } else {
-            // Create a text button
+            // Create a text button with event handler and render context
             auto button = new TextButtonComponent(
                 x, y, button_width, button_height,
                 info.label,
-                info.callback
+                info.callback,
+                m_event_handler,
+                m_render_context
             );
 
             // Set button colors
