@@ -97,6 +97,7 @@ void MenuItemComponent::render_content() {
     
     // Set color based on selected state
     float* color = m_is_selected ? m_selected_color : m_normal_color;
+
     glUniform4f(glGetUniformLocation(m_shader_program->get_program(), "uColor"), 
                 color[0], color[1], color[2], color[3]);
     

@@ -2,6 +2,7 @@
 #include <GL/glew.h>
 #include "graphics_components/menu_selection_component.h"
 #include "engine/event_handler.h"
+#include "graphics_core/graphics_display.h"
 
 MenuSelectionComponent::MenuSelectionComponent(
     float x, float y, float width, float height,
@@ -16,33 +17,24 @@ MenuSelectionComponent::MenuSelectionComponent(
     auto key_up_handler = std::make_shared<KeyboardEventHandlerEntry>(
         SDL_KEYDOWN, SDLK_UP,
         [this](const SDL_Event& event) {
-            if (event.key.keysym.sym == SDLK_UP) {
-                select_previous();
-                return true;
-            }
-            return false;
+            select_previous();
+            return true;
         }
     );
     auto key_down_handler = std::make_shared<KeyboardEventHandlerEntry>(
         SDL_KEYDOWN, SDLK_DOWN,
         [this](const SDL_Event& event) {
-            if (event.key.keysym.sym == SDLK_DOWN) {
-                select_next();
-                return true;
-            }
-            return false;
+            select_next();
+            return true;
         }
     );
     auto key_return_handler = std::make_shared<KeyboardEventHandlerEntry>(
         SDL_KEYDOWN, SDLK_RETURN,
         [this](const SDL_Event& event) {
-            if (event.key.keysym.sym == SDLK_RETURN) {
-                if (m_callback && m_selected_index >= 0) {
-                    m_callback(m_selected_index);
-                }
-                return true;
+            if (m_callback && m_selected_index >= 0) {
+                m_callback(m_selected_index);
             }
-            return false;
+            return true;
         }
     );
     m_event_handler_entries = {
