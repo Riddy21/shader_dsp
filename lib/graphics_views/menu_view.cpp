@@ -10,7 +10,7 @@ MenuView::MenuView()
     // Empty for now
     auto menu = new MenuSelectionComponent(
         -0.5f, 0.0f, 1.0f, 2.0f,
-        {"Start Game", "Options", "Exit"},
+        {"Start Game", "OOP", "*"},
         [](int index) {
             // Handle selection callback
             switch (index) {
@@ -23,9 +23,11 @@ MenuView::MenuView()
                 case 2:
                     std::cout << "Exiting..." << std::endl;
                     break;
+                case 3:
+                    std::cout << "Checking aspect ratio with Circle..." << std::endl;
+                    break;
             }
         }
     );
-
     add_component(menu);
 }

@@ -23,7 +23,6 @@ public:
     void set_active_tint_color(float r, float g, float b, float a);
     
     void set_scale_mode(ImageComponent::ScaleMode mode);
-    float get_aspect_ratio() const;
     
     // Override to update image component based on button state
     void update_children() override;

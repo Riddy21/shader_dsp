@@ -54,7 +54,7 @@ MockInterfaceView::MockInterfaceView()
         {"Pause", [&synthesizer]() {
             std::cout << "Pause button clicked!" << std::endl;
             synthesizer.pause();
-        }, {0.9f, 0.6f, 0.2f, 1.0f}, {1.0f, 0.7f, 0.3f, 1.0f}, {0.7f, 0.5f, 0.1f, 1.0f}, false, "hack"},
+        }, {0.9f, 0.6f, 0.2f, 1.0f}, {1.0f, 0.7f, 0.3f, 1.0f}, {0.7f, 0.5f, 0.1f, 1.0f}, false, "space_mono"},
 
         {"Echo", [&synthesizer]() {
             std::cout << "Echo effect button clicked!" << std::endl;

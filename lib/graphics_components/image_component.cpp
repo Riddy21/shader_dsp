@@ -19,6 +19,12 @@ ImageComponent::ImageComponent(
 ) : GraphicsComponent(x, y, width, height),
     m_image_path(image_path)
 {
+    // Initialize scaling parameters with defaults
+    m_scaling_params.scale_mode = ContentScaling::ScaleMode::FIT;
+    m_scaling_params.horizontal_alignment = 0.5;
+    m_scaling_params.vertical_alignment = 0.5;
+    m_scaling_params.custom_aspect_ratio = 1.0f; // Use natural aspect ratio
+    
     initialize_img();
     initialize_static_graphics();
     load_image(image_path);
@@ -155,7 +161,7 @@ void ImageComponent::create_texture_from_surface(SDL_Surface* surface) {
     }
     
     // Calculate aspect ratio
-    m_aspect_ratio = static_cast<float>(surface->w) / static_cast<float>(surface->h);
+    m_natural_aspect_ratio = static_cast<float>(surface->w) / static_cast<float>(surface->h);
     
     // Create texture from surface
     glGenTextures(1, &m_texture);
@@ -206,50 +212,32 @@ void ImageComponent::render_content() {
     
     glUseProgram(s_image_shader->get_program());
     
-    // Get screen dimensions to account for screen aspect ratio
-    int screen_width = 1, screen_height = 1;
-    SDL_Window* window = SDL_GL_GetCurrentWindow();
-    if (window) {
-        SDL_Surface* surface = SDL_GetWindowSurface(window);
-        if (surface) {
-            screen_width = surface->w;
-            screen_height = surface->h;
-        }
-    }
-    float screen_aspect = static_cast<float>(screen_width) / screen_height;
-    
-    // Calculate dimensions based on scale mode
-    float width = m_width;
-    float height = m_height;
-    
-    // Adjust dimensions based on scale mode
-    if (m_scale_mode != ScaleMode::STRETCH) {
-        // Calculate the true component aspect ratio considering the screen aspect ratio
-        float component_aspect = (m_width / m_height) * screen_aspect;
-        
-        // Normalize the image aspect ratio to account for screen aspect ratio
-        float normalized_image_aspect = m_aspect_ratio / screen_aspect;
-        
-        if ((m_scale_mode == ScaleMode::CONTAIN && normalized_image_aspect > component_aspect) ||
-            (m_scale_mode == ScaleMode::COVER && normalized_image_aspect < component_aspect)) {
-            // Width constrained
-            width = m_width;
-            height = width / normalized_image_aspect;
-        } else {
-            // Height constrained
-            height = m_height;
-            width = height * normalized_image_aspect;
-        }
-    }
-    
     // Set uniforms
     glUniform1i(glGetUniformLocation(s_image_shader->get_program(), "uTexture"), 0);
     glUniform4f(glGetUniformLocation(s_image_shader->get_program(), "uTintColor"),
                 m_tint_color[0], m_tint_color[1], m_tint_color[2], m_tint_color[3]);
     
+    // Calculate the component aspect ratio
+    float component_aspect = m_width / m_height;
+    
+    // Get display aspect ratio from render context
+    float display_aspect = m_render_context.get_aspect_ratio();
+    
+    // Calculate the vertex data using the content scaling utility
+    auto vertex_data = ContentScaling::calculateVertexData(
+        m_natural_aspect_ratio,
+        component_aspect, 
+        display_aspect,
+        m_scaling_params
+    );
+    
     // Enable blending for transparency
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Update the vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, s_image_vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * vertex_data.size(), vertex_data.data());
     
     // Draw image
     glBindVertexArray(s_image_vao);
@@ -257,6 +245,7 @@ void ImageComponent::render_content() {
     
     // Restore state
     glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(current_program);
     glDisable(GL_BLEND);
@@ -269,6 +258,34 @@ void ImageComponent::set_tint_color(float r, float g, float b, float a) {
     m_tint_color[3] = a;
 }
 
+// New ContentScaling API
+void ImageComponent::set_scale_mode(ContentScaling::ScaleMode mode) {
+    m_scaling_params.scale_mode = mode;
+}
+
+void ImageComponent::set_horizontal_alignment(const float alignment) {
+    m_scaling_params.horizontal_alignment = alignment;
+}
+
+void ImageComponent::set_vertical_alignment(const float alignment) {
+    m_scaling_params.vertical_alignment = alignment;
+}
+
+void ImageComponent::set_aspect_ratio(const float ratio) {
+    m_scaling_params.custom_aspect_ratio = ratio;
+}
+
+// Legacy API (for backward compatibility)
 void ImageComponent::set_scale_mode(ScaleMode mode) {
-    m_scale_mode = mode;
+    switch (mode) {
+        case ScaleMode::STRETCH:
+            m_scaling_params.scale_mode = ContentScaling::ScaleMode::STRETCH;
+            break;
+        case ScaleMode::CONTAIN:
+            m_scaling_params.scale_mode = ContentScaling::ScaleMode::FIT;
+            break;
+        case ScaleMode::COVER:
+            m_scaling_params.scale_mode = ContentScaling::ScaleMode::FILL;
+            break;
+    }
 }
