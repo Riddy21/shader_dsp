@@ -56,11 +56,6 @@ MenuSelectionComponent::~MenuSelectionComponent() {
     // Child components are cleaned up by the base class
 }
 
-void MenuSelectionComponent::render() {
-    // Render all child components (menu items)
-    GraphicsComponent::render();
-}
-
 int MenuSelectionComponent::add_item(const std::string& text) {
     int index = static_cast<int>(m_items.size());
     

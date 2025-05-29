@@ -44,13 +44,9 @@ void MenuItemComponent::initialize_graphics() {
         #version 330 core
         layout (location = 0) in vec2 aPos;
         
-        uniform vec2 uPosition;
-        uniform vec2 uDimensions;
-        
         void main() {
-            // Map from local coordinates to screen coordinates
-            vec2 pos = aPos * uDimensions + uPosition;
-            gl_Position = vec4(pos, 0.0, 1.0);
+            // aPos is already in [-1, 1] range
+            gl_Position = vec4(aPos, 0.0, 1.0);
         }
     )";
 
@@ -96,12 +92,8 @@ void MenuItemComponent::initialize_graphics() {
     glBindVertexArray(0);
 }
 
-void MenuItemComponent::render() {
+void MenuItemComponent::render_content() {
     glUseProgram(m_shader_program->get_program());
-    
-    // Set position and dimensions in normalized device coordinates
-    glUniform2f(glGetUniformLocation(m_shader_program->get_program(), "uPosition"), m_x, m_y);
-    glUniform2f(glGetUniformLocation(m_shader_program->get_program(), "uDimensions"), m_width, m_height);
     
     // Set color based on selected state
     float* color = m_is_selected ? m_selected_color : m_normal_color;
@@ -114,9 +106,6 @@ void MenuItemComponent::render() {
     glBindVertexArray(0);
     
     glUseProgram(0);
-    
-    // Render all child components (including text)
-    GraphicsComponent::render();
 }
 
 void MenuItemComponent::set_selected(bool selected) {

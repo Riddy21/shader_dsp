@@ -57,6 +57,7 @@ void ImageComponent::initialize_static_graphics() {
             uniform vec2 uDimensions;
             
             void main() {
+                // Using our coordinate system: 1 is top, -1 is bottom
                 vec2 pos = aPos * uDimensions + uPosition;
                 gl_Position = vec4(pos, 0.0, 1.0);
                 TexCoord = aTexCoord;
@@ -197,7 +198,7 @@ void ImageComponent::create_texture_from_surface(SDL_Surface* surface) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void ImageComponent::render() {
+void ImageComponent::render_content() {
     if (m_texture == 0) return;
     
     // Bind texture
@@ -209,21 +210,39 @@ void ImageComponent::render() {
     
     glUseProgram(s_image_shader->get_program());
     
+    // Get screen dimensions to account for screen aspect ratio
+    int screen_width = 1, screen_height = 1;
+    SDL_Window* window = SDL_GL_GetCurrentWindow();
+    if (window) {
+        SDL_Surface* surface = SDL_GetWindowSurface(window);
+        if (surface) {
+            screen_width = surface->w;
+            screen_height = surface->h;
+        }
+    }
+    float screen_aspect = static_cast<float>(screen_width) / screen_height;
+    
     // Calculate dimensions based on scale mode
     float width = m_width;
     float height = m_height;
     
     // Adjust dimensions based on scale mode
     if (m_scale_mode != ScaleMode::STRETCH) {
-        float component_aspect = m_width / m_height;
+        // Calculate the true component aspect ratio considering the screen aspect ratio
+        float component_aspect = (m_width / m_height) * screen_aspect;
         
-        if ((m_scale_mode == ScaleMode::CONTAIN && m_aspect_ratio > component_aspect) ||
-            (m_scale_mode == ScaleMode::COVER && m_aspect_ratio < component_aspect)) {
+        // Normalize the image aspect ratio to account for screen aspect ratio
+        float normalized_image_aspect = m_aspect_ratio / screen_aspect;
+        
+        if ((m_scale_mode == ScaleMode::CONTAIN && normalized_image_aspect > component_aspect) ||
+            (m_scale_mode == ScaleMode::COVER && normalized_image_aspect < component_aspect)) {
             // Width constrained
-            height = m_width / m_aspect_ratio;
+            width = m_width;
+            height = width / normalized_image_aspect;
         } else {
             // Height constrained
-            width = m_height * m_aspect_ratio;
+            height = m_height;
+            width = height * normalized_image_aspect;
         }
     }
     

@@ -15,7 +15,7 @@ public:
     ImageComponent(float x, float y, float width, float height, const std::string& image_path);
     ~ImageComponent() override;
 
-    void render() override;
+    void render_content() override;
 
     // Load a new image
     bool load_image(const std::string& image_path);

@@ -19,8 +19,6 @@ public:
     );
     ~MenuSelectionComponent() override;
 
-    void render() override;
-    
     // Item management
     int add_item(const std::string& text);
     void set_items(const std::vector<std::string>& items);

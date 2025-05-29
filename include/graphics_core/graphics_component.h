@@ -2,6 +2,7 @@
 #include <SDL2/SDL.h>
 #include <vector>
 #include <memory>
+#include <GL/glew.h>
 
 #include "engine/event_handler.h"
 #include "engine/renderable_item.h"
@@ -15,12 +16,12 @@ public:
         const float height = 0.0f
     );
     virtual ~GraphicsComponent() = default;
-    
-    virtual void render();
 
+    // TODO: Change this to protected and make friend with GraphicsView
     virtual void register_event_handlers(EventHandler* event_handler);
     virtual void unregister_event_handlers();
-
+    
+    void render();
     void set_position(const float x, const float y);
     void get_position(float& x, float& y) const;
     void set_dimensions(const float width, const float height);
@@ -39,7 +40,21 @@ public:
     // Gets the number of children
     size_t get_child_count() const;
     
+    // Debug outline display
+    void set_show_outline(bool show) { m_show_outline = show; }
+    bool get_show_outline() const { return m_show_outline; }
+    void set_outline_color(float r, float g, float b, float a);
+    
+    // Static method to toggle outline display for all components
+    static void set_global_outline(bool show) { s_global_outline = show; }
+    
 protected:
+    // New methods for viewport-based rendering
+    void begin_local_rendering();
+    void end_local_rendering();
+    
+    virtual void render_content(); // Components should override this instead of render()
+
     float m_x = 0.0f;
     float m_y = 0.0f;
     float m_width = 0.0f;
@@ -53,4 +68,19 @@ protected:
     
     // Child components (owned by this component)
     std::vector<std::unique_ptr<GraphicsComponent>> m_children;
+    
+    // Debug outline settings
+    bool m_show_outline = false;
+    float m_outline_color[4] = {1.0f, 0.0f, 1.0f, 1.0f}; // Default to magenta
+    
+    // Draw component outline for debugging
+    virtual void draw_outline();
+    
+    // Static variable for global outline control
+    static bool s_global_outline;
+    
+    // Saved viewport and scissor state for local rendering
+    GLint m_saved_viewport[4] = {0, 0, 0, 0};
+    GLint m_saved_scissor_box[4] = {0, 0, 0, 0};
+    GLboolean m_saved_scissor_test = GL_FALSE;
 };

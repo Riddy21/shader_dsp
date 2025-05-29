@@ -19,18 +19,19 @@ MockInterfaceView::MockInterfaceView()
     const std::string hack_font_path = "media/fonts/hack_regular.ttf";
     
     // Load additional fonts
-    TextComponent::load_font("space_mono", space_mono_font_path, 18);
-    TextComponent::load_font("hack", hack_font_path, 16);
+    TextComponent::load_font("space_mono", space_mono_font_path);
+    TextComponent::load_font("hack", hack_font_path);
     
     // Define button properties
-    const float button_width = 0.2f;
-    const float button_height = 0.1f;
+    const float button_width = 1.f;
+    const float button_height = 0.5f;
 
-    // Create a title text at the top of the screen
-    auto title_text = new TextComponent(0.0f, 0.8f, 0.8f, 0.2f, "Shader DSP");
-    title_text->set_font("hack"); // Use Space Mono for title
-    title_text->set_font_size(32);
+    // Create a title text at the bottom of the screen
+    auto title_text = new TextComponent(-1.0f, .8f, 2.0f, .2f, "Shader DSP");
+    title_text->set_font("space_mono"); // Use Space Mono for title
     title_text->set_text_color(1.0f, 1.0f, 1.0f, 1.0f);
+    title_text->set_horizontal_alignment(0.5f); // Centered horizontally
+    title_text->set_vertical_alignment(0.5f);   // Centered vertically
     add_component(title_text);
 
     // Define button information
@@ -66,16 +67,22 @@ MockInterfaceView::MockInterfaceView()
         }, {0.6f, 0.2f, 0.8f, 1.0f}, {0.7f, 0.3f, 0.9f, 1.0f}, {0.5f, 0.1f, 0.6f, 1.0f}, true, "default"}
     };
 
-    // Calculate grid layout to span the whole screen
+    // Calculate grid layout to span the second half of the screen
     int columns = 2;
-    float screen_width = 1.0f;  // Assuming normalized device coordinates (-1 to 1)
-    float screen_height = 1.0f;
-    float x_spacing = (screen_width - columns * button_width) / (columns + 1);
-    float y_spacing = (screen_height - (buttons.size() / columns) * button_height) / ((buttons.size() / columns) + 1);
+    float screen_width = 2.0f;  // Normalized device coordinates span from -1 to 1 (width of 2)
+    float screen_height = 2.0f; // Height from -1 to 1 is also 2 units
+    
+    // Define the starting point for the second half of the screen
+    float start_x = -1.0f; // Start at the middle of the screen
+    float start_y = 0.0f; // Start at the bottom of the screen
 
+    // Arrange buttons in two rows spanning the second half of the screen
     for (size_t i = 0; i < buttons.size(); ++i) {
-        float x = -0.5f + x_spacing + (i % columns) * (button_width + x_spacing);
-        float y = 0.5f - y_spacing - (i / columns) * (button_height + y_spacing);
+        float x, y;
+        
+        // Calculate position based on row and column
+        x = start_x + (i % columns) * button_width; // Horizontal position
+        y = start_y + (i / columns) * button_height; // Vertical position
 
         auto& info = buttons[i];
         
