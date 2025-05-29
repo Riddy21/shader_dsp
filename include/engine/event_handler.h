@@ -56,18 +56,35 @@ public:
     using EventCallback = std::function<bool(const SDL_Event&)>;
     virtual ~EventHandlerEntry() = default;
     virtual bool matches(const SDL_Event& event) { return false; }
-    void set_window_id(unsigned int id) { window_id = id; }
+    void set_render_context(const RenderContext& context) {
+        render_context = context;
+    }
+    // Legacy method for backward compatibility
+    void set_window_id(unsigned int id) { 
+        // Create a temporary context with just the window_id
+        RenderContext ctx;
+        ctx.window_id = id;
+        render_context = ctx;
+    }
     EventCallback callback;
-    unsigned int window_id;
+    RenderContext render_context;
 protected:
-    EventHandlerEntry(unsigned int window_id = 0, EventCallback cb = nullptr)
-        : callback(std::move(cb)), window_id(window_id) {}
+    EventHandlerEntry(RenderContext context = RenderContext(), EventCallback cb = nullptr)
+        : callback(std::move(cb)), render_context(context) {}
+    
+    // Legacy constructor for backward compatibility
+    EventHandlerEntry(unsigned int window_id, EventCallback cb = nullptr)
+        : callback(std::move(cb)) {
+        render_context.window_id = window_id;
+    }
 };
 
 // Keyboard event handler entry with sticky key logic inside matches
 class KeyboardEventHandlerEntry : public EventHandlerEntry {
 public:
-    KeyboardEventHandlerEntry(Uint32 type, SDL_Keycode key, EventCallback cb, bool sticky = false, unsigned int window_id = 0);
+    KeyboardEventHandlerEntry(Uint32 type, SDL_Keycode key, EventCallback cb, bool sticky = false, RenderContext context = RenderContext());
+    // Legacy constructor for backward compatibility
+    KeyboardEventHandlerEntry(Uint32 type, SDL_Keycode key, EventCallback cb, bool sticky, unsigned int window_id);
     ~KeyboardEventHandlerEntry() = default;
     bool matches(const SDL_Event& event) override;
 private:
@@ -80,9 +97,15 @@ private:
 // Mouse event handler entry base class (abstract)
 class MouseEventHandlerEntry : public EventHandlerEntry {
 protected:
-    MouseEventHandlerEntry(int x, int y, int w, int h, EventCallback cb, unsigned int window_id = 0)
+    MouseEventHandlerEntry(int x, int y, int w, int h, EventCallback cb, RenderContext context = RenderContext())
+        : EventHandlerEntry(context, std::move(cb)),
+          rect_x(x), rect_y(y), rect_w(w), rect_h(h) {}
+    
+    // Legacy constructor for backward compatibility
+    MouseEventHandlerEntry(int x, int y, int w, int h, EventCallback cb, unsigned int window_id)
         : EventHandlerEntry(window_id, std::move(cb)),
           rect_x(x), rect_y(y), rect_w(w), rect_h(h) {}
+          
     int rect_x, rect_y, rect_w, rect_h;
 private:
     // Prevent direct instantiation
@@ -93,7 +116,9 @@ private:
 // Mouse click event handler entry
 class MouseClickEventHandlerEntry : public MouseEventHandlerEntry {
 public:
-    MouseClickEventHandlerEntry(Uint32 type, int x, int y, int w, int h, EventCallback cb, unsigned int window_id = 0);
+    MouseClickEventHandlerEntry(Uint32 type, int x, int y, int w, int h, EventCallback cb, RenderContext context = RenderContext());
+    // Legacy constructor for backward compatibility
+    MouseClickEventHandlerEntry(Uint32 type, int x, int y, int w, int h, EventCallback cb, unsigned int window_id);
     bool matches(const SDL_Event& event) override;
 private:
     Uint32 event_type;
@@ -103,7 +128,9 @@ private:
 // Mouse motion handler entry for tracking cursor movement over a region
 class MouseMotionEventHandlerEntry : public MouseEventHandlerEntry {
 public:
-    MouseMotionEventHandlerEntry(int x, int y, int w, int h, EventCallback cb, unsigned int window_id = 0);
+    MouseMotionEventHandlerEntry(int x, int y, int w, int h, EventCallback cb, RenderContext context = RenderContext());
+    // Legacy constructor for backward compatibility
+    MouseMotionEventHandlerEntry(int x, int y, int w, int h, EventCallback cb, unsigned int window_id);
     bool matches(const SDL_Event& event) override;
     // rect_x, rect_y, rect_w, rect_h inherited
 };
@@ -113,7 +140,9 @@ class MouseEnterLeaveEventHandlerEntry : public MouseEventHandlerEntry {
 public:
     enum class Mode { ENTER, LEAVE };
     
-    MouseEnterLeaveEventHandlerEntry(int x, int y, int w, int h, Mode mode, EventCallback cb, unsigned int window_id = 0);
+    MouseEnterLeaveEventHandlerEntry(int x, int y, int w, int h, Mode mode, EventCallback cb, RenderContext context = RenderContext());
+    // Legacy constructor for backward compatibility
+    MouseEnterLeaveEventHandlerEntry(int x, int y, int w, int h, Mode mode, EventCallback cb, unsigned int window_id);
     bool matches(const SDL_Event& event) override;
     
 private:
@@ -130,7 +159,9 @@ private:
 // TODO: To implement later
 class GPIOEventHandlerEntry : public EventHandlerEntry {
 public:
-    GPIOEventHandlerEntry(int pin, int value, EventCallback cb, unsigned int window_id = 0);
+    GPIOEventHandlerEntry(int pin, int value, EventCallback cb, RenderContext context = RenderContext());
+    // Legacy constructor for backward compatibility
+    GPIOEventHandlerEntry(int pin, int value, EventCallback cb, unsigned int window_id);
     bool matches(const SDL_Event& event) override;
 private:
     int gpio_pin;

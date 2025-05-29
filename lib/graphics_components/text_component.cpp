@@ -181,8 +181,8 @@ void TextComponent::initialize_static_graphics() {
             return;
         }
         
-        // TODO: Adjust the aspect ratio and sizing based ont he aligments and ratio
         // Create a quad with texture coordinates for rendering text
+        // Default
         float vertices[] = {
             // positions    // texture coords
             -1.0f, -1.0f,   0.0f, 1.0f,  // bottom left
@@ -267,6 +267,10 @@ void TextComponent::initialize_text() {
         surface->pixels
     );
     
+    // Store texture dimensions for aspect ratio calculations
+    m_texture_width = surface->w;
+    m_texture_height = surface->h;
+    
     glBindTexture(GL_TEXTURE_2D, 0);
     
     // Free surface
@@ -292,12 +296,55 @@ void TextComponent::render_content() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
+    // Calculate vertices based on aspect ratio
+    float vertex_data[24]; // 6 vertices * 4 floats per vertex
+    
+    // Calculate aspect-corrected dimensions
+    float component_aspect = m_width / m_height;
+    float texture_aspect = static_cast<float>(m_texture_width) / static_cast<float>(m_texture_height);
+    
+    // Invert the aspect ratio calculation to fix the direction
+    float corrected_aspect = (m_aspect_ratio * component_aspect) / texture_aspect;
+    
+    // Always scale to fill the component dimensions
+    float width = 2.0f;  // Full component width (-1 to 1)
+    float height = 2.0f; // Full component height (-1 to 1)
+    
+    // Adjust one dimension to maintain the desired aspect ratio
+    if (corrected_aspect > 1.0f) {
+        // Component should be wider than texture's natural ratio
+        height = height / corrected_aspect;
+    } else {
+        // Component should be taller than texture's natural ratio
+        width = width * corrected_aspect;
+    }
+    
+    // Apply alignment
+    float left = -width * m_horizontal_alignment;
+    float right = left + width;
+    float top = -height * m_vertical_alignment;
+    float bottom = top + height;
+    
+    // positions        // texture coords
+    vertex_data[0] = left;  vertex_data[1] = bottom; vertex_data[2] = 0.0f; vertex_data[3] = 1.0f; // bottom left
+    vertex_data[4] = left;  vertex_data[5] = top;    vertex_data[6] = 0.0f; vertex_data[7] = 0.0f; // top left
+    vertex_data[8] = right; vertex_data[9] = top;    vertex_data[10] = 1.0f; vertex_data[11] = 0.0f; // top right
+    
+    vertex_data[12] = left;  vertex_data[13] = bottom; vertex_data[14] = 0.0f; vertex_data[15] = 1.0f; // bottom left
+    vertex_data[16] = right; vertex_data[17] = top;    vertex_data[18] = 1.0f; vertex_data[19] = 0.0f; // top right
+    vertex_data[20] = right; vertex_data[21] = bottom; vertex_data[22] = 1.0f; vertex_data[23] = 1.0f; // bottom right
+    
+    // Update the vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, s_text_vbo);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertex_data), vertex_data);
+    
     // Draw text
     glBindVertexArray(s_text_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     
     // Restore state
     glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(current_program);
     glDisable(GL_BLEND);
@@ -331,4 +378,9 @@ void TextComponent::set_horizontal_alignment(float alignment) {
 void TextComponent::set_vertical_alignment(float alignment) {
     m_vertical_alignment = alignment;
     // No need to recreate texture, just affects positioning
+}
+
+void TextComponent::set_aspect_ratio(float ratio) {
+    m_aspect_ratio = ratio;
+    // No need to recreate texture, just affects rendering
 }

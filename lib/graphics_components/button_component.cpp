@@ -46,7 +46,7 @@ ButtonComponent::ButtonComponent(
             m_is_pressed = true;
             return true;
         },
-        m_window_id
+        m_render_context
     );
 
     auto mouse_up_handler = std::make_shared<MouseClickEventHandlerEntry>(
@@ -60,7 +60,8 @@ ButtonComponent::ButtonComponent(
                 }
             }
             return true;
-        }
+        },
+        m_render_context
     );
 
     auto mouse_motion_handler = std::make_shared<MouseMotionEventHandlerEntry>(
@@ -69,7 +70,7 @@ ButtonComponent::ButtonComponent(
             m_is_hovered = true;
             return true;
         },
-        m_window_id
+        m_render_context
     );
 
     auto mouse_enter_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
@@ -79,7 +80,7 @@ ButtonComponent::ButtonComponent(
             m_is_hovered = true;
             return true;
         },
-        m_window_id
+        m_render_context
     );
 
     auto mouse_leave_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
@@ -89,7 +90,7 @@ ButtonComponent::ButtonComponent(
             m_is_hovered = false;
             return true;
         },
-        m_window_id
+        m_render_context
     );
 
     m_event_handler_entries = {

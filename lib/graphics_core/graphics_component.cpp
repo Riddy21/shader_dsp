@@ -3,13 +3,22 @@
 // Initialize static variables
 bool GraphicsComponent::s_global_outline = false;
 
-// Constructor
+// Constructor with event handler and render context
 GraphicsComponent::GraphicsComponent(
     const float x, 
     const float y, 
     const float width, 
-    const float height
-) : m_x(x), m_y(y), m_width(width), m_height(height) {}
+    const float height,
+    EventHandler* event_handler,
+    const RenderContext& render_context
+) : m_x(x), m_y(y), m_width(width), m_height(height), 
+    m_event_handler(event_handler), m_render_context(render_context) 
+{
+    // Register event handlers if the event handler is provided
+    if (m_event_handler) {
+        register_event_handlers(m_event_handler);
+    }
+}
 
 // Virtual destructor is defaulted in header
 
@@ -137,17 +146,28 @@ void GraphicsComponent::get_dimensions(float& width, float& height) const {
     height = m_height;
 }
 
-void GraphicsComponent::set_display_id(unsigned int id) {
-    m_window_id = id;
-
+void GraphicsComponent::set_render_context(const RenderContext& render_context) {
+    m_render_context = render_context;
+    
+    // Update window ID in event handler entries
     for (auto& entry : m_event_handler_entries) {
-        entry->set_window_id(id);
+        entry->set_render_context(render_context);
     }
     
-    // Update window ID for all children
+    // Update render context for all children
     for (auto& child : m_children) {
-        child->set_display_id(id);
+        child->set_render_context(render_context);
     }
+}
+
+// Legacy method for backward compatibility
+void GraphicsComponent::set_display_id(unsigned int id) {
+    // Create a temporary RenderContext with just the window_id set
+    RenderContext ctx;
+    ctx.window_id = id;
+    
+    // Update the context for this component and all children
+    set_render_context(ctx);
 }
 
 void GraphicsComponent::add_child(GraphicsComponent* child) {

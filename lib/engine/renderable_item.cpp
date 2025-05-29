@@ -10,9 +10,7 @@ IRenderableEntity::~IRenderableEntity() {
 }
 
 void IRenderableEntity::activate_render_context() {
-    if (m_window && m_context && SDL_GL_GetCurrentContext() != m_context) {
-        SDL_GL_MakeCurrent(m_window, m_context);
-    }
+    m_render_context.activate();
 }
 
 float IRenderableEntity::get_render_fps() const { 
@@ -69,22 +67,22 @@ bool IRenderableEntity::initialize_sdl(
         return false;
     }
 
+    // Initialize the render context
+    m_render_context = RenderContext(m_window, m_context, title, visible);
+
     return true;
 }
 
 SDL_Window* IRenderableEntity::get_window() const { 
-    return m_window; 
+    return m_render_context.window; 
 }
 
 SDL_GLContext IRenderableEntity::get_context() const { 
-    return m_context; 
+    return m_render_context.gl_context; 
 }
 
 unsigned int IRenderableEntity::get_window_id() const {
-    if (m_window) {
-        return SDL_GetWindowID(m_window);
-    }
-    return 0; // Return 0 if the window is not initialized
+    return m_render_context.window_id;
 }
 
 void IRenderableEntity::update_render_fps() {
@@ -117,15 +115,18 @@ void IRenderableEntity::update_present_fps() {
 
 void IRenderableEntity::cleanup_sdl() {
     activate_render_context();
-    if (m_context) {
-        SDL_GL_MakeCurrent(m_window, m_context);
-        SDL_GL_DeleteContext(m_context);
+    
+    if (m_render_context.gl_context) {
+        SDL_GL_MakeCurrent(m_render_context.window, m_render_context.gl_context);
+        SDL_GL_DeleteContext(m_render_context.gl_context);
         m_context = nullptr;
+        m_render_context.gl_context = nullptr;
     }
     
-    if (m_window) {
-        SDL_DestroyWindow(m_window);
+    if (m_render_context.window) {
+        SDL_DestroyWindow(m_render_context.window);
         m_window = nullptr;
+        m_render_context.window = nullptr;
     }
 }
 
@@ -143,9 +144,9 @@ void IRenderableEntity::render() {
 void IRenderableEntity::present() {
     activate_render_context();
 
-    if (m_visible) {
+    if (m_render_context.visible) {
         // No need to call activate_render_context() here, event loop will do it
-        SDL_GL_SwapWindow(m_window);
+        SDL_GL_SwapWindow(m_render_context.window);
     }
 
     // Update the present FPS
