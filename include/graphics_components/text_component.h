@@ -11,12 +11,14 @@
 #include "utilities/shader_program.h"
 #include "graphics_core/graphics_component.h"
 
+#define DEFAULT_FONT_SIZE 32
+
 class TextComponent : public GraphicsComponent {
 public:
     TextComponent(float x, float y, float width, float height, const std::string& text);
     ~TextComponent() override;
 
-    void render() override;
+    void render_content() override;
 
     void set_text(const std::string& text);
     const std::string& get_text() const { return m_text; }
@@ -30,7 +32,7 @@ public:
     bool set_font(const std::string& font_name);
     
     // Add a new font to the available fonts
-    static bool load_font(const std::string& font_name, const std::string& font_path, int default_size = 16);
+    static bool load_font(const std::string& font_name, const std::string& font_path, int default_size = DEFAULT_FONT_SIZE);
     
     // Get list of available fonts
     static std::vector<std::string> get_available_fonts();
@@ -47,7 +49,7 @@ private:
     float m_text_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     float m_horizontal_alignment = 0.5f; // Default to center
     float m_vertical_alignment = 0.5f;   // Default to center
-    int m_font_size = 16;
+    int m_font_size = DEFAULT_FONT_SIZE;
     
     GLuint m_text_texture = 0;
     static std::unique_ptr<AudioShaderProgram> s_text_shader;

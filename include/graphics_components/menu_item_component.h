@@ -20,7 +20,7 @@ public:
     );
     ~MenuItemComponent() override;
 
-    void render() override;
+    void render_content() override;
 
     // Item state management
     void set_selected(bool selected);

@@ -22,11 +22,9 @@ GraphComponent::GraphComponent(
         #version 330 core
         layout(location = 0) in float value;
         uniform float data_size;
-        uniform vec2 position;
-        uniform vec2 dimensions;
         void main() {
-            float x = gl_VertexID / (data_size - 1) * dimensions.x + position.x - 1.0;
-            float y = (value * 0.5 + 0.5) * dimensions.y + position.y - 1.0; // Map value from [-1, 1] to [0, 1]
+            float x = gl_VertexID / (data_size - 1) * 2.0 - 1.0;
+            float y = value; // Already in [-1, 1] range
             gl_Position = vec4(x, y, 0.0, 1.0);
         }
     )";
@@ -66,14 +64,15 @@ void GraphComponent::set_data(const std::vector<float>& data) {
     }   
 }
 
-void GraphComponent::render() {
+void GraphComponent::render_content() {
     if (!m_data->size()) return;
 
+    // Use the shader program with simplified coordinate system
     glUseProgram(m_shader_program->get_program());
-    glUniform1f(glGetUniformLocation(m_shader_program->get_program(), "data_size"), static_cast<float>(m_data->size()));
-    glUniform2f(glGetUniformLocation(m_shader_program->get_program(), "position"), m_x, m_y);
-    glUniform2f(glGetUniformLocation(m_shader_program->get_program(), "dimensions"), m_width, m_height);
+    glUniform1f(glGetUniformLocation(m_shader_program->get_program(), "data_size"), 
+                static_cast<float>(m_data->size()));
 
+    // Bind and update vertex data if needed
     glBindVertexArray(m_vao);
     glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
 
@@ -84,9 +83,10 @@ void GraphComponent::render() {
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
 
-    glLineWidth(1.0f); // Set the line width to 2.0 (in pixels)
+    glLineWidth(1.0f);
     glDrawArrays(GL_LINE_STRIP, 0, m_data->size());
 
+    // Clean up
     glDisableVertexAttribArray(0);
     glBindVertexArray(0);
     glUseProgram(0);

@@ -20,7 +20,7 @@ public:
     ButtonComponent(float x, float y, float width, float height, ButtonCallback callback);
     ~ButtonComponent() override;
 
-    void render() override;
+    void render_content() override;
 
     void set_callback(ButtonCallback callback);
     void set_colors(float r, float g, float b, float a);

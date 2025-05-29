@@ -16,6 +16,9 @@ class MockInterfaceView : public GraphicsView {
 public:
     MockInterfaceView();
     ~MockInterfaceView() override = default;
+    
+    // Debug helpers
+    void toggle_component_outlines();
 
 protected:
     

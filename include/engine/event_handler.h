@@ -56,6 +56,7 @@ public:
     using EventCallback = std::function<bool(const SDL_Event&)>;
     virtual ~EventHandlerEntry() = default;
     virtual bool matches(const SDL_Event& event) { return false; }
+    void set_window_id(unsigned int id) { window_id = id; }
     EventCallback callback;
     unsigned int window_id;
 protected:

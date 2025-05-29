@@ -27,8 +27,11 @@ ButtonComponent::ButtonComponent(
             screen_height = surf->h;
         }
     }
-
+    
+    // Convert from normalized coordinates (-1 to 1, with 1 at top and -1 at bottom)
+    // to screen coordinates (0,0 top-left to width,height bottom-right)
     int window_x = (int)((m_x + 1.0f) * screen_width / 2);
+    // For Y, 1 is at top and -1 is at bottom, so we need to invert
     int window_y = (int)((1.0f - m_y) * screen_height / 2);
     int window_width = (int)(m_width * screen_width);
     int window_height = (int)(m_height * screen_height);
@@ -117,13 +120,8 @@ void ButtonComponent::initialize_graphics() {
         #version 330 core
         layout (location = 0) in vec2 aPos;
         
-        uniform vec2 uPosition;
-        uniform vec2 uDimensions;
-        
         void main() {
-            // Map from button local coordinates to screen coordinates
-            vec2 pos = aPos * uDimensions + uPosition;
-            gl_Position = vec4(pos, 0.0, 1.0);
+            gl_Position = vec4(aPos, 0.0, 1.0);
         }
     )";
 
@@ -169,12 +167,8 @@ void ButtonComponent::initialize_graphics() {
     glBindVertexArray(0);
 }
 
-void ButtonComponent::render() {
+void ButtonComponent::render_content() {
     glUseProgram(m_shader_program->get_program());
-    
-    // Set position and dimensions in normalized device coordinates
-    glUniform2f(glGetUniformLocation(m_shader_program->get_program(), "uPosition"), m_x, m_y);
-    glUniform2f(glGetUniformLocation(m_shader_program->get_program(), "uDimensions"), m_width, m_height);
     
     // Set color based on button state
     float* color = m_color;
@@ -195,9 +189,6 @@ void ButtonComponent::render() {
     
     // Update child components based on button state
     update_children();
-    
-    // Render all child components
-    GraphicsComponent::render();
 }
 
 void ButtonComponent::set_callback(ButtonCallback callback) {

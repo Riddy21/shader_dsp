@@ -157,12 +157,8 @@ void TextComponent::initialize_static_graphics() {
             
             out vec2 TexCoord;
             
-            uniform vec2 uPosition;
-            uniform vec2 uDimensions;
-            
             void main() {
-                vec2 pos = aPos * uDimensions + uPosition;
-                gl_Position = vec4(pos, 0.0, 1.0);
+                gl_Position = vec4(aPos, 0.0, 1.0);
                 TexCoord = aTexCoord;
             }
         )";
@@ -185,6 +181,7 @@ void TextComponent::initialize_static_graphics() {
             return;
         }
         
+        // TODO: Adjust the aspect ratio and sizing based ont he aligments and ratio
         // Create a quad with texture coordinates for rendering text
         float vertices[] = {
             // positions    // texture coords
@@ -254,8 +251,8 @@ void TextComponent::initialize_text() {
     glBindTexture(GL_TEXTURE_2D, m_text_texture);
     
     // Set texture parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     
     // Upload texture data
     glTexImage2D(
@@ -276,7 +273,7 @@ void TextComponent::initialize_text() {
     SDL_FreeSurface(surface);
 }
 
-void TextComponent::render() {
+void TextComponent::render_content() {
     if (m_text_texture == 0 || m_text.empty()) return;
     
     // Bind texture
@@ -288,9 +285,7 @@ void TextComponent::render() {
     
     glUseProgram(s_text_shader->get_program());
     
-    // Set uniforms
-    glUniform2f(glGetUniformLocation(s_text_shader->get_program(), "uPosition"), m_x, m_y);
-    glUniform2f(glGetUniformLocation(s_text_shader->get_program(), "uDimensions"), m_width, m_height);
+    // Set texture uniform
     glUniform1i(glGetUniformLocation(s_text_shader->get_program(), "uTexture"), 0);
     
     // Enable blending for text
@@ -306,9 +301,6 @@ void TextComponent::render() {
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(current_program);
     glDisable(GL_BLEND);
-    
-    // Render children
-    GraphicsComponent::render();
 }
 
 void TextComponent::set_text(const std::string& text) {

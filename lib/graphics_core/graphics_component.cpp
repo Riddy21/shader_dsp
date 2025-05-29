@@ -1,5 +1,8 @@
 #include "graphics_core/graphics_component.h"
 
+// Initialize static variables
+bool GraphicsComponent::s_global_outline = false;
+
 // Constructor
 GraphicsComponent::GraphicsComponent(
     const float x, 
@@ -11,10 +14,73 @@ GraphicsComponent::GraphicsComponent(
 // Virtual destructor is defaulted in header
 
 void GraphicsComponent::render() {
-    // Base implementation renders all children
+    // Skip rendering if dimensions are zero
+    if (m_width <= 0 || m_height <= 0) return;
+    
+    // Begin local rendering with viewport and scissor
+    begin_local_rendering();
+    
+    // Render this component's content
+    render_content();
+    
+    // End local rendering
+    end_local_rendering();
+    
+    // Draw debug outline if enabled
+    if (m_show_outline || s_global_outline) {
+        draw_outline();
+    }
+    
+    // Render all children
     for (auto& child : m_children) {
         child->render();
     }
+}
+
+void GraphicsComponent::begin_local_rendering() {
+    // Save current viewport and scissor states
+    glGetIntegerv(GL_VIEWPORT, m_saved_viewport);
+    glGetBooleanv(GL_SCISSOR_TEST, &m_saved_scissor_test);
+    if (m_saved_scissor_test) {
+        glGetIntegerv(GL_SCISSOR_BOX, m_saved_scissor_box);
+    }
+    
+    // Calculate new viewport based on component position and dimensions
+    // Convert from normalized device coordinates to window coordinates
+    int window_width = m_saved_viewport[2];
+    int window_height = m_saved_viewport[3];
+    
+    // Calculate component viewport in window coordinates
+    int x_pos = static_cast<int>((m_x + 1.0f) * 0.5f * window_width);
+    int y_pos = static_cast<int>(((m_y - m_height) + 1.0f) * 0.5f * window_height);
+    int comp_width = static_cast<int>(m_width * 0.5f * window_width);
+    int comp_height = static_cast<int>(m_height * 0.5f * window_height);
+
+    // Set viewport to only render within the component's area
+    glViewport(x_pos, y_pos, comp_width, comp_height);
+    
+    // Use scissors to restrict drawing to component area
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(x_pos, y_pos, comp_width, comp_height);
+}
+
+void GraphicsComponent::end_local_rendering() {
+    // Restore original viewport
+    glViewport(m_saved_viewport[0], m_saved_viewport[1], 
+               m_saved_viewport[2], m_saved_viewport[3]);
+    
+    // Restore original scissor state
+    if (m_saved_scissor_test) {
+        glEnable(GL_SCISSOR_TEST);
+        glScissor(m_saved_scissor_box[0], m_saved_scissor_box[1],
+                  m_saved_scissor_box[2], m_saved_scissor_box[3]);
+    } else {
+        glDisable(GL_SCISSOR_TEST);
+    }
+}
+
+void GraphicsComponent::render_content() {
+    // Base implementation does nothing - derived classes should override this
 }
 
 void GraphicsComponent::register_event_handlers(EventHandler* event_handler) {
@@ -73,6 +139,10 @@ void GraphicsComponent::get_dimensions(float& width, float& height) const {
 
 void GraphicsComponent::set_display_id(unsigned int id) {
     m_window_id = id;
+
+    for (auto& entry : m_event_handler_entries) {
+        entry->set_window_id(id);
+    }
     
     // Update window ID for all children
     for (auto& child : m_children) {
@@ -115,4 +185,117 @@ GraphicsComponent* GraphicsComponent::get_child(size_t index) const {
 
 size_t GraphicsComponent::get_child_count() const {
     return m_children.size();
+}
+
+void GraphicsComponent::set_outline_color(float r, float g, float b, float a) {
+    m_outline_color[0] = r;
+    m_outline_color[1] = g;
+    m_outline_color[2] = b;
+    m_outline_color[3] = a;
+}
+
+void GraphicsComponent::draw_outline() {
+    // Calculate the corners of the rectangle in our coordinate system
+    // where (-1,1) is top-left and (1,-1) is bottom-right
+    float x1 = m_x;
+    float y1 = m_y;
+    float x2 = m_x + m_width;
+    float y2 = m_y - m_height;
+    
+    // 4 lines, 2 points per line, 2 floats per point
+    const float line_vertices[] = {
+        // Bottom line: bottom-left to bottom-right
+        x1, y1, x2, y1,
+        // Right line: bottom-right to top-right
+        x2, y1, x2, y2,
+        // Top line: top-right to top-left
+        x2, y2, x1, y2,
+        // Left line: top-left to bottom-left
+        x1, y2, x1, y1
+    };
+    
+    // Save GL state
+    GLint previous_program;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &previous_program);
+    GLboolean blend_enabled;
+    glGetBooleanv(GL_BLEND, &blend_enabled);
+    GLint blend_src, blend_dst;
+    glGetIntegerv(GL_BLEND_SRC_ALPHA, &blend_src);
+    glGetIntegerv(GL_BLEND_DST_ALPHA, &blend_dst);
+    
+    // Create a simple line VAO and VBO on the fly
+    GLuint line_vao, line_vbo;
+    glGenVertexArrays(1, &line_vao);
+    glGenBuffers(1, &line_vbo);
+    
+    glBindVertexArray(line_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(line_vertices), line_vertices, GL_STATIC_DRAW);
+    
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+    // We'll use a simple pass-through shader
+    const char* vert_src = R"(
+        #version 330 core
+        layout (location = 0) in vec2 aPos;
+        void main() {
+            gl_Position = vec4(aPos, 0.0, 1.0);
+        }
+    )";
+    
+    const char* frag_src = R"(
+        #version 330 core
+        out vec4 FragColor;
+        uniform vec4 uColor;
+        void main() {
+            FragColor = uColor;
+        }
+    )";
+    
+    // Compile shaders
+    GLuint vert_shader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vert_shader, 1, &vert_src, NULL);
+    glCompileShader(vert_shader);
+    
+    GLuint frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(frag_shader, 1, &frag_src, NULL);
+    glCompileShader(frag_shader);
+    
+    // Create program
+    GLuint outline_program = glCreateProgram();
+    glAttachShader(outline_program, vert_shader);
+    glAttachShader(outline_program, frag_shader);
+    glLinkProgram(outline_program);
+    
+    // Use program and set color
+    glUseProgram(outline_program);
+    glUniform4f(glGetUniformLocation(outline_program, "uColor"), 
+                m_outline_color[0], m_outline_color[1], m_outline_color[2], m_outline_color[3]);
+    
+    // Setup for line drawing
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glLineWidth(2.0f);
+    
+    // Draw the outline
+    glBindVertexArray(line_vao);
+    glDrawArrays(GL_LINES, 0, 8); // 4 lines, 2 points each
+    
+    // Cleanup
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glDeleteVertexArrays(1, &line_vao);
+    glDeleteBuffers(1, &line_vbo);
+    glDeleteProgram(outline_program);
+    glDeleteShader(vert_shader);
+    glDeleteShader(frag_shader);
+    
+    // Restore GL state
+    glUseProgram(previous_program);
+    if (!blend_enabled) {
+        glDisable(GL_BLEND);
+    } else {
+        glBlendFunc(blend_src, blend_dst);
+    }
 }
