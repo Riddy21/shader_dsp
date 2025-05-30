@@ -13,6 +13,10 @@ void IRenderableEntity::activate_render_context() {
     m_render_context.activate();
 }
 
+void IRenderableEntity::unactivate_render_context() {
+    m_render_context.unactivate();
+}
+
 float IRenderableEntity::get_render_fps() const { 
     return m_render_fps; 
 }

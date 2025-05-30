@@ -49,6 +49,7 @@ bool EventHandler::handle_event(const SDL_Event& event) {
     for (const auto& [callback, context] : callbacks_and_contexts) {
         context.activate(); // Activate the context before calling the callback
         handled |= callback(event);
+        context.unactivate(); // Unactivate the context after calling the callback
     }
     return handled;
 }

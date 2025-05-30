@@ -94,6 +94,11 @@ void MenuItemComponent::initialize_graphics() {
 
 void MenuItemComponent::render_content() {
     glUseProgram(m_shader_program->get_program());
+
+    if (m_colors_dirty) {
+        update_colors();
+        m_colors_dirty = false;
+    }
     
     // Set color based on selected state
     float* color = m_is_selected ? m_selected_color : m_normal_color;
@@ -111,9 +116,8 @@ void MenuItemComponent::render_content() {
 
 void MenuItemComponent::set_selected(bool selected) {
     if (m_is_selected == selected) return;
-    
     m_is_selected = selected;
-    update_colors();
+    m_colors_dirty = true;
 }
 
 void MenuItemComponent::update_colors() {
@@ -152,10 +156,7 @@ void MenuItemComponent::set_normal_color(float r, float g, float b, float a) {
     m_normal_color[1] = g;
     m_normal_color[2] = b;
     m_normal_color[3] = a;
-    
-    if (!m_is_selected) {
-        update_colors();
-    }
+    m_colors_dirty = true;
 }
 
 void MenuItemComponent::set_selected_color(float r, float g, float b, float a) {
@@ -163,10 +164,7 @@ void MenuItemComponent::set_selected_color(float r, float g, float b, float a) {
     m_selected_color[1] = g;
     m_selected_color[2] = b;
     m_selected_color[3] = a;
-    
-    if (m_is_selected) {
-        update_colors();
-    }
+    m_colors_dirty = true;
 }
 
 void MenuItemComponent::set_normal_text_color(float r, float g, float b, float a) {
@@ -174,10 +172,7 @@ void MenuItemComponent::set_normal_text_color(float r, float g, float b, float a
     m_normal_text_color[1] = g;
     m_normal_text_color[2] = b;
     m_normal_text_color[3] = a;
-    
-    if (!m_is_selected) {
-        update_colors();
-    }
+    m_colors_dirty = true;
 }
 
 void MenuItemComponent::set_selected_text_color(float r, float g, float b, float a) {
@@ -185,10 +180,7 @@ void MenuItemComponent::set_selected_text_color(float r, float g, float b, float
     m_selected_text_color[1] = g;
     m_selected_text_color[2] = b;
     m_selected_text_color[3] = a;
-    
-    if (m_is_selected) {
-        update_colors();
-    }
+    m_colors_dirty = true;
 }
 
 void MenuItemComponent::set_font_size(int size) {

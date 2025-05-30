@@ -30,6 +30,8 @@ TextComponent::TextComponent(
     initialize_default_font();
     initialize_static_graphics();
     initialize_text();
+
+    m_text_dirty = true;
 }
 
 TextComponent::~TextComponent() {
@@ -147,7 +149,7 @@ std::vector<std::string> TextComponent::get_available_fonts() {
 bool TextComponent::set_font(const std::string& font_name) {
     if (s_fonts.find(font_name) != s_fonts.end()) {
         m_font_name = font_name;
-        initialize_text(); // Recreate text with new font
+        m_text_dirty = true; // Mark for update
         return true;
     }
     return false;
@@ -258,8 +260,8 @@ void TextComponent::initialize_text() {
     glBindTexture(GL_TEXTURE_2D, m_text_texture);
     
     // Set texture parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     
     // Upload texture data
     glTexImage2D(
@@ -285,6 +287,10 @@ void TextComponent::initialize_text() {
 }
 
 void TextComponent::render_content() {
+    if (m_text_dirty) {
+        initialize_text();
+        m_text_dirty = false;
+    }
     if (m_text_texture == 0 || m_text.empty()) return;
     
     // Bind texture
@@ -339,7 +345,7 @@ void TextComponent::render_content() {
 void TextComponent::set_text(const std::string& text) {
     if (m_text == text) return;
     m_text = text;
-    initialize_text(); // Recreate text texture with new text
+    m_text_dirty = true; // Mark for update
 }
 
 void TextComponent::set_text_color(float r, float g, float b, float a) {
@@ -347,13 +353,13 @@ void TextComponent::set_text_color(float r, float g, float b, float a) {
     m_text_color[1] = g;
     m_text_color[2] = b;
     m_text_color[3] = a;
-    initialize_text(); // Recreate text texture with new color
+    m_text_dirty = true; // Mark for update
 }
 
 void TextComponent::set_font_size(int size) {
     if (m_font_size == size) return;
     m_font_size = size;
-    initialize_text(); // Recreate text texture with new font size
+    m_text_dirty = true; // Mark for update
 }
 
 // New ContentScaling API

@@ -25,9 +25,22 @@ public:
     void change_effect(const std::string & effect_name);
     void change_voice(const std::string & voice_name);
 
-    // FIXME: Change unique pointer to shared pointer
     const std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> & get_effects();
+    const std::vector<std::string> get_effect_names() const {
+        std::vector<std::string> effect_names;
+        for (const auto & effect : m_effects) {
+            effect_names.push_back(effect.first);
+        }
+        return effect_names;
+    }
     const std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> & get_generators();
+    const std::vector<std::string> get_generator_names() const {
+        std::vector<std::string> generator_names;
+        for (const auto & generator : m_generators) {
+            generator_names.push_back(generator.first);
+        }
+        return generator_names;
+    }
 
 private:
     void initialize_effects();
@@ -42,16 +55,10 @@ private:
     AudioRenderer * m_audio_renderer;
 
     // Current effect and voice
-    // FIXME: Turn this to a list of current active effects and voices
-    // FIXME: Fix effect switching while notes are pressed down
-    // FIXME: Add unit tests
     std::string m_current_effect_name;
     std::string m_current_voice_name;
     AudioRenderStage * m_current_effect = nullptr;
     AudioRenderStage * m_current_voice = nullptr;
-    AudioRenderStage * m_old_effect = nullptr;
-    AudioRenderStage * m_filter_effect = nullptr;
-    AudioRenderStage * m_echo_effect = nullptr;
 
     std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> m_effects;
     std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> m_generators;

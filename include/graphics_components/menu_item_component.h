@@ -12,7 +12,7 @@ class MenuSelectionComponent;
 
 class MenuItemComponent : public GraphicsComponent {
 public:
-    using SelectionCallback = std::function<void(int)>;
+    using SelectionCallback = std::function<void(std::string)>;
     
     MenuItemComponent(
         float x, float y, float width, float height,
@@ -50,6 +50,7 @@ private:
     TextComponent* m_text_component;
     int m_index;
     bool m_is_selected = false;
+    bool m_colors_dirty = true; // <-- Add this flag
     
     // Background colors
     float m_normal_color[4] = {0.2f, 0.2f, 0.2f, 1.0f};

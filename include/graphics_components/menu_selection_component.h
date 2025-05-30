@@ -10,7 +10,7 @@
 
 class MenuSelectionComponent : public GraphicsComponent {
 public:
-    using SelectionCallback = std::function<void(int)>;
+    using SelectionCallback = std::function<void(std::string)>;
     
     MenuSelectionComponent(
         float x, float y, float width, float height,
