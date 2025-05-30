@@ -38,7 +38,7 @@ public:
     
     void set_font_size(int size);
     bool set_font(const std::string& font_name);
-    
+
     // Index management
     int get_index() const { return m_index; }
     void set_index(int index) { m_index = index; }

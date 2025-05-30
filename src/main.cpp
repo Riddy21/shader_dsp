@@ -85,12 +85,12 @@ int main() {
 
     setup_keyboard(synthesizer, event_loop);
 
-    GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
+    GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer", 1000);
     graphics_display->add_view("debug", new DebugView());
     graphics_display->change_view("debug");
 
     // Create another window for the interface
-    GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
+    GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface", 1000);
     interface_display->add_view("debug", new DebugView());
     interface_display->add_view("interface", new MockInterfaceView());
     interface_display->add_view("menu", new MenuView());

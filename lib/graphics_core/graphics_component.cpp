@@ -137,8 +137,25 @@ void GraphicsComponent::get_position(float& x, float& y) const {
 }
 
 void GraphicsComponent::set_dimensions(const float width, const float height) {
+    float width_ratio = width / m_width;
+    float height_ratio = height / m_height;
     m_width = width;
     m_height = height;
+
+    // Update positions and dimensions of all children to fit the new ratio
+    for (auto& child : m_children) {
+        float child_x, child_y, child_width, child_height;
+        child->get_position(child_x, child_y);
+        child->get_dimensions(child_width, child_height);
+
+        float new_child_x = m_x + (child_x - m_x) * width_ratio;
+        float new_child_y = m_y + (child_y - m_y) * height_ratio;
+        float new_child_width = child_width * width_ratio;
+        float new_child_height = child_height * height_ratio;
+
+        child->set_position(new_child_x, new_child_y);
+        child->set_dimensions(new_child_width, new_child_height);
+    }
 }
 
 void GraphicsComponent::get_dimensions(float& width, float& height) const {

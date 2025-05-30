@@ -7,6 +7,7 @@
 #include "engine/event_handler.h"
 #include "engine/renderable_item.h"
 
+// FIXME: Think about whether an event handler and render context should be passed for every component
 class GraphicsComponent {
 public:
     // Constructor with position, dimensions, event handler, and render context
@@ -21,7 +22,7 @@ public:
     
     virtual ~GraphicsComponent() = default;
 
-    // TODO: Change this to protected and make friend with GraphicsView
+    // Event handler registration methods
     virtual void register_event_handlers(EventHandler* event_handler);
     virtual void unregister_event_handlers();
     

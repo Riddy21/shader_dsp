@@ -422,6 +422,7 @@ std::shared_ptr<AudioRenderStage> AudioRenderGraph::remove_render_stage(GID gid)
 }
 
 std::shared_ptr<AudioRenderStage> AudioRenderGraph::replace_render_stage(GID gid, std::shared_ptr<AudioRenderStage> render_stage) {
+    // TODO: If its a generator, pass the current play list to the new render stage so it can continue without stopping
     // Make sure render stage exists
     if (m_render_stages_map.find(gid) == m_render_stages_map.end()) {
         printf("Did not find render stage %d in graph\n", gid);
