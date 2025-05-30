@@ -4,6 +4,8 @@
 #include "engine/event_handler.h"
 #include "graphics_core/graphics_display.h"
 
+// TODO: Add scrolling support
+// TODO: Don't render items that are not visible in the menu and add scrolling support
 MenuSelectionComponent::MenuSelectionComponent(
     float x, float y, float width, float height,
     const std::vector<std::string>& items,
@@ -161,7 +163,7 @@ void MenuSelectionComponent::select_previous() {
 
 void MenuSelectionComponent::update_layout() {
     float total_height = m_item_height * m_items.size() + m_item_padding * (m_items.size() - 1);
-    float start_y = m_y + total_height / 2.0f - m_item_height / 2.0f;
+    float start_y = m_y;
     
     for (size_t i = 0; i < m_items.size(); ++i) {
         float item_y = start_y - i * (m_item_height + m_item_padding);

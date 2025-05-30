@@ -12,15 +12,22 @@ MenuView::MenuView()
 
     auto & track = synthesizer.get_track(0);
 
-    // Empty for now
-    // FIXME: Menu is misaligned
     auto menu = new MenuSelectionComponent(
-        -0.5f, 0.0f, 1.0f, 2.0f,
+        -1.0f, 1.0f, 1.0f, 2.0f,
         track.get_effect_names(),
-        // TODO: Track the title of the component instead of the index
         [&track](std::string title) {
             track.change_effect(title);
         }
     );
     add_component(menu);
+
+    auto menu1= new MenuSelectionComponent(
+        0.0f, 1.0f, 1.0f, 2.0f,
+        track.get_generator_names(),
+        [&track](std::string title) {
+            track.change_voice(title);
+        }
+    );
+    menu1->set_dimensions(1.0f, 1.0f);
+    add_component(menu1);
 }
