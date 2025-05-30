@@ -38,11 +38,6 @@ AudioTrack::AudioTrack(AudioRenderGraph * render_graph, AudioRenderStage * root_
     // Set up the pipeline
     m_render_graph->insert_render_stage_infront(m_root_stage->gid, m_generators[m_current_voice_name]);
     m_render_graph->insert_render_stage_infront(m_root_stage->gid, m_effects[m_current_effect_name]);
-
-    // remove those from the current effect list
-    m_effects.erase(m_current_effect_name);
-    m_generators.erase(m_current_voice_name);
-
 }
 
 void AudioTrack::initialize_effects() {
@@ -52,9 +47,6 @@ void AudioTrack::initialize_effects() {
     m_effects["echo"] = std::make_shared<AudioEchoEffectRenderStage>(m_buffer_size, m_sample_rate, m_num_channels);
     m_effects["frequency_filter"] = std::make_shared<AudioFrequencyFilterEffectRenderStage>(m_buffer_size, m_sample_rate, m_num_channels);
     m_effects["none"] = std::make_shared<AudioEffectRenderStage>(m_buffer_size, m_sample_rate, m_num_channels);
-
-    m_echo_effect = m_effects["echo"].get();
-    m_filter_effect = m_effects["frequency_filter"].get();
 
     for (auto & [name, effect] : m_effects) {
         effect->initialize();
@@ -76,8 +68,6 @@ void AudioTrack::initialize_generators() {
 }
 
 void AudioTrack::play_note(const float tone, const float gain) {
-    m_audio_renderer->activate_render_context();
-
     auto generator = dynamic_cast<AudioGeneratorRenderStage *>(m_current_voice);
     if (generator) {
         generator->play_note(tone, gain);
@@ -85,8 +75,6 @@ void AudioTrack::play_note(const float tone, const float gain) {
 }
 
 void AudioTrack::stop_note(const float tone) {
-    m_audio_renderer->activate_render_context();
-
     auto generator = dynamic_cast<AudioGeneratorRenderStage *>(m_current_voice);
     if (generator) {
         generator->stop_note(tone);
@@ -99,9 +87,7 @@ void AudioTrack::change_effect(const std::string & effect_name) {
     if (m_effects.find(effect_name) != m_effects.end()) {
         // Move the current effect back to the hash map
         AudioRenderGraph::GID gid = m_effects[effect_name]->gid;
-        m_old_effect = m_current_effect;
-        m_effects[m_current_effect_name] = m_render_graph->replace_render_stage(m_current_effect->gid, m_effects[effect_name]);
-        m_effects.erase(effect_name);
+        m_render_graph->replace_render_stage(m_current_effect->gid, m_effects[effect_name]);
         m_current_effect_name = effect_name;
         m_current_effect = m_render_graph->find_render_stage(gid);
 
@@ -110,6 +96,9 @@ void AudioTrack::change_effect(const std::string & effect_name) {
     } else {
         std::cerr << "Effect not found: " << effect_name << std::endl;
     }
+
+    m_audio_renderer->unactivate_render_context();
+
 }
 
 void AudioTrack::change_voice(const std::string & voice_name) {
@@ -118,8 +107,7 @@ void AudioTrack::change_voice(const std::string & voice_name) {
     if (m_generators.find(voice_name) != m_generators.end()) {
         // Move the current generator back to the hash map
         AudioRenderGraph::GID gid = m_generators[voice_name]->gid;
-        m_generators[m_current_voice_name] = m_render_graph->replace_render_stage(m_current_voice->gid, m_generators[voice_name]);
-        m_generators.erase(voice_name);
+        m_render_graph->replace_render_stage(m_current_voice->gid, m_generators[voice_name]);
         m_current_voice_name = voice_name;
         m_current_voice = m_render_graph->find_render_stage(gid);
 
@@ -128,6 +116,8 @@ void AudioTrack::change_voice(const std::string & voice_name) {
     } else {
         std::cerr << "Voice not found: " << voice_name << std::endl;
     }
+
+    m_audio_renderer->unactivate_render_context();
 }
 
 AudioTrack::~AudioTrack() {

@@ -32,7 +32,7 @@ MenuSelectionComponent::MenuSelectionComponent(
         SDL_KEYDOWN, SDLK_RETURN,
         [this](const SDL_Event& event) {
             if (m_callback && m_selected_index >= 0) {
-                m_callback(m_selected_index);
+                m_callback(m_items[m_selected_index]->get_text());
             }
             return true;
         }
@@ -125,8 +125,9 @@ void MenuSelectionComponent::select_item(int index) {
     m_items[m_selected_index]->set_selected(true);
     
     // Call the callback if provided
+    // TODO: Consider using a signal/slot system instead of direct callback
     if (m_callback) {
-        m_callback(m_selected_index);
+        m_callback(m_items[m_selected_index]->get_text());
     }
 }
 

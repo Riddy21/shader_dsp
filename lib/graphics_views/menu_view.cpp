@@ -2,31 +2,24 @@
 
 #include "graphics_views/menu_view.h"
 
+#include "audio_synthesizer/audio_synthesizer.h"
 #include "graphics_components/menu_selection_component.h"
 
 MenuView::MenuView()
     : GraphicsView()
 {
+    auto & synthesizer = AudioSynthesizer::get_instance();
+
+    auto & track = synthesizer.get_track(0);
+
     // Empty for now
+    // FIXME: Menu is misaligned
     auto menu = new MenuSelectionComponent(
         -0.5f, 0.0f, 1.0f, 2.0f,
-        {"Start Game", "OOP", "*"},
-        [](int index) {
-            // Handle selection callback
-            switch (index) {
-                case 0:
-                    std::cout << "Starting game..." << std::endl;
-                    break;
-                case 1:
-                    std::cout << "Opening options..." << std::endl;
-                    break;
-                case 2:
-                    std::cout << "Exiting..." << std::endl;
-                    break;
-                case 3:
-                    std::cout << "Checking aspect ratio with Circle..." << std::endl;
-                    break;
-            }
+        track.get_effect_names(),
+        // TODO: Track the title of the component instead of the index
+        [&track](std::string title) {
+            track.change_effect(title);
         }
     );
     add_component(menu);

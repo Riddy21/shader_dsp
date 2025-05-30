@@ -61,6 +61,7 @@ private:
     ContentScaling::ScalingParams m_scaling_params;
     
     GLuint m_text_texture = 0;
+    bool m_text_dirty = true; // Flag to indicate text texture needs update
     static std::unique_ptr<AudioShaderProgram> s_text_shader;
     static GLuint s_text_vao;
     static GLuint s_text_vbo;
