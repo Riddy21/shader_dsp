@@ -120,6 +120,22 @@ void AudioTrack::change_voice(const std::string & voice_name) {
     m_audio_renderer->unactivate_render_context();
 }
 
+std::vector<std::string> AudioTrack::get_effect_names() const {
+    std::vector<std::string> effect_names;
+    for (const auto & effect : m_effects) {
+        effect_names.push_back(effect.first);
+    }
+    return effect_names;
+}
+
+std::vector<std::string> AudioTrack::get_generator_names() const {
+    std::vector<std::string> generator_names;
+    for (const auto & generator : m_generators) {
+        generator_names.push_back(generator.first);
+    }
+    return generator_names;
+}
+
 AudioTrack::~AudioTrack() {
     // Destructor implementation
 }

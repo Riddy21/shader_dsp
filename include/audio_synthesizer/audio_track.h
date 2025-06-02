@@ -26,21 +26,9 @@ public:
     void change_voice(const std::string & voice_name);
 
     const std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> & get_effects();
-    const std::vector<std::string> get_effect_names() const {
-        std::vector<std::string> effect_names;
-        for (const auto & effect : m_effects) {
-            effect_names.push_back(effect.first);
-        }
-        return effect_names;
-    }
+    std::vector<std::string> get_effect_names() const;
     const std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> & get_generators();
-    const std::vector<std::string> get_generator_names() const {
-        std::vector<std::string> generator_names;
-        for (const auto & generator : m_generators) {
-            generator_names.push_back(generator.first);
-        }
-        return generator_names;
-    }
+    std::vector<std::string> get_generator_names() const;
 
 private:
     void initialize_effects();

@@ -51,12 +51,12 @@ env.Append(LIBS=[
 test_env = env.Clone()
 test_env.Append(LIBS=['Catch2Main', 'Catch2'])
 
-# Function to create object files in the build directory
-def create_objects(env, sources, build_dir):
+# Function to create object files in the build directory, with subdir for each build type
+def create_objects(env, sources, build_dir, subdir):
     objects = []
     for src in sources:
-        obj = env.Object(target=os.path.join(build_dir, 'objects', os.path.splitext(src)[0] + '.o'), source=src)
-        objects.append(obj)
+        obj_path = os.path.join(build_dir, 'objects', subdir, os.path.splitext(src)[0] + '.o')
+        objects.append(env.Object(target=obj_path, source=src))
     return objects
 
 # Create build directory
@@ -71,7 +71,7 @@ for src in SHADER_SOURCES:
 env.Depends(LIB_SOURCES, all_shaders)
 
 # Build main executable
-main_objects = create_objects(env, [MAIN_SOURCE] + LIB_SOURCES, BUILD_DIR)
+main_objects = create_objects(env, [MAIN_SOURCE] + LIB_SOURCES, BUILD_DIR, 'main')
 main_executable = env.Program(target=os.path.join(BUILD_DIR, 'bin', 'AudioSynthesizer'), source=main_objects)
 
 # Build tests and then execute them individually
@@ -79,7 +79,7 @@ for target in COMMAND_LINE_TARGETS:
     if 'tests' in target:
         for src in TEST_SOURCES:
             test_name = os.path.splitext(os.path.basename(src))[0]
-            test_objects = create_objects(test_env, [src] + LIB_SOURCES, BUILD_DIR)
+            test_objects = create_objects(test_env, [src] + LIB_SOURCES, BUILD_DIR, 'tests')
             test_executable = test_env.Program(target=os.path.join(BUILD_DIR, 'tests', test_name), source=test_objects)
             test_env.Command(
                 target=test_executable[0].abspath + '.out',
@@ -91,7 +91,7 @@ for target in COMMAND_LINE_TARGETS:
     if 'playground' in target:
         for src in PLAYGROUND_SOURCES:
             playground_name = os.path.splitext(os.path.basename(src))[0]
-            playground_objects = create_objects(env, [src] + LIB_SOURCES, BUILD_DIR)
+            playground_objects = create_objects(env, [src] + LIB_SOURCES, BUILD_DIR, 'playground')
             env.Program(target=os.path.join(BUILD_DIR, 'playground', playground_name), source=playground_objects)
 
 # Build docs using doxygen
