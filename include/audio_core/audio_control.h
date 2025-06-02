@@ -8,6 +8,9 @@
 #include <mutex>
 #include <vector>
 
+// TODO: Add hierarchy for controls and names, so that controls can be searched and grouped
+// TODO: Add ability to select from menu in controls
+
 // Base control type: holds a setter and a value
 class AudioControlBase {
 public:
@@ -40,52 +43,25 @@ private:
 // Global registry for controls
 class AudioControlRegistry {
 public:
-    static AudioControlRegistry& instance() {
-        static AudioControlRegistry inst;
-        return inst;
-    }
+    static AudioControlRegistry& instance();
 
     template <typename T>
-    void register_control(const std::string& name, AudioControl<T>* control) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_controls[name] = std::unique_ptr<AudioControlBase>(control);
-    }
+    void register_control(const std::string& name, AudioControl<T>* control);
 
     template <typename T>
-    bool set_control(const std::string& name, const T& value) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        auto it = m_controls.find(name);
-        if (it != m_controls.end()) {
-            auto control = dynamic_cast<AudioControl<T>*>(it->second.get());
-            if (control) {
-                control->set(value);
-                return true;
-            }
-        }
-        return false;
-    }
+    bool set_control(const std::string& name, const T& value);
 
     template <typename T>
-    AudioControl<T>* get_control(const std::string& name) {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        auto it = m_controls.find(name);
-        if (it != m_controls.end()) {
-            return dynamic_cast<AudioControl<T>*>(it->second.get());
-        }
-        return nullptr;
-    }
+    AudioControl<T>* get_control(const std::string& name);
 
-    std::vector<std::string> list_controls() {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        std::vector<std::string> names;
-        for (const auto& kv : m_controls) names.push_back(kv.first);
-        return names;
-    }
+    std::vector<std::string> list_controls();
 
 private:
     std::unordered_map<std::string, std::unique_ptr<AudioControlBase>> m_controls;
     std::mutex m_mutex;
-    AudioControlRegistry() = default;
+    AudioControlRegistry();
     AudioControlRegistry(const AudioControlRegistry&) = delete;
     AudioControlRegistry& operator=(const AudioControlRegistry&) = delete;
 };
+
+#include "audio_control.tpp"
