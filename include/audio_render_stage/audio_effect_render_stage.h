@@ -4,6 +4,7 @@
 
 #include "audio_core/audio_render_stage.h"
 #include "audio_render_stage/audio_render_stage_history.h"
+#include "audio_core/audio_control.h"
 
 class AudioEffectRenderStage : public AudioRenderStage {
 public:
@@ -29,6 +30,9 @@ public:
     static const std::vector<std::string> default_frag_shader_imports;
 
     ~AudioGainEffectRenderStage() {};
+
+private:
+    std::vector<AudioControl<float>*> m_controls;
 };
 
 class AudioEchoEffectRenderStage : public AudioEffectRenderStage {
@@ -51,6 +55,7 @@ private:
     std::vector<float> m_echo_buffer;
 
     static const unsigned int M_MAX_ECHO_BUFFER_SIZE = 300;
+    std::vector<AudioControl<float>*> m_controls;
 };
 
 class AudioFrequencyFilterEffectRenderStage : public AudioEffectRenderStage {
@@ -88,6 +93,7 @@ private:
     float m_resonance;
     const float NYQUIST;
 
+    std::vector<AudioControl<float>*> m_controls;
 };
 
 #endif // AUDIO_EFFECT_RENDER_STAGE_H

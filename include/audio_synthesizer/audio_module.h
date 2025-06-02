@@ -11,16 +11,7 @@
 #include "audio_core/audio_render_graph.h"
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_stage.h"
-
-template <typename T>
-struct AudioModuleControl {
-    std::string name;
-    T value;
-    std::function<void(const T&)> setter;
-
-    AudioModuleControl(const std::string& control_name, const T& initial_value, std::function<void(const T&)> set_function)
-        : name(control_name), value(initial_value), setter(set_function) {}
-};
+#include "audio_core/audio_control.h"
 
 class AudioModule;
 
@@ -50,9 +41,6 @@ public:
     virtual ~AudioModule() = default;
     virtual std::string name() const { return m_name; }
 
-    // Control interface
-    virtual bool set_control(const std::string& control_name, const std::variant<float, int, bool>& value);
-
 protected:
     AudioModule(const std::string& name,
                 const unsigned int buffer_size, 
@@ -64,7 +52,7 @@ protected:
           m_num_channels(num_channels) {}
 
     std::vector<std::shared_ptr<AudioRenderStage>> m_render_stages;
-    std::vector<AudioModuleControl<std::variant<float, int, bool>>> m_controls;
+    std::vector<AudioControl<std::variant<float, int, bool>> * > m_controls;
 
     const std::string m_name;
     const unsigned int m_buffer_size;

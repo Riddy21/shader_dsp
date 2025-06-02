@@ -46,4 +46,8 @@ std::shared_ptr<AudioModule> AudioModuleManager::replace_module(const std::strin
     for (auto & render_stage : new_module->m_render_stages) {
         m_render_graph.insert_render_stage_infront(m_graph_root, render_stage);
     }
+
+    m_modules[index] = new_module;
+
+    return old_module;
 }
