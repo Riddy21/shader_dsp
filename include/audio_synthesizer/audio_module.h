@@ -26,6 +26,8 @@ public:
 
     std::vector<std::string> get_module_names() const;
 
+    std::vector<AudioControlBase *> get_all_controls() const;
+
 private:
     std::vector<std::shared_ptr<AudioModule>> m_modules; // List of audio modules in that order in the render graph
     std::unordered_map<std::string, unsigned int> m_module_index; // Map of module names to modules
@@ -52,7 +54,7 @@ protected:
           m_num_channels(num_channels) {}
 
     std::vector<std::shared_ptr<AudioRenderStage>> m_render_stages;
-    std::vector<AudioControl<std::variant<float, int, bool>> * > m_controls;
+    std::vector<AudioControlBase *> m_controls;
 
     const std::string m_name;
     const unsigned int m_buffer_size;
@@ -63,11 +65,6 @@ protected:
 // Effect module base class
 class AudioEffectModule : public AudioModule {
 public:
-    AudioEffectModule(const std::string& name, 
-                      const unsigned int buffer_size, 
-                      const unsigned int sample_rate, 
-                      const unsigned int num_channels);
-
     AudioEffectModule(const std::string& name,
                       const std::vector<std::shared_ptr<AudioRenderStage>>& render_stages);
 
@@ -81,11 +78,6 @@ public:
 
 class AudioVoiceModule : public AudioModule {
 public:
-    AudioVoiceModule(const std::string& name, 
-                     const unsigned int buffer_size, 
-                     const unsigned int sample_rate, 
-                     const unsigned int num_channels);
-
     AudioVoiceModule(const std::string& name, 
                      const std::vector<std::shared_ptr<AudioRenderStage>>& render_stages);
 
