@@ -4,6 +4,9 @@
 #include "engine/event_handler.h"
 #include "engine/event_loop.h"
 
+// Define EventCallback if not already defined
+using EventCallback = std::function<bool(const SDL_Event&)>;
+
 EventHandler* EventHandler::instance = nullptr;
 
 EventHandler::EventHandler() {
@@ -12,28 +15,41 @@ EventHandler::EventHandler() {
 }
 EventHandler::~EventHandler() {}
 
-void EventHandler::register_entry(EventHandlerEntry* entry) {
-    m_entries.push_back(std::unique_ptr<EventHandlerEntry>(entry));
+void EventHandler::register_entry(std::shared_ptr<EventHandlerEntry> entry) {
+    m_entries.insert(entry);
 }
 
-bool EventHandler::unregister_entry(EventHandlerEntry* entry) {
-    auto it = std::find_if(m_entries.begin(), m_entries.end(),
-                          [entry](const std::unique_ptr<EventHandlerEntry>& ptr) {
-                              return ptr.get() == entry;
-                          });
-    if (it != m_entries.end()) {
-        m_entries.erase(it);
-        return true;
+void EventHandler::register_entry(EventHandlerEntry* entry) {
+    if (entry) {
+        auto shared_entry = std::shared_ptr<EventHandlerEntry>(entry);
+        m_entries.insert(shared_entry);
     }
-    return false;
+}
+
+std::shared_ptr<EventHandlerEntry> EventHandler::unregister_entry(std::shared_ptr<EventHandlerEntry> entry) {
+    auto it = m_entries.find(entry);
+    if (it != m_entries.end()) {
+        auto removed = *it;
+        m_entries.erase(it);
+        return removed;
+    }
+    return nullptr;
 }
 
 bool EventHandler::handle_event(const SDL_Event& event) {
     bool handled = false;
-    for (auto& entry : m_entries) {
+    std::vector<std::pair<EventCallback, RenderContext>> callbacks_and_contexts;
+
+    for (const auto& entry : m_entries) {
         if (entry->matches(event)) {
-            handled |= entry->callback(event);
+            callbacks_and_contexts.emplace_back(entry->callback, entry->render_context);
         }
+    }
+
+    for (const auto& [callback, context] : callbacks_and_contexts) {
+        context.activate(); // Activate the context before calling the callback
+        handled |= callback(event);
+        context.unactivate(); // Unactivate the context after calling the callback
     }
     return handled;
 }
@@ -41,12 +57,17 @@ bool EventHandler::handle_event(const SDL_Event& event) {
 // --- KeyboardEventHandlerEntry ---
 
 KeyboardEventHandlerEntry::KeyboardEventHandlerEntry(
+    Uint32 type, SDL_Keycode key, EventCallback cb, bool sticky, RenderContext context)
+    : EventHandlerEntry(context, std::move(cb)),
+      event_type(type), keycode(key), sticky_keys(sticky) {}
+
+KeyboardEventHandlerEntry::KeyboardEventHandlerEntry(
     Uint32 type, SDL_Keycode key, EventCallback cb, bool sticky, unsigned int window_id)
     : EventHandlerEntry(window_id, std::move(cb)),
       event_type(type), keycode(key), sticky_keys(sticky) {}
 
 bool KeyboardEventHandlerEntry::matches(const SDL_Event& event) {
-    if (window_id && event.key.windowID != window_id) return false;
+    if (render_context.window_id && event.key.windowID != render_context.window_id) return false;
     if (event.type == SDL_KEYUP) {
         pressed_keys.erase(event.key.keysym.sym);
     }
@@ -65,11 +86,15 @@ bool KeyboardEventHandlerEntry::matches(const SDL_Event& event) {
 // --- MouseClickEventHandlerEntry ---
 
 MouseClickEventHandlerEntry::MouseClickEventHandlerEntry(
+    Uint32 type, int x, int y, int w, int h, EventCallback cb, RenderContext context)
+    : MouseEventHandlerEntry(x, y, w, h, std::move(cb), context), event_type(type) {}
+
+MouseClickEventHandlerEntry::MouseClickEventHandlerEntry(
     Uint32 type, int x, int y, int w, int h, EventCallback cb, unsigned int window_id)
     : MouseEventHandlerEntry(x, y, w, h, std::move(cb), window_id), event_type(type) {}
 
 bool MouseClickEventHandlerEntry::matches(const SDL_Event& event) {
-    if (window_id && event.button.windowID != window_id) return false;
+    if (render_context.window_id && event.button.windowID != render_context.window_id) return false;
     if (event.type != event_type) return false;
     int ex = event.button.x;
     int ey = event.button.y;
@@ -79,11 +104,15 @@ bool MouseClickEventHandlerEntry::matches(const SDL_Event& event) {
 // --- MouseMotionEventHandlerEntry ---
 
 MouseMotionEventHandlerEntry::MouseMotionEventHandlerEntry(
+    int x, int y, int w, int h, EventCallback cb, RenderContext context)
+    : MouseEventHandlerEntry(x, y, w, h, std::move(cb), context) {}
+
+MouseMotionEventHandlerEntry::MouseMotionEventHandlerEntry(
     int x, int y, int w, int h, EventCallback cb, unsigned int window_id)
     : MouseEventHandlerEntry(x, y, w, h, std::move(cb), window_id) {}
 
 bool MouseMotionEventHandlerEntry::matches(const SDL_Event& event) {
-    if (window_id && event.motion.windowID != window_id) return false;
+    if (render_context.window_id && event.motion.windowID != render_context.window_id) return false;
     if (event.type != SDL_MOUSEMOTION) return false;
     int ex = event.motion.x;
     int ey = event.motion.y;
@@ -91,6 +120,10 @@ bool MouseMotionEventHandlerEntry::matches(const SDL_Event& event) {
 }
 
 // --- MouseEnterLeaveEventHandlerEntry ---
+
+MouseEnterLeaveEventHandlerEntry::MouseEnterLeaveEventHandlerEntry(
+    int x, int y, int w, int h, Mode mode, EventCallback cb, RenderContext context)
+    : MouseEventHandlerEntry(x, y, w, h, std::move(cb), context), mode(mode) {}
 
 MouseEnterLeaveEventHandlerEntry::MouseEnterLeaveEventHandlerEntry(
     int x, int y, int w, int h, Mode mode, EventCallback cb, unsigned int window_id)
@@ -108,7 +141,7 @@ void MouseEnterLeaveEventHandlerEntry::update_last_position(int mouse_x, int mou
 }
 
 bool MouseEnterLeaveEventHandlerEntry::matches(const SDL_Event& event) {
-    if (window_id && event.motion.windowID != window_id) return false;
+    if (render_context.window_id && event.motion.windowID != render_context.window_id) return false;
     if (event.type != SDL_MOUSEMOTION) return false;
     int ex = event.motion.x;
     int ey = event.motion.y;
@@ -130,6 +163,13 @@ bool MouseEnterLeaveEventHandlerEntry::matches(const SDL_Event& event) {
 }
 
 // --- GPIOEventHandlerEntry ---
+
+GPIOEventHandlerEntry::GPIOEventHandlerEntry(
+    int pin, int value, EventCallback cb, RenderContext context)
+    : EventHandlerEntry(context, std::move(cb)) {
+    gpio_pin = pin;
+    gpio_value = value;
+}
 
 GPIOEventHandlerEntry::GPIOEventHandlerEntry(
     int pin, int value, EventCallback cb, unsigned int window_id)

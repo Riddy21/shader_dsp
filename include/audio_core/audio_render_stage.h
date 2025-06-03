@@ -5,12 +5,14 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <vector>
 #include <unordered_map>
 #include <unordered_set>
 #include <GL/glew.h>
 
 #include "audio_core/audio_parameter.h"
 #include "utilities/shader_program.h"
+#include "audio_core/audio_control.h"
 
 // TODO: Make this a setting global 
 #define MAX_TEXTURE_SIZE 4096
@@ -97,6 +99,10 @@ public:
         return m_initialized;
     }
 
+    std::vector<AudioControlBase *> & get_controls() {
+        return m_controls;
+    }
+
     static const std::string get_shader_source(const std::string & file_path);
     static const std::string combine_shader_source(const std::vector<std::string> & import_paths, const std::string & shader_path);
 
@@ -105,6 +111,11 @@ public:
     // TODO: Think of way to make this static
     const std::string m_vertex_shader_source;
     const std::string m_fragment_shader_source;
+
+    // Settings
+    const unsigned int frames_per_buffer;
+    const unsigned int sample_rate;
+    const unsigned int num_channels;
 
 protected:
 
@@ -135,11 +146,6 @@ protected:
     // Initialized
     bool m_initialized = false;
 
-    // Settings
-    const unsigned int m_frames_per_buffer;
-    const unsigned int m_sample_rate;
-    const unsigned int m_num_channels;
-
     GLuint m_active_texture_count = 0;
     GLuint m_color_attachment_count = 0;
     
@@ -161,6 +167,9 @@ protected:
     std::vector<AudioParameter *> m_output_parameters;
     std::unordered_set<AudioRenderStage *> m_connected_output_render_stages;
     std::unordered_set<AudioRenderStage *> m_connected_stream_render_stages;
+
+    // Controls for this render stage
+    std::vector<AudioControlBase *> m_controls;
 
 private:
 

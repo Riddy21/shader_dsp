@@ -63,6 +63,10 @@ public:
         return dynamic_cast<AudioFinalRenderStage *>(find_render_stage(m_outputs[0]));
     }
 
+    const std::vector<GID>& get_render_order() const {
+        return m_render_order;
+    }
+
     bool is_initialized() const {
         return m_initialized;
     }
@@ -90,7 +94,6 @@ private:
 
     bool m_needs_update = false;
 
-    // FIXME: Change unique pointer to shared pointer instead
     std::unordered_map<GID, std::shared_ptr<AudioRenderStage>> m_render_stages_map;
 };
 

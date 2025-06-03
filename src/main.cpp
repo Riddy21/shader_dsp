@@ -4,9 +4,10 @@
 #include "audio_synthesizer/audio_synthesizer.h"
 #include "engine/event_loop.h"
 #include "engine/event_handler.h"
-#include "graphics/graphics_display.h"
+#include "graphics_core/graphics_display.h"
 #include "graphics_views/debug_view.h"
 #include "graphics_views/mock_interface_view.h"
+#include "graphics_views/menu_view.h"
 
 #define MIDDLE_C 261.63f
 #define SEMI_TONE 1.059463f
@@ -47,6 +48,7 @@ void setup_keyboard(AudioSynthesizer& synthesizer, EventLoop& event_loop) {
         ));
     }
 
+    // Quit key handler
     event_handler.register_entry(new KeyboardEventHandlerEntry(
         SDL_KEYDOWN, 'q',
         [&synthesizer, &event_loop](const SDL_Event&) {
@@ -91,7 +93,8 @@ int main() {
     GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
     interface_display->add_view("debug", new DebugView());
     interface_display->add_view("interface", new MockInterfaceView());
-    interface_display->change_view("interface");
+    interface_display->add_view("menu", new MenuView());
+    interface_display->change_view("menu");
 
     auto & event_handler = EventHandler::get_instance();
 
@@ -109,8 +112,28 @@ int main() {
             return true;
         }
     ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'c',
+        [&interface_display](const SDL_Event&) {
+            interface_display->change_view("menu");
+            return true;
+        }
+    ));
 
+    // Register key to toggle component outlines
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'o',
+        [](const SDL_Event&) {
+            static bool show_outlines = false;
+            show_outlines = !show_outlines;
+            GraphicsComponent::set_global_outline(show_outlines);
+            std::cout << "Component outlines " << (show_outlines ? "enabled" : "disabled") << std::endl;
+            return true;
+        }
+    ));
+    
     std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
+    std::cout << "Press 'o' to toggle component outlines for debugging layout." << std::endl;
 
     event_loop.run_loop();
     return 0;

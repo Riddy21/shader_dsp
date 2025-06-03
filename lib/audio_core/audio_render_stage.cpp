@@ -28,14 +28,14 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                    const std::string & vertex_shader_path,
                                    const std::vector<std::string> & vert_shader_imports)
                                   : gid(generate_id()),
-                                    m_frames_per_buffer(frames_per_buffer),
-                                    m_sample_rate(sample_rate),
-                                    m_num_channels(num_channels),
+                                    frames_per_buffer(frames_per_buffer),
+                                    sample_rate(sample_rate),
+                                    num_channels(num_channels),
                                     m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
                                     m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
     
-    int width = m_frames_per_buffer;
-    int height = m_num_channels;
+    int width = frames_per_buffer;
+    int height = num_channels;
 
     auto stream_audio_texture =
         new AudioTexture2DParameter("stream_audio_texture",
@@ -60,12 +60,12 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
     auto buffer_size =
         new AudioIntParameter("buffer_size",
                   AudioParameter::ConnectionType::INITIALIZATION);
-    buffer_size->set_value(m_frames_per_buffer);
+    buffer_size->set_value(frames_per_buffer);
 
     auto n_channels = 
         new AudioIntParameter("num_channels",
                   AudioParameter::ConnectionType::INITIALIZATION);
-    n_channels->set_value(m_num_channels);
+    n_channels->set_value(num_channels);
 
     auto samp_rate =
         new AudioIntParameter("sample_rate",
@@ -95,8 +95,11 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
 }
 
 AudioRenderStage::~AudioRenderStage() {
-    // Delete the framebuffer
-    glDeleteFramebuffers(1, &m_framebuffer);
+    // Delete the framebuffer if it was generated
+    if (m_framebuffer != 0) {
+        glDeleteFramebuffers(1, &m_framebuffer);
+        m_framebuffer = 0;
+    }
 
     printf("Deleting render stage %d\n", gid);
 }

@@ -21,12 +21,12 @@ void AudioRecordRenderStage::render(unsigned int time) {
         unsigned int record_time = current_block + m_record_position;
 
         // If the tape is smaller than the record time, then resize the tape
-        if (m_tape.size() <= record_time * m_frames_per_buffer * m_num_channels) {
-            m_tape.resize((record_time + 1) * m_frames_per_buffer * m_num_channels); // Fill with 0s
+        if (m_tape.size() <= record_time * frames_per_buffer * num_channels) {
+            m_tape.resize((record_time + 1) * frames_per_buffer * num_channels); // Fill with 0s
         }
 
         // Copy the audio data to the tape
-        std::copy(data, data + m_frames_per_buffer * m_num_channels, m_tape.begin() + record_time * m_frames_per_buffer * m_num_channels);
+        std::copy(data, data + frames_per_buffer * num_channels, m_tape.begin() + record_time * frames_per_buffer * num_channels);
     }
 
     AudioRenderStage::render(time);
@@ -62,11 +62,11 @@ AudioPlaybackRenderStage::AudioPlaybackRenderStage(const unsigned int frames_per
 
     auto playback_texture = new AudioTexture2DParameter("playback_texture",
                                                         AudioParameter::ConnectionType::INPUT,
-                                                        m_frames_per_buffer, m_num_channels * M_TAPE_SIZE, // Store 2 seconds of sound at a time
+                                                        frames_per_buffer, num_channels * M_TAPE_SIZE, // Store 2 seconds of sound at a time
                                                         ++m_active_texture_count,
                                                         0,
                                                         GL_NEAREST);
-    auto playback_data = new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE];
+    auto playback_data = new float[frames_per_buffer * num_channels * M_TAPE_SIZE];
     playback_texture->set_value(playback_data);
     delete[] playback_data;
 
@@ -121,7 +121,7 @@ const unsigned int AudioPlaybackRenderStage::get_current_tape_position(const uns
     const unsigned int play_position = *(unsigned int *)this->find_parameter("play_position")->get_value();
     const unsigned int time_at_start = *(unsigned int *)this->find_parameter("time_at_start")->get_value();
 
-    return (play_position + time - time_at_start) * m_frames_per_buffer * m_num_channels;
+    return (play_position + time - time_at_start) * frames_per_buffer * num_channels;
 }
 
 void AudioPlaybackRenderStage::load_tape_data_to_texture(const Tape & tape, const unsigned int offset) {
@@ -131,13 +131,13 @@ void AudioPlaybackRenderStage::load_tape_data_to_texture(const Tape & tape, cons
     }
 
     // Get the right segment of tape
-    float * buffered_data = new float[m_frames_per_buffer * m_num_channels * M_TAPE_SIZE]();
+    float * buffered_data = new float[frames_per_buffer * num_channels * M_TAPE_SIZE]();
 
     // Copy the data to the buffer
-    if (offset + m_frames_per_buffer * m_num_channels * M_TAPE_SIZE > tape.size()) {
+    if (offset + frames_per_buffer * num_channels * M_TAPE_SIZE > tape.size()) {
         std::copy(tape.begin() + offset, tape.end(), buffered_data);
     } else {
-        std::copy(tape.begin() + offset, tape.begin() + offset + m_frames_per_buffer * m_num_channels * M_TAPE_SIZE, buffered_data);
+        std::copy(tape.begin() + offset, tape.begin() + offset + frames_per_buffer * num_channels * M_TAPE_SIZE, buffered_data);
     }
 
     this->find_parameter("playback_texture")->set_value(buffered_data);
@@ -164,7 +164,7 @@ void AudioPlaybackRenderStage::render(const unsigned int time) {
         // If there is still audio to play
         if (m_tape_ptr != nullptr && offset < m_tape_ptr->size()) {
             // If there's a need to load more data from the tape
-            if (offset % (m_frames_per_buffer * m_num_channels * M_TAPE_SIZE) == 0) {
+            if (offset % (frames_per_buffer * num_channels * M_TAPE_SIZE) == 0) {
                 load_tape_data_to_texture(*m_tape_ptr, offset);
             }
         } else {

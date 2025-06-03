@@ -203,9 +203,15 @@ AudioRenderer::~AudioRenderer()
     // Stop the loop
     m_initialized = false;
 
-    // Delete the vertex array and buffer
-    glDeleteVertexArrays(1, &m_VAO);
-    glDeleteBuffers(1, &m_VBO);
+    // Delete the vertex array and buffer only if they are initialized
+    if (m_VAO) {
+        glDeleteVertexArrays(1, &m_VAO);
+        m_VAO = 0;
+    }
+    if (m_VBO) {
+        glDeleteBuffers(1, &m_VBO);
+        m_VBO = 0;
+    }
 
     m_render_outputs.clear();
     m_global_parameters.clear();
