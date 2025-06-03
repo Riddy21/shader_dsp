@@ -8,7 +8,7 @@
 #include "audio_core/audio_render_graph.h"
 #include "audio_render_stage/audio_effect_render_stage.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
-
+#include "audio_synthesizer/audio_module.h"
 class AudioTrack {
 
 public:
@@ -25,13 +25,13 @@ public:
     void change_effect(const std::string & effect_name);
     void change_voice(const std::string & voice_name);
 
-    // FIXME: Change unique pointer to shared pointer
-    const std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> & get_effects();
-    const std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> & get_generators();
+    const std::unordered_map<std::string, std::shared_ptr<AudioEffectModule>> & get_effects() const;
+    const std::vector<std::string> get_effect_names() const;
+    const std::unordered_map<std::string, std::shared_ptr<AudioVoiceModule>> & get_voices() const;
+    const std::vector<std::string> get_generator_names() const;
 
 private:
-    void initialize_effects();
-    void initialize_generators();
+    void initialize_modules();
 
     const unsigned int m_buffer_size;
     const unsigned int m_sample_rate;
@@ -41,20 +41,13 @@ private:
     AudioRenderStage * m_root_stage;
     AudioRenderer * m_audio_renderer;
 
-    // Current effect and voice
-    // FIXME: Turn this to a list of current active effects and voices
-    // FIXME: Fix effect switching while notes are pressed down
-    // FIXME: Add unit tests
-    std::string m_current_effect_name;
-    std::string m_current_voice_name;
-    AudioRenderStage * m_current_effect = nullptr;
-    AudioRenderStage * m_current_voice = nullptr;
-    AudioRenderStage * m_old_effect = nullptr;
-    AudioRenderStage * m_filter_effect = nullptr;
-    AudioRenderStage * m_echo_effect = nullptr;
+    AudioModuleManager m_module_manager;
 
-    std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> m_effects;
-    std::unordered_map<std::string, std::shared_ptr<AudioRenderStage>> m_generators;
+    std::shared_ptr<AudioEffectModule> m_current_effect;
+    std::shared_ptr<AudioVoiceModule> m_current_voice;
+    std::unordered_map<std::string, std::shared_ptr<AudioEffectModule>> m_effect_modules;
+    std::unordered_map<std::string, std::shared_ptr<AudioVoiceModule>> m_voice_modules;
+
 };
 
 #endif // AUDIO_TRACK_H

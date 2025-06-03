@@ -7,9 +7,15 @@ AudioShaderProgram::AudioShaderProgram(const std::string& vertex_shader_source, 
       m_vertex_shader(0), m_fragment_shader(0), m_shader_program(0) {}
 
 AudioShaderProgram::~AudioShaderProgram() {
-    glDeleteProgram(m_shader_program);
-    glDeleteShader(m_vertex_shader);
-    glDeleteShader(m_fragment_shader);
+    if (m_shader_program) {
+        glDeleteProgram(m_shader_program);
+    }
+    if (m_vertex_shader) {
+        glDeleteShader(m_vertex_shader);
+    }
+    if (m_fragment_shader) {
+        glDeleteShader(m_fragment_shader);
+    }
 }
 
 bool AudioShaderProgram::initialize() {

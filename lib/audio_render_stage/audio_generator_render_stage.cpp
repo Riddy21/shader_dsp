@@ -262,7 +262,7 @@ void AudioGeneratorRenderStage::stop_note(const float tone)
     // TODO: abstract this so that you can apply to other envelopes
     float release_time = *(float *)find_parameter("release_time")->get_value();
     if (release_time != last_release_time) {
-        float seconds_per_buffer = (float)m_frames_per_buffer / (float)m_sample_rate;
+        float seconds_per_buffer = (float)frames_per_buffer / (float)sample_rate;
         release_time_buffers = (int)(release_time / seconds_per_buffer) + 1;
         last_release_time = release_time;
     }
