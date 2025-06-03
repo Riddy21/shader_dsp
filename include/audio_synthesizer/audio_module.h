@@ -12,6 +12,8 @@
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_stage.h"
 #include "audio_core/audio_control.h"
+#include "audio_render_stage/audio_effect_render_stage.h"
+#include "audio_render_stage/audio_generator_render_stage.h"
 
 class AudioModule;
 
@@ -47,11 +49,22 @@ protected:
     AudioModule(const std::string& name,
                 const unsigned int buffer_size, 
                 const unsigned int sample_rate, 
-                const unsigned int num_channels)
-        : m_name(name),
-          m_buffer_size(buffer_size), 
-          m_sample_rate(sample_rate), 
-          m_num_channels(num_channels) {}
+                const unsigned int num_channels);
+
+    AudioModule(const std::string& name,
+                const std::vector<std::shared_ptr<AudioRenderStage>>& render_stages);
+
+    AudioModule(const std::string& name,
+                const std::vector<AudioRenderStage*>& render_stages)
+        : AudioModule(name, std::vector<std::shared_ptr<AudioRenderStage>>(render_stages.begin(), render_stages.end())) {}
+
+    AudioModule(const std::string& name,
+                const std::shared_ptr<AudioRenderStage> render_stage)
+        : AudioModule(name, std::vector<std::shared_ptr<AudioRenderStage>>{render_stage}) {}
+
+    AudioModule(const std::string& name,
+                AudioRenderStage* render_stage)
+        : AudioModule(name, std::vector<std::shared_ptr<AudioRenderStage>>{std::shared_ptr<AudioRenderStage>(render_stage)}) {}
 
     std::vector<std::shared_ptr<AudioRenderStage>> m_render_stages;
     std::vector<AudioControlBase *> m_controls;
@@ -66,28 +79,26 @@ protected:
 class AudioEffectModule : public AudioModule {
 public:
     AudioEffectModule(const std::string& name,
-                      const std::vector<std::shared_ptr<AudioRenderStage>>& render_stages);
+                      const std::vector<std::shared_ptr<AudioEffectRenderStage>>& render_stages);
 
     AudioEffectModule(const std::string& name,
-                      const std::vector<AudioRenderStage*>& render_stages);
-    
+                      const std::vector<AudioEffectRenderStage*>& render_stages);
 
     virtual ~AudioEffectModule() = default;
 };
 
-
 class AudioVoiceModule : public AudioModule {
 public:
-    AudioVoiceModule(const std::string& name, 
-                     const std::vector<std::shared_ptr<AudioRenderStage>>& render_stages);
-
-    AudioVoiceModule(const std::string& name, 
-                     const std::vector<AudioRenderStage*>& render_stages);
+    AudioVoiceModule(const std::string& name,
+                     AudioGeneratorRenderStage * generator_render_stages);
 
     virtual ~AudioVoiceModule() = default;
 
-    virtual void play_note(float tone, float gain) {}
-    virtual void stop_note(float tone) {}
+    void play_note(float tone, float gain);
+    void stop_note(float tone);
+
+protected:
+    AudioGeneratorRenderStage * m_generator_render_stage; // The generator render stage for this voice module
 };
 
 #endif // AUDIO_MODULE_H

@@ -105,9 +105,9 @@ bool AudioTexture2DParameter::initialize(GLuint frame_buffer, AudioShaderProgram
         }
     }
 
-    // Using pixel buffer object may be faster, the extra code for that is commented out
     // Unbind the texture
-    //glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    // Using pixel buffer object may be faster, the extra code for that is commented out
 
     //// Initialize the PBO
     //glGenBuffers(1, &m_PBO);
