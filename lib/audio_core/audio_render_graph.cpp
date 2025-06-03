@@ -237,7 +237,10 @@ bool AudioRenderGraph::insert_leading_render_stage(GID back, std::shared_ptr<Aud
 
     // Initialize the render stage if not already initialized
     if (!render_stage->is_initialized()) {
-        printf("Render stage %d is not initialized\n", render_stage->gid);
+        if (!render_stage->initialize()) {
+            printf("Failed to initialize render stage %d\n", render_stage->gid);
+            return false;
+        }
     }
 
     // Transfer ownership to the map first
@@ -294,7 +297,10 @@ bool AudioRenderGraph::insert_render_stage_between(GID front, GID back, std::sha
 
     // Initialize the render stage if not already initialized
     if (!render_stage->is_initialized()) {
-        printf("Render stage %d is not initialized\n", render_stage->gid);
+        if (!render_stage->initialize()) {
+            printf("Failed to initialize render stage %d\n", render_stage->gid);
+            return false;
+        }
     }
 
     // Transfer ownership to the map first
@@ -442,7 +448,10 @@ std::shared_ptr<AudioRenderStage> AudioRenderGraph::replace_render_stage(GID gid
 
     // Initialize the render stage if not already initialized
     if (!render_stage->is_initialized()) {
-        printf("Render stage %d is not initialized\n", render_stage->gid);
+        if (!render_stage->initialize()) {
+            printf("Failed to initialize render stage %d\n", render_stage->gid);
+            return nullptr;
+        }
     }
 
     // Ensure the old render stage is properly disconnected

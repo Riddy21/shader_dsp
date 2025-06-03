@@ -94,7 +94,6 @@ private:
 
     bool m_needs_update = false;
 
-    // FIXME: Change unique pointer to shared pointer instead
     std::unordered_map<GID, std::shared_ptr<AudioRenderStage>> m_render_stages_map;
 };
 

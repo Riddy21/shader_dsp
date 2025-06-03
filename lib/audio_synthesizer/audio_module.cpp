@@ -48,6 +48,8 @@ std::shared_ptr<AudioModule> AudioModuleManager::replace_module(const std::strin
     }
 
     m_modules[index] = new_module;
+    m_module_index.erase(old_module_name);
+    m_module_index[new_module->name()] = index;
 
     return old_module;
 }
@@ -68,17 +70,27 @@ std::vector<AudioControlBase *> AudioModuleManager::get_all_controls() const {
     return all_controls;
 }
 
-AudioEffectModule::AudioEffectModule(const std::string& name, 
-                                    const std::vector<std::shared_ptr<AudioRenderStage>>& render_stages)
-    : AudioModule(name, 
-                  render_stages.empty() ? 0 : render_stages.front()->frames_per_buffer,
-                  render_stages.empty() ? 0 : render_stages.front()->sample_rate,
-                  render_stages.empty() ? 0 : render_stages.front()->num_channels) {
+AudioModule::AudioModule(const std::string& name,
+                         const unsigned int buffer_size, 
+                         const unsigned int sample_rate, 
+                         const unsigned int num_channels)
+    : m_name(name),
+      m_buffer_size(buffer_size), 
+      m_sample_rate(sample_rate), 
+      m_num_channels(num_channels)
+{}
+
+AudioModule::AudioModule(const std::string& name,
+                         const std::vector<std::shared_ptr<AudioRenderStage>>& render_stages)
+    : m_name(name),
+      m_buffer_size(render_stages.empty() ? 0 : render_stages.front()->frames_per_buffer),
+      m_sample_rate(render_stages.empty() ? 0 : render_stages.front()->sample_rate),
+      m_num_channels(render_stages.empty() ? 0 : render_stages.front()->num_channels),
+      m_render_stages(render_stages)
+{
     if (render_stages.empty()) {
         throw std::invalid_argument("Render stages cannot be empty");
     }
-
-    // Check that the render stages have the same buffer size, sample rate, and number of channels
     for (const auto & stage : render_stages) {
         if (stage->frames_per_buffer != this->m_buffer_size ||
             stage->sample_rate != this->m_sample_rate ||
@@ -86,9 +98,6 @@ AudioEffectModule::AudioEffectModule(const std::string& name,
             throw std::invalid_argument("All render stages must have the same buffer size, sample rate, and number of channels");
         }
     }
-
-    m_render_stages = render_stages;
-
     m_controls.clear();
     for (const auto & stage : m_render_stages) {
         for (auto & control : stage->get_controls()) {
@@ -97,7 +106,26 @@ AudioEffectModule::AudioEffectModule(const std::string& name,
     }
 }
 
-AudioEffectModule::AudioEffectModule(const std::string& name, 
-                                    const std::vector<AudioRenderStage*>& render_stages)
-    : AudioEffectModule(name, std::vector<std::shared_ptr<AudioRenderStage>>(render_stages.begin(), render_stages.end())) {
+AudioEffectModule::AudioEffectModule(const std::string& name,
+                                     const std::vector<std::shared_ptr<AudioEffectRenderStage>>& render_stages)
+    : AudioModule(name, std::vector<std::shared_ptr<AudioRenderStage>>(render_stages.begin(), render_stages.end()))
+{}
+AudioEffectModule::AudioEffectModule(const std::string& name,
+                                     const std::vector<AudioEffectRenderStage*>& render_stages)
+    : AudioModule(name, std::vector<std::shared_ptr<AudioRenderStage>>(render_stages.begin(), render_stages.end()))
+{}
+
+AudioVoiceModule::AudioVoiceModule(const std::string& name, 
+                                   AudioGeneratorRenderStage * generator_render_stages)
+    : AudioModule(name, (AudioRenderStage * )generator_render_stages),
+      m_generator_render_stage(generator_render_stages)
+{
+}
+
+
+void AudioVoiceModule::play_note(float tone, float gain) {
+    m_generator_render_stage->play_note(tone, gain);
+}
+void AudioVoiceModule::stop_note(float tone) {
+    m_generator_render_stage->stop_note(tone);
 }
