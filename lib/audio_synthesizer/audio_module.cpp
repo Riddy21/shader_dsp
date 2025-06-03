@@ -51,3 +51,53 @@ std::shared_ptr<AudioModule> AudioModuleManager::replace_module(const std::strin
 
     return old_module;
 }
+
+std::vector<std::string> AudioModuleManager::get_module_names() const {
+    std::vector<std::string> names;
+    for (const auto & module : m_modules) {
+        names.push_back(module->name());
+    }
+    return names;
+}
+
+std::vector<AudioControlBase *> AudioModuleManager::get_all_controls() const {
+    std::vector<AudioControlBase *> all_controls;
+    for (const auto & module : m_modules) {
+        all_controls.insert(all_controls.end(), module->m_controls.begin(), module->m_controls.end());
+    }
+    return all_controls;
+}
+
+AudioEffectModule::AudioEffectModule(const std::string& name, 
+                                    const std::vector<std::shared_ptr<AudioRenderStage>>& render_stages)
+    : AudioModule(name, 
+                  render_stages.empty() ? 0 : render_stages.front()->frames_per_buffer,
+                  render_stages.empty() ? 0 : render_stages.front()->sample_rate,
+                  render_stages.empty() ? 0 : render_stages.front()->num_channels) {
+    if (render_stages.empty()) {
+        throw std::invalid_argument("Render stages cannot be empty");
+    }
+
+    // Check that the render stages have the same buffer size, sample rate, and number of channels
+    for (const auto & stage : render_stages) {
+        if (stage->frames_per_buffer != this->m_buffer_size ||
+            stage->sample_rate != this->m_sample_rate ||
+            stage->num_channels != this->m_num_channels) {
+            throw std::invalid_argument("All render stages must have the same buffer size, sample rate, and number of channels");
+        }
+    }
+
+    m_render_stages = render_stages;
+
+    m_controls.clear();
+    for (const auto & stage : m_render_stages) {
+        for (auto & control : stage->get_controls()) {
+            m_controls.push_back(control);
+        }
+    }
+}
+
+AudioEffectModule::AudioEffectModule(const std::string& name, 
+                                    const std::vector<AudioRenderStage*>& render_stages)
+    : AudioEffectModule(name, std::vector<std::shared_ptr<AudioRenderStage>>(render_stages.begin(), render_stages.end())) {
+}

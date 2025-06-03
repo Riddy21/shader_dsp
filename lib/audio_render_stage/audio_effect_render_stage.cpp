@@ -144,11 +144,11 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
     // Update the echo buffer with the new data
-    std::copy(data, data + m_frames_per_buffer * m_num_channels, m_echo_buffer.begin());
+    std::copy(data, data + frames_per_buffer * num_channels, m_echo_buffer.begin());
 
     if (time != m_time) {
         // Shift the echo buffer
-        std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - m_frames_per_buffer * m_num_channels, m_echo_buffer.begin() + m_frames_per_buffer * m_num_channels);
+        std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - frames_per_buffer * num_channels, m_echo_buffer.begin() + frames_per_buffer * num_channels);
     }
 
     // Always set echo_audio_texture to the current m_echo_buffer
@@ -385,9 +385,9 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
     if (m_filter_follower != 0.0f) {
-        float current_amplitude = std::accumulate(data, data + m_frames_per_buffer * m_num_channels, 0.0f, [](float sum, float value) {
+        float current_amplitude = std::accumulate(data, data + frames_per_buffer * num_channels, 0.0f, [](float sum, float value) {
             return sum + std::fabs(value);
-        }) / (m_frames_per_buffer * m_num_channels);
+        }) / (frames_per_buffer * num_channels);
         update_b_coefficients(current_amplitude);
     }
 

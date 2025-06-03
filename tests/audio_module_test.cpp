@@ -1,58 +1,31 @@
 #include "catch2/catch_all.hpp"
 #include <memory>
 #include <variant>
+#include "audio_core/audio_control.h"
 #include "audio_synthesizer/audio_module.h"
+#include "audio_render_stage/audio_effect_render_stage.h"
+#include "audio_core/audio_renderer.h"
 
-// Dummy module for testing control interface
-class DummyModule : public AudioEffectModule {
-public:
-    DummyModule()
-        : AudioEffectModule("dummy", 64, 44100, 2), gain(1.0f), enabled(false), mode(0) {
-        m_float_controls.emplace_back("gain", gain, [this](const float& v) { gain = v; });
-        m_bool_controls.emplace_back("enabled", enabled, [this](const bool& v) { enabled = v; });
-        m_int_controls.emplace_back("mode", mode, [this](const int& v) { mode = v; });
-    }
+TEST_CASE("AudioEffectModule with multiple render stages exposes controls", "[audio_module]") {
+    // Get audio renderer singleton instance
+    auto& renderer = AudioRenderer::get_instance();
+    
+    unsigned int frames_per_buffer = 128;
+    unsigned int sample_rate = 44100;
+    unsigned int num_channels = 2;
+    //renderer.initialize(frames_per_buffer, sample_rate, num_channels);
 
-    bool set_control(const std::string& control_name, const std::variant<float, int, bool>& value) override {
-        if (std::holds_alternative<float>(value)) {
-            for (auto& c : m_float_controls) {
-                if (c.name == control_name) {
-                    c.setter(std::get<float>(value));
-                    c.value = std::get<float>(value);
-                    return true;
-                }
-            }
-        } else if (std::holds_alternative<int>(value)) {
-            for (auto& c : m_int_controls) {
-                if (c.name == control_name) {
-                    c.setter(std::get<int>(value));
-                    c.value = std::get<int>(value);
-                    return true;
-                }
-            }
-        } else if (std::holds_alternative<bool>(value)) {
-            for (auto& c : m_bool_controls) {
-                if (c.name == control_name) {
-                    c.setter(std::get<bool>(value));
-                    c.value = std::get<bool>(value);
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
+    // Construct two effect render stages
+    auto stage1 = std::make_shared<AudioGainEffectRenderStage>(
+        frames_per_buffer, sample_rate, num_channels
+    );
+    auto stage2 = std::make_shared<AudioEchoEffectRenderStage>(
+        frames_per_buffer, sample_rate, num_channels
+    );
+    
+    // Create vector with initialized stages
+    std::vector<std::shared_ptr<AudioRenderStage>> stages = {stage1, stage2};
 
-    float gain;
-    bool enabled;
-    int mode;
-private:
-    std::vector<AudioModuleControl<float>> m_float_controls;
-    std::vector<AudioModuleControl<int>> m_int_controls;
-    std::vector<AudioModuleControl<bool>> m_bool_controls;
-};
-
-TEST_CASE("AudioModuleControl set and get controls", "[AudioModuleControl]") {
-    // Create a dummy module
-    DummyModule module;
-
+    // Construct the effect module with initialized stages
+    AudioEffectModule module("test_effect", stages);
 }
