@@ -4,31 +4,51 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This project is an OpenGL Shader Digital Audio Signal Processor (DSP) that uses GPU shaders to process audio signals. By leveraging the parallel processing capabilities of modern GPUs, this system aims to achieve high-performance audio processing.
+This project is an OpenGL Shader Digital Audio Signal Processor (DSP) that uses GPU shaders to process audio signals. By leveraging the parallel processing capabilities of modern GPUs, this system aims to achieve high-performance audio processing. It's inspired by the Teenage Engineering OP-1 Synthesizer and aims to provide similar functionality through software.
 
 ## Build Commands
 
 ```bash
-# Build the project
-scons -j15
+# Build the project (using multiple cores)
+scons -j$(nproc)
 
 # Build with debug symbols
-scons --gdb -j15
+scons --gdb -j$(nproc)
 
-# Build and run tests
-scons tests -j15
+# Build and run all tests
+scons tests -j$(nproc)
+
+# Build and run a specific test
+scons tests/audio_buffer_test
 
 # Build and run playground examples
-scons playground -j15
+scons playground -j$(nproc)
+
+# Build a specific playground example
+scons playground/audio_generator_test
 
 # Build documentation
-scons docs -j15
+scons docs -j$(nproc)
+```
 
 ## Running the Application
 
 ```bash
 # Run the main synthesizer
-build/bin/AudioSynthesizer
+./build/bin/AudioSynthesizer
+```
+
+## Docker Environment
+
+For consistent development across platforms, a Docker environment is provided:
+
+```bash
+# Run the Docker environment
+./run-container.sh
+
+# Or manually:
+docker-compose up -d
+docker-compose exec shader-dsp zsh
 ```
 
 ## Architecture
@@ -54,6 +74,16 @@ The system is organized around these core components:
 
 6. **Audio Output** - Sends processed audio to output destinations (files, audio devices).
 
+7. **Event System** - Handles user inputs and interface interactions:
+   - EventLoop - Main application loop and event dispatcher
+   - EventHandler - Manages event handlers for different input types
+   - EventHandlerEntries - Specific event handler implementations
+
+8. **UI System** - Provides graphical interface for controlling the synthesizer:
+   - GraphicsDisplay - Window and rendering manager
+   - GraphicsViews - Containers for UI components
+   - GraphicsComponents - Individual UI elements (buttons, graphs, etc.)
+
 ## Core Data Flow
 
 1. Audio data is processed through a render graph of shader-based render stages
@@ -71,6 +101,11 @@ The system is organized around these core components:
 - pthread
 - X11
 
+These can be installed on Ubuntu/Debian with:
+```bash
+sudo apt-get install libsdl2-dev libglew-dev freeglut3-dev g++ scons libportaudio2 mesa-utils xvbf libx11-dev libsdl2-ttf-dev libsdl2-image-dev libsdl2-gfx-dev libsdl2-mixer-dev
+```
+
 ## Test Framework
 
 The project uses Catch2 for unit testing. Tests are written in the `tests` directory and can be executed individually.
@@ -80,6 +115,8 @@ The project uses Catch2 for unit testing. Tests are written in the `tests` direc
 scons tests/audio_buffer_test
 ```
 
+Tests run with xvfb-run to provide a virtual framebuffer for OpenGL operations during testing.
+
 ## Shader System
 
 Audio processing is primarily done through GLSL shaders in the `shaders` directory:
@@ -87,6 +124,8 @@ Audio processing is primarily done through GLSL shaders in the `shaders` directo
 - Effect shaders (echo, filter, gain, etc.) in `shaders/effect_render_stages/`
 - Routing shaders in `shaders/routing_render_stages/`
 - Global settings in `shaders/settings/`
+
+Custom audio effects and generators can be implemented by creating new shader files in the appropriate directories.
 
 ## UI Architecture
 
@@ -107,17 +146,55 @@ The UI system is built around the following components:
 
 5. **GraphicsView** - Container for UI components that can be rendered and handle events.
    - DebugView - Shows audio visualization
-   - MockInterfaceView - Contains button controls
+   - MockInterfaceView - Contains button controls for playback and effects
 
 6. **GraphicsComponent** - Base class for individual UI elements:
-   - GraphComponent - For visualizing audio data
-   - ButtonComponent - Interactive button for user input
+   - Uses unique_ptr for child component ownership
+   - Supports component composition with parent-child relationships
+   - Automatically manages memory for child components
+   - Provides methods for adding, removing, and accessing child components
 
-7. **Event Registration Flow**:
+7. **UI Component Types**:
+   - ButtonComponent - Base interactive button with hover/press states
+   - TextComponent - Renders text with custom fonts, sizes, and colors
+   - ImageComponent - Displays images with scale modes and tint colors
+   - TextButtonComponent - Button with text rendering
+   - ImageButtonComponent - Button with image rendering
+   
+8. **Event Registration Flow**:
    - Views register themselves with the GraphicsDisplay
    - When a view becomes active, it registers its components' event handlers
    - When a view becomes inactive, it unregisters its event handlers
    - This ensures events are only processed by active components
+
+## Component System Implementation
+
+The UI uses a component-based architecture with clear ownership semantics:
+
+1. **Component Hierarchy**:
+   - Each component can have multiple child components
+   - Parent components own their children through unique_ptr
+   - Children are automatically deleted when their parent is destroyed
+   - Components render themselves and then all their children
+
+2. **Component Creation and Ownership**:
+   ```cpp
+   // Create a component with 'new' and pass ownership to the parent
+   auto child = new TextComponent(x, y, width, height, "Text");
+   parent->add_child(child); // Parent takes ownership
+   ```
+
+3. **Specialized Components**:
+   - TextComponent: For text rendering with multiple font support
+   - ImageComponent: For displaying images with various scale modes
+   - TextButtonComponent: Button with text label that responds to state changes
+   - ImageButtonComponent: Button with image that responds to state changes
+
+4. **Font Management**:
+   - Global font registry with name-based access
+   - Automatic font loading from files or system fonts
+   - Font caching for different sizes
+   - Default font fallback mechanism
 
 ## Implementation Notes
 
@@ -142,3 +219,15 @@ The UI system is built around the following components:
   4. Mouse enter (when the cursor enters the button area)
   5. Mouse leave (when the cursor leaves the button area)
   6. Global mouse up (to handle when the user clicks on the button but releases outside)
+
+- **Component Composition Pattern**:
+  - When creating composite components, use the add_child method to establish parent-child relationships
+  - Store raw pointers to child components for direct access (the parent owns the actual memory)
+  - Use the update_children method to propagate state changes to child components
+
+## Current Development
+
+The project is currently implementing features for controlling audio effects and generators through the UI. This includes:
+1. Play/pause controls for audio playback
+2. Buttons for applying different effects (echo, frequency filter)
+3. Foundation for more comprehensive controls for audio manipulation

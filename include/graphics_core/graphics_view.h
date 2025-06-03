@@ -5,12 +5,18 @@
 
 #include <graphics_core/graphics_component.h>
 #include <engine/event_handler.h>
+#include <engine/renderable_item.h>
 
 class GraphicsView {
 public:
+    // Constructor that sets up the view
     GraphicsView();
     virtual ~GraphicsView();
 
+    // Initialize the view with event handler and render context
+    virtual void initialize(EventHandler& event_handler, const RenderContext& render_context);
+    
+    // Legacy initialization for backward compatibility
     virtual void initialize(EventHandler& event_handler, unsigned int display_id);
     
     virtual void render();
@@ -22,15 +28,22 @@ public:
     // Component management
     void add_component(GraphicsComponent* component);
     void remove_component(GraphicsComponent* component);
+    
+    // Get the render context
+    const RenderContext& get_render_context() const { return m_render_context; }
+    
 protected:
     void set_event_handler(EventHandler& event_handler);
+    void set_render_context(const RenderContext& render_context);
+    
+    // Legacy method - use set_render_context instead
     void set_display_id(unsigned int id);
 
     void register_event_handler(EventHandler& event_handler);
     void unregister_event_handler(EventHandler& event_handler);
 
-    EventHandler * m_event_handler = nullptr; // Reference to the event handler, cannot be re-assigned
-    unsigned int m_display_id = 0; // Unique ID for the display this view is associated with
+    EventHandler* m_event_handler = nullptr; // Reference to the event handler
+    RenderContext m_render_context; // Render context for this view
     std::vector<std::unique_ptr<GraphicsComponent>> m_components;
 
     bool m_event_handlers_registered = false; // Flag to prevent double registration
