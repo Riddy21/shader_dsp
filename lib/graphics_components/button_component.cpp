@@ -11,13 +11,95 @@ ButtonComponent::ButtonComponent(
     float y, 
     float width, 
     float height, 
-    const std::string& label,
     ButtonCallback callback
 ) : GraphicsComponent(x, y, width, height),
-    m_label(label),
     m_callback(callback)
 {
     initialize_graphics();
+
+    // Get window size at construction time
+    int screen_width = 1, screen_height = 1;
+    SDL_Window* win = SDL_GL_GetCurrentWindow();
+    if (win) {
+        SDL_Surface* surf = SDL_GetWindowSurface(win);
+        if (surf) {
+            screen_width = surf->w;
+            screen_height = surf->h;
+        }
+    }
+    
+    // Convert from normalized coordinates (-1 to 1, with -1 at top and 1 at bottom)
+    // to SDL event coordinates (0,0 top-left to width,height bottom-right)
+    int window_x = (int)((m_x + 1.0f) * screen_width / 2);
+    // For Y, -1 is at top and 1 is at bottom, so we need to invert
+    int window_y = (int)((1.0f - m_y) * screen_height / 2);
+    int window_width = (int)(m_width * screen_width / 2);
+    int window_height = (int)(m_height * screen_height / 2);
+
+    int rect_x = window_x;
+    int rect_y = window_y;
+
+    auto mouse_down_handler = std::make_shared<MouseClickEventHandlerEntry>(
+        SDL_MOUSEBUTTONDOWN,
+        rect_x, rect_y, window_width, window_height,
+        [this](const SDL_Event& event) {
+            m_is_pressed = true;
+            return true;
+        },
+        m_render_context
+    );
+
+    auto mouse_up_handler = std::make_shared<MouseClickEventHandlerEntry>(
+        SDL_MOUSEBUTTONUP,
+        0, 0, screen_width, screen_height,
+        [this](const SDL_Event& event) {
+            if (m_is_pressed) {
+                m_is_pressed = false;
+                if (m_callback) {
+                    m_callback();
+                }
+            }
+            return true;
+        },
+        m_render_context
+    );
+
+    auto mouse_motion_handler = std::make_shared<MouseMotionEventHandlerEntry>(
+        rect_x, rect_y, window_width, window_height,
+        [this](const SDL_Event& event) {
+            m_is_hovered = true;
+            return true;
+        },
+        m_render_context
+    );
+
+    auto mouse_enter_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
+        rect_x, rect_y, window_width, window_height,
+        MouseEnterLeaveEventHandlerEntry::Mode::ENTER,
+        [this](const SDL_Event& event) {
+            m_is_hovered = true;
+            return true;
+        },
+        m_render_context
+    );
+
+    auto mouse_leave_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
+        rect_x, rect_y, window_width, window_height,
+        MouseEnterLeaveEventHandlerEntry::Mode::LEAVE,
+        [this](const SDL_Event& event) {
+            m_is_hovered = false;
+            return true;
+        },
+        m_render_context
+    );
+
+    m_event_handler_entries = {
+        mouse_down_handler,
+        mouse_up_handler,
+        mouse_motion_handler,
+        mouse_enter_handler,
+        mouse_leave_handler
+    };
 }
 
 ButtonComponent::~ButtonComponent() {
@@ -39,13 +121,8 @@ void ButtonComponent::initialize_graphics() {
         #version 330 core
         layout (location = 0) in vec2 aPos;
         
-        uniform vec2 uPosition;
-        uniform vec2 uDimensions;
-        
         void main() {
-            // Map from button local coordinates to screen coordinates
-            vec2 pos = aPos * uDimensions + uPosition;
-            gl_Position = vec4(pos, 0.0, 1.0);
+            gl_Position = vec4(aPos, 0.0, 1.0);
         }
     )";
 
@@ -91,12 +168,8 @@ void ButtonComponent::initialize_graphics() {
     glBindVertexArray(0);
 }
 
-void ButtonComponent::render() {
+void ButtonComponent::render_content() {
     glUseProgram(m_shader_program->get_program());
-    
-    // Set position and dimensions in normalized device coordinates
-    glUniform2f(glGetUniformLocation(m_shader_program->get_program(), "uPosition"), m_x, m_y);
-    glUniform2f(glGetUniformLocation(m_shader_program->get_program(), "uDimensions"), m_width, m_height);
     
     // Set color based on button state
     float* color = m_color;
@@ -108,16 +181,15 @@ void ButtonComponent::render() {
     glUniform4f(glGetUniformLocation(m_shader_program->get_program(), "uColor"), 
                 color[0], color[1], color[2], color[3]);
     
-    // Draw the button
+    // Draw the button background
     glBindVertexArray(m_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);
     
     glUseProgram(0);
-}
-
-void ButtonComponent::set_label(const std::string& label) {
-    m_label = label;
+    
+    // Update child components based on button state
+    update_children();
 }
 
 void ButtonComponent::set_callback(ButtonCallback callback) {
@@ -145,112 +217,6 @@ void ButtonComponent::set_active_colors(float r, float g, float b, float a) {
     m_active_color[3] = a;
 }
 
-void ButtonComponent::register_event_handlers(EventHandler* event_handler) {
-    if (m_event_handlers_registered) return;
-    m_event_handlers_registered = true;
-
-    // Store reference to the event handler
-    m_event_handler = event_handler;
-
-    if (!m_event_handler) {
-        printf("Error: Event handler or render context is not set for ButtonComponent\n");
-        throw std::runtime_error("Event handler or render context is not set");
-    }
-    
-    // Convert normalized device coordinates to window coordinates based on component size
-    int screen_width = SDL_GetWindowSurface(SDL_GL_GetCurrentWindow())->w;
-    int screen_height = SDL_GetWindowSurface(SDL_GL_GetCurrentWindow())->h;
-    
-    int window_x = (int)((m_x + 1.0f) * screen_width / 2);
-    int window_y = (int)((1.0f - m_y) * screen_height / 2);
-    int window_width = (int)(m_width * screen_width);
-    int window_height = (int)(m_height * screen_height);
-    
-    // Calculate the button's rectangle in screen coordinates
-    int rect_x = window_x - window_width / 2;
-    int rect_y = window_y - window_height / 2;
-    
-    // Register mouse down handler for this button
-    auto* mouse_down_handler = new MouseClickEventHandlerEntry(
-        SDL_MOUSEBUTTONDOWN,
-        rect_x, rect_y, window_width, window_height,
-        [this](const SDL_Event& event) {
-            m_is_pressed = true;
-            return true;
-        },
-        m_window_id
-    );
-    m_event_handler->register_entry(mouse_down_handler);
-    m_event_handler_entries.push_back(mouse_down_handler);
-    
-    // Register mouse up handler for this button globally
-    auto* mouse_up_handler = new MouseClickEventHandlerEntry(
-        SDL_MOUSEBUTTONUP,
-        0, 0, screen_width, screen_height,
-        [this](const SDL_Event& event) {
-            if (m_is_pressed) {
-                m_is_pressed = false;
-                if (m_callback) {
-                    m_callback();
-                }
-            }
-            return true;
-        },
-        m_window_id
-    );
-    m_event_handler->register_entry(mouse_up_handler);
-    m_event_handler_entries.push_back(mouse_up_handler);
-    
-    // Register mouse motion handler for hover effect
-    auto* mouse_motion_handler = new MouseMotionEventHandlerEntry(
-        rect_x, rect_y, window_width, window_height,
-        [this](const SDL_Event& event) {
-            m_is_hovered = true;
-            return true;
-        },
-        m_window_id
-    );
-    m_event_handler->register_entry(mouse_motion_handler);
-    m_event_handler_entries.push_back(mouse_motion_handler);
-    
-    // Register mouse enter handler
-    auto* mouse_enter_handler = new MouseEnterLeaveEventHandlerEntry(
-        rect_x, rect_y, window_width, window_height,
-        MouseEnterLeaveEventHandlerEntry::Mode::ENTER,
-        [this](const SDL_Event& event) {
-            m_is_hovered = true;
-            return true;
-        },
-        m_window_id
-    );
-    m_event_handler->register_entry(mouse_enter_handler);
-    m_event_handler_entries.push_back(mouse_enter_handler);
-    
-    // Register mouse leave handler
-    auto* mouse_leave_handler = new MouseEnterLeaveEventHandlerEntry(
-        rect_x, rect_y, window_width, window_height,
-        MouseEnterLeaveEventHandlerEntry::Mode::LEAVE,
-        [this](const SDL_Event& event) {
-            m_is_hovered = false;
-            return true;
-        },
-        m_window_id
-    );
-    m_event_handler->register_entry(mouse_leave_handler);
-    m_event_handler_entries.push_back(mouse_leave_handler);
-}
-
-void ButtonComponent::unregister_event_handlers() {
-    if (!m_event_handlers_registered) return;
-    m_event_handlers_registered = false;
-
-    // If we have an event handler, unregister all our entries
-    if (m_event_handler) {
-        for (auto* entry : m_event_handler_entries) {
-            m_event_handler->unregister_entry(entry);
-        }
-        m_event_handler_entries.clear();
-    }
-    
-    m_event_handler = nullptr;
+void ButtonComponent::update_children() {
+    // Override this in derived classes to update child components based on button state
 }

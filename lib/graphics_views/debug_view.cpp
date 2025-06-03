@@ -12,8 +12,8 @@ DebugView::DebugView()
     for (size_t i = 0; i < channel_seperated_audio.size(); ++i) {
         float width = 2.0f;
         float height = 2.0f / channel_seperated_audio.size();
-        float x = 0.0f;
-        float y = i * height;
+        float x = -1.0f;
+        float y = -(i * height) + 1.0;
         auto graph = new GraphComponent(x, y, width, height, channel_seperated_audio[i], true);
         add_component(graph);
     }

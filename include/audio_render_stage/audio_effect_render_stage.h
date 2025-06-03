@@ -4,6 +4,7 @@
 
 #include "audio_core/audio_render_stage.h"
 #include "audio_render_stage/audio_render_stage_history.h"
+#include "audio_core/audio_control.h"
 
 class AudioEffectRenderStage : public AudioRenderStage {
 public:
@@ -87,7 +88,6 @@ private:
     float m_filter_follower;
     float m_resonance;
     const float NYQUIST;
-
 };
 
 #endif // AUDIO_EFFECT_RENDER_STAGE_H
