@@ -389,7 +389,6 @@ void AudioGeneratorRenderStage::NoteState::upload_clipboard(NoteState& src) {
 bool AudioGeneratorRenderStage::NoteState::download_clipboard(NoteState& dst) {
     if (!clipboard) return false;
     dst.copy_from(*clipboard);
-    delete clipboard;
     return true;
 }
 
