@@ -7,7 +7,8 @@ from SCons.Script import *
 INCLUDE_DIR = 'include'
 LIB_DIR = 'lib'
 SRC_DIR = 'src'
-TEST_DIR = 'tests'  # Old test directory
+TEST_DIR = 'tests'
+TEST_FRAMEWORK_DIR = os.path.join(TEST_DIR, 'framework')
 PLAYGROUND_DIR = 'playground'
 BUILD_DIR = 'build'
 SHADER_DIR = 'shaders'
@@ -15,28 +16,48 @@ SHADER_DIR = 'shaders'
 # Define source files
 LIB_SOURCES = Glob(os.path.join(LIB_DIR, '**', '*.cpp'), strings=True)
 MAIN_SOURCE = os.path.join(SRC_DIR, 'main.cpp')
-TEST_SOURCES = Glob(os.path.join(TEST_DIR, '*_test.cpp'), strings=True)  # Old test sources
+TEST_SOURCES = Glob(os.path.join(TEST_DIR, '*_test.cpp'), strings=True) + Glob(os.path.join(TEST_FRAMEWORK_DIR, '*_test.cpp'), strings=True)
 PLAYGROUND_SOURCES = Glob(os.path.join(PLAYGROUND_DIR, '*.cpp'), strings=True)
 SHADER_SOURCES = Glob(os.path.join(SHADER_DIR, '**', '*.glsl'), strings=True)
 
-# Define compiler and flags
-env = Environment(CXX='g++', CXXFLAGS='-std=c++20')
-
+# Define command-line options
 AddOption('--gdb',
           dest='debug',
           action='store_true',
           default=False,
           help='Build with debug flags (-g -O0)')
-          
-# Add option for directly specifying tests
+
+AddOption('--all-tests',
+          dest='all_tests',
+          action='store_true',
+          default=False,
+          help='Build and run all tests')
+
 AddOption('--test',
           dest='test',
           type='string',
-          nargs='?',
           action='store',
           metavar='TEST_NAME',
-          help='Specify a test to build and run (e.g. "--test audio_buffer_test"). If no test name provided, runs all tests.')
+          help='Build and run a specific test (e.g. "--test=audio_buffer_test")')
 
+AddOption('--playground',
+          dest='playground',
+          type='string',
+          nargs='+',
+          action='store',
+          metavar='EXAMPLE_NAME',
+          help='Build playground examples. Optionally specify an example name (e.g. "--playground=audio_generator_test").')
+
+AddOption('--docs',
+          dest='docs',
+          action='store_true',
+          default=False,
+          help='Build documentation using Doxygen.')
+
+# Define compiler environment
+env = Environment(CXX='g++', CXXFLAGS='-std=c++20')
+
+# Configure debug build if requested
 if GetOption('debug'):
     env.Append(CXXFLAGS=['-g', '-O0'])
     env.Append(LINKFLAGS=['-g'])
@@ -76,135 +97,146 @@ VariantDir(BUILD_DIR, '.', duplicate=0)
 # Copy shaders to build directory
 all_shaders = []
 for src in SHADER_SOURCES:
-    all_shaders += env.Command(target=os.path.join(BUILD_DIR, 'shaders', os.path.basename(src)), source=src, action='cp $SOURCE $TARGET')
+    dest_path = os.path.join(BUILD_DIR, src)
+    all_shaders += env.Command(target=dest_path, source=src, action=Mkdir(os.path.dirname(dest_path)) + 'cp $SOURCE $TARGET')
 
 # renderer and render stages depend on shaders
 env.Depends(LIB_SOURCES, all_shaders)
 
-# Build main executable
-main_objects = create_objects(env, [MAIN_SOURCE] + LIB_SOURCES, BUILD_DIR, 'main')
-main_executable = env.Program(target=os.path.join(BUILD_DIR, 'bin', 'AudioSynthesizer'), source=main_objects)
-
-# Function to build and run all tests
-def build_all_tests(env):
-    # Get all test files from tests directory - looking directly in the tests dir (not in subdirectories)
-    TEST_SOURCES = Glob(os.path.join('tests', '*_test.cpp'), strings=True)
+# Function to build and run tests
+def build_tests(env, specific_test=None):
+    # Get all test files from tests directory and framework subdirectory
+    test_files = Glob(os.path.join(TEST_DIR, '*_test.cpp'), strings=True)
+    framework_test_files = Glob(os.path.join(TEST_FRAMEWORK_DIR, '*_test.cpp'), strings=True) if os.path.exists(TEST_FRAMEWORK_DIR) else []
     
-    # Create a main test file that includes all test files
-    main_test_src = os.path.join('tests', 'test_main.cpp')
+    # Add the test files from the framework directory
+    all_test_files = test_files + framework_test_files
     
-    # Include all test files EXCEPT the main one in our test objects
-    test_files_without_main = [src for src in TEST_SOURCES if os.path.basename(src) != 'test_main.cpp']
+    # Main test entry point
+    main_test_src = os.path.join(TEST_FRAMEWORK_DIR, 'test_main.cpp')
+    if not os.path.exists(main_test_src):
+        print(f"Warning: test_main.cpp not found at {main_test_src}")
+        return None
     
+    # Filter out test_main.cpp if it's in the list
+    test_files_without_main = [src for src in all_test_files if os.path.basename(src) != 'test_main.cpp']
+    
+    # If a specific test is requested
+    if specific_test:
+        # Check if the specific test exists in either directory
+        specific_test_file = None
+        for test_file in test_files_without_main:
+            if os.path.splitext(os.path.basename(test_file))[0] == specific_test:
+                specific_test_file = test_file
+                break
+        
+        if specific_test_file:
+            print(f"Building and running specific test: {specific_test}")
+            test_objects = create_objects(env, [main_test_src, specific_test_file] + LIB_SOURCES, BUILD_DIR, 'tests')
+            test_executable = env.Program(target=os.path.join(BUILD_DIR, 'tests', specific_test), source=test_objects)
+            
+            test_output = env.Command(
+                target=test_executable[0].abspath + '.out',
+                source=test_executable,
+                action=test_executable[0].abspath + ' -d yes > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
+            )
+            
+            env.Alias('test-' + specific_test, test_output)
+            return test_output
+        else:
+            print(f"Test '{specific_test}' not found. Building and running all tests instead.")
+    
+    # Build all tests
     print(f"Building all tests with {len(test_files_without_main)} test files:")
     for test_file in test_files_without_main:
         print(f"  - {os.path.basename(test_file)}")
     
     # Build the all-in-one test executable
-    test_objects = create_objects(env, [main_test_src] + test_files_without_main + LIB_SOURCES, BUILD_DIR, 'tests')
-    all_tests_executable = env.Program(target=os.path.join(BUILD_DIR, 'tests', 'all_tests'), source=test_objects)
+    test_objects = create_objects(test_env, [main_test_src] + test_files_without_main + LIB_SOURCES, BUILD_DIR, 'tests')
+    all_tests_executable = test_env.Program(target=os.path.join(BUILD_DIR, 'tests', 'all_tests'), source=test_objects)
     
     # Create a command to run all tests
-    # Check if we're running a specific test
-    specified_test = GetOption('test')
     test_filter = ""
-    if specified_test and specified_test != '':
+    if specific_test:
         # Add a test name filter to the Catch2 command line
-        # In Catch2, we need to use the format [tag] to filter by test case tag
-        test_filter = f" --test-case \"{specified_test}\""
+        test_filter = f" --test-case \"{specific_test}\""
     
-    test_output = env.Command(
+    test_output = test_env.Command(
         target=all_tests_executable[0].abspath + '.out',
         source=all_tests_executable,
-        action=all_tests_executable[0].abspath + test_filter + ' -d yes > ' + all_tests_executable[0].abspath + '.out 2>&1 && cat ' + all_tests_executable[0].abspath + '.out || (cat ' + all_tests_executable[0].abspath + '.out && false)'
+        action='xvfb-run -a ' + all_tests_executable[0].abspath + test_filter + ' -d yes > ' + all_tests_executable[0].abspath + '.out 2>&1 && cat ' + all_tests_executable[0].abspath + '.out || (cat ' + all_tests_executable[0].abspath + '.out && false)'
     )
     
-    # Create an alias to run all tests
-    env.Alias('tests', test_output)
-    
-    return all_tests_executable, test_output
+    env.Alias('all-tests', test_output)
+    return test_output
 
-# Check if we're building and running tests
-build_tests = 'tests' in COMMAND_LINE_TARGETS or GetOption('test') is not None
-
-# Build all tests if needed
-if build_tests:
-    all_tests_executable, test_output = build_all_tests(test_env)
-    # Make 'tests' the default target if --test was specified
-    Default(test_output)
-
-# Support for building specific tests directly
-# Get all test files automatically from the tests directory
-all_test_files = Glob(os.path.join('tests', '*_test.cpp'), strings=True)
-specific_tests = []
-for test_file in all_test_files:
-    test_name = os.path.splitext(os.path.basename(test_file))[0]
-    specific_tests.append(test_name)
-
-# Add manually any additional tests that might not follow the naming convention
-additional_tests = [
-    'audio_renderer_basic_test'  # Only if not already covered by the glob pattern
-]
-for test in additional_tests:
-    if test not in specific_tests:
-        specific_tests.append(test)
-
-# Check for --test option
-specified_test = GetOption('test')
-if specified_test is not None:
-    if specified_test == '':  # No test name provided, run all tests
-        print("Running all tests...")
-        # Make sure 'tests' is in COMMAND_LINE_TARGETS to build and run all tests
-        if 'tests' not in COMMAND_LINE_TARGETS:
-            COMMAND_LINE_TARGETS.append('tests')
-    else:  # Specific test name provided
-        print(f"Running specific test: {specified_test}")
-        # Instead of building individual tests, we'll filter tests in the all_tests executable
-        if 'tests' not in COMMAND_LINE_TARGETS:
-            COMMAND_LINE_TARGETS.append('tests')
-
-# Support for building individual tests directly
-for specific_test in specific_tests:
-    test_src = os.path.join('tests', specific_test + '.cpp')
-    if os.path.exists(test_src) and specific_test in COMMAND_LINE_TARGETS:
-        # Build individual test with test_main.cpp
-        test_objects = create_objects(test_env, [os.path.join('tests', 'test_main.cpp'), test_src] + LIB_SOURCES, BUILD_DIR, 'tests')
-        test_executable = test_env.Program(target=os.path.join(BUILD_DIR, 'tests', specific_test), source=test_objects)
-        
-        # Run individual test
-        test_output = test_env.Command(
-            target=test_executable[0].abspath + '.out',
-            source=test_executable,
-            action=test_executable[0].abspath + ' -d yes > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
-        )
-        
-        # Create an alias to build and run this test
-        test_env.Alias(specific_test, test_output)
-
-# Build all playground examples
-if 'playground' in COMMAND_LINE_TARGETS:
-    for src in PLAYGROUND_SOURCES:
-        playground_name = os.path.splitext(os.path.basename(src))[0]
-        playground_objects = create_objects(env, [src] + LIB_SOURCES, BUILD_DIR, 'playground')
-        env.Program(target=os.path.join(BUILD_DIR, 'playground', playground_name), source=playground_objects)
-
-# Support for building specific playground examples
-for target in COMMAND_LINE_TARGETS:
-    if target.startswith('playground/'):
-        playground_name = target.split('/', 1)[1]
-        src = os.path.join(PLAYGROUND_DIR, playground_name + '.cpp')
+# Function to build playground examples
+def build_playground(env, specific_example=None):
+    if specific_example:
+        src = os.path.join(PLAYGROUND_DIR, specific_example + '.cpp')
         if os.path.exists(src):
+            print(f"Building playground example: {specific_example}")
             playground_objects = create_objects(env, [src] + LIB_SOURCES, BUILD_DIR, 'playground')
-            env.Program(target=os.path.join(BUILD_DIR, 'playground', playground_name), source=playground_objects)
+            return env.Program(target=os.path.join(BUILD_DIR, 'playground', specific_example), source=playground_objects)
+        else:
+            print(f"Playground example '{specific_example}' not found.")
+            return None
+    else:
+        print(f"Building all playground examples:")
+        playground_targets = []
+        for src in PLAYGROUND_SOURCES:
+            playground_name = os.path.splitext(os.path.basename(src))[0]
+            print(f"  - {playground_name}")
+            playground_objects = create_objects(env, [src] + LIB_SOURCES, BUILD_DIR, 'playground')
+            playground_targets.append(env.Program(target=os.path.join(BUILD_DIR, 'playground', playground_name), source=playground_objects))
+        return playground_targets
 
-# Build docs using doxygen
-if 'docs' in COMMAND_LINE_TARGETS:
-    env.Command(
+# Function to build documentation
+def build_docs(env):
+    docs_target = env.Command(
         target=os.path.join(BUILD_DIR, 'docs', 'html', 'index.html'),
         source=Glob('docs/Doxyfile'),
         action='doxygen $SOURCE'
     )
-    env.Clean(os.path.join(BUILD_DIR, 'docs', 'html', 'index.html'), Glob(os.path.join(BUILD_DIR, 'docs', 'html', '*'))+Glob(os.path.join(BUILD_DIR, 'docs', 'latex', '*')))
+    env.Clean(docs_target, Glob(os.path.join(BUILD_DIR, 'docs', 'html', '*'))+Glob(os.path.join(BUILD_DIR, 'docs', 'latex', '*')))
+    return docs_target
 
-#Specify a single sconsign file for the entire build process
+# Determine build targets based on command-line options
+targets = []
+
+# Handle --all-tests option (build all tests)
+if GetOption('all_tests'):
+    test_targets = build_tests(test_env)
+    if test_targets:
+        targets.append(test_targets)
+
+# Handle --test option (build specific test)
+test_name = GetOption('test')
+if test_name:
+    test_targets = build_tests(test_env, test_name)
+    if test_targets:
+        targets.append(test_targets)
+
+# Handle --playground option
+playground_option = GetOption('playground')
+if playground_option is not None:
+    playground_name = playground_option if playground_option != '' else None
+    playground_targets = build_playground(env, playground_name)
+    if playground_targets:
+        targets.extend(playground_targets if isinstance(playground_targets, list) else [playground_targets])
+
+# Handle --docs option
+if GetOption('docs'):
+    docs_target = build_docs(env)
+    targets.append(docs_target)
+
+# Default to building the main executable if no options specified
+if not targets:
+    main_objects = create_objects(env, [MAIN_SOURCE] + LIB_SOURCES, BUILD_DIR, 'main')
+    main_executable = env.Program(target=os.path.join(BUILD_DIR, 'bin', 'AudioSynthesizer'), source=main_objects)
+    targets.append(main_executable)
+
+Default(targets)
+
+# Specify a single sconsign file for the entire build process
 SConsignFile(os.path.join(BUILD_DIR, 'sconsign.dblite'))
