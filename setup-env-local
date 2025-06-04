@@ -1,0 +1,60 @@
+#!/bin/bash
+set -e
+
+# Setup script for building shader_dsp locally on Debian/Ubuntu systems
+# Based on README.md instructions
+
+# Use sudo if not running as root
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+    SUDO="sudo"
+fi
+
+# Required packages
+PACKAGES=(
+    libsdl2-dev
+    libglew-dev
+    freeglut3-dev
+    g++
+    scons
+    libportaudio2
+    mesa-utils
+    xvfb
+    libx11-dev
+    libsdl2-ttf-dev
+    libsdl2-image-dev
+    libsdl2-gfx-dev
+    libsdl2-mixer-dev
+    git
+    cmake
+    make
+)
+
+echo "Updating package index..."
+$SUDO apt-get update
+
+echo "Installing build dependencies..."
+$SUDO apt-get install -y "${PACKAGES[@]}"
+
+# Install Catch2 from source if not already present
+if ! pkg-config --exists catch2 2>/dev/null; then
+    echo "Catch2 not found, installing from source..."
+    TMP_DIR=$(mktemp -d)
+    git clone https://github.com/catchorg/Catch2.git "$TMP_DIR/Catch2"
+    cd "$TMP_DIR/Catch2"
+    git checkout v2.13.10
+    mkdir build && cd build
+    cmake .. -DBUILD_TESTING=OFF
+    make -j"$(nproc)"
+    $SUDO make install
+    cd
+    rm -rf "$TMP_DIR"
+fi
+
+# Build the project
+if [ -f SConstruct ]; then
+    echo "Building project with scons..."
+    scons -j"$(nproc)"
+fi
+
+echo "Environment setup complete."
