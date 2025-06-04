@@ -358,6 +358,18 @@ int AudioGeneratorRenderStage::NoteState::stop_note(float tone, int stop_time) {
 // --- NoteState static clipboard ---
 AudioGeneratorRenderStage::NoteState* AudioGeneratorRenderStage::NoteState::clipboard = nullptr;
 
+// Singleton instance, ensures clipboard is cleared at program exit
+AudioGeneratorRenderStage::NoteState::ClipboardCleaner AudioGeneratorRenderStage::NoteState::clipboard_cleaner_instance;
+
+// ClipboardCleaner constructor (does nothing)
+AudioGeneratorRenderStage::NoteState::ClipboardCleaner::ClipboardCleaner() {}
+
+// ClipboardCleaner destructor: clears clipboard at program exit
+AudioGeneratorRenderStage::NoteState::ClipboardCleaner::~ClipboardCleaner() {
+    // This will be called once at program exit, ensuring clipboard is wiped exactly once.
+    AudioGeneratorRenderStage::NoteState::clear_clipboard();
+}
+
 void AudioGeneratorRenderStage::NoteState::clear() {
     m_active_notes = 0;
     std::fill(m_play_positions.begin(), m_play_positions.end(), 0);
@@ -377,5 +389,13 @@ void AudioGeneratorRenderStage::NoteState::upload_clipboard(NoteState& src) {
 bool AudioGeneratorRenderStage::NoteState::download_clipboard(NoteState& dst) {
     if (!clipboard) return false;
     dst.copy_from(*clipboard);
+    delete clipboard;
     return true;
+}
+
+void AudioGeneratorRenderStage::NoteState::clear_clipboard() {
+    if (clipboard) {
+        delete clipboard;
+        clipboard = nullptr;
+    }
 }

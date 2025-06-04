@@ -72,7 +72,7 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
         /**
          * @brief Destroys the AudioGenerator object.
          */
-        ~AudioGeneratorRenderStage() {}
+        ~AudioGeneratorRenderStage() override {}
 
         void play_note(const float tone, const float gain);
         void stop_note(const float tone);
@@ -102,9 +102,18 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
             // Clipboard API (move semantics)
             static void upload_clipboard(NoteState& src);
             static bool download_clipboard(NoteState& dst);
+            static void clear_clipboard();
+
+            // Singleton cleaner to clear clipboard at program exit
+            class ClipboardCleaner {
+            public:
+                ClipboardCleaner();
+                ~ClipboardCleaner(); // calls clear_clipboard() at program exit
+            };
 
         private:
             static NoteState* clipboard;
+            static ClipboardCleaner clipboard_cleaner_instance;
         };
 
     private:
