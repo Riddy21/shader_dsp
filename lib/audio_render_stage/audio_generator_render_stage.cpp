@@ -112,7 +112,9 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                                                      const unsigned int num_channels,
                                                      const std::string & fragment_shader_path,
                                                      const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
+      m_note_state(MAX_NOTES_PLAYED_AT_ONCE) // initialize NoteState
+{
 
     auto play_position_parameter =
         new AudioIntArrayParameter("play_positions",
@@ -209,52 +211,26 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
 
 void AudioGeneratorRenderStage::play_note(const float tone, const float gain)
 {
-    auto active_notes = find_parameter("active_notes");
-    auto play_positions = find_parameter("play_positions");
-    auto stop_positions = find_parameter("stop_positions");
-    auto tones = find_parameter("tones");
-    auto gains = find_parameter("gains");
+    unsigned int idx = m_note_state.add_note(m_time, -1, tone, gain, MAX_NOTES_PLAYED_AT_ONCE);
 
-    // Set the corresponding notes
-    m_play_positions[m_active_notes] = m_time;
-    m_stop_positions[m_active_notes] = -1;
-    m_tones[m_active_notes] = tone;
-    m_gains[m_active_notes] = gain;
-    m_active_notes++;
-
-    if (m_active_notes >= MAX_NOTES_PLAYED_AT_ONCE) {
+    if (idx >= MAX_NOTES_PLAYED_AT_ONCE) {
         delete_note(0);
     }
 
     // Update the shader parameters
-    active_notes->set_value(m_active_notes);
-    play_positions->set_value(m_play_positions.data());
-    stop_positions->set_value(m_stop_positions.data());
-    tones->set_value(m_tones.data());
-    gains->set_value(m_gains.data());
+    m_note_state.set_parameters(this);
 }
 
 void AudioGeneratorRenderStage::stop_note(const float tone)
 {
-    auto stop_positions = find_parameter("stop_positions");
+    int tone_index = m_note_state.stop_note(tone, m_time);
 
-    // Search for the position of the tone in the active nodes
-    int tone_index = -1;
-    for (unsigned int i = 0; i < m_active_notes; i++) {
-        if (m_tones[i] == tone && m_stop_positions[i] == -1) {
-            tone_index = i;
-            break;
-        }
-    }
-    // Don't do anything if the tone is not found
     if (tone_index == -1) {
         return;
     }
 
-    // Update the stop position of the note
-    m_stop_positions[tone_index] = m_time;
-
-    stop_positions->set_value(m_stop_positions.data());
+    auto stop_positions = find_parameter("stop_positions");
+    if (stop_positions) stop_positions->set_value(m_note_state.m_stop_positions.data());
 
     static float last_release_time = -1.0f;
     static int release_time_buffers = 0;
@@ -272,13 +248,7 @@ void AudioGeneratorRenderStage::stop_note(const float tone)
 
 void AudioGeneratorRenderStage::delete_note(const unsigned int index)
 {
-    // Shift the notes
-    for (unsigned int i = index; i < m_active_notes - 1; i++) {
-        m_play_positions[i] = m_play_positions[i + 1];
-        m_stop_positions[i] = m_stop_positions[i + 1];
-        m_tones[i] = m_tones[i + 1];
-        m_gains[i] = m_gains[i + 1];
-    }
+    m_note_state.delete_note(index);
 
     for (auto & [delete_time, delete_index] : m_delete_at_time) {
         if (delete_index >= index) {
@@ -286,34 +256,126 @@ void AudioGeneratorRenderStage::delete_note(const unsigned int index)
         }
     }
 
-    m_active_notes--;
-
     // Update the shader parameters
-    auto active_notes = find_parameter("active_notes");
-    auto play_positions = find_parameter("play_positions");
-    auto stop_positions = find_parameter("stop_positions");
-    auto tones = find_parameter("tones");
-    auto gains = find_parameter("gains");
-
-    active_notes->set_value(m_active_notes);
-    play_positions->set_value(m_play_positions.data());
-    stop_positions->set_value(m_stop_positions.data());
-    tones->set_value(m_tones.data());
-    gains->set_value(m_gains.data());
+    m_note_state.set_parameters(this);
 }
 
 void AudioGeneratorRenderStage::render(const unsigned int time) {
     AudioRenderStage::render(time);
 
-    //printf("%d \n", m_active_notes);
-    //for (auto & note : m_tones) {
-    //    printf("%f ", note);
-    //}
-
-    //printf("\n");
-
     if (m_delete_at_time.find(time) != m_delete_at_time.end()) {
         delete_note(m_delete_at_time[time]);
         m_delete_at_time.erase(time);
     }
+}
+
+bool AudioGeneratorRenderStage::connect_render_stage(AudioRenderStage * next_stage) {
+    if (!AudioRenderStage::connect_render_stage(next_stage)) {
+        return false;
+    }
+
+    NoteState::download_clipboard(m_note_state);
+    m_note_state.set_parameters(this);
+    printf("Downloaded note state from clipboard with %d active notes.\n", m_note_state.m_active_notes);
+
+    return true;
+}
+
+bool AudioGeneratorRenderStage::disconnect_render_stage(AudioRenderStage * next_stage) {
+    if (!AudioRenderStage::disconnect_render_stage(next_stage)) {
+        return false;
+    }
+
+    NoteState::upload_clipboard(m_note_state);
+    m_note_state.clear();
+    m_note_state.set_parameters(this);
+    printf("Copied note state to clipboard with %d active notes.\n", m_note_state.m_active_notes);
+
+    return true;
+}
+
+// --- NoteState Implementation ---
+
+AudioGeneratorRenderStage::NoteState::NoteState(unsigned int max_notes)
+    : m_active_notes(0),
+      m_play_positions(max_notes, 0),
+      m_stop_positions(max_notes, 0),
+      m_tones(max_notes, 0.f),
+      m_gains(max_notes, 0.f)
+{}
+
+void AudioGeneratorRenderStage::NoteState::set_parameters(AudioGeneratorRenderStage* owner) {
+    auto active_notes = owner->find_parameter("active_notes");
+    auto play_positions = owner->find_parameter("play_positions");
+    auto stop_positions = owner->find_parameter("stop_positions");
+    auto tones = owner->find_parameter("tones");
+    auto gains = owner->find_parameter("gains");
+    if (active_notes) active_notes->set_value(m_active_notes);
+    if (play_positions) play_positions->set_value(m_play_positions.data());
+    if (stop_positions) stop_positions->set_value(m_stop_positions.data());
+    if (tones) tones->set_value(m_tones.data());
+    if (gains) gains->set_value(m_gains.data());
+}
+
+void AudioGeneratorRenderStage::NoteState::copy_from(const NoteState& other) {
+    m_active_notes = other.m_active_notes;
+    m_play_positions = other.m_play_positions;
+    m_stop_positions = other.m_stop_positions;
+    m_tones = other.m_tones;
+    m_gains = other.m_gains;
+}
+
+unsigned int AudioGeneratorRenderStage::NoteState::add_note(int play_position, int stop_position, float tone, float gain, unsigned int max_notes) {
+    if (m_active_notes >= max_notes) return max_notes; // signal overflow
+    m_play_positions[m_active_notes] = play_position;
+    m_stop_positions[m_active_notes] = stop_position;
+    m_tones[m_active_notes] = tone;
+    m_gains[m_active_notes] = gain;
+    return m_active_notes++;
+}
+
+void AudioGeneratorRenderStage::NoteState::delete_note(unsigned int index) {
+    if (index >= m_active_notes) return;
+    for (unsigned int i = index; i < m_active_notes - 1; i++) {
+        m_play_positions[i] = m_play_positions[i + 1];
+        m_stop_positions[i] = m_stop_positions[i + 1];
+        m_tones[i] = m_tones[i + 1];
+        m_gains[i] = m_gains[i + 1];
+    }
+    m_active_notes--;
+}
+
+int AudioGeneratorRenderStage::NoteState::stop_note(float tone, int stop_time) {
+    for (unsigned int i = 0; i < m_active_notes; i++) {
+        if (m_tones[i] == tone && m_stop_positions[i] == -1) {
+            m_stop_positions[i] = stop_time;
+            return static_cast<int>(i);
+        }
+    }
+    return -1;
+}
+
+// --- NoteState static clipboard ---
+AudioGeneratorRenderStage::NoteState* AudioGeneratorRenderStage::NoteState::clipboard = nullptr;
+
+void AudioGeneratorRenderStage::NoteState::clear() {
+    m_active_notes = 0;
+    std::fill(m_play_positions.begin(), m_play_positions.end(), 0);
+    std::fill(m_stop_positions.begin(), m_stop_positions.end(), 0);
+    std::fill(m_tones.begin(), m_tones.end(), 0.f);
+    std::fill(m_gains.begin(), m_gains.end(), 0.f);
+}
+
+void AudioGeneratorRenderStage::NoteState::upload_clipboard(NoteState& src) {
+    if (clipboard) {
+        delete clipboard;
+        clipboard = nullptr;
+    }
+    clipboard = new NoteState(src);
+}
+
+bool AudioGeneratorRenderStage::NoteState::download_clipboard(NoteState& dst) {
+    if (!clipboard) return false;
+    dst.copy_from(*clipboard);
+    return true;
 }
