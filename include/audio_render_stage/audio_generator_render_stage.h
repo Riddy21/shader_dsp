@@ -77,7 +77,35 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
         void play_note(const float tone, const float gain);
         void stop_note(const float tone);
 
-        bool debug = false;
+        bool connect_render_stage(AudioRenderStage * next_stage) override;
+        bool disconnect_render_stage(AudioRenderStage * next_stage) override;
+
+        // Helper class for encapsulating note state and parameter sync
+        class NoteState {
+        public:
+            unsigned int m_active_notes;
+            std::vector<int> m_play_positions;
+            std::vector<int> m_stop_positions;
+            std::vector<float> m_tones;
+            std::vector<float> m_gains;
+
+            NoteState(unsigned int max_notes);
+
+            void set_parameters(AudioGeneratorRenderStage* owner);
+            void copy_from(const NoteState& other);
+            unsigned int add_note(int play_position, int stop_position, float tone, float gain, unsigned int max_notes);
+            void delete_note(unsigned int index);
+            int stop_note(float tone, int stop_time);
+
+            void clear();
+
+            // Clipboard API (move semantics)
+            static void upload_clipboard(NoteState& src);
+            static bool download_clipboard(NoteState& dst);
+
+        private:
+            static NoteState* clipboard;
+        };
 
     private:
         void delete_note(const unsigned int index);
@@ -85,11 +113,7 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
 
         static const unsigned int MAX_NOTES_PLAYED_AT_ONCE = 24;
 
-        unsigned int m_active_notes = 0;
-        std::vector<int> m_play_positions = std::vector<int>(MAX_NOTES_PLAYED_AT_ONCE, 0);
-        std::vector<int> m_stop_positions = std::vector<int>(MAX_NOTES_PLAYED_AT_ONCE, 0);
-        std::vector<float> m_tones = std::vector<float>(MAX_NOTES_PLAYED_AT_ONCE, 0.f);
-        std::vector<float> m_gains = std::vector<float>(MAX_NOTES_PLAYED_AT_ONCE, 0.f);
+        NoteState m_note_state = NoteState(MAX_NOTES_PLAYED_AT_ONCE);
 
         std::unordered_map<int, int> m_delete_at_time;
     };
