@@ -27,6 +27,15 @@ AddOption('--gdb',
           action='store_true',
           default=False,
           help='Build with debug flags (-g -O0)')
+          
+# Add option for directly specifying tests
+AddOption('--test',
+          dest='test',
+          type='string',
+          nargs='?',
+          action='store',
+          metavar='TEST_NAME',
+          help='Specify a test to build and run (e.g. "--test audio_buffer_test"). If no test name provided, runs all tests.')
 
 if GetOption('debug'):
     env.Append(CXXFLAGS=['-g', '-O0'])
@@ -76,37 +85,101 @@ env.Depends(LIB_SOURCES, all_shaders)
 main_objects = create_objects(env, [MAIN_SOURCE] + LIB_SOURCES, BUILD_DIR, 'main')
 main_executable = env.Program(target=os.path.join(BUILD_DIR, 'bin', 'AudioSynthesizer'), source=main_objects)
 
-# Build all tests
-if 'tests' in COMMAND_LINE_TARGETS:
-    # Get all test files from tests directory
-    TEST_SOURCES = Glob(os.path.join('tests', '**', '*_test.cpp'), strings=True)
-    for src in TEST_SOURCES:
-        test_name = os.path.splitext(os.path.basename(src))[0]
-        test_objects = create_objects(test_env, [src] + LIB_SOURCES, BUILD_DIR, 'tests')
-        test_executable = test_env.Program(target=os.path.join(BUILD_DIR, 'tests', test_name), source=test_objects)
-        test_env.Command(
-            target=test_executable[0].abspath + '.out',
-            source=test_executable,
-            action='xvfb-run -a ' + test_executable[0].abspath + ' -d yes > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
-        )
+# Function to build and run all tests
+def build_all_tests(env):
+    # Get all test files from tests directory - looking directly in the tests dir (not in subdirectories)
+    TEST_SOURCES = Glob(os.path.join('tests', '*_test.cpp'), strings=True)
+    
+    # Create a main test file that includes all test files
+    main_test_src = os.path.join('tests', 'test_main.cpp')
+    
+    # Include all test files EXCEPT the main one in our test objects
+    test_files_without_main = [src for src in TEST_SOURCES if os.path.basename(src) != 'test_main.cpp']
+    
+    print(f"Building all tests with {len(test_files_without_main)} test files:")
+    for test_file in test_files_without_main:
+        print(f"  - {os.path.basename(test_file)}")
+    
+    # Build the all-in-one test executable
+    test_objects = create_objects(env, [main_test_src] + test_files_without_main + LIB_SOURCES, BUILD_DIR, 'tests')
+    all_tests_executable = env.Program(target=os.path.join(BUILD_DIR, 'tests', 'all_tests'), source=test_objects)
+    
+    # Create a command to run all tests
+    # Check if we're running a specific test
+    specified_test = GetOption('test')
+    test_filter = ""
+    if specified_test and specified_test != '':
+        # Add a test name filter to the Catch2 command line
+        # In Catch2, we need to use the format [tag] to filter by test case tag
+        test_filter = f" --test-case \"{specified_test}\""
+    
+    test_output = env.Command(
+        target=all_tests_executable[0].abspath + '.out',
+        source=all_tests_executable,
+        action=all_tests_executable[0].abspath + test_filter + ' -d yes > ' + all_tests_executable[0].abspath + '.out 2>&1 && cat ' + all_tests_executable[0].abspath + '.out || (cat ' + all_tests_executable[0].abspath + '.out && false)'
+    )
+    
+    # Create an alias to run all tests
+    env.Alias('tests', test_output)
+    
+    return all_tests_executable, test_output
+
+# Check if we're building and running tests
+build_tests = 'tests' in COMMAND_LINE_TARGETS or GetOption('test') is not None
+
+# Build all tests if needed
+if build_tests:
+    all_tests_executable, test_output = build_all_tests(test_env)
+    # Make 'tests' the default target if --test was specified
+    Default(test_output)
 
 # Support for building specific tests directly
-for specific_test in [
-    'audio_renderer_test',
-    'audio_renderer_private_access_test',
-    'audio_renderer_mock_test',
-    'audio_renderer_basic_test'
-]:
+# Get all test files automatically from the tests directory
+all_test_files = Glob(os.path.join('tests', '*_test.cpp'), strings=True)
+specific_tests = []
+for test_file in all_test_files:
+    test_name = os.path.splitext(os.path.basename(test_file))[0]
+    specific_tests.append(test_name)
+
+# Add manually any additional tests that might not follow the naming convention
+additional_tests = [
+    'audio_renderer_basic_test'  # Only if not already covered by the glob pattern
+]
+for test in additional_tests:
+    if test not in specific_tests:
+        specific_tests.append(test)
+
+# Check for --test option
+specified_test = GetOption('test')
+if specified_test is not None:
+    if specified_test == '':  # No test name provided, run all tests
+        print("Running all tests...")
+        # Make sure 'tests' is in COMMAND_LINE_TARGETS to build and run all tests
+        if 'tests' not in COMMAND_LINE_TARGETS:
+            COMMAND_LINE_TARGETS.append('tests')
+    else:  # Specific test name provided
+        print(f"Running specific test: {specified_test}")
+        # Instead of building individual tests, we'll filter tests in the all_tests executable
+        if 'tests' not in COMMAND_LINE_TARGETS:
+            COMMAND_LINE_TARGETS.append('tests')
+
+# Support for building individual tests directly
+for specific_test in specific_tests:
     test_src = os.path.join('tests', specific_test + '.cpp')
     if os.path.exists(test_src) and specific_test in COMMAND_LINE_TARGETS:
-        test_objects = create_objects(test_env, [test_src] + LIB_SOURCES, BUILD_DIR, 'tests')
+        # Build individual test with test_main.cpp
+        test_objects = create_objects(test_env, [os.path.join('tests', 'test_main.cpp'), test_src] + LIB_SOURCES, BUILD_DIR, 'tests')
         test_executable = test_env.Program(target=os.path.join(BUILD_DIR, 'tests', specific_test), source=test_objects)
-        test_env.Alias(specific_test, test_executable)
-        test_env.Command(
+        
+        # Run individual test
+        test_output = test_env.Command(
             target=test_executable[0].abspath + '.out',
             source=test_executable,
-            action='xvfb-run -a ' + test_executable[0].abspath + ' -d yes > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
+            action=test_executable[0].abspath + ' -d yes > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
         )
+        
+        # Create an alias to build and run this test
+        test_env.Alias(specific_test, test_output)
 
 # Build all playground examples
 if 'playground' in COMMAND_LINE_TARGETS:
