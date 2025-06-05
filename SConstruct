@@ -94,11 +94,12 @@ def create_objects(env, sources, build_dir, subdir):
 # Create build directory
 VariantDir(BUILD_DIR, '.', duplicate=0)
 
-# Copy shaders to build directory
+# Copy shaders to a single directory in the build directory
+SHADER_BUILD_DIR = os.path.join(BUILD_DIR, 'shaders')
 all_shaders = []
 for src in SHADER_SOURCES:
-    dest_path = os.path.join(BUILD_DIR, src)
-    all_shaders += env.Command(target=dest_path, source=src, action=Mkdir(os.path.dirname(dest_path)) + 'cp $SOURCE $TARGET')
+    dest_path = os.path.join(SHADER_BUILD_DIR, os.path.basename(src))
+    all_shaders += env.Command(target=dest_path, source=src, action=Mkdir(SHADER_BUILD_DIR) + 'cp $SOURCE $TARGET')
 
 # renderer and render stages depend on shaders
 env.Depends(LIB_SOURCES, all_shaders)
