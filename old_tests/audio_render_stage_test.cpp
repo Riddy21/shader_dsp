@@ -36,3 +36,5 @@ TEST_CASE_METHOD(TestFixture, "AudioRendererStageTest_add_parameter") {
 
     render_stage.add_parameter(parameter1);
 }
+
+// TODO: Add test for adding and removing parameter
