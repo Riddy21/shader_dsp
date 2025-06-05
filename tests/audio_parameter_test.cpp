@@ -4,227 +4,10 @@
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
 #include "audio_parameter/audio_uniform_array_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
-#include <GL/glew.h>
-#include <SDL2/SDL.h>
-#include "utilities/shader_program.h"
+#include "framework/gl_test_context.h"
 
 #include <vector>
 #include <memory>
-#include <stdexcept>
-#include <iostream>
-
-/**
- * @brief A simple OpenGL test context for testing audio parameters
- * 
- * This class manages an OpenGL context that can be used for testing
- * audio parameters with OpenGL functionality.
- */
-class GLTestContext {
-public:
-    /**
-     * @brief Initialize the OpenGL context for testing
-     * 
-     * @return True if initialization succeeded, false otherwise
-     */
-    bool initialize() {
-        if (m_initialized) {
-            return true;
-        }
-
-        // Initialize SDL for video
-        if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-            std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
-            return false;
-        }
-
-        // Set OpenGL attributes
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-        SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-
-        // Create hidden window
-        m_window = SDL_CreateWindow(
-            "Test GL Context",
-            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-            1, 1,
-            SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN
-        );
-
-        if (!m_window) {
-            std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
-            SDL_Quit();
-            return false;
-        }
-
-        // Create OpenGL context
-        m_glContext = SDL_GL_CreateContext(m_window);
-        if (!m_glContext) {
-            std::cerr << "Failed to create GL context: " << SDL_GetError() << std::endl;
-            SDL_DestroyWindow(m_window);
-            SDL_Quit();
-            return false;
-        }
-
-        // Make the context current
-        SDL_GL_MakeCurrent(m_window, m_glContext);
-
-        // Initialize GLEW
-        glewExperimental = GL_TRUE;
-        GLenum glewError = glewInit();
-        if (glewError != GLEW_OK) {
-            std::cerr << "Failed to initialize GLEW: " << glewGetErrorString(glewError) << std::endl;
-            SDL_GL_DeleteContext(m_glContext);
-            SDL_DestroyWindow(m_window);
-            SDL_Quit();
-            return false;
-        }
-
-        // Check for any OpenGL errors
-        GLenum error = glGetError();
-        if (error != GL_NO_ERROR) {
-            std::cerr << "OpenGL error during init: " << error << std::endl;
-            // Continue anyway, some GL implementations may set errors after glewInit
-        }
-        
-        // Initialize test resources
-        createTestResources();
-
-        m_initialized = true;
-        return true;
-    }
-
-    /**
-     * @brief Clean up OpenGL context and SDL resources
-     */
-    void cleanup() {
-        cleanupTestResources();
-        
-        if (m_glContext) {
-            SDL_GL_DeleteContext(m_glContext);
-            m_glContext = nullptr;
-        }
-
-        if (m_window) {
-            SDL_DestroyWindow(m_window);
-            m_window = nullptr;
-        }
-
-        SDL_Quit();
-        m_initialized = false;
-    }
-    
-    /**
-     * @brief Initialize the parameter with our test context
-     * 
-     * @param parameter The parameter to initialize
-     * @return True if initialization succeeded, false otherwise
-     */
-    bool initializeParameter(AudioParameter* parameter) {
-        if (!m_initialized && !initialize()) {
-            return false;
-        }
-        
-        return parameter->initialize(m_framebuffer, m_shaderProgram.get());
-    }
-    
-    /**
-     * @brief Get the shader program for tests
-     * 
-     * @return Pointer to the shader program
-     */
-    AudioShaderProgram* getShaderProgram() {
-        return m_shaderProgram.get();
-    }
-    
-    /**
-     * @brief Get the framebuffer for tests
-     * 
-     * @return The framebuffer ID
-     */
-    GLuint getFramebuffer() const {
-        return m_framebuffer;
-    }
-
-private:
-    /**
-     * @brief Create resources needed for testing
-     */
-    void createTestResources() {
-        // Create framebuffer
-        glGenFramebuffers(1, &m_framebuffer);
-        
-        // Create simple shader program
-        const std::string vertexShaderSource = 
-            "#version 330 core\n"
-            "layout(location = 0) in vec3 position;\n"
-            "void main() {\n"
-            "    gl_Position = vec4(position, 1.0);\n"
-            "}\n";
-            
-        const std::string fragmentShaderSource = 
-            "#version 330 core\n"
-            "uniform sampler2D textureParam;\n"     // Texture parameter used in tests
-            "out vec4 outputColor;\n"               // Example output
-            "void main() {\n"
-            "    outputColor = texture(textureParam, vec2(0.0));\n"
-            "}\n";
-        
-        m_shaderProgram = std::make_unique<AudioShaderProgram>(vertexShaderSource, fragmentShaderSource);
-        m_shaderProgram->initialize();
-    }
-    
-    /**
-     * @brief Clean up test resources
-     */
-    void cleanupTestResources() {
-        if (m_framebuffer) {
-            glDeleteFramebuffers(1, &m_framebuffer);
-            m_framebuffer = 0;
-        }
-        
-        m_shaderProgram.reset();
-    }
-    
-    SDL_Window* m_window = nullptr;
-    SDL_GLContext m_glContext = nullptr;
-    bool m_initialized = false;
-    
-    GLuint m_framebuffer = 0;
-    std::unique_ptr<AudioShaderProgram> m_shaderProgram;
-};
-
-/**
- * @brief Fixture for tests requiring OpenGL context
- * 
- * Use this fixture for test cases that need to test parameters with OpenGL functions.
- */
-class GLContextFixture {
-public:
-    GLContextFixture() {
-        if (!m_context.initialize()) {
-            throw std::runtime_error("Failed to initialize GL context for testing");
-        }
-    }
-    
-    ~GLContextFixture() {
-        m_context.cleanup();
-    }
-    
-    /**
-     * @brief Initialize a parameter with the test context
-     * 
-     * @param parameter The parameter to initialize
-     * @return True if initialization succeeded, false otherwise
-     */
-    bool initializeParameter(AudioParameter* parameter) {
-        return m_context.initializeParameter(parameter);
-    }
-    
-private:
-    GLTestContext m_context;
-};
 
 /**
  * @brief Tests for basic functionality without OpenGL context
@@ -671,13 +454,31 @@ TEST_CASE("AudioParameter integration verification", "[audio_parameter][integrat
  * Note: These tests require a valid OpenGL context to run, which may not be available
  * in all test environments. They are marked with [gl] tag.
  */
-TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl][.]") {
+TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_test]") {
     // Create a GL context fixture for testing
     // The dot in the tag ([.]) disables these tests by default
     // Run with --test=audio_parameter_test~[gl] to include them
-    GLContextFixture fixture;
+    GLTestFixture fixture;
     
     SECTION("Texture parameter initialization") {
+        // First, set a custom shader with the exact parameter name we need
+        const std::string fragShader = 
+            "#version 330 core\n"
+            "uniform sampler2D textureParam;\n"  // Name must match the parameter
+            "out vec4 outputColor;\n"
+            "void main() {\n"
+            "    outputColor = texture(textureParam, vec2(0.0));\n"
+            "}\n";
+            
+        REQUIRE(fixture.setShaderSources(
+            "#version 330 core\n"
+            "layout(location = 0) in vec3 position;\n"
+            "void main() {\n"
+            "    gl_Position = vec4(position, 1.0);\n"
+            "}\n", 
+            fragShader
+        ));
+        
         // Create texture parameter
         const GLuint width = 512;
         const GLuint height = 2;
@@ -703,6 +504,24 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl][
     }
     
     SECTION("Texture data loading and retrieval") {
+        // First, set a custom shader with the exact parameter name we need
+        const std::string fragShader = 
+            "#version 330 core\n"
+            "uniform sampler2D audioTexture;\n"  // Name must match the parameter
+            "out vec4 outputColor;\n"
+            "void main() {\n"
+            "    outputColor = texture(audioTexture, vec2(0.0));\n"
+            "}\n";
+            
+        REQUIRE(fixture.setShaderSources(
+            "#version 330 core\n"
+            "layout(location = 0) in vec3 position;\n"
+            "void main() {\n"
+            "    gl_Position = vec4(position, 1.0);\n"
+            "}\n", 
+            fragShader
+        ));
+        
         // Create texture parameter
         const GLuint width = 256;
         const GLuint height = 1;
@@ -733,6 +552,24 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl][
     }
     
     SECTION("Texture render method") {
+        // First, set a custom shader with the exact parameter name we need
+        const std::string fragShader = 
+            "#version 330 core\n"
+            "uniform sampler2D renderTexture;\n"  // Name must match the parameter
+            "out vec4 outputColor;\n"
+            "void main() {\n"
+            "    outputColor = texture(renderTexture, vec2(0.0));\n"
+            "}\n";
+            
+        REQUIRE(fixture.setShaderSources(
+            "#version 330 core\n"
+            "layout(location = 0) in vec3 position;\n"
+            "void main() {\n"
+            "    gl_Position = vec4(position, 1.0);\n"
+            "}\n", 
+            fragShader
+        ));
+        
         // Create texture parameter
         const GLuint width = 128;
         const GLuint height = 1;
@@ -766,6 +603,25 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl][
     }
     
     SECTION("Texture binding and framebuffer attachment") {
+        // First, set a custom shader with the exact parameter names we need
+        const std::string fragShader = 
+            "#version 330 core\n"
+            "uniform sampler2D sourceTexture;\n"  // Source parameter
+            "uniform sampler2D destTexture;\n"    // Destination parameter
+            "out vec4 outputColor;\n"
+            "void main() {\n"
+            "    outputColor = texture(sourceTexture, vec2(0.0)) + texture(destTexture, vec2(0.0));\n"
+            "}\n";
+            
+        REQUIRE(fixture.setShaderSources(
+            "#version 330 core\n"
+            "layout(location = 0) in vec3 position;\n"
+            "void main() {\n"
+            "    gl_Position = vec4(position, 1.0);\n"
+            "}\n", 
+            fragShader
+        ));
+        
         // Create source and destination texture parameters
         const GLuint width = 64;
         const GLuint height = 2;
@@ -804,6 +660,24 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl][
     }
     
     SECTION("Texture parameter with clear_value") {
+        // First, set a custom shader with the exact parameter name we need
+        const std::string fragShader = 
+            "#version 330 core\n"
+            "uniform sampler2D clearTexture;\n"  // Name must match the parameter
+            "out vec4 outputColor;\n"
+            "void main() {\n"
+            "    outputColor = texture(clearTexture, vec2(0.0));\n"
+            "}\n";
+            
+        REQUIRE(fixture.setShaderSources(
+            "#version 330 core\n"
+            "layout(location = 0) in vec3 position;\n"
+            "void main() {\n"
+            "    gl_Position = vec4(position, 1.0);\n"
+            "}\n", 
+            fragShader
+        ));
+        
         // Create texture parameter
         const GLuint width = 32;
         const GLuint height = 2;
