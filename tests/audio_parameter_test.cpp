@@ -600,10 +600,9 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
         for (size_t i = 0; i < width; i++) {
             REQUIRE(valueAfterRender[i] == Catch::Approx(audioData[i]));
         }
-    }
-    
     SECTION("Texture binding and framebuffer attachment") {
         // First, set a custom shader with the exact parameter names we need
+    // FIXME: Broken from here, broken at bind
         const std::string fragShader = 
             "#version 330 core\n"
             "uniform sampler2D sourceTexture;\n"  // Source parameter
@@ -712,4 +711,6 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
         const float* clearedData = static_cast<const float*>(param->get_value());
         REQUIRE(clearedData != nullptr);
     }
+}
+
 }
