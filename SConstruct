@@ -135,10 +135,17 @@ def build_tests(env, specific_test=None):
             test_objects = create_objects(env, [main_test_src, specific_test_file] + LIB_SOURCES, BUILD_DIR, 'tests')
             test_executable = env.Program(target=os.path.join(BUILD_DIR, 'tests', specific_test), source=test_objects)
             
+            # Create a temp directory for XDG_RUNTIME_DIR
+            xdg_runtime_dir = '/tmp/xdg-runtime-dir'
+            
+            # Set up the command with XDG_RUNTIME_DIR
+            test_command = f'mkdir -p {xdg_runtime_dir} && XDG_RUNTIME_DIR={xdg_runtime_dir} '
+            test_command += 'xvfb-run -a ' + test_executable[0].abspath + ' -d yes > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
+            
             test_output = env.Command(
                 target=test_executable[0].abspath + '.out',
                 source=test_executable,
-                action=test_executable[0].abspath + ' -d yes > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
+                action=test_command
             )
             
             env.Alias('test-' + specific_test, test_output)
@@ -161,10 +168,17 @@ def build_tests(env, specific_test=None):
         # Add a test name filter to the Catch2 command line
         test_filter = f" --test-case \"{specific_test}\""
     
+    # Create a temp directory for XDG_RUNTIME_DIR
+    xdg_runtime_dir = '/tmp/xdg-runtime-dir'
+    
+    # Set up the command with XDG_RUNTIME_DIR for xvfb-run
+    test_command = f'mkdir -p {xdg_runtime_dir} && XDG_RUNTIME_DIR={xdg_runtime_dir} '
+    test_command += 'xvfb-run -a ' + all_tests_executable[0].abspath + test_filter + ' -d yes > ' + all_tests_executable[0].abspath + '.out 2>&1 && cat ' + all_tests_executable[0].abspath + '.out || (cat ' + all_tests_executable[0].abspath + '.out && false)'
+    
     test_output = test_env.Command(
         target=all_tests_executable[0].abspath + '.out',
         source=all_tests_executable,
-        action='xvfb-run -a ' + all_tests_executable[0].abspath + test_filter + ' -d yes > ' + all_tests_executable[0].abspath + '.out 2>&1 && cat ' + all_tests_executable[0].abspath + '.out || (cat ' + all_tests_executable[0].abspath + '.out && false)'
+        action=test_command
     )
     
     env.Alias('all-tests', test_output)
