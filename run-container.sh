@@ -22,6 +22,50 @@ if ! docker info > /dev/null 2>&1; then
   exit 1
 fi
 
+# Function to setup X11 for macOS
+setup_macos_x11() {
+  echo "Setting up X11 for macOS..."
+  
+  # Check if XQuartz is installed
+  if ! command -v xquartz &> /dev/null && ! ls /Applications/Utilities/XQuartz.app &> /dev/null 2>&1; then
+    echo "⚠️  XQuartz not found. Please install it with:"
+    echo "   brew install --cask xquartz"
+    echo "   Then restart and enable 'Allow connections from network clients' in XQuartz preferences."
+    echo "   After installation, run this script again."
+    return 1
+  fi
+  
+  # Start XQuartz if not running
+  if ! pgrep -x "Xquartz" > /dev/null; then
+    echo "Starting XQuartz..."
+    open -a XQuartz
+    sleep 3  # Give XQuartz time to start
+  fi
+  
+  # Set up DISPLAY for macOS
+  if [ -z "$DISPLAY" ]; then
+    export DISPLAY=host.docker.internal:0
+    echo "Set DISPLAY to host.docker.internal:0"
+  fi
+  
+  # Allow X11 connections from Docker
+  if command -v xhost &> /dev/null; then
+    xhost +localhost > /dev/null 2>&1 || true
+    xhost + 127.0.0.1 > /dev/null 2>&1 || true
+    echo "Enabled X11 connections from localhost and Docker"
+  fi
+  
+  # Ensure X11 socket directory exists and has correct permissions
+  if [ ! -d "/tmp/.X11-unix" ]; then
+    echo "Creating X11 socket directory..."
+    sudo mkdir -p /tmp/.X11-unix
+    sudo chmod 1777 /tmp/.X11-unix
+  fi
+  
+  echo "X11 setup completed for macOS"
+  return 0
+}
+
 COMMAND=$1
 
 case $COMMAND in
@@ -32,27 +76,18 @@ case $COMMAND in
     ;;
   
   up)
-    # Check if running on macOS and provide X11 setup instructions
+    # Check if running on macOS and setup X11
     if [[ "$OSTYPE" == "darwin"* ]]; then
       echo "Detected macOS - Setting up X11 forwarding..."
-      
-      # Check if XQuartz is installed
-      if ! command -v xquartz &> /dev/null && ! ls /Applications/Utilities/XQuartz.app &> /dev/null 2>&1; then
-        echo "⚠️  XQuartz not found. Please install it with:"
-        echo "   brew install --cask xquartz"
-        echo "   Then restart and enable 'Allow connections from network clients' in XQuartz preferences."
+      if ! setup_macos_x11; then
+        echo "X11 setup failed. Please install XQuartz and try again."
+        exit 1
       fi
-      
-      # Set up DISPLAY for macOS
+    else
+      # For Linux, just set DISPLAY if not already set
       if [ -z "$DISPLAY" ]; then
-        export DISPLAY=host.docker.internal:0
-        echo "Set DISPLAY to host.docker.internal:0"
-      fi
-      
-      # Allow X11 connections (requires XQuartz to be running)
-      if command -v xhost &> /dev/null; then
-        xhost +localhost > /dev/null 2>&1 || true
-        echo "Enabled X11 connections from localhost"
+        export DISPLAY=:0
+        echo "Set DISPLAY to :0 for Linux"
       fi
     fi
     
@@ -79,14 +114,14 @@ case $COMMAND in
     echo "NOTE: The connect command needs to be run directly in your terminal, not through Claude."
     echo "Please run the following command in your terminal to connect to the container:"
     echo ""
-    echo "cd $(pwd) && docker-compose exec -it shader-dsp zsh"
+    echo "cd $(pwd) && docker-compose exec -it shader-dsp bash"
     echo ""
     echo "If you're already running this in your terminal and still getting errors,"
-    echo "try using docker directly with: docker exec -it shader_dsp-shader-dsp-1 zsh"
+    echo "try using docker directly with: docker exec -it shader_dsp-shader-dsp-1 bash"
     echo ""
     
     # Still try to connect, which might work if this is run from a real terminal
-    docker-compose exec -it shader-dsp zsh
+    docker-compose exec -it shader-dsp bash
     echo "Disconnected from container shell."
     ;;
 

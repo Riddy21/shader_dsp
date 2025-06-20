@@ -9,21 +9,40 @@ services:
       - .:/workspace
       - shader-dsp-history:/commandhistory
       - shader-dsp-config:/home/developer/.claude
-      - /tmp/.X11-unix:/tmp/.X11-unix # Share X11 socket for GUI
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw # Share X11 socket for GUI
     environment:
-      - NODE_OPTIONS=--max-old-space-size=4096
+      - NODE_OPTIONS=--max-old-space-size=2048
       - CLAUDE_CONFIG_DIR=/home/developer/.claude
       - DISPLAY=${DISPLAY:-host.docker.internal:0}
+      - RASPBERRY_PI_SIMULATION=true
+      - PI_ARCH=arm64
+      - PI_MODEL=5
+      - LD_LIBRARY_PATH=/opt/vc/lib
+      - PKG_CONFIG_PATH=/opt/vc/lib/pkgconfig
+      - QT_X11_NO_MITSHM=1
+      - _X11_NO_MITSHM=1
+      - _MITSHM=0
     working_dir: /workspace
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    network_mode: "host" # Use host network for X11 forwarding
+    # Remove host network mode for better macOS compatibility
+    ports:
+      - "8080:8080"  # Optional: expose a port if needed
     tty: true
     stdin_open: true
-    command: /bin/zsh
+    command: /bin/bash
     # Set the user to match the UID:GID in Dockerfile (2000:2000)
     user: "2000:2000"
+    # Raspberry Pi 5 simulation constraints
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'  # Pi 5 has 4 cores
+          memory: 8G   # Pi 5 has 4GB/8GB RAM
+        reservations:
+          cpus: '2.0'
+          memory: 2G
 
 volumes:
   shader-dsp-history:
