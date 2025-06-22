@@ -1,5 +1,4 @@
 #include <iostream>
-#include <GL/glew.h>
 #include "graphics_components/menu_selection_component.h"
 #include "engine/event_handler.h"
 #include "graphics_core/graphics_display.h"

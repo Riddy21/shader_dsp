@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <GL/glew.h>
 #include <SDL2/SDL.h>
 
 #include "utilities/shader_program.h"

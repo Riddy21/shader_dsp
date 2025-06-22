@@ -1,8 +1,9 @@
 #include <SDL2/SDL.h>
-#include <iostream>
-#include <stdexcept>
+#include <SDL2/SDL_syswm.h>
 #include <GLES3/gl3.h>
 #include <EGL/egl.h>
+#include <iostream>
+#include <stdexcept>
 
 // Vertex shader for OpenGL ES 3.0
 const char* vertexShaderSource = R"(
@@ -69,25 +70,18 @@ GLuint createShaderProgram(GLuint vertexShader, GLuint fragmentShader) {
 }
 
 int main() {
-    // Initialize SDL
+    // Initialize SDL for window management only
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
         return -1;
     }
 
-    // Set OpenGL attributes for OpenGL ES 3.0
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-
-    // Create window
+    // Create window without OpenGL context
     SDL_Window* window = SDL_CreateWindow(
-        "OpenGL ES 3.0 Test",
+        "OpenGL ES 3.0 Test with EGL",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         800, 600,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN
+        SDL_WINDOW_SHOWN
     );
 
     if (!window) {
@@ -96,21 +90,91 @@ int main() {
         return -1;
     }
 
-    // Create OpenGL context
-    SDL_GLContext glContext = SDL_GL_CreateContext(window);
-    if (!glContext) {
-        std::cerr << "OpenGL context creation failed: " << SDL_GetError() << std::endl;
+    // Get the native window handle
+    SDL_SysWMinfo wmInfo;
+    SDL_VERSION(&wmInfo.version);
+    SDL_GetWindowWMInfo(window, &wmInfo);
+    
+    // Initialize EGL
+    EGLDisplay eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (eglDisplay == EGL_NO_DISPLAY) {
+        std::cerr << "Failed to get EGL display" << std::endl;
         SDL_DestroyWindow(window);
         SDL_Quit();
         return -1;
     }
 
-    SDL_GL_MakeCurrent(window, glContext);
+    EGLint majorVersion, minorVersion;
+    if (!eglInitialize(eglDisplay, &majorVersion, &minorVersion)) {
+        std::cerr << "Failed to initialize EGL" << std::endl;
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+
+    std::cout << "EGL Version: " << majorVersion << "." << minorVersion << std::endl;
+
+    // Configure EGL
+    const EGLint configAttribs[] = {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RED_SIZE, 8,
+        EGL_GREEN_SIZE, 8,
+        EGL_BLUE_SIZE, 8,
+        EGL_ALPHA_SIZE, 8,
+        EGL_DEPTH_SIZE, 24,
+        EGL_STENCIL_SIZE, 8,
+        EGL_NONE
+    };
+
+    EGLConfig eglConfig;
+    EGLint numConfigs;
+    if (!eglChooseConfig(eglDisplay, configAttribs, &eglConfig, 1, &numConfigs)) {
+        std::cerr << "Failed to choose EGL config" << std::endl;
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+
+    // Create EGL surface
+    EGLSurface eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, 
+                                                  (EGLNativeWindowType)wmInfo.info.x11.window, NULL);
+    if (eglSurface == EGL_NO_SURFACE) {
+        std::cerr << "Failed to create EGL surface" << std::endl;
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+
+    // Create EGL context
+    const EGLint contextAttribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 3,
+        EGL_NONE
+    };
+
+    EGLContext eglContext = eglCreateContext(eglDisplay, eglConfig, EGL_NO_CONTEXT, contextAttribs);
+    if (eglContext == EGL_NO_CONTEXT) {
+        std::cerr << "Failed to create EGL context" << std::endl;
+        eglDestroySurface(eglDisplay, eglSurface);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+
+    // Make current
+    if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) {
+        std::cerr << "Failed to make EGL context current" << std::endl;
+        eglDestroyContext(eglDisplay, eglContext);
+        eglDestroySurface(eglDisplay, eglSurface);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
 
     // Print OpenGL information
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
     std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
+    std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
     // Compile and link shaders
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
@@ -118,7 +182,8 @@ int main() {
     
     if (!vertexShader || !fragmentShader) {
         std::cerr << "Shader compilation failed" << std::endl;
-        SDL_GL_DeleteContext(glContext);
+        eglDestroyContext(eglDisplay, eglContext);
+        eglDestroySurface(eglDisplay, eglSurface);
         SDL_DestroyWindow(window);
         SDL_Quit();
         return -1;
@@ -129,7 +194,8 @@ int main() {
         std::cerr << "Shader program creation failed" << std::endl;
         glDeleteShader(vertexShader);
         glDeleteShader(fragmentShader);
-        SDL_GL_DeleteContext(glContext);
+        eglDestroyContext(eglDisplay, eglContext);
+        eglDestroySurface(eglDisplay, eglSurface);
         SDL_DestroyWindow(window);
         SDL_Quit();
         return -1;
@@ -193,8 +259,8 @@ int main() {
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
-        // Swap buffers
-        SDL_GL_SwapWindow(window);
+        // Swap buffers using EGL
+        eglSwapBuffers(eglDisplay, eglSurface);
     }
 
     // Cleanup
@@ -202,7 +268,9 @@ int main() {
     glDeleteBuffers(1, &VBO);
     glDeleteProgram(shaderProgram);
 
-    SDL_GL_DeleteContext(glContext);
+    eglDestroyContext(eglDisplay, eglContext);
+    eglDestroySurface(eglDisplay, eglSurface);
+    eglTerminate(eglDisplay);
     SDL_DestroyWindow(window);
     SDL_Quit();
 

@@ -479,7 +479,8 @@ void AudioRenderStage::clear_output_textures() {
                 glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
 
                 // Set the draw buffer to the correct color attachment
-                glDrawBuffer(GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment());
+                GLenum draw_buffers[] = {GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment()};
+                glDrawBuffers(1, draw_buffers);
 
                 // Clear the color attachment
                 glClear(GL_COLOR_BUFFER_BIT);

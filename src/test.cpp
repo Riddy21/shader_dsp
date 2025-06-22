@@ -1,6 +1,5 @@
 #include <iostream>
 #include <unordered_map>
-#include <GL/glew.h>
 #include <cstdlib>
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_graph.h"

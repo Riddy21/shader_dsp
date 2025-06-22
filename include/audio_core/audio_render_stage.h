@@ -8,7 +8,6 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
-#include <GL/glew.h>
 
 #include "audio_core/audio_parameter.h"
 #include "utilities/shader_program.h"

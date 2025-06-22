@@ -2,8 +2,9 @@
 #ifndef AUDIO_SHADER_PROGRAM_H
 #define AUDIO_SHADER_PROGRAM_H
 
-#include <GL/glew.h>
 #include <string>
+#include <GLES3/gl3.h>
+#include <EGL/egl.h>
 
 class AudioShaderProgram {
 public:

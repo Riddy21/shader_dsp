@@ -1,4 +1,3 @@
-#include <GL/glew.h>
 #include <cstring>
 #include <regex>
 #include <string>
@@ -195,9 +194,14 @@ const void * const AudioTexture2DParameter::get_value() const {
         return AudioParameter::get_value();
     }
     else {
-        glBindTexture(GL_TEXTURE_2D, m_texture);
-        glGetTexImage(GL_TEXTURE_2D, 0, m_format, m_datatype, m_data->get_data());
-        glBindTexture(GL_TEXTURE_2D, 0);
+        // Bind framebuffer to read from texture
+        glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);
+        glReadBuffer(GL_COLOR_ATTACHMENT0 + m_color_attachment);
+        
+        // Read pixels from framebuffer instead of using glGetTexImage
+        glReadPixels(0, 0, m_parameter_width, m_parameter_height, m_format, m_datatype, m_data->get_data());
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         //  Using pixel buffer object may be faster
         //glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
@@ -224,7 +228,8 @@ void AudioTexture2DParameter::clear_value() {
     // Clear the color attachment of the frame buffer
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);
     // Set the draw buffer to the correct color attachment
-    glDrawBuffer(GL_COLOR_ATTACHMENT0 + m_color_attachment);
+    GLenum draw_buffers[] = {GL_COLOR_ATTACHMENT0 + m_color_attachment};
+    glDrawBuffers(1, draw_buffers);
 
     // Clear the color attachment
     glClear(GL_COLOR_BUFFER_BIT);

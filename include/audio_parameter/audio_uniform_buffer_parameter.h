@@ -2,8 +2,8 @@
 #ifndef AUDIO_UNIFORM_BUFFER_PARAMETERS_H   
 #define AUDIO_UNIFORM_BUFFER_PARAMETERS_H
 
-#include <GL/glew.h>
-#include <GL/glut.h>
+#include <GLES3/gl3.h>
+#include <EGL/egl.h>
 
 #include "audio_core/audio_parameter.h"
 

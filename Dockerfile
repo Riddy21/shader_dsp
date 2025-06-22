@@ -55,6 +55,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     pkg-config \
     libasound2-dev \
+    alsa-utils \
     libpulse-dev \
     libjack-jackd2-dev \
     libavcodec-dev \
@@ -102,6 +103,23 @@ RUN mkdir -p /opt/vc/lib /opt/vc/include /opt/vc/bin \
     && ln -sf /usr/lib/x86_64-linux-gnu/libvchiq_arm.so /opt/vc/lib/libvchiq_arm.so 2>/dev/null || true \
     && ln -sf /usr/include/bcm_host.h /opt/vc/include/bcm_host.h 2>/dev/null || true
 
+# Create ALSA configuration for container (as root)
+RUN mkdir -p /etc/alsa/conf.d && \
+    echo 'pcm.!default { type hw card 0 }' > /etc/alsa/conf.d/99-default.conf && \
+    echo 'ctl.!default { type hw card 0 }' >> /etc/alsa/conf.d/99-default.conf
+
+# Create ALSA device directory and set permissions
+RUN mkdir -p /dev/snd && \
+    chmod 755 /dev/snd
+
+# Create XDG runtime directories
+RUN mkdir -p /tmp/runtime-developer /tmp/data /tmp/config /tmp/cache && \
+    chmod 700 /tmp/runtime-developer
+
+# Copy entrypoint script before switching to non-root user
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Create non-root user
 RUN addgroup --gid 2000 developer && \
     adduser --disabled-password --uid 2000 --gid 2000 --gecos "" --shell /bin/bash developer && \
@@ -109,9 +127,13 @@ RUN addgroup --gid 2000 developer && \
     echo "developer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/developer && \
     chmod 0440 /etc/sudoers.d/developer
 
-# Ensure developer user has access to /usr/local/share
+# Add developer to audio group for ALSA access
+RUN usermod -a -G audio developer
+
+# Ensure developer user has access to /usr/local/share and XDG directories
 RUN mkdir -p /usr/local/share/npm-global && \
-    chown -R developer:developer /usr/local/share
+    chown -R developer:developer /usr/local/share && \
+    chown -R developer:developer /tmp/runtime-developer /tmp/data /tmp/config /tmp/cache
 
 ARG USERNAME=developer
 
@@ -165,10 +187,22 @@ RUN echo '# Raspberry Pi 5 simulation environment' >> ~/.bashrc \
     && echo 'export PATH=$PATH:/workspace/build/bin' >> ~/.bashrc \
     && echo 'export LD_LIBRARY_PATH=/opt/vc/lib:$LD_LIBRARY_PATH' >> ~/.bashrc \
     && echo 'export PKG_CONFIG_PATH=/opt/vc/lib/pkgconfig:$PKG_CONFIG_PATH' >> ~/.bashrc \
+    && echo '# XDG environment variables' >> ~/.bashrc \
+    && echo 'export XDG_RUNTIME_DIR=/tmp/runtime-developer' >> ~/.bashrc \
+    && echo 'export XDG_DATA_HOME=/tmp/data' >> ~/.bashrc \
+    && echo 'export XDG_CONFIG_HOME=/tmp/config' >> ~/.bashrc \
+    && echo 'export XDG_CACHE_HOME=/tmp/cache' >> ~/.bashrc \
+    && echo '# ALSA configuration' >> ~/.bashrc \
+    && echo 'export ALSA_PCM_CARD=0' >> ~/.bashrc \
+    && echo 'export ALSA_PCM_DEVICE=0' >> ~/.bashrc \
+    && echo 'export SDL_AUDIODRIVER=alsa' >> ~/.bashrc \
+    && echo 'export SDL_VIDEODRIVER=x11' >> ~/.bashrc \
     && echo '# Auto-build on login (with Pi-optimized settings)' >> ~/.bashrc \
     && echo 'if [ -f /workspace/SConstruct ] && [ ! -f /workspace/.build_completed ]; then' >> ~/.bashrc \
     && echo '  echo "Building project on first login (Pi 5 simulation)..."' >> ~/.bashrc \
     && echo '  cd /workspace && scons -j4 && touch /workspace/.build_completed' >> ~/.bashrc \
     && echo 'fi' >> ~/.bashrc
 
+# Set entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["/bin/bash"]

@@ -34,15 +34,19 @@ if GetOption('debug'):
 # Define include directories
 env.Append(CPPPATH=[INCLUDE_DIR])
 
-# Link libraries for main executable
+# Add OpenGL ES 3.0 include paths
+env.Append(CPPPATH=['/usr/include/GLES3', '/usr/include/GLES2', '/usr/include/EGL'])
+
+# Link libraries for main executable - use OpenGL ES instead of regular OpenGL
 env.Append(LIBS=[
     'SDL2_image',
     'SDL2_mixer',
     'SDL2_gfx',
     'SDL2_ttf',
     'SDL2',
-    'GLEW',
-    'GL',
+    'GLESv2',  # OpenGL ES 2.0/3.0 library
+    'GLESv1_CM',  # OpenGL ES 1.x library
+    'EGL',  # EGL library
     'pthread',
     'X11',
 ])

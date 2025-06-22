@@ -5,6 +5,9 @@
 #include <cstdint>    // For standard integer types like Uint32
 #include <string>
 
+// Include EGL compatibility header
+#include "graphics_core/egl_compatibility.h"
+
 // Structure to encapsulate rendering context information
 struct RenderContext {
     SDL_Window* window = nullptr;
@@ -32,19 +35,20 @@ struct RenderContext {
     // Activate this render context
     // FIXME: Think of way to avoid switching contexts when rendering events, instead only running the events in the right contexts
     void activate() const {
-        if (window && gl_context && SDL_GL_GetCurrentContext() != gl_context) {
+        if (window && gl_context) {
             previous_window = SDL_GL_GetCurrentWindow();
             previous_context = SDL_GL_GetCurrentContext();
-            SDL_GL_MakeCurrent(window, gl_context);
+            // Use EGL compatibility layer for context activation
+            EGLCompatibility::make_current(window, gl_context);
         }
     }
 
     // Unactivate this render context and restore the previous context and window
     void unactivate() const {
         if (previous_window && previous_context) {
-            SDL_GL_MakeCurrent(previous_window, previous_context);
+            EGLCompatibility::make_current(previous_window, previous_context);
         } else {
-            SDL_GL_MakeCurrent(nullptr, nullptr);
+            EGLCompatibility::make_current(nullptr, nullptr);
         }
     }
 

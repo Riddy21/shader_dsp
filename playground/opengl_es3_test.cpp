@@ -1,8 +1,8 @@
 #include <SDL2/SDL.h>
-#include <iostream>
-#include <stdexcept>
 #include <GLES3/gl3.h>
 #include <EGL/egl.h>
+#include <iostream>
+#include <stdexcept>
 
 // Vertex shader for OpenGL ES 3.0
 const char* vertexShaderSource = R"(
@@ -84,7 +84,7 @@ int main() {
 
     // Create window
     SDL_Window* window = SDL_CreateWindow(
-        "OpenGL ES 3.0 Test",
+        "OpenGL ES 3.0 Test with ANGLE",
         SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         800, 600,
         SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN
@@ -111,6 +111,7 @@ int main() {
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
     std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
+    std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
     // Compile and link shaders
     GLuint vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);

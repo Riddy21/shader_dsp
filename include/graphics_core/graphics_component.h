@@ -2,7 +2,6 @@
 #include <SDL2/SDL.h>
 #include <vector>
 #include <memory>
-#include <GL/glew.h>
 
 #include "engine/event_handler.h"
 #include "engine/renderable_item.h"

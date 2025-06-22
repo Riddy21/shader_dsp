@@ -1,5 +1,4 @@
 #include <iostream>
-#include <GL/glew.h>
 #include "graphics_components/button_component.h"
 #include "utilities/shader_program.h"
 #include "audio_synthesizer/audio_synthesizer.h"
