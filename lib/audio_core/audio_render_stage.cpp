@@ -279,10 +279,61 @@ const std::string AudioRenderStage::get_shader_source(const std::string & file_p
 
 const std::string AudioRenderStage::combine_shader_source(const std::vector<std::string> & import_paths, const std::string & shader_path) {
     std::string combined_source = "";
+    bool version_added = false;
+    
     for (auto & import_path : import_paths) {
-        combined_source += get_shader_source(import_path) + "\n";
+        std::string import_source = get_shader_source(import_path);
+        
+        // Check if this import contains a #version directive
+        if (import_source.find("#version") != std::string::npos) {
+            if (!version_added) {
+                // Find the first #version line and add it
+                size_t version_pos = import_source.find("#version");
+                size_t newline_pos = import_source.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_source += import_source.substr(version_pos, newline_pos - version_pos + 1);
+                    // Add the rest of the import source without the #version line
+                    combined_source += import_source.substr(newline_pos + 1);
+                } else {
+                    combined_source += import_source;
+                }
+                version_added = true;
+            } else {
+                // Remove #version line from subsequent imports
+                size_t version_pos = import_source.find("#version");
+                size_t newline_pos = import_source.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_source += import_source.substr(newline_pos + 1);
+                } else {
+                    combined_source += import_source;
+                }
+            }
+        } else {
+            combined_source += import_source;
+        }
+        combined_source += "\n";
     }
-    combined_source += get_shader_source(shader_path);
+    
+    std::string shader_source = get_shader_source(shader_path);
+    
+    // Check if the main shader has a #version directive
+    if (shader_source.find("#version") != std::string::npos) {
+        if (!version_added) {
+            // If no version was added yet, keep the one from the main shader
+            combined_source += shader_source;
+        } else {
+            // Remove #version line from main shader
+            size_t version_pos = shader_source.find("#version");
+            size_t newline_pos = shader_source.find('\n', version_pos);
+            if (newline_pos != std::string::npos) {
+                combined_source += shader_source.substr(newline_pos + 1);
+            } else {
+                combined_source += shader_source;
+            }
+        }
+    } else {
+        combined_source += shader_source;
+    }
 
     return combined_source;
 }

@@ -18,18 +18,19 @@ GraphComponent::GraphComponent(
 {
     // Initialize shader program using AudioShaderProgram
     const std::string vertex_shader_src = R"(
-        #version 330 core
+        #version 300 es
         layout(location = 0) in float value;
         uniform float data_size;
         void main() {
-            float x = gl_VertexID / (data_size - 1) * 2.0 - 1.0;
+            float x = float(gl_VertexID) / (data_size - 1.0) * 2.0 - 1.0;
             float y = value; // Already in [-1, 1] range
             gl_Position = vec4(x, y, 0.0, 1.0);
         }
     )";
 
     const std::string fragment_shader_src = R"(
-        #version 330 core
+        #version 300 es
+        precision mediump float;
         out vec4 frag_color;
         void main() {
             frag_color = vec4(0.0, 1.0, 0.0, 1.0); // Green color
@@ -82,7 +83,7 @@ void GraphComponent::render_content() {
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 1, GL_FLOAT, GL_FALSE, 0, nullptr);
 
-    glLineWidth(1.0f);
+    // Note: glLineWidth is not supported in OpenGL ES 3.0, line width is always 1.0
     glDrawArrays(GL_LINE_STRIP, 0, m_data->size());
 
     // Clean up

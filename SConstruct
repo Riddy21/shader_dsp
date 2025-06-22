@@ -34,6 +34,30 @@ if GetOption('debug'):
 # Define include directories
 env.Append(CPPPATH=[INCLUDE_DIR])
 
+# Add SDL2 include paths - try multiple common locations
+sdl2_include_paths = [
+    '/usr/include/SDL2',
+    '/usr/local/include/SDL2',
+    '/opt/homebrew/include/SDL2',
+    '/usr/include',
+    '/usr/local/include',
+    '/usr/include/x86_64-linux-gnu/SDL2',
+    '/usr/include/i386-linux-gnu/SDL2'
+]
+
+for path in sdl2_include_paths:
+    if os.path.exists(path):
+        env.Append(CPPPATH=[path])
+
+# Try to use pkg-config for SDL2 if available
+try:
+    import subprocess
+    sdl2_cflags = subprocess.check_output(['pkg-config', '--cflags', 'sdl2'], universal_newlines=True).strip()
+    if sdl2_cflags:
+        env.Append(CPPFLAGS=sdl2_cflags.split())
+except (subprocess.CalledProcessError, FileNotFoundError):
+    pass  # pkg-config not available or SDL2 not found
+
 # Add OpenGL ES 3.0 include paths
 env.Append(CPPPATH=['/usr/include/GLES3', '/usr/include/GLES2', '/usr/include/EGL'])
 

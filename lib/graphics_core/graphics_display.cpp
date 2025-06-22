@@ -19,7 +19,7 @@ GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const 
     }
 
     // Use the parent class method to initialize SDL window and context
-    if (!initialize_sdl(width, height, title, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN)) {
+    if (!initialize_sdl(width, height, title, SDL_WINDOW_SHOWN)) {
         SDL_Quit();
         throw std::runtime_error("SDL initialization failed");
     }

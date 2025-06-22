@@ -158,7 +158,7 @@ void TextComponent::initialize_static_graphics() {
     if (!s_graphics_initialized) {
         // Create a simple texture rendering program
         const std::string vertex_shader_src = R"(
-            #version 330 core
+            #version 300 es
             layout (location = 0) in vec2 aPos;
             layout (location = 1) in vec2 aTexCoord;
             
@@ -171,7 +171,8 @@ void TextComponent::initialize_static_graphics() {
         )";
 
         const std::string fragment_shader_src = R"(
-            #version 330 core
+            #version 300 es
+            precision mediump float;
             in vec2 TexCoord;
             out vec4 FragColor;
             
