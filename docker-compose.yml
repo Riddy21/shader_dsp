@@ -9,12 +9,13 @@ services:
       - .:/workspace
       - shader-dsp-history:/commandhistory
       - shader-dsp-config:/home/developer/.claude
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw # Share X11 socket for GUI
-      - /dev/snd:/dev/snd:rw # Share ALSA devices
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw # Share X11 socket for GUI (Linux/macOS)
+      # ALSA devices - only mount if they exist (Linux)
+      - ${ALSA_DEVICES:-/dev/null}:/dev/snd:rw
     environment:
       - NODE_OPTIONS=--max-old-space-size=2048
       - CLAUDE_CONFIG_DIR=/home/developer/.claude
-      - DISPLAY=host.docker.internal:0
+      - DISPLAY=${DISPLAY:-host.docker.internal:0}
       - XDG_RUNTIME_DIR=/tmp/runtime-developer
       - XDG_DATA_HOME=/tmp/data
       - XDG_CONFIG_HOME=/tmp/config
@@ -27,10 +28,9 @@ services:
       - QT_X11_NO_MITSHM=1
       - _X11_NO_MITSHM=1
       - _MITSHM=0
-      - ALSA_PCM_CARD=0
-      - ALSA_PCM_DEVICE=0
-      - SDL_AUDIODRIVER=alsa
-      - SDL_VIDEODRIVER=x11
+      # Audio driver will be set by entrypoint script based on OS
+      - SDL_AUDIODRIVER=dummy
+      - SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-x11}
       - LIBGL_ALWAYS_SOFTWARE=1
       - MESA_GL_VERSION_OVERRIDE=3.3
       - MESA_GLSL_VERSION_OVERRIDE=330
@@ -40,9 +40,10 @@ services:
       - NET_RAW
       - SYS_ADMIN  # Add SYS_ADMIN for device access
       - SYS_PTRACE # For debugging
+    # Conditional device mapping - only for Linux with ALSA
     devices:
-      - /dev/snd:/dev/snd:rw
-    # Remove host network mode for better macOS compatibility
+      - ${ALSA_DEVICES:-/dev/null}:/dev/snd:rw
+    # Remove host network mode for better cross-platform compatibility
     ports:
       - "8080:8080"  # Optional: expose a port if needed
     tty: true

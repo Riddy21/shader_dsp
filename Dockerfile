@@ -192,10 +192,7 @@ RUN echo '# Raspberry Pi 5 simulation environment' >> ~/.bashrc \
     && echo 'export XDG_DATA_HOME=/tmp/data' >> ~/.bashrc \
     && echo 'export XDG_CONFIG_HOME=/tmp/config' >> ~/.bashrc \
     && echo 'export XDG_CACHE_HOME=/tmp/cache' >> ~/.bashrc \
-    && echo '# ALSA configuration' >> ~/.bashrc \
-    && echo 'export ALSA_PCM_CARD=0' >> ~/.bashrc \
-    && echo 'export ALSA_PCM_DEVICE=0' >> ~/.bashrc \
-    && echo 'export SDL_AUDIODRIVER=alsa' >> ~/.bashrc \
+    && echo '# Audio configuration will be set by entrypoint script based on OS' >> ~/.bashrc \
     && echo 'export SDL_VIDEODRIVER=x11' >> ~/.bashrc \
     && echo '# Auto-build on login (with Pi-optimized settings)' >> ~/.bashrc \
     && echo 'if [ -f /workspace/SConstruct ] && [ ! -f /workspace/.build_completed ]; then' >> ~/.bashrc \
