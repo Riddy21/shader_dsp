@@ -67,6 +67,11 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-dev \
+    # Add PulseAudio packages (exactly as in SDL example)
+    pulseaudio \
+    pulseaudio-utils \
+    alsa-utils \
+    libasound2-plugins \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (simulating Pi environment)
@@ -102,9 +107,31 @@ RUN mkdir -p /opt/vc/lib /opt/vc/include /opt/vc/bin \
 RUN mkdir -p /tmp/runtime-root /tmp/data /tmp/config /tmp/cache && \
     chmod 700 /tmp/runtime-root
 
+# Create pulse audio user and group (handle existing group) - exactly as in SDL example
+RUN groupadd -r pulse 2>/dev/null || true && \
+    useradd -r -g pulse pulse 2>/dev/null || true
+
+# Create necessary directories - exactly as in SDL example
+RUN mkdir -p /etc/pulse /root/.config/pulse /home/pulse/.config/pulse
+
+# Copy pulse audio configuration - exactly as in SDL example
+COPY pulse-client.conf /etc/pulse/client.conf
+
 # Copy entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Copy audio setup script - exactly as in SDL example
+COPY scripts/audio_setup.sh /usr/local/bin/audio_setup.sh
+RUN chmod +x /usr/local/bin/audio_setup.sh
+
+# Copy device listing script - exactly as in SDL example
+COPY scripts/list_devices.sh /usr/local/bin/list_devices.sh
+RUN chmod +x /usr/local/bin/list_devices.sh
+
+# Copy audio test script - exactly as in SDL example
+COPY scripts/test_audio.sh /usr/local/bin/test_audio.sh
+RUN chmod +x /usr/local/bin/test_audio.sh
 
 # Set `DEVCONTAINER` environment variable to help with orientation
 ENV DEVCONTAINER=true
@@ -132,6 +159,11 @@ RUN mkdir -p /usr/local/share/npm-global/bin \
 # Set environment variables for Claude
 ENV CLAUDE_CONFIG_DIR=/root/.claude
 ENV NODE_OPTIONS="--max-old-space-size=2048"
+
+# Set PulseAudio environment variables - exactly as in SDL example
+ENV PULSE_SERVER=host.docker.internal
+ENV PULSE_COOKIE=/root/.config/pulse/cookie
+ENV DISPLAY=:0
 
 # Set the default shell to bash
 ENV SHELL /bin/bash

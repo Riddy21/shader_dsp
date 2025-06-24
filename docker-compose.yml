@@ -29,11 +29,14 @@ services:
       - _X11_NO_MITSHM=1
       - _MITSHM=0
       # Audio driver will be set by entrypoint script based on OS
-      - SDL_AUDIODRIVER=dummy
+      - SDL_AUDIODRIVER=pulse
       - SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-x11}
       - LIBGL_ALWAYS_SOFTWARE=1
       - MESA_GL_VERSION_OVERRIDE=3.3
       - MESA_GLSL_VERSION_OVERRIDE=330
+      # PulseAudio environment variables - exactly as in SDL example
+      - PULSE_SERVER=host.docker.internal
+      - PULSE_COOKIE=/root/.config/pulse/cookie
     working_dir: /workspace
     cap_add:
       - NET_ADMIN

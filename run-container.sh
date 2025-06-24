@@ -114,6 +114,10 @@ if [ $# -eq 0 ]; then
     echo "  connect - Connect to the running container shell"
     echo "  rebuild - Rebuild and restart the container (down+build+up)"
     echo "  test    - Test the AudioSynthesizer application"
+    echo "  audio   - Setup and test audio (PulseAudio)"
+    echo "  audio-test - Run audio test script in container"
+    echo "  audio-list - List audio devices in container"
+    echo "  pulse-setup - Setup PulseAudio server on host (macOS)"
     echo ""
     echo "Example: ./run-container.sh up"
     exit 1
@@ -199,6 +203,81 @@ case $COMMAND in
         docker-compose exec -T shader-dsp bash -c "cd /workspace && ./build/bin/AudioSynthesizer 2>&1"
         ;;
     
+    audio)
+        echo "=== Audio Setup and Test ==="
+        check_docker
+        
+        if ! docker-compose ps | grep -q shader-dsp; then
+            echo "Container is not running. Starting it now..."
+            ./run-container.sh up
+        fi
+        
+        echo "Setting up audio..."
+        docker-compose exec -T shader-dsp bash -c "audio_setup.sh"
+        echo ""
+        echo "Audio setup completed. You can now test audio with:"
+        echo "  ./run-container.sh audio-test"
+        echo "Or list devices with:"
+        echo "  ./run-container.sh audio-list"
+        ;;
+    
+    audio-test)
+        echo "=== Audio Test ==="
+        check_docker
+        
+        if ! docker-compose ps | grep -q shader-dsp; then
+            echo "Container is not running. Starting it now..."
+            ./run-container.sh up
+        fi
+        
+        echo "Running audio test..."
+        docker-compose exec -T shader-dsp bash -c "test_audio.sh"
+        ;;
+    
+    audio-list)
+        echo "=== Audio Devices List ==="
+        check_docker
+        
+        if ! docker-compose ps | grep -q shader-dsp; then
+            echo "Container is not running. Starting it now..."
+            ./run-container.sh up
+        fi
+        
+        echo "Listing audio devices..."
+        docker-compose exec -T shader-dsp bash -c "list_devices.sh"
+        ;;
+    
+    pulse-setup)
+        echo "Setting up PulseAudio server on host (macOS)..."
+        # Check if pulseaudio is installed
+        if ! command -v pulseaudio > /dev/null 2>&1; then
+            echo "PulseAudio not found. Installing via Homebrew..."
+            if command -v brew > /dev/null 2>&1; then
+                brew install pulseaudio
+            else
+                echo "Homebrew not found. Please install Homebrew and rerun this command."
+                exit 1
+            fi
+        else
+            echo "PulseAudio is already installed."
+        fi
+        echo "Killing any existing PulseAudio processes..."
+        pkill -f pulseaudio 2>/dev/null || true
+        echo "Creating pulse config directory..."
+        mkdir -p ~/.config/pulse
+        echo "Starting PulseAudio as daemon..."
+        pulseaudio -vv --exit-idle-time=-1 \
+            --load=module-coreaudio-detect \
+            --load=module-native-protocol-tcp \
+            --daemonize=yes
+        sleep 2
+        echo "Unsetting PULSE_SERVER..."
+        unset PULSE_SERVER
+        echo "Setting default sink to built-in speakers (sink 1)..."
+        pactl set-default-sink 1 || true
+        echo "✓ PulseAudio server setup complete"
+        ;;
+    
     rebuild)
         echo "Rebuilding and restarting container..."
         setup_environment
@@ -211,7 +290,7 @@ case $COMMAND in
         
     *)
         echo "Unknown command: $COMMAND"
-        echo "Available commands: up, build, down, connect, rebuild, test"
+        echo "Available commands: up, build, down, connect, rebuild, test, audio, audio-test, audio-list, pulse-setup"
         exit 1
         ;;
 esac
