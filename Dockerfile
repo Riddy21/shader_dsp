@@ -1,12 +1,6 @@
 FROM debian:bookworm-slim
 
 ARG TZ=UTC
-ENV TZ="${TZ}"
-
-# Simulate Raspberry Pi 5 environment variables
-ENV RASPBERRY_PI_SIMULATION=true
-ENV PI_ARCH=arm64
-ENV PI_MODEL=5
 
 # Update package lists and install basic dependencies
 RUN apt-get update && apt-get install -y \
@@ -115,11 +109,7 @@ RUN groupadd -r pulse 2>/dev/null || true && \
 RUN mkdir -p /etc/pulse /root/.config/pulse /home/pulse/.config/pulse
 
 # Copy pulse audio configuration - exactly as in SDL example
-COPY pulse-client.conf /etc/pulse/client.conf
-
-# Copy entrypoint script
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+COPY conf/pulse-client.conf /etc/pulse/client.conf
 
 # Copy audio setup script - exactly as in SDL example
 COPY scripts/audio_setup.sh /usr/local/bin/audio_setup.sh
@@ -133,17 +123,10 @@ RUN chmod +x /usr/local/bin/list_devices.sh
 COPY scripts/test_audio.sh /usr/local/bin/test_audio.sh
 RUN chmod +x /usr/local/bin/test_audio.sh
 
-# Set `DEVCONTAINER` environment variable to help with orientation
-ENV DEVCONTAINER=true
-
 # Create workspace directory
 RUN mkdir -p /workspace
 
 WORKDIR /workspace
-
-# Install global packages
-ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
-ENV PATH=$PATH:/usr/local/share/npm-global/bin
 
 # Install Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code
@@ -156,39 +139,5 @@ RUN mkdir -p /usr/local/share/npm-global/bin \
     && (mv /usr/local/share/npm-global/bin/claude /usr/local/share/npm-global/bin/claude-original 2>/dev/null || true) \
     && ln -sf /usr/local/share/npm-global/bin/claude-wrapper /usr/local/share/npm-global/bin/claude
 
-# Set environment variables for Claude
-ENV CLAUDE_CONFIG_DIR=/root/.claude
-ENV NODE_OPTIONS="--max-old-space-size=2048"
-
-# Set PulseAudio environment variables - exactly as in SDL example
-ENV PULSE_SERVER=host.docker.internal
-ENV PULSE_COOKIE=/root/.config/pulse/cookie
-ENV DISPLAY=:0
-
-# Set the default shell to bash
-ENV SHELL /bin/bash
-
-# Setup bash configuration with Pi-specific environment
-RUN echo '# Raspberry Pi 5 simulation environment' >> ~/.bashrc \
-    && echo 'export RASPBERRY_PI_SIMULATION=true' >> ~/.bashrc \
-    && echo 'export PI_ARCH=arm64' >> ~/.bashrc \
-    && echo 'export PI_MODEL=5' >> ~/.bashrc \
-    && echo 'export PATH=$PATH:/usr/local/share/npm-global/bin' >> ~/.bashrc \
-    && echo 'export PATH=$PATH:/workspace/build/bin' >> ~/.bashrc \
-    && echo 'export LD_LIBRARY_PATH=/opt/vc/lib:$LD_LIBRARY_PATH' >> ~/.bashrc \
-    && echo 'export PKG_CONFIG_PATH=/opt/vc/lib/pkgconfig:$PKG_CONFIG_PATH' >> ~/.bashrc \
-    && echo '# XDG environment variables' >> ~/.bashrc \
-    && echo 'export XDG_RUNTIME_DIR=/tmp/runtime-root' >> ~/.bashrc \
-    && echo 'export XDG_DATA_HOME=/tmp/data' >> ~/.bashrc \
-    && echo 'export XDG_CONFIG_HOME=/tmp/config' >> ~/.bashrc \
-    && echo 'export XDG_CACHE_HOME=/tmp/cache' >> ~/.bashrc \
-    && echo 'export SDL_VIDEODRIVER=x11' >> ~/.bashrc \
-    && echo '# Auto-build on login (with Pi-optimized settings)' >> ~/.bashrc \
-    && echo 'if [ -f /workspace/SConstruct ] && [ ! -f /workspace/.build_completed ]; then' >> ~/.bashrc \
-    && echo '  echo "Building project on first login (Pi 5 simulation)..."' >> ~/.bashrc \
-    && echo '  cd /workspace && scons -j4 && touch /workspace/.build_completed' >> ~/.bashrc \
-    && echo 'fi' >> ~/.bashrc
-
-# Set entrypoint
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# Set default command
 CMD ["/bin/bash"]

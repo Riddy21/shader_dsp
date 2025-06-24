@@ -13,30 +13,54 @@ services:
       # ALSA devices - only mount if they exist (Linux)
       - ${ALSA_DEVICES:-/dev/null}:/dev/snd:rw
     environment:
-      - NODE_OPTIONS=--max-old-space-size=2048
-      - CLAUDE_CONFIG_DIR=/home/developer/.claude
-      - DISPLAY=${DISPLAY:-host.docker.internal:0}
-      - XDG_RUNTIME_DIR=/tmp/runtime-developer
-      - XDG_DATA_HOME=/tmp/data
-      - XDG_CONFIG_HOME=/tmp/config
-      - XDG_CACHE_HOME=/tmp/cache
+      # Timezone
+      - TZ=${TZ:-UTC}
+      
+      # Raspberry Pi 5 simulation environment
       - RASPBERRY_PI_SIMULATION=true
       - PI_ARCH=arm64
       - PI_MODEL=5
-      - LD_LIBRARY_PATH=/opt/vc/lib
-      - PKG_CONFIG_PATH=/opt/vc/lib/pkgconfig
+      
+      # Development container
+      - DEVCONTAINER=true
+      
+      # Node.js and Claude configuration
+      - NODE_OPTIONS=--max-old-space-size=2048
+      - NPM_CONFIG_PREFIX=/usr/local/share/npm-global
+      - CLAUDE_CONFIG_DIR=/home/developer/.claude
+      
+      # PATH configuration
+      - PATH=/usr/local/share/npm-global/bin:/workspace/build/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      
+      # Display and X11 configuration
+      - DISPLAY=${DISPLAY:-host.docker.internal:0}
+      - SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-x11}
       - QT_X11_NO_MITSHM=1
       - _X11_NO_MITSHM=1
       - _MITSHM=0
-      # Audio driver will be set by entrypoint script based on OS
-      - SDL_AUDIODRIVER=pulse
-      - SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-x11}
+      
+      # XDG environment variables
+      - XDG_RUNTIME_DIR=/tmp/runtime-root
+      - XDG_DATA_HOME=/tmp/data
+      - XDG_CONFIG_HOME=/tmp/config
+      - XDG_CACHE_HOME=/tmp/cache
+      
+      # OpenGL and Mesa configuration
       - LIBGL_ALWAYS_SOFTWARE=1
       - MESA_GL_VERSION_OVERRIDE=3.3
       - MESA_GLSL_VERSION_OVERRIDE=330
-      # PulseAudio environment variables - exactly as in SDL example
+      
+      # Raspberry Pi library paths
+      - LD_LIBRARY_PATH=/opt/vc/lib
+      - PKG_CONFIG_PATH=/opt/vc/lib/pkgconfig
+      
+      # Audio configuration
+      - SDL_AUDIODRIVER=pulse
       - PULSE_SERVER=host.docker.internal
       - PULSE_COOKIE=/root/.config/pulse/cookie
+      
+      # Shell configuration
+      - SHELL=/bin/bash
     working_dir: /workspace
     cap_add:
       - NET_ADMIN
