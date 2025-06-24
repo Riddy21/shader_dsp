@@ -35,7 +35,6 @@ RUN apt-get update && apt-get install -y \
     freeglut3-dev \
     g++ \
     scons \
-    portaudio19-dev \
     libx11-dev \
     libxext-dev \
     libxrandr-dev \
@@ -54,10 +53,6 @@ RUN apt-get update && apt-get install -y \
     make \
     build-essential \
     pkg-config \
-    libasound2-dev \
-    alsa-utils \
-    libpulse-dev \
-    libjack-jackd2-dev \
     libavcodec-dev \
     libavformat-dev \
     libswscale-dev \
@@ -103,58 +98,21 @@ RUN mkdir -p /opt/vc/lib /opt/vc/include /opt/vc/bin \
     && ln -sf /usr/lib/x86_64-linux-gnu/libvchiq_arm.so /opt/vc/lib/libvchiq_arm.so 2>/dev/null || true \
     && ln -sf /usr/include/bcm_host.h /opt/vc/include/bcm_host.h 2>/dev/null || true
 
-# Create ALSA configuration for container (as root)
-RUN mkdir -p /etc/alsa/conf.d && \
-    echo 'pcm.!default { type hw card 0 }' > /etc/alsa/conf.d/99-default.conf && \
-    echo 'ctl.!default { type hw card 0 }' >> /etc/alsa/conf.d/99-default.conf
-
-# Create ALSA device directory and set permissions
-RUN mkdir -p /dev/snd && \
-    chmod 755 /dev/snd
-
 # Create XDG runtime directories
-RUN mkdir -p /tmp/runtime-developer /tmp/data /tmp/config /tmp/cache && \
-    chmod 700 /tmp/runtime-developer
+RUN mkdir -p /tmp/runtime-root /tmp/data /tmp/config /tmp/cache && \
+    chmod 700 /tmp/runtime-root
 
-# Copy entrypoint script before switching to non-root user
+# Copy entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
-
-# Create non-root user
-RUN addgroup --gid 2000 developer && \
-    adduser --disabled-password --uid 2000 --gid 2000 --gecos "" --shell /bin/bash developer && \
-    mkdir -p /etc/sudoers.d && \
-    echo "developer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/developer && \
-    chmod 0440 /etc/sudoers.d/developer
-
-# Add developer to audio group for ALSA access
-RUN usermod -a -G audio developer
-
-# Ensure developer user has access to /usr/local/share and XDG directories
-RUN mkdir -p /usr/local/share/npm-global && \
-    chown -R developer:developer /usr/local/share && \
-    chown -R developer:developer /tmp/runtime-developer /tmp/data /tmp/config /tmp/cache
-
-ARG USERNAME=developer
-
-# Persist command history
-RUN mkdir -p /commandhistory && \
-    touch /commandhistory/.bash_history && \
-    mkdir -p /home/$USERNAME && \
-    ln -s /commandhistory/.bash_history /home/$USERNAME/.bash_history && \
-    chown -R $USERNAME:$USERNAME /commandhistory /home/$USERNAME/.bash_history
 
 # Set `DEVCONTAINER` environment variable to help with orientation
 ENV DEVCONTAINER=true
 
-# Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/$USERNAME/.claude && \
-    chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.claude
+# Create workspace directory
+RUN mkdir -p /workspace
 
 WORKDIR /workspace
-
-# Set up non-root user
-USER $USERNAME
 
 # Install global packages
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
@@ -172,7 +130,7 @@ RUN mkdir -p /usr/local/share/npm-global/bin \
     && ln -sf /usr/local/share/npm-global/bin/claude-wrapper /usr/local/share/npm-global/bin/claude
 
 # Set environment variables for Claude
-ENV CLAUDE_CONFIG_DIR=/home/$USERNAME/.claude
+ENV CLAUDE_CONFIG_DIR=/root/.claude
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Set the default shell to bash
@@ -188,11 +146,10 @@ RUN echo '# Raspberry Pi 5 simulation environment' >> ~/.bashrc \
     && echo 'export LD_LIBRARY_PATH=/opt/vc/lib:$LD_LIBRARY_PATH' >> ~/.bashrc \
     && echo 'export PKG_CONFIG_PATH=/opt/vc/lib/pkgconfig:$PKG_CONFIG_PATH' >> ~/.bashrc \
     && echo '# XDG environment variables' >> ~/.bashrc \
-    && echo 'export XDG_RUNTIME_DIR=/tmp/runtime-developer' >> ~/.bashrc \
+    && echo 'export XDG_RUNTIME_DIR=/tmp/runtime-root' >> ~/.bashrc \
     && echo 'export XDG_DATA_HOME=/tmp/data' >> ~/.bashrc \
     && echo 'export XDG_CONFIG_HOME=/tmp/config' >> ~/.bashrc \
     && echo 'export XDG_CACHE_HOME=/tmp/cache' >> ~/.bashrc \
-    && echo '# Audio configuration will be set by entrypoint script based on OS' >> ~/.bashrc \
     && echo 'export SDL_VIDEODRIVER=x11' >> ~/.bashrc \
     && echo '# Auto-build on login (with Pi-optimized settings)' >> ~/.bashrc \
     && echo 'if [ -f /workspace/SConstruct ] && [ ! -f /workspace/.build_completed ]; then' >> ~/.bashrc \
