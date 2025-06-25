@@ -14,7 +14,7 @@ services:
       - ${ALSA_DEVICES:-/dev/null}:/dev/snd:rw
       # PulseAudio configuration and cookie (macOS)
       - ./conf/pulse-client.conf:/root/.config/pulse/client.conf:ro
-      - ./conf/pulse-cookie:/root/.config/pulse/cookie:ro
+      - ~/.config/pulse/cookie:/root/.config/pulse/cookie:rw
     environment:
       # Timezone
       - TZ=${TZ:-UTC}
@@ -79,8 +79,8 @@ services:
     tty: true
     stdin_open: true
     command: /bin/bash
-    # Set the user to match the UID:GID in Dockerfile (2000:2000)
-    user: "2000:2000"
+    # Set the user to root for full access
+    user: "root"
     # Raspberry Pi 5 simulation constraints
     deploy:
       resources:

@@ -59,13 +59,13 @@ export SDL_VIDEODRIVER
 export ALSA_DEVICES
 
 # Complete setup - install dependencies and build container
-build: install-docker setup-x11 install-pulse setup-pulse-cookie build-container
+build: setup-docker setup-x11 setup-pulse start-pulse build-container
 	@echo "✓ Complete setup finished!"
 	@echo "Run 'make up' to start everything"
 
-# Install Docker
-install-docker:
-	@echo "Installing Docker..."
+# Setup Docker
+setup-docker:
+	@echo "Setting up Docker..."
 	@echo "Checking Docker installation and status..."
 	@if ! command -v docker >/dev/null 2>&1; then \
 		echo "Docker not found. Installing..."; \
@@ -140,11 +140,11 @@ else
 	@echo "X11 setup not needed on $(PLATFORM)"
 endif
 
-# Install PulseAudio
-install-pulse:
-	@echo "Installing PulseAudio..."
+# Setup PulseAudio
+setup-pulse:
+	@echo "Setting up PulseAudio..."
 ifeq ($(PLATFORM),macos)
-	@echo "Installing PulseAudio..."
+	@echo "Setting up PulseAudio..."
 	@if ! command -v pulseaudio >/dev/null 2>&1; then \
 		echo "PulseAudio not found. Installing via Homebrew..."; \
 		if command -v brew >/dev/null 2>&1; then \
@@ -174,7 +174,7 @@ build-container:
 	@echo "✓ Container built successfully!"
 
 # Start XQuartz and Docker container
-up: start-x11 setup-pulse
+up: start-x11 start-pulse
 	@echo "Starting Docker container..."
 	docker-compose up -d
 	@echo ""
@@ -213,15 +213,17 @@ else
 	@echo "X11 startup not needed on $(PLATFORM)"
 endif
 
-# Setup PulseAudio server on host (macOS)
-setup-pulse:
-	@echo "Setting up PulseAudio..."
+# Start PulseAudio server on host (macOS)
+start-pulse:
+	@echo "Starting PulseAudio..."
 ifeq ($(PLATFORM),macos)
-	@echo "Setting up PulseAudio server on host (macOS)..."
+	@echo "Starting PulseAudio server on host (macOS)..."
 	@echo "Killing any existing PulseAudio processes..."
 	@pkill -f pulseaudio 2>/dev/null || true
 	@echo "Creating pulse config directory..."
 	@mkdir -p ~/.config/pulse
+	@echo "Copying PulseAudio client configuration..."
+	@cp conf/pulse-client.conf ~/.config/pulse/client.conf
 	@echo "Starting PulseAudio as daemon..."
 	@pulseaudio -vv --exit-idle-time=-1 \
 		--load=module-coreaudio-detect \
@@ -231,6 +233,11 @@ ifeq ($(PLATFORM),macos)
 	@echo "Setting default sink to built-in speakers (sink 1)..."
 	@pactl set-default-sink 1 || true
 	@echo "✓ PulseAudio server started successfully"
+	@if [ -f ~/.config/pulse/cookie ]; then \
+		echo "✓ PulseAudio cookie exists in home directory"; \
+	else \
+		echo "✗ PulseAudio cookie missing from home directory. Audio in container may not work."; \
+	fi
 else
 	@echo "PulseAudio setup is only needed on macOS"
 endif
