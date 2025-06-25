@@ -1,7 +1,7 @@
 # Shader DSP Development Environment Makefile
-# Consolidates container management, audio setup, and development tasks
+# Simplified container management and development tasks
 
-.PHONY: help build up down connect rebuild test audio audio-test audio-list pulse-setup pulse-stop clean all setup install-deps
+.PHONY: help build up down connect clean status
 
 # Default target
 help:
@@ -9,26 +9,30 @@ help:
 	@echo "=================================="
 	@echo ""
 	@echo "Available targets:"
-	@echo "  install-deps - Install and setup Docker and XQuartz dependencies"
-	@echo "  setup       - Complete setup (pulse-setup + build + up)"
-	@echo "  build       - Build/rebuild the container"
-	@echo "  up          - Start the container in detached mode"
-	@echo "  down        - Stop and remove the container"
-	@echo "  connect     - Connect to the running container shell"
-	@echo "  rebuild     - Rebuild and restart the container"
-	@echo "  audio       - Setup and test audio (PulseAudio)"
-	@echo "  audio-test  - Run audio test script in container"
-	@echo "  audio-list  - List audio devices in container"
-	@echo "  pulse-setup - Setup PulseAudio server on host (macOS)"
-	@echo "  pulse-stop  - Stop PulseAudio server"
-	@echo "  clean       - Stop container and PulseAudio, clean up"
-	@echo "  all         - Complete setup and audio configuration"
+	@echo "  build   - Complete setup (install dependencies, build container)"
+	@echo "  up      - Start XQuartz, PulseAudio server, and Docker container"
+	@echo "  down    - Stop container, PulseAudio, and XQuartz"
+	@echo "  connect - Connect to the running container shell"
+	@echo "  clean   - Complete cleanup (down + remove containers/images)"
+	@echo "  status  - Show current status of all components"
+	@echo ""
+	@echo "Simple Workflow:"
+	@echo "  1. First time: make build"
+	@echo "  2. Daily use:  make up → make connect → work → make down"
+	@echo "  3. Cleanup:    make clean"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make install-deps - Install Docker and XQuartz dependencies"
-	@echo "  make setup  - Complete initial setup"
-	@echo "  make all    - Setup everything and configure audio"
-	@echo "  make clean  - Clean shutdown"
+	@echo "  make build   - Complete initial setup"
+	@echo "  make up      - Start everything"
+	@echo "  make connect - Open container shell"
+	@echo "  make down    - Stop everything"
+	@echo "  make clean   - Complete cleanup"
+	@echo ""
+	@echo "The Makefile automatically handles:"
+	@echo "  • Installing Docker and Homebrew (if needed)"
+	@echo "  • Setting up X11/XQuartz for macOS"
+	@echo "  • Installing and configuring PulseAudio for audio support"
+	@echo "  • Building and managing the Docker container"
 
 # Detect operating system
 OS := $(shell uname -s)
@@ -54,22 +58,26 @@ export DISPLAY
 export SDL_VIDEODRIVER
 export ALSA_DEVICES
 
-# PulseAudio status file
-PULSE_STATUS_FILE := .pulse_audio_ready
+# Complete setup - install dependencies and build container
+build: install-docker setup-x11 install-pulse build-container
+	@echo "✓ Complete setup finished!"
+	@echo "Run 'make up' to start everything"
 
-# Check if Docker is running and install if needed
-check-docker:
+# Install Docker
+install-docker:
+	@echo "Installing Docker..."
 	@echo "Checking Docker installation and status..."
 	@if ! command -v docker >/dev/null 2>&1; then \
-		echo "Docker not found. Attempting to install..."; \
+		echo "Docker not found. Installing..."; \
 		if [ "$(PLATFORM)" = "macos" ]; then \
 			if command -v brew >/dev/null 2>&1; then \
 				echo "Installing Docker via Homebrew..."; \
 				brew install --cask docker; \
 			else \
-				echo "Homebrew not found. Please install Docker manually from https://www.docker.com/products/docker-desktop"; \
-				echo "Or install Homebrew first: /bin/bash -c \"\$$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""; \
-				exit 1; \
+				echo "Homebrew not found. Installing Homebrew first..."; \
+				/bin/bash -c "$$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; \
+				echo "Installing Docker via Homebrew..."; \
+				brew install --cask docker; \
 			fi; \
 		else \
 			echo "Please install Docker for your platform from https://www.docker.com/products/docker-desktop"; \
@@ -101,26 +109,83 @@ check-docker:
 	fi
 	@echo "✓ Docker is running and ready!"
 
-# Setup X11 for macOS - install and open XQuartz if needed
-setup-macos-x11:
+# Setup X11 for macOS
+setup-x11:
+	@echo "Setting up X11..."
 ifeq ($(PLATFORM),macos)
 	@echo "Setting up X11 for macOS..."
 	@if ! command -v xquartz >/dev/null 2>&1 && ! ls /Applications/Utilities/XQuartz.app >/dev/null 2>&1; then \
 		echo "XQuartz not found. Installing..."; \
 		if command -v brew >/dev/null 2>&1; then \
 			brew install --cask xquartz; \
-			echo "XQuartz installed. Please restart your computer and run 'make setup' again."; \
+			echo "XQuartz installed. Please restart your computer and run 'make build' again."; \
 			echo "After restart, enable 'Allow connections from network clients' in XQuartz preferences."; \
 			exit 1; \
 		else \
 			echo "Homebrew not found. Please install XQuartz manually:"; \
-			echo "1. Install Homebrew: /bin/bash -c \"\$$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""; \
+			echo "1. Install Homebrew: /bin/bash -c \"$$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""; \
 			echo "2. Install XQuartz: brew install --cask xquartz"; \
 			echo "3. Restart your computer"; \
 			echo "4. Enable 'Allow connections from network clients' in XQuartz preferences"; \
 			exit 1; \
 		fi; \
 	fi
+	@if [ ! -d "/tmp/.X11-unix" ]; then \
+		echo "Creating X11 socket directory..."; \
+		sudo mkdir -p /tmp/.X11-unix; \
+		sudo chmod 1777 /tmp/.X11-unix; \
+	fi
+	@echo "✓ X11 setup completed for macOS"
+else
+	@echo "X11 setup not needed on $(PLATFORM)"
+endif
+
+# Install PulseAudio
+install-pulse:
+	@echo "Installing PulseAudio..."
+ifeq ($(PLATFORM),macos)
+	@echo "Installing PulseAudio..."
+	@if ! command -v pulseaudio >/dev/null 2>&1; then \
+		echo "PulseAudio not found. Installing via Homebrew..."; \
+		if command -v brew >/dev/null 2>&1; then \
+			brew install pulseaudio; \
+		else \
+			echo "Homebrew not found. Installing Homebrew first..."; \
+			/bin/bash -c "$$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; \
+			echo "Installing PulseAudio via Homebrew..."; \
+			brew install pulseaudio; \
+		fi; \
+	else \
+		echo "✓ PulseAudio is already installed."; \
+	fi
+	@echo "✓ PulseAudio installation completed"
+else
+	@echo "PulseAudio installation is only needed on macOS"
+endif
+
+# Build the container
+build-container:
+	@echo "Building container..."
+	@echo "Building container..."
+	@echo "ALSA devices: $(ALSA_DEVICES)"
+	@echo "SDL video driver: $(SDL_VIDEODRIVER)"
+	@echo "Display: $(DISPLAY)"
+	docker-compose build
+	@echo "✓ Container built successfully!"
+
+# Start XQuartz and Docker container
+up: start-x11 setup-pulse
+	@echo "Starting Docker container..."
+	docker-compose up -d
+	@echo ""
+	@echo "✓ Everything started successfully!"
+	@echo "Use 'make connect' to open a shell in the container."
+
+# Start X11
+start-x11:
+	@echo "Starting XQuartz..."
+ifeq ($(PLATFORM),macos)
+	@echo "Starting XQuartz..."
 	@if ! pgrep -x "Xquartz" >/dev/null; then \
 		echo "Starting XQuartz..."; \
 		open -a XQuartz; \
@@ -137,49 +202,22 @@ ifeq ($(PLATFORM),macos)
 		if ! pgrep -x "Xquartz" >/dev/null; then \
 			echo "Warning: XQuartz may not have started properly. Continuing anyway..."; \
 		fi; \
-		if command -v xhost >/dev/null 2>&1; then \
-			echo "Enabling X11 connections with timeout..."; \
-			DISPLAY=:0 xhost +localhost; \
-			DISPLAY=:0 xhost + 127.0.0.1; \
-			echo "X11 connection setup completed"; \
-		fi; \
-	else \
-		echo "XQuartz is already running. Enabling X11 connections..."; \
-		if command -v xhost >/dev/null 2>&1; then \
-			echo "Enabling X11 connections with timeout..."; \
-			DISPLAY=:0 xhost +localhost; \
-			DISPLAY=:0 xhost + 127.0.0.1; \
-			echo "X11 connection setup completed"; \
-		fi; \
 	fi
-	@if [ ! -d "/tmp/.X11-unix" ]; then \
-		echo "Creating X11 socket directory..."; \
-		sudo mkdir -p /tmp/.X11-unix; \
-		sudo chmod 1777 /tmp/.X11-unix; \
+	@if command -v xhost >/dev/null 2>&1; then \
+		echo "Enabling X11 connections..."; \
+		DISPLAY=:0 xhost +localhost; \
+		DISPLAY=:0 xhost + 127.0.0.1; \
+		echo "✓ X11 connection setup completed"; \
 	fi
-	@echo "✓ X11 setup completed for macOS"
+else
+	@echo "X11 startup not needed on $(PLATFORM)"
 endif
 
-# Setup PulseAudio server on host (macOS) - with status file tracking
-pulse-setup:
+# Setup PulseAudio server on host (macOS)
+setup-pulse:
+	@echo "Setting up PulseAudio..."
 ifeq ($(PLATFORM),macos)
-	@if [ -f "$(PULSE_STATUS_FILE)" ]; then \
-		echo "PulseAudio already set up (status file exists)."; \
-		echo "If you need to restart PulseAudio, run 'make pulse-stop' first."; \
-		exit 0; \
-	fi
 	@echo "Setting up PulseAudio server on host (macOS)..."
-	@if ! command -v pulseaudio >/dev/null 2>&1; then \
-		echo "PulseAudio not found. Installing via Homebrew..."; \
-		if command -v brew >/dev/null 2>&1; then \
-			brew install pulseaudio; \
-		else \
-			echo "Homebrew not found. Please install Homebrew and rerun this command."; \
-			exit 1; \
-		fi; \
-	else \
-		echo "PulseAudio is already installed."; \
-	fi
 	@echo "Killing any existing PulseAudio processes..."
 	@pkill -f pulseaudio 2>/dev/null || true
 	@echo "Creating pulse config directory..."
@@ -192,53 +230,13 @@ ifeq ($(PLATFORM),macos)
 	@sleep 2
 	@echo "Setting default sink to built-in speakers (sink 1)..."
 	@pactl set-default-sink 1 || true
-	@echo "✓ PulseAudio server setup complete"
-	@echo "PulseAudio setup completed at $(shell date)" > $(PULSE_STATUS_FILE)
-	@echo "Status file created: $(PULSE_STATUS_FILE)"
+	@echo "✓ PulseAudio server started successfully"
 else
 	@echo "PulseAudio setup is only needed on macOS"
 endif
 
-# Stop PulseAudio server and remove status file
-pulse-stop:
-ifeq ($(PLATFORM),macos)
-	@echo "Stopping PulseAudio server..."
-	@pkill -f pulseaudio 2>/dev/null || true
-	@rm -f $(PULSE_STATUS_FILE)
-	@echo "✓ PulseAudio server stopped and status file removed"
-else
-	@echo "PulseAudio stop is only needed on macOS"
-endif
-
-# Build the container
-build: check-docker
-	@echo "Building container..."
-	@echo "Detected OS: $(PLATFORM)"
-	@echo "ALSA devices: $(ALSA_DEVICES)"
-	@echo "SDL video driver: $(SDL_VIDEODRIVER)"
-	@echo "Display: $(DISPLAY)"
-	docker-compose build
-	@echo "Container built successfully!"
-
-# Start the container
-up: check-docker setup-macos-x11
-	@echo "=== Shader DSP Container Launcher ==="
-	@echo "Detected OS: $(PLATFORM)"
-	@echo "ALSA devices: $(ALSA_DEVICES)"
-	@echo "SDL video driver: $(SDL_VIDEODRIVER)"
-	@echo "Display: $(DISPLAY)"
-	@echo "Starting container in detached mode..."
-	docker-compose up -d
-	@echo "Container started! Use 'make connect' to open a shell."
-
-# Stop the container
-down:
-	@echo "Stopping container..."
-	docker-compose down
-	@echo "Container stopped successfully."
-
-# Connect to container shell (with automatic pulse setup)
-connect: setup
+# Connect to container shell
+connect:
 	@echo "Connecting to container shell..."
 	@if ! docker-compose ps | grep -q shader-dsp; then \
 		echo "Container is not running. Starting it now..."; \
@@ -256,59 +254,31 @@ connect: setup
 	@docker-compose exec -it shader-dsp bash
 	@echo "Disconnected from container shell."
 
-# Rebuild and restart the container
-rebuild: down build up
-	@echo "Container rebuilt and restarted! Use 'make connect' to open a shell."
-
-# Setup and test audio
-audio: check-docker pulse-setup
-	@echo "=== Audio Setup and Test ==="
-	@if ! docker-compose ps | grep -q shader-dsp; then \
-		echo "Container is not running. Starting it now..."; \
-		$(MAKE) up; \
-	fi
-	@echo "Setting up audio..."
-	@docker-compose exec -T shader-dsp bash -c "audio_setup.sh"
+# Stop container, PulseAudio, and XQuartz
+down:
+	@echo "=== Stopping Everything ==="
+	@echo "Step 1: Stopping Docker container..."
+	docker-compose down
+	@echo "✓ Container stopped"
 	@echo ""
-	@echo "Audio setup completed. You can now test audio with:"
-	@echo "  make audio-test"
-	@echo "Or list devices with:"
-	@echo "  make audio-list"
+ifeq ($(PLATFORM),macos)
+	@echo "Step 2: Stopping PulseAudio server..."
+	@pkill -f pulseaudio 2>/dev/null || true
+	@echo "✓ PulseAudio server stopped"
+	@echo ""
+	@echo "Step 3: Stopping XQuartz..."
+	@pkill -x "Xquartz" 2>/dev/null || true
+	@echo "✓ XQuartz stopped"
+endif
+	@echo ""
+	@echo "✓ Everything stopped successfully!"
 
-# Run audio test script in container
-audio-test: check-docker pulse-setup
-	@echo "=== Audio Test ==="
-	@if ! docker-compose ps | grep -q shader-dsp; then \
-		echo "Container is not running. Starting it now..."; \
-		$(MAKE) up; \
-	fi
-	@echo "Running audio test..."
-	@docker-compose exec -T shader-dsp bash -c "test_audio.sh"
-
-# List audio devices in container
-audio-list: check-docker pulse-setup
-	@echo "=== Audio Devices List ==="
-	@if ! docker-compose ps | grep -q shader-dsp; then \
-		echo "Container is not running. Starting it now..."; \
-		$(MAKE) up; \
-	fi
-	@echo "Listing audio devices..."
-	@docker-compose exec -T shader-dsp bash -c "list_devices.sh"
-
-# Complete setup (build + up) - pulse-setup will happen on connect
-setup: build up
-	@echo "✓ Complete setup finished!"
-	@echo "Container is ready. Use 'make connect' to open a shell (PulseAudio will be set up automatically)."
-
-# Complete setup and audio configuration
-all: setup audio
-	@echo "✓ Complete setup and audio configuration finished!"
-	@echo "Everything is ready. Use 'make connect' to open a shell."
-
-# Clean shutdown
-clean: down pulse-stop
-	@echo "✓ Clean shutdown completed"
-	@echo "Container stopped and PulseAudio server stopped"
+# Complete cleanup
+clean: down
+	@echo "=== Complete Cleanup ==="
+	@echo "Removing containers and images..."
+	docker-compose down --rmi all --volumes --remove-orphans
+	@echo "✓ Complete cleanup finished"
 
 # Show current status
 status:
@@ -322,22 +292,22 @@ status:
 	@docker-compose ps 2>/dev/null || echo "Docker Compose not available"
 	@echo ""
 ifeq ($(PLATFORM),macos)
-	@echo "PulseAudio Status:"
-	@if [ -f "$(PULSE_STATUS_FILE)" ]; then \
-		echo "✓ PulseAudio setup completed (status file exists)"; \
-		echo "  Status file: $(PULSE_STATUS_FILE)"; \
-		echo "  Created: $(shell cat $(PULSE_STATUS_FILE) 2>/dev/null || echo 'unknown')"; \
+	@echo "XQuartz Status:"
+	@if pgrep -x "Xquartz" >/dev/null; then \
+		echo "✓ XQuartz is running"; \
 	else \
-		echo "✗ PulseAudio not set up (no status file)"; \
+		echo "✗ XQuartz is not running"; \
+	fi
+	@echo ""
+	@echo "PulseAudio Status:"
+	@if command -v pulseaudio >/dev/null 2>&1; then \
+		echo "✓ PulseAudio is installed"; \
+	else \
+		echo "✗ PulseAudio is not installed"; \
 	fi
 	@if pgrep -f pulseaudio >/dev/null; then \
 		echo "✓ PulseAudio process is running"; \
 	else \
 		echo "✗ PulseAudio process is not running"; \
 	fi
-endif
-
-# Install and setup dependencies (Docker and XQuartz)
-install-deps: check-docker setup-macos-x11
-	@echo "✓ All dependencies installed and ready!"
-	@echo "You can now run 'make setup' to build and start the container." 
+endif 
