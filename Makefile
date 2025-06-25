@@ -1,7 +1,7 @@
 # Shader DSP Development Environment Makefile
 # Simplified container management and development tasks
 
-.PHONY: help build up down connect clean status
+.PHONY: help build up down connect clean status setup-pulse-cookie copy-pulse-cookie
 
 # Default target
 help:
@@ -59,7 +59,7 @@ export SDL_VIDEODRIVER
 export ALSA_DEVICES
 
 # Complete setup - install dependencies and build container
-build: install-docker setup-x11 install-pulse build-container
+build: install-docker setup-x11 install-pulse setup-pulse-cookie build-container
 	@echo "✓ Complete setup finished!"
 	@echo "Run 'make up' to start everything"
 
@@ -309,5 +309,15 @@ ifeq ($(PLATFORM),macos)
 		echo "✓ PulseAudio process is running"; \
 	else \
 		echo "✗ PulseAudio process is not running"; \
+	fi
+	@if [ -f ./conf/pulse-client.conf ]; then \
+		echo "✓ PulseAudio client config exists"; \
+	else \
+		echo "✗ PulseAudio client config missing"; \
+	fi
+	@if [ -f ./conf/pulse-cookie ]; then \
+		echo "✓ PulseAudio cookie exists in conf directory"; \
+	else \
+		echo "✗ PulseAudio cookie missing from conf directory"; \
 	fi
 endif 

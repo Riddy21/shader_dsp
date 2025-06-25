@@ -12,6 +12,9 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw # Share X11 socket for GUI (Linux/macOS)
       # ALSA devices - only mount if they exist (Linux)
       - ${ALSA_DEVICES:-/dev/null}:/dev/snd:rw
+      # PulseAudio configuration and cookie (macOS)
+      - ./conf/pulse-client.conf:/root/.config/pulse/client.conf:ro
+      - ./conf/pulse-cookie:/root/.config/pulse/cookie:ro
     environment:
       # Timezone
       - TZ=${TZ:-UTC}
