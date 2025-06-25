@@ -87,7 +87,6 @@ RUN cd /tmp && \
 # Install Pi-specific libraries and tools (simulated for x86_64)
 RUN apt-get update && apt-get install -y \
     python3-gpiozero \
-    python3-rpi.gpio \
     && rm -rf /var/lib/apt/lists/*
 
 # Create symbolic links to simulate Pi libraries

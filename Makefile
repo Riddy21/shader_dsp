@@ -124,7 +124,7 @@ ifeq ($(PLATFORM),macos)
 	@if ! pgrep -x "Xquartz" >/dev/null; then \
 		echo "Starting XQuartz..."; \
 		open -a XQuartz; \
-		echo "Waiting for XQuartz to start..."; \
+		echo "Waiting for XQuartz to start and initialize..."; \
 		sleep 5; \
 		for i in 1 2 3 4 5; do \
 			if pgrep -x "Xquartz" >/dev/null; then \
@@ -137,11 +137,20 @@ ifeq ($(PLATFORM),macos)
 		if ! pgrep -x "Xquartz" >/dev/null; then \
 			echo "Warning: XQuartz may not have started properly. Continuing anyway..."; \
 		fi; \
-	fi
-	@if command -v xhost >/dev/null 2>&1; then \
-		xhost +localhost >/dev/null 2>&1 || true; \
-		xhost + 127.0.0.1 >/dev/null 2>&1 || true; \
-		echo "Enabled X11 connections from localhost and Docker"; \
+		if command -v xhost >/dev/null 2>&1; then \
+			echo "Enabling X11 connections with timeout..."; \
+			DISPLAY=:0 xhost +localhost; \
+			DISPLAY=:0 xhost + 127.0.0.1; \
+			echo "X11 connection setup completed"; \
+		fi; \
+	else \
+		echo "XQuartz is already running. Enabling X11 connections..."; \
+		if command -v xhost >/dev/null 2>&1; then \
+			echo "Enabling X11 connections with timeout..."; \
+			DISPLAY=:0 xhost +localhost; \
+			DISPLAY=:0 xhost + 127.0.0.1; \
+			echo "X11 connection setup completed"; \
+		fi; \
 	fi
 	@if [ ! -d "/tmp/.X11-unix" ]; then \
 		echo "Creating X11 socket directory..."; \
@@ -229,7 +238,7 @@ down:
 	@echo "Container stopped successfully."
 
 # Connect to container shell (with automatic pulse setup)
-connect: check-docker pulse-setup
+connect: setup
 	@echo "Connecting to container shell..."
 	@if ! docker-compose ps | grep -q shader-dsp; then \
 		echo "Container is not running. Starting it now..."; \
