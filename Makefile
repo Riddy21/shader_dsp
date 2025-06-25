@@ -1,7 +1,7 @@
 # Shader DSP Development Environment Makefile
 # Simplified container management and development tasks
 
-.PHONY: help build up down connect clean status setup-pulse-cookie copy-pulse-cookie
+.PHONY: help build up down connect clean status
 
 # Default target
 help:
@@ -58,16 +58,32 @@ export DISPLAY
 export SDL_VIDEODRIVER
 export ALSA_DEVICES
 
+# Target files for tracking completion
+BUILD_DIR := build/env
+DOCKER_SETUP_FILE := $(BUILD_DIR)/docker-setup.done
+X11_SETUP_FILE := $(BUILD_DIR)/x11-setup.done
+X11_STARTED_FILE := $(BUILD_DIR)/x11-started.done
+PULSE_SETUP_FILE := $(BUILD_DIR)/pulse-setup.done
+PULSE_STARTED_FILE := $(BUILD_DIR)/pulse-started.done
+CONTAINER_BUILT_FILE := $(BUILD_DIR)/container-built.done
+CONTAINER_RUNNING_FILE := $(BUILD_DIR)/container-running.done
+
+# Create build directory
+$(BUILD_DIR):
+	@mkdir -p $(BUILD_DIR)
+
 # Complete setup - install dependencies and build container
-build: setup-docker setup-x11 setup-pulse start-pulse build-container
+build: $(DOCKER_SETUP_FILE) $(X11_SETUP_FILE) $(PULSE_SETUP_FILE) $(CONTAINER_BUILT_FILE)
 	@echo "✓ Complete setup finished!"
 	@echo "Run 'make up' to start everything"
 
 # Setup Docker
-setup-docker:
+$(DOCKER_SETUP_FILE):
+	@mkdir -p $(BUILD_DIR)
 	@echo "Setting up Docker..."
 	@echo "Checking Docker installation and status..."
-	@if ! command -v docker >/dev/null 2>&1; then \
+	@set -e; \
+	if ! command -v docker >/dev/null 2>&1; then \
 		echo "Docker not found. Installing..."; \
 		if [ "$(PLATFORM)" = "macos" ]; then \
 			if command -v brew >/dev/null 2>&1; then \
@@ -84,7 +100,8 @@ setup-docker:
 			exit 1; \
 		fi; \
 	fi
-	@if ! docker info >/dev/null 2>&1; then \
+	@set -e; \
+	if ! docker info >/dev/null 2>&1; then \
 		echo "Docker is installed but not running. Starting Docker..."; \
 		if [ "$(PLATFORM)" = "macos" ]; then \
 			open -a Docker; \
@@ -108,13 +125,16 @@ setup-docker:
 		fi; \
 	fi
 	@echo "✓ Docker is running and ready!"
+	@touch $@
 
 # Setup X11 for macOS
-setup-x11:
+$(X11_SETUP_FILE):
+	@mkdir -p $(BUILD_DIR)
 	@echo "Setting up X11..."
 ifeq ($(PLATFORM),macos)
 	@echo "Setting up X11 for macOS..."
-	@if ! command -v xquartz >/dev/null 2>&1 && ! ls /Applications/Utilities/XQuartz.app >/dev/null 2>&1; then \
+	@set -e; \
+	if ! command -v xquartz >/dev/null 2>&1 && ! ls /Applications/Utilities/XQuartz.app >/dev/null 2>&1; then \
 		echo "XQuartz not found. Installing..."; \
 		if command -v brew >/dev/null 2>&1; then \
 			brew install --cask xquartz; \
@@ -130,7 +150,8 @@ ifeq ($(PLATFORM),macos)
 			exit 1; \
 		fi; \
 	fi
-	@if [ ! -d "/tmp/.X11-unix" ]; then \
+	@set -e; \
+	if [ ! -d "/tmp/.X11-unix" ]; then \
 		echo "Creating X11 socket directory..."; \
 		sudo mkdir -p /tmp/.X11-unix; \
 		sudo chmod 1777 /tmp/.X11-unix; \
@@ -139,13 +160,16 @@ ifeq ($(PLATFORM),macos)
 else
 	@echo "X11 setup not needed on $(PLATFORM)"
 endif
+	@touch $@
 
 # Setup PulseAudio
-setup-pulse:
+$(PULSE_SETUP_FILE):
+	@mkdir -p $(BUILD_DIR)
 	@echo "Setting up PulseAudio..."
 ifeq ($(PLATFORM),macos)
 	@echo "Setting up PulseAudio..."
-	@if ! command -v pulseaudio >/dev/null 2>&1; then \
+	@set -e; \
+	if ! command -v pulseaudio >/dev/null 2>&1; then \
 		echo "PulseAudio not found. Installing via Homebrew..."; \
 		if command -v brew >/dev/null 2>&1; then \
 			brew install pulseaudio; \
@@ -162,31 +186,29 @@ ifeq ($(PLATFORM),macos)
 else
 	@echo "PulseAudio installation is only needed on macOS"
 endif
+	@touch $@
 
 # Build the container
-build-container:
-	@echo "Building container..."
+$(CONTAINER_BUILT_FILE): $(DOCKER_SETUP_FILE) $(X11_SETUP_FILE) $(PULSE_SETUP_FILE) docker-compose.yml Dockerfile
 	@echo "Building container..."
 	@echo "ALSA devices: $(ALSA_DEVICES)"
 	@echo "SDL video driver: $(SDL_VIDEODRIVER)"
 	@echo "Display: $(DISPLAY)"
-	docker-compose build
+	@set -e; docker-compose build
 	@echo "✓ Container built successfully!"
+	@touch $@
 
 # Start XQuartz and Docker container
-up: start-x11 start-pulse
-	@echo "Starting Docker container..."
-	docker-compose up -d
+up: $(CONTAINER_RUNNING_FILE)
 	@echo ""
 	@echo "✓ Everything started successfully!"
 	@echo "Use 'make connect' to open a shell in the container."
 
 # Start X11
-start-x11:
-	@echo "Starting XQuartz..."
+$(X11_STARTED_FILE): $(X11_SETUP_FILE)
 ifeq ($(PLATFORM),macos)
-	@echo "Starting XQuartz..."
-	@if ! pgrep -x "Xquartz" >/dev/null; then \
+	@set -e; \
+	if ! pgrep -x "Xquartz" >/dev/null; then \
 		echo "Starting XQuartz..."; \
 		open -a XQuartz; \
 		echo "Waiting for XQuartz to start and initialize..."; \
@@ -200,10 +222,12 @@ ifeq ($(PLATFORM),macos)
 			sleep 3; \
 		done; \
 		if ! pgrep -x "Xquartz" >/dev/null; then \
-			echo "Warning: XQuartz may not have started properly. Continuing anyway..."; \
+			echo "Error: XQuartz failed to start properly."; \
+			exit 1; \
 		fi; \
 	fi
-	@if command -v xhost >/dev/null 2>&1; then \
+	@set -e; \
+	if command -v xhost >/dev/null 2>&1; then \
 		echo "Enabling X11 connections..."; \
 		DISPLAY=:0 xhost +localhost; \
 		DISPLAY=:0 xhost + 127.0.0.1; \
@@ -212,43 +236,47 @@ ifeq ($(PLATFORM),macos)
 else
 	@echo "X11 startup not needed on $(PLATFORM)"
 endif
+	@touch $@
 
 # Start PulseAudio server on host (macOS)
-start-pulse:
+$(PULSE_STARTED_FILE): $(PULSE_SETUP_FILE)
 	@echo "Starting PulseAudio..."
 ifeq ($(PLATFORM),macos)
 	@echo "Starting PulseAudio server on host (macOS)..."
-	@echo "Killing any existing PulseAudio processes..."
-	@pkill -f pulseaudio 2>/dev/null || true
-	@echo "Creating pulse config directory..."
-	@mkdir -p ~/.config/pulse
-	@echo "Copying PulseAudio client configuration..."
-	@cp conf/pulse-client.conf ~/.config/pulse/client.conf
-	@echo "Starting PulseAudio as daemon..."
-	@pulseaudio -vv --exit-idle-time=-1 \
+	@set -e; \
+	echo "Killing any existing PulseAudio processes..."; \
+	pkill -f pulseaudio 2>/dev/null || true; \
+	echo "Creating pulse config directory..."; \
+	mkdir -p ~/.config/pulse; \
+	echo "Copying PulseAudio client configuration..."; \
+	cp conf/pulse-client.conf ~/.config/pulse/client.conf; \
+	echo "Starting PulseAudio as daemon..."; \
+	pulseaudio -vv --exit-idle-time=-1 \
 		--load=module-coreaudio-detect \
 		--load=module-native-protocol-tcp \
-		--daemonize=yes
-	@sleep 2
-	@echo "Setting default sink to built-in speakers (sink 1)..."
-	@pactl set-default-sink 1 || true
-	@echo "✓ PulseAudio server started successfully"
-	@if [ -f ~/.config/pulse/cookie ]; then \
+		--daemonize=yes; \
+	sleep 2; \
+	echo "✓ PulseAudio server started successfully"; \
+	if [ -f ~/.config/pulse/cookie ]; then \
 		echo "✓ PulseAudio cookie exists in home directory"; \
 	else \
-		echo "✗ PulseAudio cookie missing from home directory. Audio in container may not work."; \
+		echo "Error: PulseAudio cookie missing from home directory. Audio in container may not work."; \
+		exit 1; \
 	fi
 else
 	@echo "PulseAudio setup is only needed on macOS"
 endif
+	@touch $@
+
+# Start container
+$(CONTAINER_RUNNING_FILE): $(CONTAINER_BUILT_FILE) $(PULSE_STARTED_FILE) $(X11_STARTED_FILE)
+	@echo "Starting Docker container..."
+	@set -e; docker-compose up -d
+	@touch $@
 
 # Connect to container shell
-connect:
+connect: $(CONTAINER_RUNNING_FILE)
 	@echo "Connecting to container shell..."
-	@if ! docker-compose ps | grep -q shader-dsp; then \
-		echo "Container is not running. Starting it now..."; \
-		$(MAKE) up; \
-	fi
 	@echo ""
 	@echo "NOTE: The connect command needs to be run directly in your terminal, not through Claude."
 	@echo "Please run the following command in your terminal to connect to the container:"
@@ -258,34 +286,36 @@ connect:
 	@echo "If you're already running this in your terminal and still getting errors,"
 	@echo "try using docker directly with: docker exec -it shader_dsp-shader-dsp-1 bash"
 	@echo ""
-	@docker-compose exec -it shader-dsp bash
+	@set -e; docker-compose exec -it shader-dsp bash
 	@echo "Disconnected from container shell."
 
 # Stop container, PulseAudio, and XQuartz
 down:
 	@echo "=== Stopping Everything ==="
 	@echo "Step 1: Stopping Docker container..."
-	docker-compose down
+	@set -e; docker-compose down
 	@echo "✓ Container stopped"
 	@echo ""
 ifeq ($(PLATFORM),macos)
 	@echo "Step 2: Stopping PulseAudio server..."
-	@pkill -f pulseaudio 2>/dev/null || true
+	@set -e; pkill -f pulseaudio 2>/dev/null || true
 	@echo "✓ PulseAudio server stopped"
 	@echo ""
 	@echo "Step 3: Stopping XQuartz..."
-	@pkill -x "Xquartz" 2>/dev/null || true
+	@set -e; pkill -x "Xquartz" 2>/dev/null || true
 	@echo "✓ XQuartz stopped"
 endif
 	@echo ""
 	@echo "✓ Everything stopped successfully!"
+	@rm -f $(CONTAINER_RUNNING_FILE) $(PULSE_STARTED_FILE) $(X11_STARTED_FILE)
 
 # Complete cleanup
 clean: down
 	@echo "=== Complete Cleanup ==="
 	@echo "Removing containers and images..."
-	docker-compose down --rmi all --volumes --remove-orphans
+	@set -e; docker-compose down --rmi all --volumes --remove-orphans
 	@echo "✓ Complete cleanup finished"
+	@rm -rf $(BUILD_DIR)
 
 # Show current status
 status:
@@ -294,6 +324,15 @@ status:
 	@echo "Display: $(DISPLAY)"
 	@echo "SDL Video Driver: $(SDL_VIDEODRIVER)"
 	@echo "ALSA Devices: $(ALSA_DEVICES)"
+	@echo ""
+	@echo "Build Status:"
+	@if [ -f $(DOCKER_SETUP_FILE) ]; then echo "✓ Docker setup completed"; else echo "✗ Docker setup not completed"; fi
+	@if [ -f $(X11_SETUP_FILE) ]; then echo "✓ X11 setup completed"; else echo "✗ X11 setup not completed"; fi
+	@if [ -f $(PULSE_SETUP_FILE) ]; then echo "✓ PulseAudio setup completed"; else echo "✗ PulseAudio setup not completed"; fi
+	@if [ -f $(CONTAINER_BUILT_FILE) ]; then echo "✓ Container built"; else echo "✗ Container not built"; fi
+	@if [ -f $(CONTAINER_RUNNING_FILE) ]; then echo "✓ Container running"; else echo "✗ Container not running"; fi
+	@if [ -f $(PULSE_STARTED_FILE) ]; then echo "✓ PulseAudio started"; else echo "✗ PulseAudio not started"; fi
+	@if [ -f $(X11_STARTED_FILE) ]; then echo "✓ X11 started"; else echo "✗ X11 not started"; fi
 	@echo ""
 	@echo "Container Status:"
 	@docker-compose ps 2>/dev/null || echo "Docker Compose not available"
