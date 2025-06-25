@@ -1,7 +1,7 @@
 # Shader DSP Development Environment Makefile
 # Consolidates container management, audio setup, and development tasks
 
-.PHONY: help build up down connect rebuild test audio audio-test audio-list pulse-setup pulse-stop clean all setup
+.PHONY: help build up down connect rebuild test audio audio-test audio-list pulse-setup pulse-stop clean all setup install-deps
 
 # Default target
 help:
@@ -9,6 +9,7 @@ help:
 	@echo "=================================="
 	@echo ""
 	@echo "Available targets:"
+	@echo "  install-deps - Install and setup Docker and XQuartz dependencies"
 	@echo "  setup       - Complete setup (pulse-setup + build + up)"
 	@echo "  build       - Build/rebuild the container"
 	@echo "  up          - Start the container in detached mode"
@@ -24,6 +25,7 @@ help:
 	@echo "  all         - Complete setup and audio configuration"
 	@echo ""
 	@echo "Examples:"
+	@echo "  make install-deps - Install Docker and XQuartz dependencies"
 	@echo "  make setup  - Complete initial setup"
 	@echo "  make all    - Setup everything and configure audio"
 	@echo "  make clean  - Clean shutdown"
@@ -55,28 +57,86 @@ export ALSA_DEVICES
 # PulseAudio status file
 PULSE_STATUS_FILE := .pulse_audio_ready
 
-# Check if Docker is running
+# Check if Docker is running and install if needed
 check-docker:
-	@if ! docker info >/dev/null 2>&1; then \
-		echo "Error: Docker is not running. Please start Docker and try again."; \
-		exit 1; \
+	@echo "Checking Docker installation and status..."
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "Docker not found. Attempting to install..."; \
+		if [ "$(PLATFORM)" = "macos" ]; then \
+			if command -v brew >/dev/null 2>&1; then \
+				echo "Installing Docker via Homebrew..."; \
+				brew install --cask docker; \
+			else \
+				echo "Homebrew not found. Please install Docker manually from https://www.docker.com/products/docker-desktop"; \
+				echo "Or install Homebrew first: /bin/bash -c \"\$$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""; \
+				exit 1; \
+			fi; \
+		else \
+			echo "Please install Docker for your platform from https://www.docker.com/products/docker-desktop"; \
+			exit 1; \
+		fi; \
 	fi
+	@if ! docker info >/dev/null 2>&1; then \
+		echo "Docker is installed but not running. Starting Docker..."; \
+		if [ "$(PLATFORM)" = "macos" ]; then \
+			open -a Docker; \
+			echo "Waiting for Docker to start..."; \
+			sleep 10; \
+			for i in 1 2 3 4 5; do \
+				if docker info >/dev/null 2>&1; then \
+					echo "✓ Docker is now running!"; \
+					break; \
+				fi; \
+				echo "Still waiting for Docker to start... (attempt $$i/5)"; \
+				sleep 5; \
+			done; \
+			if ! docker info >/dev/null 2>&1; then \
+				echo "Error: Docker failed to start. Please start Docker manually and try again."; \
+				exit 1; \
+			fi; \
+		else \
+			echo "Error: Docker is not running. Please start Docker and try again."; \
+			exit 1; \
+		fi; \
+	fi
+	@echo "✓ Docker is running and ready!"
 
-# Setup X11 for macOS
+# Setup X11 for macOS - install and open XQuartz if needed
 setup-macos-x11:
 ifeq ($(PLATFORM),macos)
 	@echo "Setting up X11 for macOS..."
 	@if ! command -v xquartz >/dev/null 2>&1 && ! ls /Applications/Utilities/XQuartz.app >/dev/null 2>&1; then \
-		echo "⚠️  XQuartz not found. Please install it with:"; \
-		echo "   brew install --cask xquartz"; \
-		echo "   Then restart and enable 'Allow connections from network clients' in XQuartz preferences."; \
-		echo "   After installation, run 'make setup' again."; \
-		exit 1; \
+		echo "XQuartz not found. Installing..."; \
+		if command -v brew >/dev/null 2>&1; then \
+			brew install --cask xquartz; \
+			echo "XQuartz installed. Please restart your computer and run 'make setup' again."; \
+			echo "After restart, enable 'Allow connections from network clients' in XQuartz preferences."; \
+			exit 1; \
+		else \
+			echo "Homebrew not found. Please install XQuartz manually:"; \
+			echo "1. Install Homebrew: /bin/bash -c \"\$$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""; \
+			echo "2. Install XQuartz: brew install --cask xquartz"; \
+			echo "3. Restart your computer"; \
+			echo "4. Enable 'Allow connections from network clients' in XQuartz preferences"; \
+			exit 1; \
+		fi; \
 	fi
 	@if ! pgrep -x "Xquartz" >/dev/null; then \
 		echo "Starting XQuartz..."; \
 		open -a XQuartz; \
-		sleep 3; \
+		echo "Waiting for XQuartz to start..."; \
+		sleep 5; \
+		for i in 1 2 3 4 5; do \
+			if pgrep -x "Xquartz" >/dev/null; then \
+				echo "✓ XQuartz is now running!"; \
+				break; \
+			fi; \
+			echo "Still waiting for XQuartz to start... (attempt $$i/5)"; \
+			sleep 3; \
+		done; \
+		if ! pgrep -x "Xquartz" >/dev/null; then \
+			echo "Warning: XQuartz may not have started properly. Continuing anyway..."; \
+		fi; \
 	fi
 	@if command -v xhost >/dev/null 2>&1; then \
 		xhost +localhost >/dev/null 2>&1 || true; \
@@ -88,7 +148,7 @@ ifeq ($(PLATFORM),macos)
 		sudo mkdir -p /tmp/.X11-unix; \
 		sudo chmod 1777 /tmp/.X11-unix; \
 	fi
-	@echo "X11 setup completed for macOS"
+	@echo "✓ X11 setup completed for macOS"
 endif
 
 # Setup PulseAudio server on host (macOS) - with status file tracking
@@ -266,4 +326,9 @@ ifeq ($(PLATFORM),macos)
 	else \
 		echo "✗ PulseAudio process is not running"; \
 	fi
-endif 
+endif
+
+# Install and setup dependencies (Docker and XQuartz)
+install-deps: check-docker setup-macos-x11
+	@echo "✓ All dependencies installed and ready!"
+	@echo "You can now run 'make setup' to build and start the container." 
