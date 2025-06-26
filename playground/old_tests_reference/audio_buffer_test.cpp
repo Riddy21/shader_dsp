@@ -4,7 +4,7 @@
 #include <iostream>
 #include <chrono>
 
-#include "utilities/audio_buffer.h"
+#include "audio_buffers/audio_buffer.h"
 
 TEST_CASE("AudioQueue_push_pop") {
     // Create an audio queue

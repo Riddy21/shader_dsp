@@ -6,9 +6,18 @@
 
 class ParamData {
 public:
+    ParamData() = default;
     virtual ~ParamData() = default;
     virtual void * get_data() const = 0;
     virtual size_t get_size() const = 0;
+
+    // Delete copy constructor and copy assignment operator
+    ParamData(const ParamData&) = delete;
+    ParamData& operator=(const ParamData&) = delete;
+
+    // Delete move constructor and move assignment operator
+    ParamData(ParamData&&) = delete;
+    ParamData& operator=(ParamData&&) = delete;
 };
 
 class ParamFloatArrayData : public ParamData {

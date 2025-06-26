@@ -102,6 +102,12 @@ protected:
     GLuint m_framebuffer_linked = 0;
     AudioShaderProgram * m_shader_program_linked = nullptr;
     bool m_update_param = true;
+
+    AudioParameter(const AudioParameter&) = delete;    // Disable copy and assignment
+    AudioParameter& operator=(const AudioParameter&) = delete;
+
+
+
 };
 
 #endif // AUDIO_PARAMETER_H
