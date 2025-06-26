@@ -1,5 +1,8 @@
 #include <SDL2/SDL.h>
-#include <GL/glew.h>
+#include <SDL2/SDL_syswm.h>
+#include <GLES3/gl3.h>
+#include <EGL/egl.h>
+#include <iostream>
 #include "utilities/shader_program.h"
 #include "catch2/catch_all.hpp"
 
@@ -10,6 +13,12 @@ struct SDLWindow {
     SDL_Window * window = nullptr;
     SDL_GLContext glctx = nullptr;
     int width, height;
+    
+    // EGL objects
+    EGLDisplay eglDisplay = EGL_NO_DISPLAY;
+    EGLSurface eglSurface = EGL_NO_SURFACE;
+    EGLContext eglContext = EGL_NO_CONTEXT;
+    EGLConfig eglConfig = nullptr;
 
     SDLWindow(int w, int h)
         : width(w), height(h) {
@@ -17,18 +26,116 @@ struct SDLWindow {
         window = SDL_CreateWindow(
             "Offscreen",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-            w, h, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN
+            w, h, SDL_WINDOW_HIDDEN // Remove SDL_WINDOW_OPENGL flag since we're using EGL
         );
-        glctx = SDL_GL_CreateContext(window);
-        glewInit();
+        
+        // Initialize EGL
+        initialize_egl();
+        
+        // Set dummy context for compatibility
+        glctx = (SDL_GLContext)0x1;
     }
 
     ~SDLWindow() {
-        SDL_GL_DeleteContext(glctx);
+        cleanup_egl();
         SDL_DestroyWindow(window);
         SDL_Quit();
     }
+
+private:
+    bool initialize_egl() {
+        // Get EGL display
+        eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+        if (eglDisplay == EGL_NO_DISPLAY) {
+            std::cerr << "EGL: Failed to get EGL display" << std::endl;
+            return false;
+        }
+
+        // Initialize EGL
+        EGLint majorVersion, minorVersion;
+        if (!eglInitialize(eglDisplay, &majorVersion, &minorVersion)) {
+            std::cerr << "EGL: Failed to initialize EGL" << std::endl;
+            return false;
+        }
+
+        // Choose EGL config
+        const EGLint configAttribs[] = {
+            EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+            EGL_RED_SIZE, 8,
+            EGL_GREEN_SIZE, 8,
+            EGL_BLUE_SIZE, 8,
+            EGL_ALPHA_SIZE, 8,
+            EGL_DEPTH_SIZE, 24,
+            EGL_STENCIL_SIZE, 8,
+            EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
+            EGL_NONE
+        };
+
+        EGLint numConfigs;
+        if (!eglChooseConfig(eglDisplay, configAttribs, &eglConfig, 1, &numConfigs)) {
+            std::cerr << "EGL: Failed to choose EGL config" << std::endl;
+            return false;
+        }
+
+        if (numConfigs == 0) {
+            std::cerr << "EGL: No suitable EGL config found" << std::endl;
+            return false;
+        }
+
+        // Create EGL surface
+        SDL_SysWMinfo wmInfo;
+        SDL_VERSION(&wmInfo.version);
+        if (!SDL_GetWindowWMInfo(window, &wmInfo)) {
+            std::cerr << "EGL: Failed to get window WM info" << std::endl;
+            return false;
+        }
+
+        eglSurface = eglCreateWindowSurface(eglDisplay, eglConfig, 
+                                          (EGLNativeWindowType)wmInfo.info.x11.window, NULL);
+        if (eglSurface == EGL_NO_SURFACE) {
+            std::cerr << "EGL: Failed to create EGL surface" << std::endl;
+            return false;
+        }
+
+        // Create EGL context
+        const EGLint contextAttribs[] = {
+            EGL_CONTEXT_CLIENT_VERSION, 3,
+            EGL_NONE
+        };
+
+        eglContext = eglCreateContext(eglDisplay, eglConfig, EGL_NO_CONTEXT, contextAttribs);
+        if (eglContext == EGL_NO_CONTEXT) {
+            std::cerr << "EGL: Failed to create EGL context" << std::endl;
+            return false;
+        }
+
+        // Make current
+        if (!eglMakeCurrent(eglDisplay, eglSurface, eglSurface, eglContext)) {
+            std::cerr << "EGL: Failed to make context current" << std::endl;
+            return false;
+        }
+
+        return true;
+    }
+
+    void cleanup_egl() {
+        if (eglContext != EGL_NO_CONTEXT) {
+            eglDestroyContext(eglDisplay, eglContext);
+            eglContext = EGL_NO_CONTEXT;
+        }
+        
+        if (eglSurface != EGL_NO_SURFACE) {
+            eglDestroySurface(eglDisplay, eglSurface);
+            eglSurface = EGL_NO_SURFACE;
+        }
+        
+        if (eglDisplay != EGL_NO_DISPLAY) {
+            eglTerminate(eglDisplay);
+            eglDisplay = EGL_NO_DISPLAY;
+        }
+    }
 };
+
 struct GLFramebuffer {
     GLuint fbo = 0;
 

@@ -76,10 +76,10 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 RUN cd /tmp && \
     git clone https://github.com/catchorg/Catch2.git && \
     cd Catch2 && \
-    git checkout v2.13.10 && \
+    git checkout v3.5.4 && \
     mkdir -p build && \
     cd build && \
-    cmake .. -DBUILD_TESTING=OFF && \
+    cmake .. -DBUILD_TESTING=OFF -DCATCH_BUILD_STATIC_LIBRARY=ON && \
     make -j$(nproc) && \
     make install && \
     rm -rf /tmp/Catch2

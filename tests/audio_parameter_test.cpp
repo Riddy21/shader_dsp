@@ -6,7 +6,6 @@
 #include "audio_parameter/audio_texture2d_parameter.h"
 
 #include "SDL2/SDL.h"
-#include "GL/glew.h"
 
 #include <vector>
 #include <memory>

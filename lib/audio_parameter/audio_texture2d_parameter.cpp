@@ -205,8 +205,6 @@ const void * const AudioTexture2DParameter::get_value() const {
         
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        std::memcpy(m_data->get_data(), data_ptr, m_data->get_size());
-
         return m_data->get_data();
     }
 }
@@ -226,7 +224,8 @@ void AudioTexture2DParameter::clear_value() {
             // Clear the color attachment of the frame buffer
             glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);
             // Set the draw buffer to the correct color attachment
-            glDrawBuffer(GL_COLOR_ATTACHMENT0 + m_color_attachment);
+            GLenum draw_buffers[] = { GL_COLOR_ATTACHMENT0 + m_color_attachment };
+            glDrawBuffers(1, draw_buffers);
 
             // Clear the color attachment
             glClear(GL_COLOR_BUFFER_BIT);
