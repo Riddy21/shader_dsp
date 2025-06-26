@@ -102,29 +102,54 @@ $(DOCKER_SETUP_FILE):
 	fi
 	@set -e; \
 	if ! docker info >/dev/null 2>&1; then \
-		echo "Docker is installed but not running. Starting Docker..."; \
+		echo "Docker is installed but not running. Starting Docker Desktop..."; \
 		if [ "$(PLATFORM)" = "macos" ]; then \
-			open -a Docker; \
-			echo "Waiting for Docker to start..."; \
-			sleep 10; \
-			for i in 1 2 3 4 5; do \
+			echo "Opening Docker Desktop application..."; \
+			if [ -d "/Applications/Docker.app" ]; then \
+				open -a Docker; \
+			elif [ -d "/opt/homebrew/Applications/Docker.app" ]; then \
+				open -a /opt/homebrew/Applications/Docker.app; \
+			elif [ -d "/usr/local/Applications/Docker.app" ]; then \
+				open -a /usr/local/Applications/Docker.app; \
+			else \
+				echo "Docker.app not found in standard locations. Please start Docker Desktop manually."; \
+				echo "You can find it in your Applications folder or download from https://www.docker.com/products/docker-desktop"; \
+				exit 1; \
+			fi; \
+			echo "Waiting for Docker Desktop to start and initialize..."; \
+			echo "This may take a minute on first launch..."; \
+			sleep 15; \
+			for i in 1 2 3 4 5 6; do \
 				if docker info >/dev/null 2>&1; then \
-					echo "✓ Docker is now running!"; \
+					echo "✓ Docker Desktop is now running and ready!"; \
 					break; \
 				fi; \
-				echo "Still waiting for Docker to start... (attempt $$i/5)"; \
-				sleep 5; \
+				echo "Still waiting for Docker Desktop to start... (attempt $$i/6)"; \
+				if [ $$i -eq 3 ]; then \
+					echo "Docker Desktop is taking longer than usual to start."; \
+					echo "Please check if Docker Desktop is running in your Applications."; \
+				fi; \
+				sleep 10; \
 			done; \
 			if ! docker info >/dev/null 2>&1; then \
-				echo "Error: Docker failed to start. Please start Docker manually and try again."; \
+				echo ""; \
+				echo "Error: Docker Desktop failed to start properly."; \
+				echo "Please try the following:"; \
+				echo "1. Open Docker Desktop manually from Applications"; \
+				echo "2. Wait for it to fully start (you should see the Docker icon in your menu bar)"; \
+				echo "3. Run 'make build' again"; \
+				echo ""; \
+				echo "If Docker Desktop is already running, try restarting it."; \
 				exit 1; \
 			fi; \
 		else \
 			echo "Error: Docker is not running. Please start Docker and try again."; \
 			exit 1; \
 		fi; \
+	else \
+		echo "✓ Docker is already running and ready!"; \
 	fi
-	@echo "✓ Docker is running and ready!"
+	@echo "✓ Docker setup completed successfully!"
 	@touch $@
 
 # Setup X11 for macOS

@@ -196,7 +196,6 @@ const void * const AudioTexture2DParameter::get_value() const {
         return AudioParameter::get_value();
     }
     else {
-<<<<<<< HEAD
         // Bind framebuffer to read from texture
         glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);
         glReadBuffer(GL_COLOR_ATTACHMENT0 + m_color_attachment);
@@ -205,12 +204,6 @@ const void * const AudioTexture2DParameter::get_value() const {
         glReadPixels(0, 0, m_parameter_width, m_parameter_height, m_format, m_datatype, m_data->get_data());
         
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-=======
-        void * data_ptr = malloc(m_data->get_size());
-        glBindTexture(GL_TEXTURE_2D, m_texture);
-        glGetTexImage(GL_TEXTURE_2D, 0, m_format, m_datatype, data_ptr);
-        glBindTexture(GL_TEXTURE_2D, 0);
->>>>>>> testing-architecture-improv
 
         std::memcpy(m_data->get_data(), data_ptr, m_data->get_size());
 
