@@ -42,9 +42,7 @@ private:
 
     bool unbind() override;
 
-    std::unique_ptr<ParamData> create_param_data() override {
-        return std::make_unique<ParamFloatArrayData>(m_parameter_width * m_parameter_height);
-    }
+    std::unique_ptr<ParamData> create_param_data() override;
 
     GLuint m_texture;
     GLuint m_PBO;
