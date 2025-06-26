@@ -3,7 +3,6 @@
 #define GRAPHICS_DISPLAY_H
 
 #include <string>
-#include <GL/glew.h>
 #include <unordered_map>
 #include <memory>
 #include <vector>

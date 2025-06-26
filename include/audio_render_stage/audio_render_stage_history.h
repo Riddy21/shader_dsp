@@ -4,7 +4,6 @@
 
 #include <iostream>
 #include <vector>
-#include <GL/glew.h>
 
 #include "audio_parameter/audio_texture2d_parameter.h"
 

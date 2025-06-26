@@ -2,7 +2,6 @@
 #ifndef AUDIO_UNIFORM_ARRAY_PARAMETERS_H
 #define AUDIO_UNIFORM_ARRAY_PARAMETERS_H
 
-#include <GL/glew.h>
 #include <GL/glut.h>
 #include <vector>
 #include "audio_core/audio_parameter.h"

@@ -1,5 +1,4 @@
 #include <iostream>
-#include <GL/glew.h>
 #include "graphics_components/button_component.h"
 #include "utilities/shader_program.h"
 #include "audio_synthesizer/audio_synthesizer.h"
@@ -118,7 +117,7 @@ ButtonComponent::~ButtonComponent() {
 void ButtonComponent::initialize_graphics() {
     // Simple vertex and fragment shaders for drawing a rectangle
     const std::string vertex_shader_src = R"(
-        #version 330 core
+        #version 300 es
         layout (location = 0) in vec2 aPos;
         
         void main() {
@@ -127,7 +126,8 @@ void ButtonComponent::initialize_graphics() {
     )";
 
     const std::string fragment_shader_src = R"(
-        #version 330 core
+        #version 300 es
+        precision mediump float;
         out vec4 FragColor;
         
         uniform vec4 uColor;

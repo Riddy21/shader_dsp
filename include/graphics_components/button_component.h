@@ -5,7 +5,6 @@
 #include <string>
 #include <functional>
 #include <vector>
-#include <GL/glew.h>
 
 #include "utilities/shader_program.h"
 #include "graphics_core/graphics_component.h"

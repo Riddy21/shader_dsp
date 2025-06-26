@@ -1,7 +1,6 @@
 #include <cstdio>
 #include <vector>
 #include <cstring>
-#include <GL/glew.h>
 #include <GL/glut.h>
 
 #include "utilities/audio_buffer.h"

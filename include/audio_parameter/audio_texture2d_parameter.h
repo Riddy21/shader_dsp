@@ -2,8 +2,8 @@
 #ifndef AUDIO_TEXTURE_PARAMETER_H
 #define AUDIO_TEXTURE_PARAMETER_H
 
-#include <GL/glew.h>
-#include <GL/glut.h>
+#include <GLES3/gl3.h>
+#include <EGL/egl.h>
 
 #include "audio_core/audio_parameter.h"
 
@@ -42,9 +42,7 @@ private:
 
     bool unbind() override;
 
-    std::unique_ptr<ParamData> create_param_data() override {
-        return std::make_unique<ParamFloatArrayData>(m_parameter_width * m_parameter_height);
-    }
+    std::unique_ptr<ParamData> create_param_data() override;
 
     GLuint m_texture;
     GLuint m_PBO;

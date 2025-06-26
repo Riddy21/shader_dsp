@@ -207,23 +207,13 @@ void AudioRenderStage::render(const unsigned int time) {
     // Bind the framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
 
-    std::vector<GLenum> draw_buffers;
-
     // Render parameters
     for (auto & [name, param] : m_parameters) {
         param->render();
-        // If the type is AudioTexture2DParameter, then add to the draw buffers
-        if (auto * texture_param = dynamic_cast<AudioTexture2DParameter *>(param.get())) {
-            if (texture_param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
-                draw_buffers.push_back(GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment());
-            }
-        }
     }
-    // sort the draw buffers 
-    std::sort(draw_buffers.begin(), draw_buffers.end());
 
-    // Ensure the draw buffers are cleared before rendering
-    glDrawBuffers(draw_buffers.size(), draw_buffers.data());
+    // Use pre-built draw buffers
+    glDrawBuffers(m_draw_buffers.size(), m_draw_buffers.data());
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -243,9 +233,44 @@ bool AudioRenderStage::add_parameter(AudioParameter * parameter) {
         m_input_parameters.push_back(m_parameters[parameter->name].get());
     } else if (parameter->connection_type == AudioParameter::ConnectionType::OUTPUT) {
         m_output_parameters.push_back(m_parameters[parameter->name].get());
+        
+        // If it's an AudioTexture2DParameter output, add to draw buffers
+        if (auto * texture_param = dynamic_cast<AudioTexture2DParameter *>(parameter)) {
+            GLenum draw_buffer = GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment();
+            m_draw_buffers.push_back(draw_buffer);
+            // Keep draw buffers sorted
+            std::sort(m_draw_buffers.begin(), m_draw_buffers.end());
+        }
     }
     return true;
 }
+
+bool AudioRenderStage::remove_parameter(const std::string & name) {
+    // Check if the parameter exists
+    if (m_parameters.find(name) == m_parameters.end()) {
+        std::cerr << "Error: Parameter " << name << " not found." << std::endl;
+        return false;
+    }
+
+    // Remove from input or output list
+    auto it = std::find_if(m_input_parameters.begin(), m_input_parameters.end(),
+                           [&name](AudioParameter * param) { return param->name == name; });
+    if (it != m_input_parameters.end()) {
+        m_input_parameters.erase(it);
+    } else {
+        it = std::find_if(m_output_parameters.begin(), m_output_parameters.end(),
+                          [&name](AudioParameter * param) { return param->name == name; });
+        if (it != m_output_parameters.end()) {
+            m_output_parameters.erase(it);
+        }
+    }
+
+    // Remove from the parameter map
+    m_parameters.erase(name);
+
+    return true;
+}
+
 AudioParameter * AudioRenderStage::find_parameter(const std::string name) const {
     if (m_parameters.find(name) != m_parameters.end()) {
         return m_parameters.at(name).get();
@@ -279,10 +304,61 @@ const std::string AudioRenderStage::get_shader_source(const std::string & file_p
 
 const std::string AudioRenderStage::combine_shader_source(const std::vector<std::string> & import_paths, const std::string & shader_path) {
     std::string combined_source = "";
+    bool version_added = false;
+    
     for (auto & import_path : import_paths) {
-        combined_source += get_shader_source(import_path) + "\n";
+        std::string import_source = get_shader_source(import_path);
+        
+        // Check if this import contains a #version directive
+        if (import_source.find("#version") != std::string::npos) {
+            if (!version_added) {
+                // Find the first #version line and add it
+                size_t version_pos = import_source.find("#version");
+                size_t newline_pos = import_source.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_source += import_source.substr(version_pos, newline_pos - version_pos + 1);
+                    // Add the rest of the import source without the #version line
+                    combined_source += import_source.substr(newline_pos + 1);
+                } else {
+                    combined_source += import_source;
+                }
+                version_added = true;
+            } else {
+                // Remove #version line from subsequent imports
+                size_t version_pos = import_source.find("#version");
+                size_t newline_pos = import_source.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_source += import_source.substr(newline_pos + 1);
+                } else {
+                    combined_source += import_source;
+                }
+            }
+        } else {
+            combined_source += import_source;
+        }
+        combined_source += "\n";
     }
-    combined_source += get_shader_source(shader_path);
+    
+    std::string shader_source = get_shader_source(shader_path);
+    
+    // Check if the main shader has a #version directive
+    if (shader_source.find("#version") != std::string::npos) {
+        if (!version_added) {
+            // If no version was added yet, keep the one from the main shader
+            combined_source += shader_source;
+        } else {
+            // Remove #version line from main shader
+            size_t version_pos = shader_source.find("#version");
+            size_t newline_pos = shader_source.find('\n', version_pos);
+            if (newline_pos != std::string::npos) {
+                combined_source += shader_source.substr(newline_pos + 1);
+            } else {
+                combined_source += shader_source;
+            }
+        }
+    } else {
+        combined_source += shader_source;
+    }
 
     return combined_source;
 }
@@ -312,17 +388,17 @@ bool AudioRenderStage::release_output_interface(AudioRenderStage * next_stage)
     output->clear_value();
 
     return true;
-}
-
+        }
+    
 const std::vector<AudioParameter *> AudioRenderStage::get_stream_interface()
 {
     std::vector<AudioParameter *> inputs;
     
     inputs.push_back(find_parameter("stream_audio_texture"));
     return inputs;
-}
-
-bool AudioRenderStage::release_stream_interface(AudioRenderStage * prev_stage)
+        }
+        
+        bool AudioRenderStage::release_stream_interface(AudioRenderStage * prev_stage)
 {
     // Clear all the stream parameters
     auto * stream = find_parameter("stream_audio_texture");
@@ -479,7 +555,8 @@ void AudioRenderStage::clear_output_textures() {
                 glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
 
                 // Set the draw buffer to the correct color attachment
-                glDrawBuffer(GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment());
+                GLenum draw_buffers[] = {GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment()};
+                glDrawBuffers(1, draw_buffers);
 
                 // Clear the color attachment
                 glClear(GL_COLOR_BUFFER_BIT);

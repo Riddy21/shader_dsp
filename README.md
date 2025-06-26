@@ -43,8 +43,46 @@ This repository includes a Docker setup that provides a consistent development e
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [Docker Compose](https://docs.docker.com/compose/install/)
+- **macOS users**: [XQuartz](https://www.xquartz.org/) for X11 forwarding
 
-#### Quick Start
+#### Quick Start with Makefile (Recommended)
+
+The project now includes a simplified Makefile that handles all setup and management tasks automatically:
+
+```bash
+# Complete initial setup (install dependencies, build container)
+make build
+
+# Start everything (XQuartz, PulseAudio, Docker container)
+make up
+
+# Connect to container shell
+make connect
+
+# Stop everything (container, PulseAudio, XQuartz)
+make down
+
+# Complete cleanup (remove containers, images, volumes)
+make clean
+
+# Show current status
+make status
+```
+
+**Simple Workflow:**
+1. **First time setup**: `make build`
+2. **Daily use**: `make up` → `make connect` → work → `make down`
+3. **Cleanup**: `make clean`
+
+The Makefile automatically handles:
+- Installing Docker and Homebrew (if needed)
+- Setting up X11/XQuartz for macOS
+- Configuring PulseAudio for audio support
+- Building and managing the Docker container
+
+For detailed Makefile usage, see [README-Makefile.md](README-Makefile.md).
+
+#### Quick Start with Script (Legacy)
 
 1. Run the provided script to build and start the container:
 

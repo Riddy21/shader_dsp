@@ -274,7 +274,7 @@ void GraphicsComponent::draw_outline() {
     
     // We'll use a simple pass-through shader
     const char* vert_src = R"(
-        #version 330 core
+        #version 300 es
         layout (location = 0) in vec2 aPos;
         void main() {
             gl_Position = vec4(aPos, 0.0, 1.0);
@@ -282,7 +282,8 @@ void GraphicsComponent::draw_outline() {
     )";
     
     const char* frag_src = R"(
-        #version 330 core
+        #version 300 es
+        precision mediump float;
         out vec4 FragColor;
         uniform vec4 uColor;
         void main() {
@@ -313,7 +314,6 @@ void GraphicsComponent::draw_outline() {
     // Setup for line drawing
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glLineWidth(2.0f);
     
     // Draw the outline
     glBindVertexArray(line_vao);

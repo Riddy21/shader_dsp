@@ -1,4 +1,3 @@
-#include <GL/glew.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <vector>
@@ -73,20 +72,6 @@ int main() {
     }
     SDL_GL_MakeCurrent(window, gl_context);
     SDL_GL_SetSwapInterval(1); // Enable vsync
-
-    // Initialize GLEW
-    glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK) {
-        SDL_GL_DeleteContext(gl_context);
-        SDL_DestroyWindow(window);
-        TTF_Quit();
-        SDL_Quit();
-        return -1;
-    }
-
-    // Enable line smoothing for better visuals
-    glEnable(GL_LINE_SMOOTH);
-    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 
     // Create SDL renderer for text rendering
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);

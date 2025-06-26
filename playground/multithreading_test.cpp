@@ -1,5 +1,4 @@
 #include <SDL2/SDL.h>
-#include <GL/glew.h>
 #include <iostream>
 #include <thread>
 #include <mutex>
@@ -25,16 +24,6 @@ void renderWindow(int windowId, const std::string& windowName) {
         SDL_DestroyWindow(window);
         return;
     }
-
-    // Initialize GLEW
-    if (glewInit() != GLEW_OK) {
-        std::cerr << "GLEW Initialization Error" << std::endl;
-        SDL_GL_DeleteContext(context);
-        SDL_DestroyWindow(window);
-        return;
-    }
-
-    glEnable(GL_DEPTH_TEST);  // Enable depth testing for 3D rendering
 
     // Render loop
     bool isRunning = true;

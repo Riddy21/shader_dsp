@@ -8,7 +8,6 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
-#include <GL/glew.h>
 
 #include "audio_core/audio_parameter.h"
 #include "utilities/shader_program.h"
@@ -59,6 +58,16 @@ public:
      * @return True if the parameter is successfully added, false otherwise.
      */
     bool add_parameter(AudioParameter * parameter);
+
+    /**
+     * @brief Remove a parameter from the audio parameter list
+     * 
+     * This function removes a parameter from the audio parameter list
+     * 
+     * @param name The name of the parameter to remove
+     * @return True if the parameter is successfully removed, false otherwise.
+     */
+    bool remove_parameter(const std::string & name);
 
     /**
      * @brief Find a parameter by name
@@ -165,6 +174,7 @@ protected:
     std::unordered_map<std::string, std::unique_ptr<AudioParameter>> m_parameters;
     std::vector<AudioParameter *> m_input_parameters;
     std::vector<AudioParameter *> m_output_parameters;
+    std::vector<GLenum> m_draw_buffers;
     std::unordered_set<AudioRenderStage *> m_connected_output_render_stages;
     std::unordered_set<AudioRenderStage *> m_connected_stream_render_stages;
 

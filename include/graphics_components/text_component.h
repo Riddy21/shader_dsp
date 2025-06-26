@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <GL/glew.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 

@@ -33,3 +33,6 @@ yarn-error.log
 # Claude
 .build_completed
 .claude
+
+# PulseAudio
+.pulse_audio_ready

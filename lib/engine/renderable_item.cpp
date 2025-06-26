@@ -1,9 +1,9 @@
 #include <SDL2/SDL.h>
-#include <GL/glew.h>
 #include <iostream>
 #include <stdexcept>
 
 #include "engine/renderable_item.h"
+#include "graphics_core/egl_compatibility.h"
 
 IRenderableEntity::~IRenderableEntity() {
     cleanup_sdl();
@@ -41,6 +41,9 @@ bool IRenderableEntity::initialize_sdl(
         window_flags = (window_flags & ~SDL_WINDOW_SHOWN) | SDL_WINDOW_HIDDEN;
     }
     
+    // Remove SDL_WINDOW_OPENGL flag since we'll use EGL
+    window_flags = window_flags & ~SDL_WINDOW_OPENGL;
+    
     m_window = SDL_CreateWindow(
         title.c_str(),
         SDL_WINDOWPOS_CENTERED,
@@ -55,19 +58,11 @@ bool IRenderableEntity::initialize_sdl(
         return false;
     }
 
-    m_context = SDL_GL_CreateContext(m_window);
-    if (!m_context) {
-        std::cerr << "Failed to create OpenGL context: " << SDL_GetError() << std::endl;
+    // Use EGL to create OpenGL ES context instead of SDL's OpenGL context
+    if (!EGLCompatibility::initialize_egl_context(m_window, m_context)) {
+        std::cerr << "Failed to create OpenGL ES context with EGL" << std::endl;
         SDL_DestroyWindow(m_window);
         m_window = nullptr;
-        return false;
-    }
-
-    SDL_GL_MakeCurrent(m_window, m_context); // Bind context to the current thread
-
-    if (glewInit() != GLEW_OK) {
-        std::cerr << "Failed to initialize GLEW" << std::endl;
-        cleanup_sdl();
         return false;
     }
 
@@ -121,8 +116,7 @@ void IRenderableEntity::cleanup_sdl() {
     activate_render_context();
     
     if (m_render_context.gl_context) {
-        SDL_GL_MakeCurrent(m_render_context.window, m_render_context.gl_context);
-        SDL_GL_DeleteContext(m_render_context.gl_context);
+        EGLCompatibility::cleanup_egl_context(m_render_context.gl_context);
         m_context = nullptr;
         m_render_context.gl_context = nullptr;
     }
@@ -140,7 +134,6 @@ void IRenderableEntity::render() {
     // No need to call activate_render_context() here, event loop will do it
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
     // Update the render FPS
     update_render_fps();
 }
@@ -149,8 +142,8 @@ void IRenderableEntity::present() {
     activate_render_context();
 
     if (m_render_context.visible) {
-        // No need to call activate_render_context() here, event loop will do it
-        SDL_GL_SwapWindow(m_render_context.window);
+        // Use EGL swap buffers instead of SDL
+        EGLCompatibility::swap_buffers(m_render_context.window);
     }
 
     // Update the present FPS
