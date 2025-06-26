@@ -11,6 +11,7 @@ PLAYGROUND_DIR = 'playground'
 BUILD_DIR = 'build'
 SHADER_DIR = 'shaders'
 
+# FIXME: have playground tests and scripts share the same build so files
 # Define source files
 LIB_SOURCES = Glob(os.path.join(LIB_DIR, '**', '*.cpp'), strings=True)
 MAIN_SOURCE = os.path.join(SRC_DIR, 'main.cpp')
