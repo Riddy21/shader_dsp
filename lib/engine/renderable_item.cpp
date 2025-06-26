@@ -36,6 +36,14 @@ bool IRenderableEntity::initialize_sdl(
     m_title = title;
     std::cout << "Initializing SDL window: " << title << std::endl;
     
+    // Set OpenGL ES attributes before creating the window
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    
     // Create flags based on visibility
     if (!visible) {
         window_flags = (window_flags & ~SDL_WINDOW_SHOWN) | SDL_WINDOW_HIDDEN;
