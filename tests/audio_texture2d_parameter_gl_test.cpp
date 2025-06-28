@@ -247,6 +247,8 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
 
         context.pre_draw();
 
+        // Render the input parameter to upload texture data to GPU
+        input_param.render();
         output_param.render();
 
         GLenum drawBuffers[] = {GL_COLOR_ATTACHMENT0 + output_param.get_color_attachment()};

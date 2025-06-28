@@ -41,6 +41,13 @@ AddOption('--test',
           metavar='TEST_NAME',
           help='Build and run a specific test (e.g. "--test=audio_buffer_test")')
 
+AddOption('--test-case',
+          dest='test_case',
+          type='string',
+          action='store',
+          metavar='TEST_CASE_NAME',
+          help='Run a specific test case within a test (e.g. "--test-case=\"AudioTexture2DParameter with OpenGL context\"")')
+
 AddOption('--playground',
           dest='playground',
           type='string',
@@ -54,6 +61,13 @@ AddOption('--docs',
           action='store_true',
           default=False,
           help='Build documentation using Doxygen.')
+
+AddOption('--section',
+          dest='section',
+          type='string',
+          action='store',
+          metavar='SECTION_NAME',
+          help='Run a specific section within a test case (e.g. --section="RGBA32F, 256x1, OUTPUT")')
 
 # Define compiler environment
 env = Environment(CXX='g++', CXXFLAGS='-std=c++20')
@@ -134,7 +148,7 @@ for src in SHADER_SOURCES:
 env.Depends(LIB_SOURCES, all_shaders)
 
 # Function to build and run tests
-def build_tests(env, specific_test=None):
+def build_tests(env, specific_test=None, test_case=None, section=None):
     # Get all test files from tests directory and framework subdirectory
     test_files = Glob(os.path.join(TEST_DIR, '*_test.cpp'), strings=True)
     framework_test_files = Glob(os.path.join(TEST_FRAMEWORK_DIR, '*_test.cpp'), strings=True) if os.path.exists(TEST_FRAMEWORK_DIR) else []
@@ -170,7 +184,16 @@ def build_tests(env, specific_test=None):
             
             # Set up the command with XDG_RUNTIME_DIR
             test_command = f'mkdir -p {xdg_runtime_dir} && XDG_RUNTIME_DIR={xdg_runtime_dir} '
-            test_command += 'xvfb-run -a ' + test_executable[0].abspath + ' -d yes > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
+            test_command += 'xvfb-run -a ' + test_executable[0].abspath + ' -d yes'
+            
+            # Add test case filter if specified
+            if test_case:
+                test_command += f" '{test_case}'"
+            
+            if section:
+                test_command += f" -c '{section}'"
+            
+            test_command += ' > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
             
             test_output = env.Command(
                 target=test_executable[0].abspath + '.out',
@@ -196,7 +219,13 @@ def build_tests(env, specific_test=None):
     test_filter = ""
     if specific_test:
         # Add a test name filter to the Catch2 command line
-        test_filter = f" --test-case \"{specific_test}\""
+        test_filter = f" '{specific_test}'"
+    elif test_case:
+        # Add a test case filter to the Catch2 command line
+        test_filter = f" '{test_case}'"
+    
+    if section:
+        test_filter += f" -c '{section}'"
     
     # Create a temp directory for XDG_RUNTIME_DIR
     xdg_runtime_dir = '/tmp/xdg-runtime-dir'
@@ -256,8 +285,15 @@ if GetOption('all_tests'):
 
 # Handle --test option (build specific test)
 test_name = GetOption('test')
+test_case = GetOption('test_case')
+section = GetOption('section')
 if test_name:
-    test_targets = build_tests(test_env, test_name)
+    test_targets = build_tests(test_env, test_name, test_case, section)
+    if test_targets:
+        targets.append(test_targets)
+elif test_case or section:
+    # If only --test-case or --section is specified, run all tests but filter by test case/section
+    test_targets = build_tests(test_env, None, test_case, section)
     if test_targets:
         targets.append(test_targets)
 

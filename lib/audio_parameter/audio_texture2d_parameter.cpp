@@ -44,7 +44,8 @@ bool AudioTexture2DParameter::initialize(GLuint frame_buffer, AudioShaderProgram
     m_framebuffer_linked = frame_buffer;
     m_shader_program_linked = shader_program;
 
-    if (m_framebuffer_linked == 0) {
+    // Only require framebuffer for OUTPUT and PASSTHROUGH parameters
+    if ((connection_type == ConnectionType::OUTPUT || connection_type == ConnectionType::PASSTHROUGH) && m_framebuffer_linked == 0) {
         printf("Error: render stage linked is nullptr in parameter %s\n, cannot be a global parameter.", name.c_str());
         return false;
     }
