@@ -212,6 +212,7 @@ void AudioRenderStage::render(const unsigned int time) {
         param->render();
     }
 
+    // TODO: Consider moving this to the parameter render function
     // Use pre-built draw buffers
     glDrawBuffers(m_draw_buffers.size(), m_draw_buffers.data());
 

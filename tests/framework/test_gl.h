@@ -3,6 +3,7 @@
 #include <GLES3/gl3.h>
 #include <EGL/egl.h>
 #include <iostream>
+#include <vector>
 #include "utilities/shader_program.h"
 #include "catch2/catch_all.hpp"
 
@@ -208,8 +209,8 @@ struct GLContext {
         glUseProgram(prog);
     }
 
-    void draw(GLenum * drawBuffers) {
-        glDrawBuffers(1, drawBuffers);
+    void draw(const std::vector<GLenum>& drawBuffers) {
+        glDrawBuffers(drawBuffers.size(), drawBuffers.data());
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glBindVertexArray(vao);
         glDrawArrays(GL_TRIANGLES, 0, 6);
