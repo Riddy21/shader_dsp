@@ -94,7 +94,8 @@ public:
         unsigned int height, 
         const std::string& title = "OpenGL Window", 
         Uint32 window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN,
-        bool visible = true
+        bool visible = true,
+        bool vsync_enabled = false
     );
 
     SDL_Window* get_window() const;
@@ -104,6 +105,10 @@ public:
     // Get the render context
     const RenderContext& get_render_context() const { return m_render_context; }
     
+    // Control vertical sync
+    void set_vsync_enabled(bool enabled);
+    bool is_vsync_enabled() const { return m_vsync_enabled; }
+
 protected:
     void update_render_fps();
     void update_present_fps();
@@ -125,6 +130,7 @@ private:
     int m_render_frame_count{0};
     int m_present_frame_count{0};
     bool m_visible;
+    bool m_vsync_enabled{false};
 };
 
 #endif // ENGINE_RENDERABLE_ITEM_H

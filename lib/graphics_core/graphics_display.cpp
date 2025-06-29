@@ -28,6 +28,8 @@ GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const 
         std::cerr << "Warning: Unable to disable VSync: " << SDL_GetError() << std::endl;
     }
 
+    set_vsync_enabled(false);
+
     // TODO: Consdier putting this in Constructor as a default
     auto& event_loop = EventLoop::get_instance();
     event_loop.add_loop_item(this); // Register this graphics display instance with the event loop

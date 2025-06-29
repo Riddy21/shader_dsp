@@ -27,6 +27,11 @@ public:
     // Makes the EGL context belonging to the given window current on this thread.
     static void make_current(SDL_Window* window, SDL_GLContext context);
     
+    // Sets the swap interval (VSync) for a specific SDL_Window. The value is
+    // remembered and reapplied automatically whenever that window's context
+    // is made current again.
+    static void set_swap_interval(SDL_Window* window, int interval);
+
 private:
     static EGLDisplay s_eglDisplay;
     static EGLConfig  s_eglConfig;
@@ -35,6 +40,10 @@ private:
     // Per-window maps
     static std::unordered_map<SDL_Window*, EGLSurface> s_surfaces;
     static std::unordered_map<SDL_Window*, EGLContext> s_contexts;
+
+    // Remember the desired swap interval per-window so we can reapply it
+    // after every eglMakeCurrent call (some drivers reset it).
+    static std::unordered_map<SDL_Window*, int> s_surfaceIntervals;
 
     static bool initialize_egl_display();
     static bool choose_egl_config();

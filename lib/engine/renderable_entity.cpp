@@ -30,9 +30,11 @@ bool IRenderableEntity::initialize_sdl(
     unsigned int height, 
     const std::string& title, 
     Uint32 window_flags,
-    bool visible
+    bool visible,
+    bool vsync_enabled
 ) {
     m_visible = visible; // Store visibility state
+    m_vsync_enabled = vsync_enabled;
     m_title = title;
     std::cout << "Initializing SDL window: " << title << std::endl;
     
@@ -68,6 +70,9 @@ bool IRenderableEntity::initialize_sdl(
 
     // Initialize the render context
     m_render_context = RenderContext(m_window, m_context, title, visible);
+
+    // Apply the desired VSync setting
+    set_vsync_enabled(m_vsync_enabled);
 
     return true;
 }
@@ -148,4 +153,17 @@ void IRenderableEntity::present() {
 
     // Update the present FPS
     update_present_fps();
+}
+
+void IRenderableEntity::set_vsync_enabled(bool enabled) {
+    m_vsync_enabled = enabled;
+    activate_render_context();
+
+    // Try SDL path first (may fail when using pure EGL)
+    if (SDL_GL_SetSwapInterval(enabled ? 1 : 0) < 0) {
+        std::cerr << "Warning: Unable to set VSync via SDL: " << SDL_GetError() << std::endl;
+    }
+
+    // Fallback / ensure using EGL layer (also stores interval for later)
+    EGLCompatibility::set_swap_interval(m_render_context.window, enabled ? 1 : 0);
 }

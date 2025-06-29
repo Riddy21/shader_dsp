@@ -1,5 +1,6 @@
 #include "graphics_core/egl_compatibility.h"
 #include <unordered_map>
+#include <EGL/eglext.h>
 
 // Static member initialization
 EGLDisplay EGLCompatibility::s_eglDisplay = EGL_NO_DISPLAY;
@@ -8,6 +9,7 @@ bool       EGLCompatibility::s_initialized = false;
 
 std::unordered_map<SDL_Window*, EGLSurface> EGLCompatibility::s_surfaces;
 std::unordered_map<SDL_Window*, EGLContext> EGLCompatibility::s_contexts;
+std::unordered_map<SDL_Window*, int> EGLCompatibility::s_surfaceIntervals;
 
 bool EGLCompatibility::initialize_egl_context(SDL_Window* window, SDL_GLContext& out_context) {
     if (!window) {
@@ -107,6 +109,25 @@ void EGLCompatibility::make_current(SDL_Window* window, SDL_GLContext context) {
     auto cit = s_contexts.find(window);
     if (sit != s_surfaces.end() && cit != s_contexts.end()) {
         eglMakeCurrent(s_eglDisplay, sit->second, sit->second, cit->second);
+
+        // Reapply stored swap interval for this surface, if any.
+        if (auto it = s_surfaceIntervals.find(window); it != s_surfaceIntervals.end()) {
+            eglSwapInterval(s_eglDisplay, it->second);
+        }
+    }
+}
+
+void EGLCompatibility::set_swap_interval(SDL_Window* window, int interval) {
+    if (!window) return;
+    if (s_eglDisplay == EGL_NO_DISPLAY) return;
+
+    // Update map
+    s_surfaceIntervals[window] = interval;
+
+    // Apply immediately if this window is current
+    SDL_Window* currentWin = SDL_GL_GetCurrentWindow();
+    if (currentWin == window) {
+        eglSwapInterval(s_eglDisplay, interval);
     }
 }
 
