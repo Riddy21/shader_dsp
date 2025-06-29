@@ -115,8 +115,8 @@ void IRenderableEntity::update_present_fps() {
 void IRenderableEntity::cleanup_sdl() {
     activate_render_context();
     
-    if (m_render_context.gl_context) {
-        EGLCompatibility::cleanup_egl_context(m_render_context.gl_context);
+    if (m_render_context.window) {
+        EGLCompatibility::cleanup_egl_context(m_render_context.window);
         m_context = nullptr;
         m_render_context.gl_context = nullptr;
     }
