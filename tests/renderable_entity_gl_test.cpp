@@ -217,8 +217,6 @@ TEST_CASE("Multiple windows render with hidden windows and colour readback", "[r
 }
 
 TEST_CASE("IRenderableEntity VSync affects presentation FPS", "[renderable_entity][vsync][!shouldfail]") {
-    SKIP("VSync functionality is not working properly at the moment - needs investigation");
-    
     // TODO: Re-enable this test once VSync implementation is fixed
     // Current issues:
     // - VSync setting may not be properly applied through EGL layer
