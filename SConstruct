@@ -51,7 +51,6 @@ AddOption('--test-case',
 AddOption('--playground',
           dest='playground',
           type='string',
-          nargs='+',
           action='store',
           metavar='EXAMPLE_NAME',
           help='Build playground examples. Optionally specify an example name (e.g. "--playground=audio_generator_test").')

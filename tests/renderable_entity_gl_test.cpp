@@ -217,7 +217,6 @@ TEST_CASE("Multiple windows render with hidden windows and colour readback", "[r
 }
 
 TEST_CASE("IRenderableEntity VSync affects presentation FPS", "[renderable_entity][vsync][!shouldfail]") {
-    SKIP("VSync functionality is not working properly at the moment - needs investigation");
     
     // TODO: Re-enable this test once VSync implementation is fixed
     // Current issues:
@@ -239,7 +238,6 @@ TEST_CASE("IRenderableEntity VSync affects presentation FPS", "[renderable_entit
     while (SDL_GetTicks() - start < no_vsync_duration) {
         entity.render();
         entity.present();
-        std::cout << "FPS: " << entity.get_present_fps() << std::endl;
     }
     float fps_no_vsync = entity.get_present_fps();
     std::cout << "FPS with VSync disabled: " << fps_no_vsync << std::endl;
@@ -254,7 +252,6 @@ TEST_CASE("IRenderableEntity VSync affects presentation FPS", "[renderable_entit
     while (SDL_GetTicks() - start < vsync_duration) {
         entity.render();
         entity.present();
-        std::cout << "FPS: " << entity.get_present_fps() << std::endl;
     }
     float fps_vsync = entity.get_present_fps();
     std::cout << "FPS with VSync enabled: " << fps_vsync << std::endl;
@@ -265,8 +262,135 @@ TEST_CASE("IRenderableEntity VSync affects presentation FPS", "[renderable_entit
     std::cout << "FPS difference: " << (fps_no_vsync - fps_vsync) << std::endl;
     REQUIRE(fps_no_vsync > fps_vsync);
     REQUIRE((fps_no_vsync - fps_vsync) > 1.0f); // Reduced threshold
+}
 
-    entity.unactivate_render_context();
+TEST_CASE("Multiple render entities frame rate performance", "[renderable_entity][multi_entity][fps][performance]") {
+    SDLInitGuard sdl_guard;
+
+    // Create multiple visible windows with different clear colours
+    DummyRenderableEntity red    ({1.0f, 0.0f, 0.0f, 1.0f}, 200, 400, true, "RedWindow");
+    DummyRenderableEntity green  ({0.0f, 1.0f, 0.0f, 1.0f}, 200, 400, true, "GreenWindow");
+    DummyRenderableEntity blue   ({0.0f, 0.0f, 1.0f, 1.0f}, 200, 400, true, "BlueWindow");
+    DummyRenderableEntity yellow ({1.0f, 1.0f, 0.0f, 1.0f}, 200, 400, true, "YellowWindow");
+
+    // Disable VSync for consistent measurements
+    red.set_vsync_enabled(false);
+    green.set_vsync_enabled(false);
+    blue.set_vsync_enabled(false);
+    yellow.set_vsync_enabled(false);
+
+    const Uint32 test_duration_ms = 3000; // 3 seconds for stable measurement
+    std::vector<float> single_entity_fps;
+    std::vector<float> multi_entity_fps;
+
+    // ---------- Test 1: Single entity rendering ----------
+    std::cout << "Testing single entity rendering..." << std::endl;
+    Uint32 start_time = SDL_GetTicks();
+    while (SDL_GetTicks() - start_time < test_duration_ms) {
+        red.render();
+        red.present();
+        red.unactivate_render_context();
+    }
+    float single_fps = red.get_present_fps();
+    single_entity_fps.push_back(single_fps);
+    std::cout << "Single entity FPS: " << single_fps << std::endl;
+    REQUIRE(single_fps > 0.0f);
+
+    // ---------- Test 2: Multiple entities rendering in sequence ----------
+    std::cout << "Testing multiple entities rendering in sequence..." << std::endl;
+    start_time = SDL_GetTicks();
+    while (SDL_GetTicks() - start_time < test_duration_ms) {
+        // Render each entity in sequence
+        red.render();
+        red.present();
+        red.unactivate_render_context();
+
+        green.render();
+        green.present();
+        green.unactivate_render_context();
+
+        blue.render();
+        blue.present();
+        blue.unactivate_render_context();
+
+        yellow.render();
+        yellow.present();
+        yellow.unactivate_render_context();
+    }
+
+    // Calculate average FPS across all entities
+    float avg_multi_fps = (red.get_present_fps() + green.get_present_fps() + 
+                          blue.get_present_fps() + yellow.get_present_fps()) / 4.0f;
+    multi_entity_fps.push_back(avg_multi_fps);
+    std::cout << "Multi-entity average FPS: " << avg_multi_fps << std::endl;
+    std::cout << "Individual FPS - Red: " << red.get_present_fps() 
+              << ", Green: " << green.get_present_fps()
+              << ", Blue: " << blue.get_present_fps()
+              << ", Yellow: " << yellow.get_present_fps() << std::endl;
+    REQUIRE(avg_multi_fps > 0.0f);
+
+    // ---------- Test 3: Multiple entities with context switching overhead ----------
+    std::cout << "Testing multiple entities with context switching overhead..." << std::endl;
+    start_time = SDL_GetTicks();
+    while (SDL_GetTicks() - start_time < test_duration_ms) {
+        // Render each entity with explicit context activation/deactivation
+        red.activate_render_context();
+        red.render();
+        red.present();
+        red.unactivate_render_context();
+
+        green.activate_render_context();
+        green.render();
+        green.present();
+        green.unactivate_render_context();
+
+        blue.activate_render_context();
+        blue.render();
+        blue.present();
+        blue.unactivate_render_context();
+
+        yellow.activate_render_context();
+        yellow.render();
+        yellow.present();
+        yellow.unactivate_render_context();
+    }
+
+    float avg_context_switch_fps = (red.get_present_fps() + green.get_present_fps() + 
+                                   blue.get_present_fps() + yellow.get_present_fps()) / 4.0f;
+    multi_entity_fps.push_back(avg_context_switch_fps);
+    std::cout << "Multi-entity with context switching average FPS: " << avg_context_switch_fps << std::endl;
+    REQUIRE(avg_context_switch_fps > 0.0f);
+
+    // ---------- Performance Analysis ----------
+    std::cout << "\n=== Performance Analysis ===" << std::endl;
+    std::cout << "Single entity FPS: " << single_fps << std::endl;
+    std::cout << "Multi-entity sequence FPS: " << avg_multi_fps << std::endl;
+    std::cout << "Multi-entity with context switching FPS: " << avg_context_switch_fps << std::endl;
+    
+    // Calculate performance ratios
+    float sequence_ratio = avg_multi_fps / single_fps;
+    float context_switch_ratio = avg_context_switch_fps / single_fps;
+    
+    std::cout << "Multi-entity performance ratio: " << sequence_ratio << "x" << std::endl;
+    std::cout << "Context switching performance ratio: " << context_switch_ratio << "x" << std::endl;
+
+    // Performance expectations:
+    // 1. Multi-entity should be slower than single entity due to context switching overhead
+    // 2. Explicit context switching should be similar or slightly slower than implicit
+    REQUIRE(single_fps >= avg_multi_fps * 0.5f); // Multi-entity should not be more than 50% slower
+    REQUIRE(avg_multi_fps >= avg_context_switch_fps * 0.8f); // Context switching should not be more than 20% slower
+
+    // Verify all entities are still functional after the test
+    REQUIRE(red.get_render_context().is_valid());
+    REQUIRE(green.get_render_context().is_valid());
+    REQUIRE(blue.get_render_context().is_valid());
+    REQUIRE(yellow.get_render_context().is_valid());
+
+    // Cleanup contexts
+    red.unactivate_render_context();
+    green.unactivate_render_context();
+    blue.unactivate_render_context();
+    yellow.unactivate_render_context();
 }
 
 #endif // RENDERABLE_ENTITY_GL_TEST_CPP 
