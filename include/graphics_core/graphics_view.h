@@ -5,7 +5,7 @@
 
 #include <graphics_core/graphics_component.h>
 #include <engine/event_handler.h>
-#include <engine/renderable_item.h>
+#include <engine/renderable_entity.h>
 
 class GraphicsView {
 public:

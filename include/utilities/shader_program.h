@@ -15,6 +15,8 @@ public:
     GLuint get_program() const;
     const std::string get_vertex_shader_source() const {return m_vertex_shader_source;}
     const std::string get_fragment_shader_source() const {return m_fragment_shader_source;}
+    
+    void use_program() const;
 
 private:
     bool compile_shader(GLuint shader, const std::string& source);

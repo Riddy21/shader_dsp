@@ -8,7 +8,7 @@
 
 #include "utilities/shader_program.h"
 #include "graphics_core/graphics_component.h"
-#include "engine/renderable_item.h"
+#include "engine/renderable_entity.h"
 #include "engine/event_handler.h"
 #include "audio_core/audio_renderer.h"
 

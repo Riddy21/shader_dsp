@@ -10,7 +10,7 @@
 #include <array>
 #include <iostream>
 
-#include "engine/renderable_item.h"
+#include "engine/renderable_entity.h"
 
 // Small RAII helper to ensure SDL is initialised for each test case
 struct SDLInitGuard {

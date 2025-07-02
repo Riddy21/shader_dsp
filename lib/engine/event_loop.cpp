@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "engine/event_loop.h"
-#include "engine/renderable_item.h"
+#include "engine/renderable_entity.h"
 #include "engine/event_handler.h"
 
 // Define static instance pointer

@@ -1,4 +1,4 @@
-#include "graphics_core/egl_compatibility.h"
+#include "utilities/egl_compatibility.h"
 #include <unordered_map>
 #include <EGL/eglext.h>
 #include <cstring> // for strstr

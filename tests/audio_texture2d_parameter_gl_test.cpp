@@ -39,7 +39,9 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
     SECTION("RGBA32F, 256x1, OUTPUT") {
         SDLWindow window(256, 1);
 
-        GLContext context(vert_src, frag_src);
+        GLContext context;
+        AudioShaderProgram shader_prog(vert_src, frag_src);
+        REQUIRE(shader_prog.initialize());
 
         GLFramebuffer framebuffer = GLFramebuffer();
 
@@ -54,13 +56,13 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(output_param.initialize(framebuffer.fbo, &context.shader_prog));
+        REQUIRE(output_param.initialize(framebuffer.fbo, &shader_prog));
 
         framebuffer.bind();
 
         REQUIRE(output_param.bind());
 
-        context.pre_draw();
+        shader_prog.use_program();
 
         output_param.render();
 
@@ -84,7 +86,9 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
     SECTION("RGBA32F, 64x4, OUTPUT") {
         SDLWindow window(64, 4);
 
-        GLContext context(vert_src, frag_src);
+        GLContext context;
+        AudioShaderProgram shader_prog(vert_src, frag_src);
+        REQUIRE(shader_prog.initialize());
 
         GLFramebuffer framebuffer = GLFramebuffer();
 
@@ -99,13 +103,13 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(output_param.initialize(framebuffer.fbo, &context.shader_prog));
+        REQUIRE(output_param.initialize(framebuffer.fbo, &shader_prog));
 
         framebuffer.bind();
 
         REQUIRE(output_param.bind());
 
-        context.pre_draw();
+        shader_prog.use_program();
 
         output_param.render();
 
@@ -133,7 +137,9 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
     SECTION("RGBA32F, 128x2, OUTPUT") {
         SDLWindow window(128, 2);
 
-        GLContext context(vert_src, frag_src);
+        GLContext context;
+        AudioShaderProgram shader_prog(vert_src, frag_src);
+        REQUIRE(shader_prog.initialize());
 
         GLFramebuffer framebuffer = GLFramebuffer();
 
@@ -148,13 +154,13 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(output_param.initialize(framebuffer.fbo, &context.shader_prog));
+        REQUIRE(output_param.initialize(framebuffer.fbo, &shader_prog));
 
         framebuffer.bind();
 
         REQUIRE(output_param.bind());
 
-        context.pre_draw();
+        shader_prog.use_program();
 
         output_param.render();
 
@@ -195,7 +201,9 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
             }
         )";
 
-        GLContext context(vert_src, frag_src_io);
+        GLContext context;
+        AudioShaderProgram shader_prog(vert_src, frag_src_io);
+        REQUIRE(shader_prog.initialize());
         GLFramebuffer framebuffer;
 
         // Prepare input data: fill with a gradient
@@ -220,7 +228,7 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(input_param.initialize(0, &context.shader_prog));
+        REQUIRE(input_param.initialize(0, &shader_prog));
         REQUIRE(input_param.set_value(input_data.data()));
 
         // Output parameter (as texture)
@@ -235,7 +243,7 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(output_param.initialize(framebuffer.fbo, &context.shader_prog));
+        REQUIRE(output_param.initialize(framebuffer.fbo, &shader_prog));
 
         framebuffer.bind();
 
@@ -243,7 +251,7 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
         REQUIRE(input_param.bind());
         REQUIRE(output_param.bind());
 
-        context.pre_draw();
+        shader_prog.use_program();
 
         // Render the input parameter to upload texture data to GPU
         input_param.render();
@@ -315,7 +323,9 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             }
         )";
 
-        GLContext context(vert_src, frag_src_multi);
+        GLContext context;
+        AudioShaderProgram shader_prog(vert_src, frag_src_multi);
+        REQUIRE(shader_prog.initialize());
         GLFramebuffer framebuffer;
 
         // Prepare input data A: sine wave pattern
@@ -369,7 +379,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(input_a_param.initialize(0, &context.shader_prog));
+        REQUIRE(input_a_param.initialize(0, &shader_prog));
         REQUIRE(input_a_param.set_value(input_a_data.data()));
 
         // Input parameter B
@@ -384,7 +394,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(input_b_param.initialize(0, &context.shader_prog));
+        REQUIRE(input_b_param.initialize(0, &shader_prog));
         REQUIRE(input_b_param.set_value(input_b_data.data()));
 
         // Input parameter C
@@ -399,7 +409,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(input_c_param.initialize(0, &context.shader_prog));
+        REQUIRE(input_c_param.initialize(0, &shader_prog));
         REQUIRE(input_c_param.set_value(input_c_data.data()));
 
         // Output parameter 1 (A + B)
@@ -414,7 +424,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(output_1_param.initialize(framebuffer.fbo, &context.shader_prog));
+        REQUIRE(output_1_param.initialize(framebuffer.fbo, &shader_prog));
 
         // Output parameter 2 (B * C)
         AudioTexture2DParameter output_2_param(
@@ -428,7 +438,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(output_2_param.initialize(framebuffer.fbo, &context.shader_prog));
+        REQUIRE(output_2_param.initialize(framebuffer.fbo, &shader_prog));
 
         // Output parameter 3 (A - C)
         AudioTexture2DParameter output_3_param(
@@ -442,7 +452,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(output_3_param.initialize(framebuffer.fbo, &context.shader_prog));
+        REQUIRE(output_3_param.initialize(framebuffer.fbo, &shader_prog));
 
         framebuffer.bind();
 
@@ -454,7 +464,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         REQUIRE(output_2_param.bind());
         REQUIRE(output_3_param.bind());
 
-        context.pre_draw();
+        shader_prog.use_program();
 
         // Render all parameters to upload texture data to GPU
         input_a_param.render();
@@ -567,7 +577,9 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             }
         )";
 
-        GLContext context(vert_src, frag_src_multi);
+        GLContext context;
+        AudioShaderProgram shader_prog(vert_src, frag_src_multi);
+        REQUIRE(shader_prog.initialize());
         GLFramebuffer framebuffer;
 
         // Prepare input data A: sine wave pattern
@@ -621,7 +633,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(input_a_param.initialize(0, &context.shader_prog));
+        REQUIRE(input_a_param.initialize(0, &shader_prog));
         REQUIRE(input_a_param.set_value(input_a_data.data()));
 
         // Input parameter C
@@ -636,7 +648,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(input_c_param.initialize(0, &context.shader_prog));
+        REQUIRE(input_c_param.initialize(0, &shader_prog));
         REQUIRE(input_c_param.set_value(input_c_data.data()));
 
 
@@ -652,7 +664,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(input_b_param.initialize(0, &context.shader_prog));
+        REQUIRE(input_b_param.initialize(0, &shader_prog));
         REQUIRE(input_b_param.set_value(input_b_data.data()));
 
         // Output parameter 2 (B * C)
@@ -667,7 +679,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(output_2_param.initialize(framebuffer.fbo, &context.shader_prog));
+        REQUIRE(output_2_param.initialize(framebuffer.fbo, &shader_prog));
 
         // Output parameter 1 (A + B)
         AudioTexture2DParameter output_1_param(
@@ -681,7 +693,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(output_1_param.initialize(framebuffer.fbo, &context.shader_prog));
+        REQUIRE(output_1_param.initialize(framebuffer.fbo, &shader_prog));
 
         // Output parameter 3 (A - C)
         AudioTexture2DParameter output_3_param(
@@ -695,7 +707,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(output_3_param.initialize(framebuffer.fbo, &context.shader_prog));
+        REQUIRE(output_3_param.initialize(framebuffer.fbo, &shader_prog));
 
         framebuffer.bind();
 
@@ -707,7 +719,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         REQUIRE(output_1_param.bind());
         REQUIRE(output_3_param.bind());
 
-        context.pre_draw();
+        shader_prog.use_program();
 
         // Render all parameters to upload texture data to GPU
         input_a_param.render();
@@ -749,7 +761,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         REQUIRE(output_2_param.bind());
         REQUIRE(output_3_param.bind());
 
-        context.pre_draw();
+        shader_prog.use_program();
 
         // Render all parameters to upload texture data to GPU
         input_a_param.render();
@@ -873,10 +885,14 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         )";
 
         // Create GL contexts and framebuffers for the two stages
-        GLContext context1(vert_src, frag_stage1);
+        GLContext context1;
+        AudioShaderProgram shader_prog1(vert_src, frag_stage1);
+        REQUIRE(shader_prog1.initialize());
         GLFramebuffer framebuffer1;
 
-        GLContext context2(vert_src, frag_stage2);
+        GLContext context2;
+        AudioShaderProgram shader_prog2(vert_src, frag_stage2);
+        REQUIRE(shader_prog2.initialize());
         GLFramebuffer framebuffer2;
 
         // Passthrough parameter that will receive Stage 1 output and be read in Stage 2
@@ -891,7 +907,7 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(passthrough_param.initialize(framebuffer2.fbo, &context2.shader_prog));
+        REQUIRE(passthrough_param.initialize(framebuffer2.fbo, &shader_prog2));
 
         // Stage 1 output texture that will be linked to the passthrough parameter
         AudioTexture2DParameter stage1_output(
@@ -905,7 +921,7 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(stage1_output.initialize(framebuffer1.fbo, &context1.shader_prog));
+        REQUIRE(stage1_output.initialize(framebuffer1.fbo, &shader_prog1));
 
         // Link Stage 1 output to the passthrough parameter texture
         REQUIRE(stage1_output.link(&passthrough_param));
@@ -922,12 +938,12 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(stage2_output.initialize(framebuffer2.fbo, &context2.shader_prog));
+        REQUIRE(stage2_output.initialize(framebuffer2.fbo, &shader_prog2));
 
         // ---------------- Stage 1 render ----------------
         framebuffer1.bind();
         REQUIRE(stage1_output.bind());
-        context1.pre_draw();
+        shader_prog1.use_program();
         stage1_output.render();
         std::vector<GLenum> drawBuffers1 = { GL_COLOR_ATTACHMENT0 + stage1_output.get_color_attachment() };
         context1.draw(drawBuffers1);
@@ -944,7 +960,7 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         REQUIRE(passthrough_param.bind());
         REQUIRE(stage2_output.bind());
 
-        context2.pre_draw();
+        shader_prog2.use_program();
         // Render parameters: upload uniforms/textures
         passthrough_param.render();
         stage2_output.render();
@@ -997,10 +1013,14 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
             }
         )";
 
-        GLContext context1(vert_src, frag_stage1);
+        GLContext context1;
+        AudioShaderProgram shader_prog1(vert_src, frag_stage1);
+        REQUIRE(shader_prog1.initialize());
         GLFramebuffer framebuffer1;
 
-        GLContext context2(vert_src, frag_stage2);
+        GLContext context2;
+        AudioShaderProgram shader_prog2(vert_src, frag_stage2);
+        REQUIRE(shader_prog2.initialize());
         GLFramebuffer framebuffer2;
 
         AudioTexture2DParameter passthrough_param(
@@ -1014,7 +1034,7 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(passthrough_param.initialize(framebuffer2.fbo, &context2.shader_prog));
+        REQUIRE(passthrough_param.initialize(framebuffer2.fbo, &shader_prog2));
 
         AudioTexture2DParameter stage1_output(
             "color",
@@ -1027,7 +1047,7 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(stage1_output.initialize(framebuffer1.fbo, &context1.shader_prog));
+        REQUIRE(stage1_output.initialize(framebuffer1.fbo, &shader_prog1));
         REQUIRE(stage1_output.link(&passthrough_param));
 
         // Stage 2 output
@@ -1042,13 +1062,13 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
             GL_RGBA,
             GL_RGBA32F
         );
-        REQUIRE(stage2_output.initialize(framebuffer2.fbo, &context2.shader_prog));
+        REQUIRE(stage2_output.initialize(framebuffer2.fbo, &shader_prog2));
 
 
         // Render Stage 1
         framebuffer1.bind();
         REQUIRE(stage1_output.bind());
-        context1.pre_draw();
+        shader_prog1.use_program();
         stage1_output.render();
         std::vector<GLenum> drawBuffers1 = { GL_COLOR_ATTACHMENT0 + stage1_output.get_color_attachment() };
         context1.draw(drawBuffers1);
@@ -1057,7 +1077,7 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         framebuffer2.bind();
         REQUIRE(passthrough_param.bind());
         REQUIRE(stage2_output.bind());
-        context2.pre_draw();
+        shader_prog2.use_program();
         passthrough_param.render();
         stage2_output.render();
         std::vector<GLenum> drawBuffers2 = { GL_COLOR_ATTACHMENT0 + stage2_output.get_color_attachment() };

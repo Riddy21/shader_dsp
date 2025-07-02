@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
-#include "engine/renderable_item.h"
+#include "engine/renderable_entity.h"
 
 // Forward declarations
 class EventHandlerEntry;

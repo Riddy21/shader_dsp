@@ -3,7 +3,7 @@
 #include "utilities/shader_program.h"
 #include "audio_synthesizer/audio_synthesizer.h"
 #include "engine/event_handler.h"
-#include "engine/renderable_item.h"
+#include "engine/renderable_entity.h"
 
 ButtonComponent::ButtonComponent(
     float x, 

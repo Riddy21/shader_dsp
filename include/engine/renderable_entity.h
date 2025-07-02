@@ -1,12 +1,12 @@
-#ifndef ENGINE_RENDERABLE_ITEM_H
-#define ENGINE_RENDERABLE_ITEM_H
+#ifndef ENGINE_RENDERABLE_ENTITY_H
+#define ENGINE_RENDERABLE_ENTITY_H
 
 #include <SDL2/SDL.h> // For SDL_GetTicks
 #include <cstdint>    // For standard integer types like Uint32
 #include <string>
 
 // Include EGL compatibility header
-#include "graphics_core/egl_compatibility.h"
+#include "utilities/egl_compatibility.h"
 
 // Structure to encapsulate rendering context information
 struct RenderContext {
@@ -133,4 +133,4 @@ private:
     bool m_vsync_enabled{false};
 };
 
-#endif // ENGINE_RENDERABLE_ITEM_H
+#endif // ENGINE_RENDERABLE_ENTITY_H

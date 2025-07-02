@@ -159,15 +159,9 @@ struct GLFramebuffer {
 
 struct GLContext {
     GLuint vao = 0, vbo = 0;
-    AudioShaderProgram shader_prog;
-    GLuint prog;
 
-    GLContext(const char * vert_src, const char * frag_src)
-        : shader_prog(vert_src, frag_src)
+    GLContext()
     {
-        REQUIRE(shader_prog.initialize());
-        prog = shader_prog.get_program();
-
         float quad[] = {
             // Position    Texcoords
             -1.0f, -1.0f, 0.0f, 0.0f,  // Bottom-left
@@ -203,10 +197,6 @@ struct GLContext {
     ~GLContext() {
         glDeleteBuffers(1, &vbo);
         glDeleteVertexArrays(1, &vao);
-    }
-
-    void pre_draw() {
-        glUseProgram(prog);
     }
 
     void draw(const std::vector<GLenum>& drawBuffers) {

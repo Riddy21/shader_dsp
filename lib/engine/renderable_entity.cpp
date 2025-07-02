@@ -2,8 +2,8 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "engine/renderable_item.h"
-#include "graphics_core/egl_compatibility.h"
+#include "engine/renderable_entity.h"
+#include "utilities/egl_compatibility.h"
 
 IRenderableEntity::~IRenderableEntity() {
     cleanup_sdl();
