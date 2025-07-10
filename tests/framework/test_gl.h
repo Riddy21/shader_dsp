@@ -203,7 +203,6 @@ struct GLContext {
 
     void prepare_draw() {
         glBindVertexArray(vao);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
     }
 
     void set_draw_buffers(const std::vector<GLenum>& drawBuffers) {

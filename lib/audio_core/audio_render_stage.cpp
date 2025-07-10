@@ -37,13 +37,14 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
     int width = frames_per_buffer;
     int height = num_channels;
 
+
     auto stream_audio_texture =
         new AudioTexture2DParameter("stream_audio_texture",
                                     AudioParameter::ConnectionType::PASSTHROUGH,
                                     width, height, // Width and height
-                                    ++m_active_texture_count,
-                                    0, GL_NEAREST);
-
+                                    m_active_texture_count++,
+                                    0, /* colour attachment not used for passthrough */
+                                    GL_NEAREST);
     auto output_audio_texture =
         new AudioTexture2DParameter("output_audio_texture",
                                     AudioParameter::ConnectionType::OUTPUT,

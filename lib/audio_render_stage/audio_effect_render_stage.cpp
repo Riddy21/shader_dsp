@@ -90,7 +90,7 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
         new AudioTexture2DParameter("echo_audio_texture",
                                 AudioParameter::ConnectionType::INPUT,
                                 frames_per_buffer, M_MAX_ECHO_BUFFER_SIZE * num_channels, // Around 2s of audio data
-                                ++m_active_texture_count,
+                                m_active_texture_count++,
                                 0, GL_NEAREST);
 
     // Set the echo buffer to the size of the audio data and set to 0
@@ -199,7 +199,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
         new AudioTexture2DParameter("b_coeff_texture",
                                 AudioParameter::ConnectionType::INPUT,
                                 MAX_TEXTURE_SIZE, 1, // Due to restriction of the shader only can be as big as the buffer size
-                                ++m_active_texture_count,
+                                m_active_texture_count++,
                                 0, GL_NEAREST);
     
     if (!this->add_parameter(num_taps_parameter)) {

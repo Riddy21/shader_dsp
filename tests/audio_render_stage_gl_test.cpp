@@ -43,7 +43,7 @@ void main() {
     
     // Create a simple sine wave using sample_rate
     float time_in_seconds = sample_pos / float(sample_rate);
-    float sine_wave = sin(TWO_PI * 440.0 * time_in_seconds);
+    float sine_wave = sin(TWO_PI * time_in_seconds);
 
     vec4 stream_audio = texture(stream_audio_texture, TexCoord);
     
@@ -90,8 +90,10 @@ void main() {
         // Verify output contains simple sine wave data
         for (int i = 0; i < BUFFER_SIZE; ++i) {
             // Calculate expected sine wave based on our simple shader logic
-            float time_in_seconds = (static_cast<float>(i) + 0.5f) / SAMPLE_RATE;
-            float expected = sin(2.0f * M_PI * 440.0f * time_in_seconds);
+            float tex_coord_x = (static_cast<float>(i) + 0.5f) / BUFFER_SIZE; // TexCoord.x for this pixel
+            float sample_pos = tex_coord_x * BUFFER_SIZE;
+            float time_in_seconds = sample_pos / SAMPLE_RATE;
+            float expected = sin(2.0f * M_PI * time_in_seconds);
             
             float actual = output_data[i]; // Single channel
             REQUIRE(actual == Catch::Approx(expected).margin(0.1f));
@@ -102,9 +104,107 @@ void main() {
         const float* debug_data = static_cast<const float*>(debug_param->get_value());
         REQUIRE(debug_data != nullptr);
         for (int i = 0; i < BUFFER_SIZE; ++i) {
-            REQUIRE(debug_data[i] == Catch::Approx(0.0f).margin(0.1f));
+            REQUIRE(debug_data[i] == Catch::Approx(float(BUFFER_SIZE) / 1000.0f).margin(0.1f));
         }
 
         render_stage.unbind();
     }
+}
+
+TEST_CASE("AudioRenderStage pass-through chain", "[audio_render_stage][gl_test]") {
+    SDLWindow window(WIDTH, HEIGHT);
+    GLContext context;
+
+    constexpr int BUFFER_SIZE = 256;
+    constexpr int SAMPLE_RATE = 44100;
+    constexpr int NUM_CHANNELS = 2;
+
+    // --- Stage 1: produce sine wave ---
+    const char *stage1_shader_path = "build/tests/test_render_stage1_frag.glsl";
+    {
+        std::ofstream fs(stage1_shader_path);
+        fs << R"(
+void main(){
+    float sample_pos = TexCoord.x * float(buffer_size);
+    float time_in_seconds = sample_pos / float(sample_rate);
+    float sine_wave = sin(TWO_PI * time_in_seconds);
+
+    vec4 stream_audio = texture(stream_audio_texture, TexCoord);
+    
+    // Output the sine wave
+    output_audio_texture = vec4(sine_wave) + stream_audio;
+    debug_audio_texture  = vec4(sine_wave) + stream_audio;
+}
+)";
+    }
+
+    // --- Stage 2: pass-through of stream_audio_texture ---
+    const char *stage2_shader_path = "build/tests/test_render_stage2_frag.glsl";
+    {
+        std::ofstream fs(stage2_shader_path);
+        fs << R"(
+void main(){
+    vec4 v = texture(stream_audio_texture, TexCoord);
+    output_audio_texture = v;
+    debug_audio_texture  = vec4(0.0);
+}
+)";
+    }
+
+    AudioRenderStage stage1(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, stage1_shader_path);
+    AudioRenderStage stage2(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, stage2_shader_path);
+
+    REQUIRE(stage1.initialize());
+    REQUIRE(stage2.initialize());
+
+    REQUIRE(stage1.connect_render_stage(&stage2));
+
+    context.prepare_draw();
+
+    REQUIRE(stage1.bind());
+
+    stage1.render(0);
+
+    // Validate debug texture of stage1 is sine wave
+    auto debug_param = stage1.find_parameter("output_audio_texture");
+    REQUIRE(debug_param != nullptr);
+    const float *debug_data = static_cast<const float *>(debug_param->get_value());
+    REQUIRE(debug_data != nullptr);
+    for (int i = 0; i < BUFFER_SIZE; ++i) {
+        float tex_coord_x = (static_cast<float>(i) + 0.5f) / BUFFER_SIZE; // TexCoord.x for this pixel
+        float sample_pos = tex_coord_x * BUFFER_SIZE;
+        float time_in_seconds = sample_pos / SAMPLE_RATE;
+        float expected = sin(2.0f * M_PI * time_in_seconds);
+        REQUIRE(debug_data[i] == Catch::Approx(expected).margin(0.1f));
+    }
+    
+    REQUIRE(stage2.bind());
+    
+    stage2.render(0);
+
+    // Validate data passed through correctly
+    auto output_param = stage2.find_parameter("output_audio_texture");
+    REQUIRE(output_param != nullptr);
+    const float *output_data = static_cast<const float *>(output_param->get_value());
+    REQUIRE(output_data != nullptr);
+
+    for (int i = 0; i < BUFFER_SIZE; ++i) {
+        float tex_coord_x = (static_cast<float>(i) + 0.5f) / BUFFER_SIZE; // TexCoord.x for this pixel
+        float sample_pos = tex_coord_x * BUFFER_SIZE;
+        float time_in_seconds = sample_pos / SAMPLE_RATE;
+        float expected = sin(2.0f * M_PI * time_in_seconds);
+        REQUIRE(output_data[i] == Catch::Approx(expected).margin(0.1f));
+    }
+
+    // Debug texture of stage2 should remain zeros
+    debug_param = stage2.find_parameter("debug_audio_texture");
+    REQUIRE(debug_param != nullptr);
+    debug_data = static_cast<const float *>(debug_param->get_value());
+    REQUIRE(debug_data != nullptr);
+    for (int i = 0; i < BUFFER_SIZE; ++i) {
+        REQUIRE(debug_data[i] == Catch::Approx(0.0f).margin(0.1f));
+    }
+
+    stage2.unbind();
+    stage1.unbind();
 }

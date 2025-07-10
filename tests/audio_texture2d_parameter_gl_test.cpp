@@ -900,13 +900,12 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
             }
         )";
 
-        // Create GL contexts and framebuffers for the two stages
-        GLContext context1;
+        // Create single GL context and framebuffers for the two stages
+        GLContext context;
         AudioShaderProgram shader_prog1(vert_src, frag_stage1);
         REQUIRE(shader_prog1.initialize());
         GLFramebuffer framebuffer1;
 
-        GLContext context2;
         AudioShaderProgram shader_prog2(vert_src, frag_stage2);
         REQUIRE(shader_prog2.initialize());
         GLFramebuffer framebuffer2;
@@ -916,8 +915,8 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
             "shared_tex",
             AudioParameter::ConnectionType::PASSTHROUGH,
             WIDTH, HEIGHT,
-            1,  // active texture unit for Stage 2 sampling
-            1,  // color attachment (not in draw buffers)
+            0,  // active texture unit for Stage 2 sampling
+            0,  // color attachment (not in draw buffers)
             GL_NEAREST,
             GL_FLOAT,
             GL_RGBA,
@@ -960,11 +959,11 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         framebuffer1.bind();
         REQUIRE(stage1_output.bind());
         shader_prog1.use_program();
-        context1.prepare_draw();
+        context.prepare_draw();
         stage1_output.render();
         std::vector<GLenum> drawBuffers1 = { GL_COLOR_ATTACHMENT0 + stage1_output.get_color_attachment() };
-        context1.set_draw_buffers(drawBuffers1);
-        context1.draw();
+        context.set_draw_buffers(drawBuffers1);
+        context.draw();
 
         // Optional: verify Stage 1 output texture values
         const float* stage1_pixels = static_cast<const float*>(stage1_output.get_value());
@@ -979,14 +978,14 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         REQUIRE(stage2_output.bind());
 
         shader_prog2.use_program();
-        context2.prepare_draw();
+        context.prepare_draw();
         // Render parameters: upload uniforms/textures
         passthrough_param.render();
         stage2_output.render();
 
         std::vector<GLenum> drawBuffers2 = { GL_COLOR_ATTACHMENT0 + stage2_output.get_color_attachment() };
-        context2.set_draw_buffers(drawBuffers2);
-        context2.draw();
+        context.set_draw_buffers(drawBuffers2);
+        context.draw();
 
         // Validate Stage 2 output values (should be half of Stage 1)
         const float* stage2_pixels = static_cast<const float*>(stage2_output.get_value());
@@ -1033,12 +1032,11 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
             }
         )";
 
-        GLContext context1;
+        GLContext context;
         AudioShaderProgram shader_prog1(vert_src, frag_stage1);
         REQUIRE(shader_prog1.initialize());
         GLFramebuffer framebuffer1;
 
-        GLContext context2;
         AudioShaderProgram shader_prog2(vert_src, frag_stage2);
         REQUIRE(shader_prog2.initialize());
         GLFramebuffer framebuffer2;
@@ -1089,23 +1087,23 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         framebuffer1.bind();
         REQUIRE(stage1_output.bind());
         shader_prog1.use_program();
-        context1.prepare_draw();
+        context.prepare_draw();
         stage1_output.render();
         std::vector<GLenum> drawBuffers1 = { GL_COLOR_ATTACHMENT0 + stage1_output.get_color_attachment() };
-        context1.set_draw_buffers(drawBuffers1);
-        context1.draw();
+        context.set_draw_buffers(drawBuffers1);
+        context.draw();
 
         // Render Stage 2
         framebuffer2.bind();
         REQUIRE(passthrough_param.bind());
         REQUIRE(stage2_output.bind());
         shader_prog2.use_program();
-        context2.prepare_draw();
+        context.prepare_draw();
         passthrough_param.render();
         stage2_output.render();
         std::vector<GLenum> drawBuffers2 = { GL_COLOR_ATTACHMENT0 + stage2_output.get_color_attachment() };
-        context2.set_draw_buffers(drawBuffers2);
-        context2.draw();
+        context.set_draw_buffers(drawBuffers2);
+        context.draw();
 
         // Validate Stage 2 output (negated cosine)
         const float* stage2_pixels = static_cast<const float*>(stage2_output.get_value());
@@ -1122,6 +1120,246 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
 
         passthrough_param.unbind();
         stage2_output.unbind();
+        framebuffer2.unbind();
+    }
+}
+
+// TODO: Write another test that mimics the render stage passthrough linking test
+
+TEST_CASE("Texture2DParameter pass-through copy linking", "[audio_parameter][gl_test][passthrough_copy]") {
+    // Vertex shader identical to default render-stage vertex
+    const char* vert_src = R"(
+        #version 300 es
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec2 aTexCoord;
+        out vec2 TexCoord;
+        void main() {
+            gl_Position = vec4(aPos, 0.0, 1.0);
+            TexCoord = aTexCoord;
+        }
+    )";
+
+    SECTION("RGBA32F, 256x2, COPY") {
+        constexpr int WIDTH  = 256;
+        constexpr int HEIGHT = 2;
+
+        SDLWindow window(WIDTH, HEIGHT);
+
+        //----------------------------------------------------
+        // Fragment shaders mirroring render-stage test setup
+        //----------------------------------------------------
+
+        // Settings imported from shaders/settings (inlined here)
+        const char* settings_src = R"(
+            #version 300 es
+            precision highp float;
+            const float PI = 3.14159265359;
+            const float TWO_PI = 6.28318530718;
+            in vec2 TexCoord;
+
+            int buffer_size = 256;
+            int sample_rate = 44100;
+            int num_channels = 2;
+
+            uniform sampler2D stream_audio_texture;
+            layout(std140) uniform global_time {
+                int global_time_val;
+            };
+            layout(location = 0) out vec4 output_audio_texture;
+            layout(location = 1) out vec4 debug_audio_texture;
+        )";
+
+        // Stage 1 shader – simple spatial sine wave (matches earlier texture tests)
+        std::string frag_stage1 = std::string(settings_src) + R"(
+        void main(){
+            float sine_wave = sin(TWO_PI * TexCoord.x);
+            vec4 stream_audio = texture(stream_audio_texture, TexCoord);
+
+            output_audio_texture = vec4(sine_wave) + stream_audio;
+            debug_audio_texture  = vec4(sine_wave) + stream_audio;
+        }
+        )";
+
+        // Stage 2 shader – pure pass-through copy
+        std::string frag_stage2 = std::string(settings_src) + R"(
+        void main(){
+            vec4 v = texture(stream_audio_texture, TexCoord);
+            output_audio_texture = v;
+            debug_audio_texture  = vec4(0.0);
+        }
+        )";
+
+        //----------------------------------------------------
+        // Stage 1 setup
+        //----------------------------------------------------
+        GLContext context;
+        AudioShaderProgram shader_prog1(vert_src, frag_stage1.c_str());
+        REQUIRE(shader_prog1.initialize());
+        GLFramebuffer framebuffer1;
+
+        // stream_audio_texture (unconnected in stage 1, defaults to 0 texture)
+        AudioTexture2DParameter stage1_stream_param(
+            "stream_audio_texture",
+            AudioParameter::ConnectionType::PASSTHROUGH,
+            WIDTH, HEIGHT,
+            0,   // active texture unit 0
+            0,   // colour attachment not drawn
+            GL_NEAREST,
+            GL_FLOAT,
+            GL_RED,
+            GL_R32F
+        );
+
+        // Outputs for Stage 1
+        AudioTexture2DParameter stage1_output(
+            "output_audio_texture",
+            AudioParameter::ConnectionType::OUTPUT,
+            WIDTH, HEIGHT,
+            0,
+            0,
+            GL_NEAREST,
+            GL_FLOAT,
+            GL_RED,
+            GL_R32F
+        );
+
+        AudioTexture2DParameter stage1_debug(
+            "debug_audio_texture",
+            AudioParameter::ConnectionType::OUTPUT,
+            WIDTH, HEIGHT,
+            0,
+            1,
+            GL_NEAREST,
+            GL_FLOAT,
+            GL_RED,
+            GL_R32F
+        );
+
+        //----------------------------------------------------
+        // Stage 2 setup
+        //----------------------------------------------------
+        AudioShaderProgram shader_prog2(vert_src, frag_stage2.c_str());
+        REQUIRE(shader_prog2.initialize());
+        GLFramebuffer framebuffer2;
+
+        // Passthrough parameter (receives Stage 1 output)
+        AudioTexture2DParameter stage2_stream_param(
+            "stream_audio_texture",
+            AudioParameter::ConnectionType::PASSTHROUGH,
+            WIDTH, HEIGHT,
+            0,  // active texture unit 0
+            0,  // colour attachment not drawn
+            GL_NEAREST,
+            GL_FLOAT,
+            GL_RED,
+            GL_R32F
+        );
+
+        // Outputs for Stage 2
+        AudioTexture2DParameter stage2_output(
+            "output_audio_texture",
+            AudioParameter::ConnectionType::OUTPUT,
+            WIDTH, HEIGHT,
+            0,
+            0,
+            GL_NEAREST,
+            GL_FLOAT,
+            GL_RED,
+            GL_R32F
+        );
+
+        AudioTexture2DParameter stage2_debug(
+            "debug_audio_texture",
+            AudioParameter::ConnectionType::OUTPUT,
+            WIDTH, HEIGHT,
+            0,
+            1,
+            GL_NEAREST,
+            GL_FLOAT,
+            GL_RED,
+            GL_R32F
+        );
+
+        REQUIRE(stage1_stream_param.initialize(framebuffer1.fbo, &shader_prog1));
+        REQUIRE(stage1_output.initialize(framebuffer1.fbo, &shader_prog1));
+        REQUIRE(stage1_debug.initialize(framebuffer1.fbo, &shader_prog1));
+        REQUIRE(stage2_stream_param.initialize(framebuffer2.fbo, &shader_prog2));
+        REQUIRE(stage2_output.initialize(framebuffer2.fbo, &shader_prog2));
+        REQUIRE(stage2_debug.initialize(framebuffer2.fbo, &shader_prog2));
+
+        // Link Stage 1 output to Stage 2 stream texture
+        REQUIRE(stage1_output.link(&stage2_stream_param));
+
+        framebuffer1.bind();
+        REQUIRE(stage1_stream_param.bind());
+        REQUIRE(stage1_output.bind());
+        REQUIRE(stage1_debug.bind());
+
+        //----------------------------------------------------
+        // Render Stage 1
+        //----------------------------------------------------
+
+        shader_prog1.use_program();
+        context.prepare_draw();
+
+        // Upload uniforms & textures
+        stage1_stream_param.render();
+        stage1_output.render();
+        stage1_debug.render();
+
+        std::vector<GLenum> draw_buffers1 = {
+            GL_COLOR_ATTACHMENT0 + stage1_output.get_color_attachment(),
+            GL_COLOR_ATTACHMENT0 + stage1_debug.get_color_attachment()
+        };
+        context.set_draw_buffers(draw_buffers1);
+        context.draw();
+
+        //----------------------------------------------------
+        // Validation – Stage 1 output should match sine wave
+        //----------------------------------------------------
+        const float* stage1_pixels = static_cast<const float*>(stage1_debug.get_value());
+        REQUIRE(stage1_pixels != nullptr);
+        for (int x = 0; x < WIDTH; ++x) {
+            float expected_red = sin(static_cast<float>(x) / WIDTH * 2.0f * static_cast<float>(M_PI));
+            REQUIRE(stage1_pixels[x] == Catch::Approx(expected_red).margin(0.1f));
+        }
+
+        //----------------------------------------------------
+        // Render Stage 2
+        //----------------------------------------------------
+        framebuffer2.bind();
+        REQUIRE(stage2_stream_param.bind());
+        REQUIRE(stage2_output.bind());
+        REQUIRE(stage2_debug.bind());
+
+        shader_prog2.use_program();
+        context.prepare_draw();
+
+        stage2_stream_param.render();
+        stage2_output.render();
+        stage2_debug.render();
+
+        std::vector<GLenum> draw_buffers2 = {
+            GL_COLOR_ATTACHMENT0 + stage2_output.get_color_attachment(),
+            GL_COLOR_ATTACHMENT0 + stage2_debug.get_color_attachment()
+        };
+        context.set_draw_buffers(draw_buffers2);
+        context.draw();
+
+        //----------------------------------------------------
+        // Validation – Stage 2 output should match Stage 1 sine wave
+        //----------------------------------------------------
+        const float* stage2_pixels = static_cast<const float*>(stage2_output.get_value());
+        REQUIRE(stage2_pixels != nullptr);
+        for (int x = 0; x < WIDTH; ++x) {
+            float expected_red = sin(static_cast<float>(x) / WIDTH * 2.0f * static_cast<float>(M_PI));
+            REQUIRE(stage2_pixels[x] == Catch::Approx(expected_red).margin(0.1f));
+        }
+
+        // Clean-up
+        stage2_stream_param.unbind();
+        stage2_output.unbind();
+        stage2_debug.unbind();
         framebuffer2.unbind();
     }
 }
