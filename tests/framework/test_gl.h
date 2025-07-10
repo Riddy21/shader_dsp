@@ -32,9 +32,6 @@ struct SDLWindow {
         
         // Initialize EGL
         initialize_egl();
-        
-        // Set dummy context for compatibility
-        glctx = (SDL_GLContext)0x1;
     }
 
     ~SDLWindow() {
@@ -192,6 +189,11 @@ struct GLContext {
         // Check for OpenGL errors
         GLenum error = glGetError();
         REQUIRE(error == GL_NO_ERROR);
+
+        // Set GL settings for audio rendering
+        glDisable(GL_BLEND);
+        glDisable(GL_DEPTH_TEST);
+        // GL_FRAMEBUFFER_SRGB is not available in GLES3, skip it
     }
 
     ~GLContext() {
@@ -199,10 +201,19 @@ struct GLContext {
         glDeleteVertexArrays(1, &vao);
     }
 
-    void draw(const std::vector<GLenum>& drawBuffers) {
-        glDrawBuffers(drawBuffers.size(), drawBuffers.data());
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    void prepare_draw() {
         glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    }
+
+    void set_draw_buffers(const std::vector<GLenum>& drawBuffers) {
+        glDrawBuffers(drawBuffers.size(), drawBuffers.data());
+    }
+
+    void draw() {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDrawArrays(GL_TRIANGLES, 0, 6);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
     }
 };

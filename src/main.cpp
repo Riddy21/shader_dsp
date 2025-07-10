@@ -82,54 +82,54 @@ int main() {
     setup_keyboard(synthesizer, event_loop);
 
     GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
-    //graphics_display->add_view("debug", new DebugView());
-    //graphics_display->change_view("debug");
+    graphics_display->add_view("debug", new DebugView());
+    graphics_display->change_view("debug");
 
     // Create another window for the interface
     GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
-    //interface_display->add_view("debug", new DebugView());
-    //interface_display->add_view("interface", new MockInterfaceView());
-    //interface_display->add_view("menu", new MenuView());
-    //interface_display->change_view("menu");
+    interface_display->add_view("debug", new DebugView());
+    interface_display->add_view("interface", new MockInterfaceView());
+    interface_display->add_view("menu", new MenuView());
+    interface_display->change_view("menu");
 
-    //auto & event_handler = EventHandler::get_instance();
+    auto & event_handler = EventHandler::get_instance();
 
-    //event_handler.register_entry(new KeyboardEventHandlerEntry(
-    //    SDL_KEYDOWN, 'z',
-    //    [&interface_display](const SDL_Event&) {
-    //        interface_display->change_view("interface");
-    //        return true;
-    //    }
-    //));
-    //event_handler.register_entry(new KeyboardEventHandlerEntry(
-    //    SDL_KEYDOWN, 'x',
-    //    [&interface_display](const SDL_Event&) {
-    //        interface_display->change_view("debug");
-    //        return true;
-    //    }
-    //));
-    //event_handler.register_entry(new KeyboardEventHandlerEntry(
-    //    SDL_KEYDOWN, 'c',
-    //    [&interface_display](const SDL_Event&) {
-    //        interface_display->change_view("menu");
-    //        return true;
-    //    }
-    //));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'z',
+        [&interface_display](const SDL_Event&) {
+            interface_display->change_view("interface");
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'x',
+        [&interface_display](const SDL_Event&) {
+            interface_display->change_view("debug");
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'c',
+        [&interface_display](const SDL_Event&) {
+            interface_display->change_view("menu");
+            return true;
+        }
+    ));
 
-    //// Register key to toggle component outlines
-    //event_handler.register_entry(new KeyboardEventHandlerEntry(
-    //    SDL_KEYDOWN, 'o',
-    //    [](const SDL_Event&) {
-    //        static bool show_outlines = false;
-    //        show_outlines = !show_outlines;
-    //        GraphicsComponent::set_global_outline(show_outlines);
-    //        std::cout << "Component outlines " << (show_outlines ? "enabled" : "disabled") << std::endl;
-    //        return true;
-    //    }
-    //));
+    // Register key to toggle component outlines
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'o',
+        [](const SDL_Event&) {
+            static bool show_outlines = false;
+            show_outlines = !show_outlines;
+            GraphicsComponent::set_global_outline(show_outlines);
+            std::cout << "Component outlines " << (show_outlines ? "enabled" : "disabled") << std::endl;
+            return true;
+        }
+    ));
     
-    //std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
-    //std::cout << "Press 'o' to toggle component outlines for debugging layout." << std::endl;
+    std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
+    std::cout << "Press 'o' to toggle component outlines for debugging layout." << std::endl;
 
     event_loop.run_loop();
     return 0;

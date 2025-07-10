@@ -10,6 +10,7 @@
 
 #include <SDL2/SDL.h>
 #include "audio_output/audio_player_output.h"
+#include "utils/audio_test_utils.h"
 
 // Global variables for audio capture
 std::vector<float> captured_audio;
@@ -28,77 +29,7 @@ void audio_capture_callback(void* userdata, Uint8* stream, int len) {
     captured_audio.insert(captured_audio.end(), float_stream, float_stream + num_samples);
 }
 
-// Helper function to generate a sine wave
-std::vector<float> generate_sine_wave(float frequency, float amplitude, 
-                                     unsigned sample_rate, unsigned frames_per_buffer, 
-                                     unsigned channels, float phase = 0.0f) {
-    std::vector<float> buffer(frames_per_buffer * channels);
-    
-    for (unsigned i = 0; i < frames_per_buffer; ++i) {
-        float sample = amplitude * std::sin(2.0f * M_PI * frequency * (i + phase) / sample_rate);
-        for (unsigned ch = 0; ch < channels; ++ch) {
-            buffer[i * channels + ch] = sample;
-        }
-    }
-    
-    return buffer;
-}
 
-// Helper function to calculate RMS (Root Mean Square) of audio data
-float calculate_rms(const std::vector<float>& audio_data) {
-    if (audio_data.empty()) return 0.0f;
-    
-    float sum_squares = 0.0f;
-    for (float sample : audio_data) {
-        sum_squares += sample * sample;
-    }
-    
-    return std::sqrt(sum_squares / audio_data.size());
-}
-
-// Helper function to calculate peak amplitude
-float calculate_peak(const std::vector<float>& audio_data) {
-    if (audio_data.empty()) return 0.0f;
-    
-    float max_amplitude = 0.0f;
-    for (float sample : audio_data) {
-        max_amplitude = std::max(max_amplitude, std::abs(sample));
-    }
-    
-    return max_amplitude;
-}
-
-// Helper function to detect if audio contains the expected frequency
-bool detect_frequency(const std::vector<float>& audio_data, float expected_freq, 
-                     unsigned sample_rate, float tolerance = 0.2f) {
-    if (audio_data.empty()) return false;
-    
-    // For small buffers, use a more lenient approach
-    // Check if we have at least one complete cycle
-    float period_samples = sample_rate / expected_freq;
-    int min_samples_for_cycle = static_cast<int>(period_samples * 0.5f); // At least half a cycle
-    
-    if (audio_data.size() < min_samples_for_cycle) {
-        // For very small buffers, just verify it's not silence
-        float rms = calculate_rms(audio_data);
-        return rms > 0.001f; // Has some audio content
-    }
-    
-    // Simple zero-crossing detection for frequency estimation
-    int zero_crossings = 0;
-    for (size_t i = 1; i < audio_data.size(); ++i) {
-        if ((audio_data[i-1] < 0 && audio_data[i] >= 0) || 
-            (audio_data[i-1] > 0 && audio_data[i] <= 0)) {
-            zero_crossings++;
-        }
-    }
-    
-    // Calculate detected frequency
-    float detected_freq = (zero_crossings * sample_rate) / (2.0f * audio_data.size());
-    
-    // Check if detected frequency is within tolerance
-    return std::abs(detected_freq - expected_freq) <= (expected_freq * tolerance);
-}
 
 
 TEST_CASE("AudioPlayerOutput basic functionality") {
@@ -244,7 +175,7 @@ TEST_CASE("AudioPlayerOutput error handling") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
         REQUIRE(player.open() == true);
         
-        std::vector<float> buffer(frames_per_buffer * channels, 0.0f);
+        auto buffer = generate_silence_buffer(frames_per_buffer, channels);
         player.push(buffer.data()); // Should not crash
         
         REQUIRE(player.close() == true);
@@ -366,7 +297,7 @@ TEST_CASE("AudioPlayerOutput buffer management") {
         REQUIRE(player.start() == true);
         
         // Fill the buffer completely
-        std::vector<float> buffer(frames_per_buffer * channels, 0.1f);
+        auto buffer = generate_constant_buffer(0.1f, frames_per_buffer, channels);
         
         // Push many buffers quickly to test overflow handling
         for (int i = 0; i < 100; ++i) {
@@ -390,7 +321,7 @@ TEST_CASE("AudioPlayerOutput buffer management") {
         REQUIRE(player.is_ready() == true);
         
         // Fill the buffer
-        std::vector<float> buffer(frames_per_buffer * channels, 0.1f);
+        auto buffer = generate_constant_buffer(0.1f, frames_per_buffer, channels);
         for (int i = 0; i < 10; ++i) {
             player.push(buffer.data());
         }

@@ -64,10 +64,12 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
 
         shader_prog.use_program();
 
+        context.prepare_draw();
         output_param.render();
 
         std::vector<GLenum> drawBuffers = {GL_COLOR_ATTACHMENT0 + output_param.get_color_attachment()};
-        context.draw(drawBuffers);
+        context.set_draw_buffers(drawBuffers);
+        context.draw();
 
         const float* pixels = static_cast<const float*>(output_param.get_value());
         
@@ -111,10 +113,12 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
 
         shader_prog.use_program();
 
+        context.prepare_draw();
         output_param.render();
 
         std::vector<GLenum> drawBuffers = {GL_COLOR_ATTACHMENT0 + output_param.get_color_attachment()};
-        context.draw(drawBuffers);
+        context.set_draw_buffers(drawBuffers);
+        context.draw();
 
         const float* pixels = static_cast<const float*>(output_param.get_value());
         
@@ -162,10 +166,12 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
 
         shader_prog.use_program();
 
+        context.prepare_draw();
         output_param.render();
 
         std::vector<GLenum> drawBuffers = {GL_COLOR_ATTACHMENT0 + output_param.get_color_attachment()};
-        context.draw(drawBuffers);
+        context.set_draw_buffers(drawBuffers);
+        context.draw();
 
         const float* pixels = static_cast<const float*>(output_param.get_value());
         
@@ -253,12 +259,13 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
 
         shader_prog.use_program();
 
-        // Render the input parameter to upload texture data to GPU
+        context.prepare_draw();
         input_param.render();
         output_param.render();
 
         std::vector<GLenum> drawBuffers = {GL_COLOR_ATTACHMENT0 + output_param.get_color_attachment()};
-        context.draw(drawBuffers);
+        context.set_draw_buffers(drawBuffers);
+        context.draw();
 
         const float* pixels = static_cast<const float*>(output_param.get_value());
 
@@ -466,7 +473,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
 
         shader_prog.use_program();
 
-        // Render all parameters to upload texture data to GPU
+        context.prepare_draw();
         input_a_param.render();
         input_b_param.render();
         input_c_param.render();
@@ -479,7 +486,8 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
             GL_COLOR_ATTACHMENT0 + output_2_param.get_color_attachment(),
             GL_COLOR_ATTACHMENT0 + output_3_param.get_color_attachment()
         };
-        context.draw(drawBuffers);
+        context.set_draw_buffers(drawBuffers);
+        context.draw();
 
         // Check output 1 (A + B)
         const float* pixels_1 = static_cast<const float*>(output_1_param.get_value());
@@ -582,6 +590,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         REQUIRE(shader_prog.initialize());
         GLFramebuffer framebuffer;
 
+        std::vector<GLenum> drawBuffers;
         // Prepare input data A: sine wave pattern
         std::vector<float> input_a_data(64 * 2 * 4);
         for (int y = 0; y < 2; ++y) {
@@ -721,7 +730,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
 
         shader_prog.use_program();
 
-        // Render all parameters to upload texture data to GPU
+        context.prepare_draw();
         input_a_param.render();
         input_b_param.render();
         input_c_param.render();
@@ -729,12 +738,13 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         output_3_param.render();
         output_2_param.render();
 
-        std::vector<GLenum> drawBuffers = {
+        drawBuffers = {
             GL_COLOR_ATTACHMENT0 + output_1_param.get_color_attachment(),
             GL_COLOR_ATTACHMENT0 + output_2_param.get_color_attachment(),
             GL_COLOR_ATTACHMENT0 + output_3_param.get_color_attachment()
         };
-        context.draw(drawBuffers);
+        context.set_draw_buffers(drawBuffers);
+        context.draw();
 
         // Test dynamic updates: change input B and verify outputs update correctly
         std::vector<float> new_input_b_data(64 * 2 * 4);
@@ -763,7 +773,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
 
         shader_prog.use_program();
 
-        // Render all parameters to upload texture data to GPU
+        context.prepare_draw();
         input_a_param.render();
         input_b_param.render();
         input_c_param.render();
@@ -772,7 +782,13 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         output_3_param.render();
         output_2_param.render();
 
-        context.draw(drawBuffers);
+        drawBuffers = {
+            GL_COLOR_ATTACHMENT0 + output_1_param.get_color_attachment(),
+            GL_COLOR_ATTACHMENT0 + output_2_param.get_color_attachment(),
+            GL_COLOR_ATTACHMENT0 + output_3_param.get_color_attachment()
+        };
+        context.set_draw_buffers(drawBuffers);
+        context.draw();
 
         // Verify output 1 (A + new_B) updated correctly
         const float* new_pixels_1 = static_cast<const float*>(output_1_param.get_value());
@@ -944,9 +960,11 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         framebuffer1.bind();
         REQUIRE(stage1_output.bind());
         shader_prog1.use_program();
+        context1.prepare_draw();
         stage1_output.render();
         std::vector<GLenum> drawBuffers1 = { GL_COLOR_ATTACHMENT0 + stage1_output.get_color_attachment() };
-        context1.draw(drawBuffers1);
+        context1.set_draw_buffers(drawBuffers1);
+        context1.draw();
 
         // Optional: verify Stage 1 output texture values
         const float* stage1_pixels = static_cast<const float*>(stage1_output.get_value());
@@ -961,12 +979,14 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         REQUIRE(stage2_output.bind());
 
         shader_prog2.use_program();
+        context2.prepare_draw();
         // Render parameters: upload uniforms/textures
         passthrough_param.render();
         stage2_output.render();
 
         std::vector<GLenum> drawBuffers2 = { GL_COLOR_ATTACHMENT0 + stage2_output.get_color_attachment() };
-        context2.draw(drawBuffers2);
+        context2.set_draw_buffers(drawBuffers2);
+        context2.draw();
 
         // Validate Stage 2 output values (should be half of Stage 1)
         const float* stage2_pixels = static_cast<const float*>(stage2_output.get_value());
@@ -1069,19 +1089,23 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         framebuffer1.bind();
         REQUIRE(stage1_output.bind());
         shader_prog1.use_program();
+        context1.prepare_draw();
         stage1_output.render();
         std::vector<GLenum> drawBuffers1 = { GL_COLOR_ATTACHMENT0 + stage1_output.get_color_attachment() };
-        context1.draw(drawBuffers1);
+        context1.set_draw_buffers(drawBuffers1);
+        context1.draw();
 
         // Render Stage 2
         framebuffer2.bind();
         REQUIRE(passthrough_param.bind());
         REQUIRE(stage2_output.bind());
         shader_prog2.use_program();
+        context2.prepare_draw();
         passthrough_param.render();
         stage2_output.render();
         std::vector<GLenum> drawBuffers2 = { GL_COLOR_ATTACHMENT0 + stage2_output.get_color_attachment() };
-        context2.draw(drawBuffers2);
+        context2.set_draw_buffers(drawBuffers2);
+        context2.draw();
 
         // Validate Stage 2 output (negated cosine)
         const float* stage2_pixels = static_cast<const float*>(stage2_output.get_value());

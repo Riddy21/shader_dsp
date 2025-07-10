@@ -49,13 +49,13 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     AudioParameter::ConnectionType::OUTPUT,
                                     width, height,
                                     0,
-                                    ++m_color_attachment_count, GL_NEAREST);
+                                    m_color_attachment_count++, GL_NEAREST);
     auto debug_audio_texture =
         new AudioTexture2DParameter("debug_audio_texture",
                                     AudioParameter::ConnectionType::OUTPUT,
                                     width, height,
                                     0,
-                                    ++m_color_attachment_count, GL_NEAREST);
+                                    m_color_attachment_count++, GL_NEAREST);
 
     auto buffer_size =
         new AudioIntParameter("buffer_size",
