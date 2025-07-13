@@ -3,7 +3,7 @@
 
 #include "audio_core/audio_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
-
+#include "audio_parameter/audio_uniform_buffer_parameter.h"
 #include <functional>
 #include <cmath>
 /**
@@ -1124,7 +1124,140 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
     }
 }
 
-// TODO: Write another test that mimics the render stage passthrough linking test
+TEST_CASE("AudioIntBufferParameter uniform value across shader stages", "[audio_parameter][gl_test]") {
+    const char* vert_src = R"(
+        #version 300 es
+        precision mediump float;
+        layout(location = 0) in vec2 aPos;
+        layout(location = 1) in vec2 aTexCoord;
+        out vec2 TexCoord;
+        void main() {
+            gl_Position = vec4(aPos, 0.0, 1.0);
+            TexCoord = aTexCoord;
+        }
+    )";
+    // Stage 1: Write int buffer value to red channel
+    const char* frag_stage1 = R"(
+        #version 300 es
+        precision mediump float;
+        layout(std140) uniform global_time {
+            int global_time_val;
+        };
+        in vec2 TexCoord;
+        layout(location = 0) out vec4 color;
+        void main() {
+            color = vec4(float(global_time_val), 0, 0, 1);
+        }
+    )";
+    // Stage 2: Read from previous output and write to green channel
+    const char* frag_stage2 = R"(
+        #version 300 es
+        precision mediump float;
+        layout(std140) uniform global_time {
+            int global_time_val;
+        };
+        uniform sampler2D prev_tex;
+        in vec2 TexCoord;
+        layout(location = 0) out vec4 color;
+
+        void main() {
+            float prev = texture(prev_tex, TexCoord).r;
+            color = vec4(prev + float(global_time_val), 0, 0, 1);
+        }
+    )";
+    SDLWindow window(8, 1);
+    GLContext context;
+
+    AudioShaderProgram shader_prog1(vert_src, frag_stage1);
+    AudioShaderProgram shader_prog2(vert_src, frag_stage2);
+
+    REQUIRE(shader_prog1.initialize());
+    REQUIRE(shader_prog2.initialize());
+
+    GLFramebuffer framebuffer1, framebuffer2;
+    // Stage 1 output
+    AudioTexture2DParameter stage1_output(
+        "color",
+        AudioParameter::ConnectionType::OUTPUT,
+        8, 1,
+        0, 0,
+        GL_NEAREST,
+        GL_FLOAT,
+        GL_RGBA,
+        GL_RGBA32F
+    );
+    REQUIRE(stage1_output.initialize(framebuffer1.fbo, &shader_prog1));
+
+    // Stage 2 input (linked to stage 1 output)
+    AudioTexture2DParameter stage2_input(
+        "prev_tex",
+        AudioParameter::ConnectionType::PASSTHROUGH,
+        8, 1,
+        0, 0,
+        GL_NEAREST,
+        GL_FLOAT,
+        GL_RGBA,
+        GL_RGBA32F
+    );
+    REQUIRE(stage2_input.initialize(framebuffer2.fbo, &shader_prog2));
+
+    REQUIRE(stage1_output.link(&stage2_input));
+    // Stage 2 output
+    AudioTexture2DParameter stage2_output(
+        "color",
+        AudioParameter::ConnectionType::OUTPUT,
+        8, 1,
+        0, 0,
+        GL_NEAREST,
+        GL_FLOAT,
+        GL_RGBA,
+        GL_RGBA32F
+    );
+    REQUIRE(stage2_output.initialize(framebuffer2.fbo, &shader_prog2));
+
+    // Add and set int buffer parameter ONCE for both stages
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+
+    global_time_param->set_value(0);
+
+    global_time_param->initialize();
+
+    // Stage 1 render
+    global_time_param->set_value(42);
+    global_time_param->render();
+
+    framebuffer1.bind();
+    REQUIRE(stage1_output.bind());
+    shader_prog1.use_program();
+    context.prepare_draw();
+    stage1_output.render();
+    std::vector<GLenum> drawBuffers1 = {GL_COLOR_ATTACHMENT0 + stage1_output.get_color_attachment()};
+    context.set_draw_buffers(drawBuffers1);
+    context.draw();
+
+    // Stage 2 render (reuse same param, do NOT set again)
+    global_time_param->set_value(12);
+    global_time_param->render();
+
+    framebuffer2.bind();
+    REQUIRE(stage2_input.bind());
+    REQUIRE(stage2_output.bind());
+    shader_prog2.use_program();
+    context.prepare_draw();
+    stage2_input.render();
+    stage2_output.render();
+    std::vector<GLenum> drawBuffers2 = {GL_COLOR_ATTACHMENT0 + stage2_output.get_color_attachment()};
+    context.set_draw_buffers(drawBuffers2);
+    context.draw();
+
+    // Validate: stage 1 output red == 42, stage 2 output green == 42
+    const float* stage1_pixels = static_cast<const float*>(stage1_output.get_value());
+    const float* stage2_pixels = static_cast<const float*>(stage2_output.get_value());
+    for (int i = 0; i < 8; i++) {
+        REQUIRE(stage1_pixels[i*4] == Catch::Approx(42.0f).margin(0.01f));
+        REQUIRE(stage2_pixels[i*4] == Catch::Approx(42.0f + 12.0f).margin(0.01f));
+    }
+}
 
 TEST_CASE("Texture2DParameter pass-through copy linking", "[audio_parameter][gl_test][passthrough_copy]") {
     // Vertex shader identical to default render-stage vertex

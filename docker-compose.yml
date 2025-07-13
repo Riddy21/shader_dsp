@@ -35,7 +35,7 @@ services:
       # PATH configuration
       - PATH=/usr/local/share/npm-global/bin:/workspace/build/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       
-      # Display and X11 configuration
+      # Display and X11 configuration - Optimized for performance
       - DISPLAY=${DISPLAY:-host.docker.internal:0}
       - SDL_VIDEODRIVER=${SDL_VIDEODRIVER:-x11}
       - QT_X11_NO_MITSHM=1
@@ -48,10 +48,25 @@ services:
       - XDG_CONFIG_HOME=/tmp/config
       - XDG_CACHE_HOME=/tmp/cache
       
-      # OpenGL and Mesa configuration
-      - LIBGL_ALWAYS_SOFTWARE=1
+      # OpenGL and Mesa configuration - Optimized for performance
+      - LIBGL_ALWAYS_SOFTWARE=0  # Changed to 0 to use hardware acceleration when available
       - MESA_GL_VERSION_OVERRIDE=3.3
       - MESA_GLSL_VERSION_OVERRIDE=330
+      - MESA_GLTHREAD=1  # Enable Mesa threading
+      - MESA_DEBUG=0     # Disable Mesa debug output for performance
+      
+      # Performance optimizations
+      - SDL_VIDEO_X11_NODIRECTCOLOR=1
+      - SDL_VIDEO_X11_XRANDR=1
+      - SDL_VIDEO_X11_XVIDMODE=1
+      - SDL_VIDEO_X11_XINERAMA=1
+      - SDL_VIDEO_X11_XDBE=1
+      - SDL_VIDEO_X11_DGAMOUSE=0  # Disable DGA mouse for better compatibility
+      
+      # Threading optimizations
+      - OMP_NUM_THREADS=4
+      - MKL_NUM_THREADS=4
+      - OPENBLAS_NUM_THREADS=4
       
       # Raspberry Pi library paths
       - LD_LIBRARY_PATH=/opt/vc/lib
@@ -70,6 +85,7 @@ services:
       - NET_RAW
       - SYS_ADMIN  # Add SYS_ADMIN for device access
       - SYS_PTRACE # For debugging
+      - SYS_NICE   # Add SYS_NICE for priority control
     # Conditional device mapping - only for Linux with ALSA
     devices:
       - ${ALSA_DEVICES:-/dev/null}:/dev/snd:rw
@@ -81,7 +97,7 @@ services:
     command: /bin/bash
     # Set the user to root for full access
     user: "root"
-    # Raspberry Pi 5 simulation constraints
+    # Performance-optimized resource constraints
     deploy:
       resources:
         limits:
@@ -90,6 +106,21 @@ services:
         reservations:
           cpus: '2.0'
           memory: 2G
+    # Add performance optimizations
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    # Add real-time scheduling group
+    group_add:
+      - video
+    # Add security options for better performance
+    security_opt:
+      - seccomp:unconfined
+    # Add tmpfs for better I/O performance
+    tmpfs:
+      - /tmp:size=1G,noexec,nosuid,nodev
+      - /var/tmp:size=1G,noexec,nosuid,nodev
 
 volumes:
   shader-dsp-history:

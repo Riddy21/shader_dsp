@@ -87,6 +87,11 @@ RUN cd /tmp && \
 # Install Pi-specific libraries and tools (simulated for x86_64)
 RUN apt-get update && apt-get install -y \
     python3-gpiozero \
+    # Add performance monitoring tools
+    htop \
+    iotop \
+    sysstat \
+    cpufrequtils \
     && rm -rf /var/lib/apt/lists/*
 
 # Create symbolic links to simulate Pi libraries
@@ -121,6 +126,10 @@ RUN chmod +x /usr/local/bin/list_devices.sh
 # Copy audio test script - exactly as in SDL example
 COPY scripts/test_audio.sh /usr/local/bin/test_audio.sh
 RUN chmod +x /usr/local/bin/test_audio.sh
+
+# Copy performance optimization script
+COPY scripts/performance_optimize.sh /usr/local/bin/performance_optimize.sh
+RUN chmod +x /usr/local/bin/performance_optimize.sh
 
 # Create workspace directory
 RUN mkdir -p /workspace
