@@ -111,8 +111,8 @@ TEST_CASE("AudioPlayerOutput sine wave playback") {
         // Clear any initial queued audio to start with a clean state
         player.clear_queue();
         
-        // Generate and play sine wave for 1 second
-        const unsigned num_buffers = sample_rate / frames_per_buffer;
+        // Generate and play sine wave for 5 seconds
+        const unsigned num_buffers = (sample_rate / frames_per_buffer) * 5;
         float phase = 0.0f;
         
         for (unsigned i = 0; i < num_buffers; ++i) {

@@ -261,6 +261,7 @@ void AudioGeneratorRenderStage::delete_note(const unsigned int index)
     m_note_state.set_parameters(this);
 }
 
+// TODO: Consolidate int time passed in and global time variable into one single variable
 void AudioGeneratorRenderStage::render(const unsigned int time) {
     AudioRenderStage::render(time);
 

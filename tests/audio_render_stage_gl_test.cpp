@@ -22,7 +22,7 @@
  * in all test environments. They are marked with [gl] tag.
  */
 constexpr int WIDTH = 256;
-constexpr int HEIGHT = 1;
+constexpr int HEIGHT = 2;
 TEST_CASE("AudioRenderStage with OpenGL context", "[audio_render_stage][gl_test]") {
     SDLWindow window(WIDTH, HEIGHT);
 
@@ -79,7 +79,7 @@ void main() {
 
         render_stage.render(0);
         
-        // Get output datauu
+        // Get output data
         auto output_param = render_stage.find_parameter("output_audio_texture");
         REQUIRE(output_param != nullptr);
 
@@ -87,24 +87,34 @@ void main() {
 
         REQUIRE(output_data != nullptr);
 
-        // Verify output contains simple sine wave data
-        for (int i = 0; i < BUFFER_SIZE; ++i) {
+        // Verify output contains simple sine wave data for both channels
+        // Left channel: indices 0 to BUFFER_SIZE-1
+        // Right channel: indices BUFFER_SIZE to 2*BUFFER_SIZE-1
+        for (int i = 0; i < BUFFER_SIZE; i++) {
             // Calculate expected sine wave based on our simple shader logic
             float tex_coord_x = (static_cast<float>(i) + 0.5f) / BUFFER_SIZE; // TexCoord.x for this pixel
             float sample_pos = tex_coord_x * BUFFER_SIZE;
             float time_in_seconds = sample_pos / SAMPLE_RATE;
             float expected = sin(2.0f * M_PI * time_in_seconds);
             
-            float actual = output_data[i]; // Single channel
-            REQUIRE(actual == Catch::Approx(expected).margin(0.1f));
+            // Test left channel
+            float left_actual = output_data[i];
+            REQUIRE(left_actual == Catch::Approx(expected).margin(0.1f));
+            
+            // Test right channel
+            float right_actual = output_data[i + BUFFER_SIZE];
+            REQUIRE(right_actual == Catch::Approx(expected).margin(0.1f));
         }
 
         auto debug_param = render_stage.find_parameter("debug_audio_texture");
         REQUIRE(debug_param != nullptr);
         const float* debug_data = static_cast<const float*>(debug_param->get_value());
         REQUIRE(debug_data != nullptr);
-        for (int i = 0; i < BUFFER_SIZE; ++i) {
+        for (int i = 0; i < BUFFER_SIZE; i++) {
+            // Test left channel
             REQUIRE(debug_data[i] == Catch::Approx(float(BUFFER_SIZE) / 1000.0f).margin(0.1f));
+            // Test right channel
+            REQUIRE(debug_data[i + BUFFER_SIZE] == Catch::Approx(float(BUFFER_SIZE) / 1000.0f).margin(0.1f));
         }
 
         render_stage.unbind();
@@ -162,10 +172,11 @@ void main(){
     context.prepare_draw();
 
     REQUIRE(stage1.bind());
+    REQUIRE(stage2.bind());
 
     stage1.render(0);
 
-    // Validate debug texture of stage1 is sine wave
+    // Validate debug texture of stage1 is sine wave for both channels
     auto debug_param = stage1.find_parameter("output_audio_texture");
     REQUIRE(debug_param != nullptr);
     const float *debug_data = static_cast<const float *>(debug_param->get_value());
@@ -175,14 +186,17 @@ void main(){
         float sample_pos = tex_coord_x * BUFFER_SIZE;
         float time_in_seconds = sample_pos / SAMPLE_RATE;
         float expected = sin(2.0f * M_PI * time_in_seconds);
+        
+        // Test left channel
         REQUIRE(debug_data[i] == Catch::Approx(expected).margin(0.1f));
+        // Test right channel
+        REQUIRE(debug_data[i + BUFFER_SIZE] == Catch::Approx(expected).margin(0.1f));
     }
     
-    REQUIRE(stage2.bind());
     
     stage2.render(0);
 
-    // Validate data passed through correctly
+    // Validate data passed through correctly for both channels
     auto output_param = stage2.find_parameter("output_audio_texture");
     REQUIRE(output_param != nullptr);
     const float *output_data = static_cast<const float *>(output_param->get_value());
@@ -193,16 +207,23 @@ void main(){
         float sample_pos = tex_coord_x * BUFFER_SIZE;
         float time_in_seconds = sample_pos / SAMPLE_RATE;
         float expected = sin(2.0f * M_PI * time_in_seconds);
+        
+        // Test left channel
         REQUIRE(output_data[i] == Catch::Approx(expected).margin(0.1f));
+        // Test right channel
+        REQUIRE(output_data[i + BUFFER_SIZE] == Catch::Approx(expected).margin(0.1f));
     }
 
-    // Debug texture of stage2 should remain zeros
+    // Debug texture of stage2 should remain zeros for both channels
     debug_param = stage2.find_parameter("debug_audio_texture");
     REQUIRE(debug_param != nullptr);
     debug_data = static_cast<const float *>(debug_param->get_value());
     REQUIRE(debug_data != nullptr);
     for (int i = 0; i < BUFFER_SIZE; ++i) {
+        // Test left channel
         REQUIRE(debug_data[i] == Catch::Approx(0.0f).margin(0.1f));
+        // Test right channel
+        REQUIRE(debug_data[i + BUFFER_SIZE] == Catch::Approx(0.0f).margin(0.1f));
     }
 
     stage2.unbind();

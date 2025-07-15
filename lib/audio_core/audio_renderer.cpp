@@ -190,6 +190,7 @@ void AudioRenderer::render()
 void AudioRenderer::present()
 {
     IRenderableEntity::present();
+
     // No need to call activate_render_context() here, event loop will do it
     push_to_output_buffers(m_render_graph->get_output_render_stage()->get_output_buffer_data().data());
     m_frame_count++;

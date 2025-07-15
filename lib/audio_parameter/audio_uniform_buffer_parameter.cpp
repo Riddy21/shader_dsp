@@ -7,8 +7,7 @@ unsigned int AudioUniformBufferParameter::total_binding_points = 0;
 
 AudioUniformBufferParameter::AudioUniformBufferParameter(const std::string name,
                                                          AudioParameter::ConnectionType connection_type)
-    : AudioParameter(name, connection_type),
-      m_binding_point(total_binding_points++)
+    : AudioParameter(name, connection_type)
 {
     // Cannot set value for output or passthrough parameters
     if (connection_type == ConnectionType::OUTPUT || connection_type == ConnectionType::PASSTHROUGH) {
