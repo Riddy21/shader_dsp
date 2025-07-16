@@ -10,6 +10,7 @@
 #include "audio_render_stage/audio_effect_render_stage.h"
 #include "audio_render_stage/audio_multitrack_join_render_stage.h"
 #include "audio_render_stage/audio_file_generator_render_stage.h"
+#include "audio_parameter/audio_uniform_buffer_parameter.h"
 
 const std::vector<std::string> AudioRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
@@ -131,6 +132,9 @@ bool AudioRenderStage::initialize_shader_program() {
         std::cerr << "Error: Failed to initialize shader program." << std::endl;
         return false;
     }
+
+    // Bind any uniform blocks that have been registered for this GL context.
+    AudioUniformBufferParameter::bind_registered_blocks(m_shader_program->get_program());
 
     return true;
 }
