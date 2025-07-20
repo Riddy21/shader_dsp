@@ -26,7 +26,9 @@ float calculateTime(int time, vec2 TexCoord) {
 }
 
 float calculateTimeSimple(int time) {
-    return float(time) * float(buffer_size) / float(sample_rate);
+    float timeVal = float(time) * float(buffer_size) / float(sample_rate);
+    // Keep it from becoming too large:
+    return mod(timeVal, MAX_TIME);
 }
 
 float calculatePhase(int time, vec2 TexCoord, float tone) {
