@@ -46,6 +46,7 @@ private:
 
     // Bind every uniform block that has been registered **in the current GL
     // context** to its remembered binding point for this program.
+public:
     static void bind_registered_blocks(GLuint program);
 
 };

@@ -24,17 +24,16 @@ float calculateTime(int time, vec2 TexCoord) {
 }
 
 float calculatePhase(int time, vec2 TexCoord, float tone) {
-    // How many total samples have elapsed up to this frame?
-    //   total_samples = frame * bufSize + fractional_samples
-    // Where fractional_samples = texCoord.x * bufSize
-    // (TexCoord.x goes from 0 to 1, corresponding to sub-frame offset).
-    int totalSamples = time * buffer_size + int(TexCoord.x * float(buffer_size));
-
-    // Keep it from growing too large by modding with sampleRate
-    // so the maximum value of totalSamples is < sampleRate.
-    // This effectively gives you a [0,1) oscillator in time.
-    int modSamples = totalSamples % int(float(sample_rate) / tone);
-
-    // Convert to float time in [0,1).
-    return float(modSamples) / float(sample_rate);
+    // Use floating-point arithmetic throughout to avoid rounding errors
+    // Calculate total time in seconds
+    float totalTime = float(time) * float(buffer_size) / float(sample_rate) 
+                    + TexCoord.x * float(buffer_size) / float(sample_rate);
+    
+    // Calculate the period of the tone
+    float period = 1.0 / tone;
+    
+    // Use floating-point modulo to get the phase within one period
+    // This avoids integer truncation that causes discontinuities
+    // Return the phase in time units (seconds) as expected by sine generation
+    return mod(totalTime, period);
 }
