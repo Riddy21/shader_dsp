@@ -14,7 +14,11 @@
 #include "audio_output/audio_player_output.h"
 #include "audio_output/audio_wav.h"
 #include "engine/event_loop.h"
+#include "graphics_core/graphics_display.h"
+#include "graphics_views/debug_view.h"
+#include "engine/event_loop.h"
 
+#include <X11/X.h>
 #include <functional>
 #include <cmath>
 #include <fstream>
@@ -23,6 +27,7 @@
 #include <algorithm>
 #include <thread>
 #include <chrono>
+#include <numeric>
 
 /**
  * @brief Tests for generator render stage functionality with OpenGL context
@@ -359,333 +364,6 @@ TEST_CASE("AudioGeneratorRenderStage - Sine Wave Generation", "[audio_generator_
     delete global_time_param;
 }
 
-TEST_CASE("AudioFileGeneratorRenderStage - File Playback Test", "[audio_file_generator_render_stage][gl_test]") {
-    SDLWindow window(WIDTH, HEIGHT);
-    GLContext context;
-
-    constexpr int BUFFER_SIZE = WIDTH;
-    constexpr int SAMPLE_RATE = 44100;
-    constexpr int NUM_CHANNELS = HEIGHT;
-    constexpr float TEST_GAIN = 0.5f;
-    constexpr int NUM_FRAMES = SAMPLE_RATE / BUFFER_SIZE * 3; // 3 seconds
-
-    // Test file path
-    const std::string test_file_path = "media/test.wav";
-
-    SECTION("Normal Speed Playback (1.0x)") {
-        // Create file generator render stage
-        AudioFileGeneratorRenderStage file_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, test_file_path);
-        AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-
-        // Connect the generator to the final render stage
-        REQUIRE(file_generator.connect_render_stage(&final_render_stage));
-        
-        // Add global_time parameter as a buffer parameter
-        auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
-        global_time_param->set_value(0);
-        global_time_param->initialize();
-
-        // Remove the envelope for clean playback
-        auto attack_param = file_generator.find_parameter("attack_time");
-        attack_param->set_value(0.0f);
-        auto decay_param = file_generator.find_parameter("decay_time");
-        decay_param->set_value(0.0f);
-        auto sustain_param = file_generator.find_parameter("sustain_level");
-        sustain_param->set_value(1.0f);
-        auto release_param = file_generator.find_parameter("release_time");
-        release_param->set_value(0.0f);
-        
-        // Initialize the render stages
-        REQUIRE(file_generator.initialize());
-        REQUIRE(final_render_stage.initialize());
-
-        context.prepare_draw();
-        REQUIRE(file_generator.bind());
-        REQUIRE(final_render_stage.bind());
-
-        // Play a note at normal speed (1.0 = MIDDLE_C)
-        file_generator.play_note(MIDDLE_C, TEST_GAIN);
-
-        // Render frames and collect samples
-        std::vector<float> left_channel_samples;
-        std::vector<float> right_channel_samples;
-        left_channel_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
-        right_channel_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
-
-        for (int frame = 0; frame < NUM_FRAMES; frame++) {
-            global_time_param->set_value(frame);
-            global_time_param->render();
-
-            file_generator.render(frame);
-            final_render_stage.render(frame);
-            
-            auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
-            REQUIRE(output_param != nullptr);
-
-            const float* output_data = static_cast<const float*>(output_param->get_value());
-            REQUIRE(output_data != nullptr);
-
-            for (int i = 0; i < BUFFER_SIZE; i++) {
-                left_channel_samples.push_back(output_data[i * NUM_CHANNELS]);
-                right_channel_samples.push_back(output_data[i * NUM_CHANNELS + 1]);
-            }
-        }
-
-        // Test basic audio characteristics
-        REQUIRE(left_channel_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-        REQUIRE(right_channel_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-
-        // Test that we have non-zero audio data
-        {
-            float max_amplitude = 0.0f;
-            for (float sample : left_channel_samples) {
-                max_amplitude = std::max(max_amplitude, std::abs(sample));
-            }
-            REQUIRE(max_amplitude > 0.0f); // Should have some audio content
-        }
-
-        // Test for data quality
-        {
-            for (float sample : left_channel_samples) {
-                REQUIRE(!std::isnan(sample));
-                REQUIRE(!std::isinf(sample));
-                REQUIRE(std::abs(sample) <= 1.0f); // Should not clip
-            }
-        }
-
-        final_render_stage.unbind();
-        file_generator.unbind();
-        delete global_time_param;
-    }
-
-    SECTION("Half Speed Playback (0.5x)") {
-        // Create file generator render stage
-        AudioFileGeneratorRenderStage file_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, test_file_path);
-        AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-
-        REQUIRE(file_generator.connect_render_stage(&final_render_stage));
-        
-        auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
-        global_time_param->set_value(0);
-        global_time_param->initialize();
-
-        // Remove the envelope
-        auto attack_param = file_generator.find_parameter("attack_time");
-        attack_param->set_value(0.0f);
-        auto decay_param = file_generator.find_parameter("decay_time");
-        decay_param->set_value(0.0f);
-        auto sustain_param = file_generator.find_parameter("sustain_level");
-        sustain_param->set_value(1.0f);
-        auto release_param = file_generator.find_parameter("release_time");
-        release_param->set_value(0.0f);
-        
-        REQUIRE(file_generator.initialize());
-        REQUIRE(final_render_stage.initialize());
-
-        context.prepare_draw();
-        REQUIRE(file_generator.bind());
-        REQUIRE(final_render_stage.bind());
-
-        // Play at half speed (0.5 * MIDDLE_C)
-        file_generator.play_note(MIDDLE_C * 0.5f, TEST_GAIN);
-
-        std::vector<float> left_channel_samples;
-        std::vector<float> right_channel_samples;
-        left_channel_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
-        right_channel_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
-
-        for (int frame = 0; frame < NUM_FRAMES; frame++) {
-            global_time_param->set_value(frame);
-            global_time_param->render();
-
-            file_generator.render(frame);
-            final_render_stage.render(frame);
-            
-            auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
-            REQUIRE(output_param != nullptr);
-
-            const float* output_data = static_cast<const float*>(output_param->get_value());
-            REQUIRE(output_data != nullptr);
-
-            for (int i = 0; i < BUFFER_SIZE; i++) {
-                left_channel_samples.push_back(output_data[i * NUM_CHANNELS]);
-                right_channel_samples.push_back(output_data[i * NUM_CHANNELS + 1]);
-            }
-        }
-
-        REQUIRE(left_channel_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-        REQUIRE(right_channel_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-
-        // Test that we have non-zero audio data
-        {
-            float max_amplitude = 0.0f;
-            for (float sample : left_channel_samples) {
-                max_amplitude = std::max(max_amplitude, std::abs(sample));
-            }
-            REQUIRE(max_amplitude > 0.0f);
-        }
-
-        final_render_stage.unbind();
-        file_generator.unbind();
-        delete global_time_param;
-    }
-
-    SECTION("Double Speed Playback (2.0x)") {
-        // Create file generator render stage
-        AudioFileGeneratorRenderStage file_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, test_file_path);
-        AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-
-        REQUIRE(file_generator.connect_render_stage(&final_render_stage));
-        
-        auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
-        global_time_param->set_value(0);
-        global_time_param->initialize();
-
-        // Remove the envelope
-        auto attack_param = file_generator.find_parameter("attack_time");
-        attack_param->set_value(0.0f);
-        auto decay_param = file_generator.find_parameter("decay_time");
-        decay_param->set_value(0.0f);
-        auto sustain_param = file_generator.find_parameter("sustain_level");
-        sustain_param->set_value(1.0f);
-        auto release_param = file_generator.find_parameter("release_time");
-        release_param->set_value(0.0f);
-        
-        REQUIRE(file_generator.initialize());
-        REQUIRE(final_render_stage.initialize());
-
-        context.prepare_draw();
-        REQUIRE(file_generator.bind());
-        REQUIRE(final_render_stage.bind());
-
-        // Play at double speed (2.0 * MIDDLE_C)
-        file_generator.play_note(MIDDLE_C * 2.0f, TEST_GAIN);
-
-        std::vector<float> left_channel_samples;
-        std::vector<float> right_channel_samples;
-        left_channel_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
-        right_channel_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
-
-        for (int frame = 0; frame < NUM_FRAMES; frame++) {
-            global_time_param->set_value(frame);
-            global_time_param->render();
-
-            file_generator.render(frame);
-            final_render_stage.render(frame);
-            
-            auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
-            REQUIRE(output_param != nullptr);
-
-            const float* output_data = static_cast<const float*>(output_param->get_value());
-            REQUIRE(output_data != nullptr);
-
-            for (int i = 0; i < BUFFER_SIZE; i++) {
-                left_channel_samples.push_back(output_data[i * NUM_CHANNELS]);
-                right_channel_samples.push_back(output_data[i * NUM_CHANNELS + 1]);
-            }
-        }
-
-        REQUIRE(left_channel_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-        REQUIRE(right_channel_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-
-        // Test that we have non-zero audio data
-        {
-            float max_amplitude = 0.0f;
-            for (float sample : left_channel_samples) {
-                max_amplitude = std::max(max_amplitude, std::abs(sample));
-            }
-            REQUIRE(max_amplitude > 0.0f);
-        }
-
-        final_render_stage.unbind();
-        file_generator.unbind();
-        delete global_time_param;
-    }
-
-    SECTION("Speed Comparison Test") {
-        // Test that different speeds produce different audio characteristics
-        std::vector<float> normal_speed_samples, half_speed_samples, double_speed_samples;
-        
-        // Helper function to render audio at a specific speed
-        auto render_at_speed = [&](float speed, std::vector<float>& samples) {
-            AudioFileGeneratorRenderStage file_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, test_file_path);
-            AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-
-            REQUIRE(file_generator.connect_render_stage(&final_render_stage));
-            
-            auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
-            global_time_param->set_value(0);
-            global_time_param->initialize();
-
-            // Remove the envelope
-            auto attack_param = file_generator.find_parameter("attack_time");
-            attack_param->set_value(0.0f);
-            auto decay_param = file_generator.find_parameter("decay_time");
-            decay_param->set_value(0.0f);
-            auto sustain_param = file_generator.find_parameter("sustain_level");
-            sustain_param->set_value(1.0f);
-            auto release_param = file_generator.find_parameter("release_time");
-            release_param->set_value(0.0f);
-            
-            REQUIRE(file_generator.initialize());
-            REQUIRE(final_render_stage.initialize());
-
-            context.prepare_draw();
-            REQUIRE(file_generator.bind());
-            REQUIRE(final_render_stage.bind());
-
-            file_generator.play_note(MIDDLE_C * speed, TEST_GAIN);
-
-            samples.reserve(BUFFER_SIZE * NUM_FRAMES);
-
-            for (int frame = 0; frame < NUM_FRAMES; frame++) {
-                global_time_param->set_value(frame);
-                global_time_param->render();
-
-                file_generator.render(frame);
-                final_render_stage.render(frame);
-                
-                auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
-                REQUIRE(output_param != nullptr);
-
-                const float* output_data = static_cast<const float*>(output_param->get_value());
-                REQUIRE(output_data != nullptr);
-
-                for (int i = 0; i < BUFFER_SIZE; i++) {
-                    samples.push_back(output_data[i * NUM_CHANNELS]);
-                }
-            }
-
-            final_render_stage.unbind();
-            file_generator.unbind();
-            delete global_time_param;
-        };
-
-        // Render at different speeds
-        render_at_speed(1.0f, normal_speed_samples);
-        render_at_speed(0.5f, half_speed_samples);
-        render_at_speed(2.0f, double_speed_samples);
-
-        // Test that different speeds produce different audio
-        // (This is a basic test - in practice, the audio should sound different)
-        REQUIRE(normal_speed_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-        REQUIRE(half_speed_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-        REQUIRE(double_speed_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-
-        // Test that we have audio content at all speeds
-        {
-            float max_normal = 0.0f, max_half = 0.0f, max_double = 0.0f;
-            for (float sample : normal_speed_samples) max_normal = std::max(max_normal, std::abs(sample));
-            for (float sample : half_speed_samples) max_half = std::max(max_half, std::abs(sample));
-            for (float sample : double_speed_samples) max_double = std::max(max_double, std::abs(sample));
-            
-            REQUIRE(max_normal > 0.0f);
-            REQUIRE(max_half > 0.0f);
-            REQUIRE(max_double > 0.0f);
-        }
-    }
-}
-
 TEST_CASE("AudioFileGeneratorRenderStage - Content Accuracy Test", "[audio_file_generator_render_stage][gl_test][content]") {
     SDLWindow window(WIDTH, HEIGHT);
     GLContext context;
@@ -779,10 +457,10 @@ TEST_CASE("AudioFileGeneratorRenderStage - Content Accuracy Test", "[audio_file_
             float rms_error = calculate_rms_error(rendered_samples, original_portion);
             
             // Test correlation (should be high for accurate playback)
-            REQUIRE(correlation > 0.7f); // High correlation indicates similar content
+            REQUIRE(correlation > 0.999f); // High correlation indicates similar content
             
             // Test RMS error (should be low for accurate playback)
-            REQUIRE(rms_error < 0.5f); // Low error indicates accurate reproduction
+            REQUIRE(rms_error < 0.05f); // Low error indicates accurate reproduction
             
             // Test that we have non-zero content
             float max_rendered = 0.0f, max_original = 0.0f;
@@ -810,10 +488,16 @@ TEST_CASE("AudioFileGeneratorRenderStage - Content Accuracy Test", "[audio_file_
         REQUIRE(original_data.size() >= NUM_CHANNELS);
         REQUIRE(!original_data[0].empty());
 
-        // Test different speeds
+        // Test different speeds with comprehensive artifact and correlation analysis
         std::vector<float> speeds = {0.5f, 1.0f, 2.0f};
+        std::vector<std::string> speed_names = {"Half Speed (0.5x)", "Normal Speed (1.0x)", "Double Speed (2.0x)"};
         
-        for (float speed : speeds) {
+        for (size_t speed_idx = 0; speed_idx < speeds.size(); speed_idx++) {
+            float speed = speeds[speed_idx];
+            const std::string& speed_name = speed_names[speed_idx];
+            
+            INFO("Testing " << speed_name);
+            
             // Create file generator render stage
             AudioFileGeneratorRenderStage file_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, test_file_path);
             AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
@@ -874,6 +558,351 @@ TEST_CASE("AudioFileGeneratorRenderStage - Content Accuracy Test", "[audio_file_
                 max_amplitude = std::max(max_amplitude, std::abs(sample));
             }
             REQUIRE(max_amplitude > 0.0f);
+
+            // ARTIFACT DETECTION TESTS
+            SECTION("Artifact Detection for " + speed_name) {
+                // Test for discontinuities and glitches
+                {
+                    constexpr float MAX_SAMPLE_DIFF = 0.1f; // Allow some variation due to speed changes
+                    int discontinuity_count = 0;
+                    
+                    for (size_t i = 1; i < rendered_samples.size(); ++i) {
+                        float sample_diff = std::abs(rendered_samples[i] - rendered_samples[i-1]);
+                        if (sample_diff > MAX_SAMPLE_DIFF) {
+                            discontinuity_count++;
+                        }
+                    }
+                    
+                    // Should not have too many discontinuities (allows for some due to speed changes)
+                    float discontinuity_ratio = static_cast<float>(discontinuity_count) / rendered_samples.size();
+                    REQUIRE(discontinuity_ratio < 0.01f); // Less than 1% discontinuities
+                }
+
+                // Test for clipping artifacts
+                {
+                    int clipping_count = 0;
+                    for (float sample : rendered_samples) {
+                        if (std::abs(sample) >= 1.0f) {
+                            clipping_count++;
+                        }
+                    }
+                    
+                    // Should not have significant clipping
+                    float clipping_ratio = static_cast<float>(clipping_count) / rendered_samples.size();
+                    REQUIRE(clipping_ratio < 0.001f); // Less than 0.1% clipping
+                }
+
+                // Test for DC offset artifacts
+                {
+                    float sum = 0.0f;
+                    for (float sample : rendered_samples) {
+                        sum += sample;
+                    }
+                    float dc_offset = sum / rendered_samples.size();
+                    
+                    // DC offset should be minimal
+                    REQUIRE(std::abs(dc_offset) < 0.1f);
+                }
+
+                // Test for frequency domain artifacts (aliasing, etc.)
+                {
+                    // Calculate spectral centroid to detect pitch shifting artifacts
+                    float spectral_centroid = 0.0f;
+                    float total_energy = 0.0f;
+                    
+                    // Simple frequency analysis using zero crossings
+                    std::vector<int> zero_crossings;
+                    for (size_t i = 1; i < rendered_samples.size(); ++i) {
+                        if ((rendered_samples[i-1] < 0 && rendered_samples[i] >= 0) || 
+                            (rendered_samples[i-1] > 0 && rendered_samples[i] <= 0)) {
+                            zero_crossings.push_back(i);
+                        }
+                    }
+                    
+                    if (zero_crossings.size() >= 2) {
+                        float total_time = static_cast<float>(rendered_samples.size()) / SAMPLE_RATE;
+                        float estimated_frequency = static_cast<float>(zero_crossings.size() - 1) / (2.0f * total_time);
+                        
+                        // For speed changes, frequency should scale approximately with speed
+                        // This is a basic test - more sophisticated analysis would use FFT
+                        REQUIRE(estimated_frequency > 0.0f);
+                    }
+                }
+            }
+
+            // CORRELATION TESTS
+            SECTION("Correlation Analysis for " + speed_name) {
+                // For speed changes, we need to compare with time-scaled original
+                // Create a time-scaled version of the original for comparison
+                std::vector<float> time_scaled_original;
+                const size_t original_length = original_data[0].size();
+                const size_t scaled_length = static_cast<size_t>(original_length / speed);
+                
+                time_scaled_original.reserve(scaled_length);
+                
+                // Simple linear interpolation for time scaling
+                for (size_t i = 0; i < scaled_length && i < rendered_samples.size(); ++i) {
+                    float original_index = i * speed;
+                    size_t idx1 = static_cast<size_t>(original_index);
+                    size_t idx2 = std::min(idx1 + 1, original_length - 1);
+                    float frac = original_index - idx1;
+                    
+                    if (idx1 < original_length) {
+                        float sample1 = original_data[0][idx1];
+                        float sample2 = (idx2 < original_length) ? original_data[0][idx2] : sample1;
+                        float interpolated_sample = sample1 * (1.0f - frac) + sample2 * frac;
+                        time_scaled_original.push_back(interpolated_sample);
+                    }
+                }
+
+                if (!time_scaled_original.empty() && !rendered_samples.empty()) {
+                    // Calculate correlation between rendered and time-scaled original
+                    const size_t comparison_length = std::min(rendered_samples.size(), time_scaled_original.size());
+                    
+                    if (comparison_length > 100) { // Need sufficient samples for correlation
+                        std::vector<float> rendered_portion(rendered_samples.begin(), 
+                                                          rendered_samples.begin() + comparison_length);
+                        std::vector<float> original_portion(time_scaled_original.begin(), 
+                                                          time_scaled_original.begin() + comparison_length);
+                        
+                        float correlation = calculate_correlation(rendered_portion, original_portion);
+                        float rms_error = calculate_rms_error(rendered_portion, original_portion);
+                        
+                        INFO("Speed: " << speed << ", Correlation: " << correlation << ", RMS Error: " << rms_error);
+                        
+                        // For speed changes, correlation should still be reasonable
+                        // (lower than 1.0x speed but still significant)
+                        if (speed == 1.0f) {
+                            REQUIRE(correlation > 0.7f); // High correlation for normal speed
+                            REQUIRE(rms_error < 0.3f);   // Low error for normal speed
+                        } else {
+                            REQUIRE(correlation > 0.3f); // Lower but still significant correlation for speed changes
+                            REQUIRE(rms_error < 0.8f);   // Higher but acceptable error for speed changes
+                        }
+                    }
+                }
+            }
+
+            // SPEED-SPECIFIC ARTIFACT TESTS
+            SECTION("Speed-Specific Artifacts for " + speed_name) {
+                if (speed < 1.0f) {
+                    // Slow speed tests - check for stretching artifacts
+                    // Calculate average sample difference to detect stretching
+                    float avg_sample_diff = 0.0f;
+                    for (size_t i = 1; i < rendered_samples.size(); ++i) {
+                        avg_sample_diff += std::abs(rendered_samples[i] - rendered_samples[i-1]);
+                    }
+                    avg_sample_diff /= (rendered_samples.size() - 1);
+                    
+                    // Slower speeds should have smaller average differences (more stretched)
+                    REQUIRE(avg_sample_diff < 0.05f); // Stretched audio should be smoother
+                }
+                
+                if (speed > 1.0f) {
+                    // Fast speed tests - check for compression artifacts
+                    // Calculate zero crossing rate to detect compression
+                    int zero_crossings = 0;
+                    for (size_t i = 1; i < rendered_samples.size(); ++i) {
+                        if ((rendered_samples[i-1] < 0 && rendered_samples[i] >= 0) || 
+                            (rendered_samples[i-1] > 0 && rendered_samples[i] <= 0)) {
+                            zero_crossings++;
+                        }
+                    }
+                    
+                    float zero_crossing_rate = static_cast<float>(zero_crossings) / rendered_samples.size();
+                    
+                    // Faster speeds should have higher zero crossing rates
+                    REQUIRE(zero_crossing_rate > 0.01f); // Compressed audio should have more crossings
+                }
+            }
+
+            final_render_stage.unbind();
+            file_generator.unbind();
+            delete global_time_param;
+        }
+    }
+}
+
+TEST_CASE("AudioFileGeneratorRenderStage - Speed Change Artifacts and Correlation Test", "[audio_file_generator_render_stage][gl_test][speed_artifacts]") {
+    SDLWindow window(WIDTH, HEIGHT);
+    GLContext context;
+
+    constexpr int BUFFER_SIZE = WIDTH;
+    constexpr int SAMPLE_RATE = 44100;
+    constexpr int NUM_CHANNELS = HEIGHT;
+    constexpr float TEST_GAIN = 1.0f;
+    constexpr int NUM_FRAMES = SAMPLE_RATE / BUFFER_SIZE * 4; // 4 seconds for better analysis
+
+    const std::string test_file_path = "media/test.wav";
+
+    // Load original audio data for comparison
+    std::vector<std::vector<float>> original_data;
+    try {
+        original_data = load_original_audio_data(test_file_path);
+    } catch (const std::exception& e) {
+        FAIL("Failed to load original audio data: " << e.what());
+    }
+
+    REQUIRE(original_data.size() >= NUM_CHANNELS);
+    REQUIRE(!original_data[0].empty());
+
+    SECTION("Comprehensive Speed Artifact Analysis") {
+        // Test a range of speeds to detect artifacts
+        std::vector<float> speeds = {0.5f, 1.0f, 2.0f};
+        std::vector<std::string> speed_names = {
+            "Half Speed (0.5x)", "Normal Speed (1.0x)", "Double Speed (2.0x)"
+        };
+
+        for (size_t speed_idx = 0; speed_idx < speeds.size(); speed_idx++) {
+            float speed = speeds[speed_idx];
+            const std::string& speed_name = speed_names[speed_idx];
+            
+            INFO("Testing " << speed_name << " (speed factor: " << speed << ")");
+            
+            // Create file generator render stage
+            AudioFileGeneratorRenderStage file_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, test_file_path);
+            AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+            REQUIRE(file_generator.connect_render_stage(&final_render_stage));
+            
+            auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+            global_time_param->set_value(0);
+            global_time_param->initialize();
+
+            // Remove the envelope for clean analysis
+            auto attack_param = file_generator.find_parameter("attack_time");
+            attack_param->set_value(0.0f);
+            auto decay_param = file_generator.find_parameter("decay_time");
+            decay_param->set_value(0.0f);
+            auto sustain_param = file_generator.find_parameter("sustain_level");
+            sustain_param->set_value(1.0f);
+            auto release_param = file_generator.find_parameter("release_time");
+            release_param->set_value(0.0f);
+            
+            REQUIRE(file_generator.initialize());
+            REQUIRE(final_render_stage.initialize());
+
+            context.prepare_draw();
+            REQUIRE(file_generator.bind());
+            REQUIRE(final_render_stage.bind());
+
+            // Play at specified speed
+            file_generator.play_note(MIDDLE_C * speed, TEST_GAIN);
+
+            // Render frames and collect samples
+            std::vector<float> rendered_samples;
+            rendered_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
+
+            for (int frame = 0; frame < NUM_FRAMES; frame++) {
+                global_time_param->set_value(frame);
+                global_time_param->render();
+
+                file_generator.render(frame);
+                final_render_stage.render(frame);
+                
+                auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
+                REQUIRE(output_param != nullptr);
+
+                const float* output_data = static_cast<const float*>(output_param->get_value());
+                REQUIRE(output_data != nullptr);
+
+                for (int i = 0; i < BUFFER_SIZE; i++) {
+                    rendered_samples.push_back(output_data[i * NUM_CHANNELS]);
+                }
+            }
+
+            REQUIRE(rendered_samples.size() == BUFFER_SIZE * NUM_FRAMES);
+
+            SECTION("Correlation with Time-Scaled Original for " + speed_name) {
+                // Create time-scaled version of original for correlation analysis
+                std::vector<float> time_scaled_original;
+                const size_t original_length = original_data[0].size();
+                const size_t scaled_length = static_cast<size_t>(original_length / speed);
+                
+                time_scaled_original.reserve(scaled_length);
+                
+                // Linear interpolation for time scaling
+                for (size_t i = 0; i < scaled_length && i < rendered_samples.size(); ++i) {
+                    float original_index = i * speed;
+                    size_t idx1 = static_cast<size_t>(original_index);
+                    size_t idx2 = std::min(idx1 + 1, original_length - 1);
+                    float frac = original_index - idx1;
+                    
+                    if (idx1 < original_length) {
+                        float sample1 = original_data[0][idx1];
+                        float sample2 = (idx2 < original_length) ? original_data[0][idx2] : sample1;
+                        float interpolated_sample = sample1 * (1.0f - frac) + sample2 * frac;
+                        time_scaled_original.push_back(interpolated_sample);
+                    }
+                }
+
+                if (!time_scaled_original.empty() && !rendered_samples.empty()) {
+                    const size_t comparison_length = std::min(rendered_samples.size(), time_scaled_original.size());
+                    
+                    if (comparison_length > 1000) { // Need sufficient samples for reliable correlation
+                        std::vector<float> rendered_portion(rendered_samples.begin(), 
+                                                          rendered_samples.begin() + comparison_length);
+                        std::vector<float> original_portion(time_scaled_original.begin(), 
+                                                          time_scaled_original.begin() + comparison_length);
+                        
+                        float correlation = calculate_correlation(rendered_portion, original_portion);
+                        float rms_error = calculate_rms_error(rendered_portion, original_portion);
+                        
+                        INFO("Correlation: " << correlation << ", RMS Error: " << rms_error);
+                        
+                        // Correlation thresholds based on speed
+                        if (speed == 1.0f) {
+                            REQUIRE(correlation > 0.999f); // High correlation for normal speed
+                            REQUIRE(rms_error < 0.05f);   // Low error for normal speed
+                        } else if (speed >= 0.5f && speed <= 2.0f) {
+                            REQUIRE(correlation > 0.99f); // Good correlation for moderate speed changes
+                            REQUIRE(rms_error < 0.1f);   // Moderate error for speed changes
+                        } else {
+                            REQUIRE(correlation > 0.9f); // Lower but still significant correlation for extreme speeds
+                            REQUIRE(rms_error < 0.2f);   // Higher error acceptable for extreme speeds
+                        }
+                    }
+                }
+            }
+
+            SECTION("Speed-Specific Quality Metrics for " + speed_name) {
+                // Calculate speed-specific quality metrics
+                float avg_sample_diff = 0.0f;
+                for (size_t i = 1; i < rendered_samples.size(); ++i) {
+                    avg_sample_diff += std::abs(rendered_samples[i] - rendered_samples[i-1]);
+                }
+                avg_sample_diff /= (rendered_samples.size() - 1);
+                
+                // Calculate signal-to-noise ratio approximation
+                float signal_energy = 0.0f;
+                float noise_energy = 0.0f;
+                
+                // Simple SNR estimation using sample differences as noise
+                for (size_t i = 1; i < rendered_samples.size(); ++i) {
+                    float diff = rendered_samples[i] - rendered_samples[i-1];
+                    noise_energy += diff * diff;
+                }
+                
+                for (float sample : rendered_samples) {
+                    signal_energy += sample * sample;
+                }
+                
+                float snr_estimate = 10.0f * std::log10((signal_energy + 1e-6f) / (noise_energy + 1e-6f));
+                
+                INFO("Average sample difference: " << avg_sample_diff << ", SNR estimate: " << snr_estimate << " dB");
+                
+                // Quality thresholds
+                if (speed < 1.0f) {
+                    // Slower speeds should be smoother (smaller sample differences)
+                    REQUIRE(avg_sample_diff < 0.08f);
+                } else if (speed > 1.0f) {
+                    // Faster speeds can have larger differences but should still be reasonable
+                    REQUIRE(avg_sample_diff < 0.15f);
+                }
+                
+                // SNR should be reasonable for all speeds
+                REQUIRE(snr_estimate > 10.0f); // At least 10dB SNR
+            }
 
             final_render_stage.unbind();
             file_generator.unbind();
@@ -1021,6 +1050,7 @@ TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[audio_genera
     delete global_time_param;
 }
 
+// FIXME: This test is not working as expected, fix using debug display
 TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "[audio_file_generator_render_stage][gl_test][audio_output]") {
     SDLWindow window(WIDTH, HEIGHT);
     GLContext context;
@@ -1270,3 +1300,5 @@ TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "[audio_fi
         delete global_time_param;
     }
 }
+
+// FIXME: Add ADSR tests

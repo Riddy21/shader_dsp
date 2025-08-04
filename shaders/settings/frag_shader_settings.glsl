@@ -7,7 +7,7 @@ uniform int sample_rate;
 uniform int num_channels;
 
 layout(std140) uniform global_time {
-    int global_time_val;
+    highp int global_time_val;
 };
 
 layout(location = 0) out vec4 output_audio_texture;

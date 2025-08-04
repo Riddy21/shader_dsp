@@ -82,8 +82,10 @@ int main() {
     setup_keyboard(synthesizer, event_loop);
 
     GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
-    //graphics_display->add_view("debug", new DebugView());
-    //graphics_display->change_view("debug");
+    graphics_display->add_view("debug", new DebugView());
+    graphics_display->change_view("debug");
+
+    synthesizer.get_track(0).change_voice("file");
 
     //// Create another window for the interface
     //GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
