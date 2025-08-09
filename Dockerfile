@@ -131,6 +131,10 @@ RUN chmod +x /usr/local/bin/test_audio.sh
 COPY scripts/performance_optimize.sh /usr/local/bin/performance_optimize.sh
 RUN chmod +x /usr/local/bin/performance_optimize.sh
 
+# Copy Cursor sync/link script
+COPY scripts/link_cursor_server.sh /usr/local/bin/link_cursor_server.sh
+RUN chmod +x /usr/local/bin/link_cursor_server.sh
+
 # Create workspace directory
 RUN mkdir -p /workspace
 

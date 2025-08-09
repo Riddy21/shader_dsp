@@ -9,6 +9,7 @@ services:
       - .:/workspace
       - shader-dsp-history:/commandhistory
       - shader-dsp-config:/home/developer/.claude
+      - ${HOME}/.cursor_server:/host_cursor_server:ro
       - /tmp/.X11-unix:/tmp/.X11-unix:rw # Share X11 socket for GUI (Linux/macOS)
       # ALSA devices - only mount if they exist (Linux)
       - ${ALSA_DEVICES:-/dev/null}:/dev/snd:rw
@@ -94,7 +95,7 @@ services:
       - "8080:8080"  # Optional: expose a port if needed
     tty: true
     stdin_open: true
-    command: /bin/bash
+    command: bash -lc "/usr/local/bin/link_cursor_server.sh; exec bash"
     # Set the user to root for full access
     user: "root"
     # Performance-optimized resource constraints
