@@ -96,6 +96,82 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
     m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
 }
 
+// Constructor that takes fragment shader source as string
+AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
+                                   const unsigned int sample_rate,
+                                   const unsigned int num_channels,
+                                   const std::string & fragment_shader_source,
+                                   bool use_shader_string,
+                                   const std::vector<std::string> & frag_shader_imports,
+                                   const std::string & vertex_shader_path,
+                                   const std::vector<std::string> & vert_shader_imports)
+                                  : gid(generate_id()),
+                                    frames_per_buffer(frames_per_buffer),
+                                    sample_rate(sample_rate),
+                                    num_channels(num_channels),
+                                    m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
+                                    m_fragment_shader_source(combine_shader_source_with_string(frag_shader_imports, fragment_shader_source)) {
+    
+    int width = frames_per_buffer;
+    int height = num_channels;
+
+    auto stream_audio_texture =
+        new AudioTexture2DParameter("stream_audio_texture",
+                                    AudioParameter::ConnectionType::PASSTHROUGH,
+                                    width, height, // Width and height
+                                    m_active_texture_count++,
+                                    0, /* colour attachment not used for passthrough */
+                                    GL_NEAREST);
+    auto output_audio_texture =
+        new AudioTexture2DParameter("output_audio_texture",
+                                    AudioParameter::ConnectionType::OUTPUT,
+                                    width, height,
+                                    0,
+                                    m_color_attachment_count++, GL_NEAREST);
+    auto debug_audio_texture =
+        new AudioTexture2DParameter("debug_audio_texture",
+                                    AudioParameter::ConnectionType::OUTPUT,
+                                    width, height,
+                                    0,
+                                    m_color_attachment_count++, GL_NEAREST);
+
+    auto buffer_size =
+        new AudioIntParameter("buffer_size",
+                  AudioParameter::ConnectionType::INITIALIZATION);
+    buffer_size->set_value(frames_per_buffer);
+
+    auto n_channels = 
+        new AudioIntParameter("num_channels",
+                  AudioParameter::ConnectionType::INITIALIZATION);
+    n_channels->set_value(num_channels);
+
+    auto samp_rate =
+        new AudioIntParameter("sample_rate",
+                  AudioParameter::ConnectionType::INITIALIZATION);
+    samp_rate->set_value(sample_rate);
+    
+    if (!this->add_parameter(output_audio_texture)) {
+        std::cerr << "Failed to add output_audio_texture" << std::endl;
+    }
+    if (!this->add_parameter(stream_audio_texture)) {
+        std::cerr << "Failed to add stream_audio_texture" << std::endl;
+    }
+    if (!this->add_parameter(debug_audio_texture)) {
+        std::cerr << "Failed to add debug_audio_texture" << std::endl;
+    }
+    if (!this->add_parameter(buffer_size)) {
+        std::cerr << "Failed to add buffer_size" << std::endl;
+    }
+    if (!this->add_parameter(n_channels)) {
+        std::cerr << "Failed to add num_channels" << std::endl;
+    }
+    if (!this->add_parameter(samp_rate)) {
+        std::cerr << "Failed to add sample_rate" << std::endl;
+    }
+
+    m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
+}
+
 AudioRenderStage::~AudioRenderStage() {
     // Delete the framebuffer if it was generated
     if (m_framebuffer != 0) {
@@ -354,6 +430,66 @@ const std::string AudioRenderStage::combine_shader_source(const std::vector<std:
             combined_source += shader_source;
         } else {
             // Remove #version line from main shader
+            size_t version_pos = shader_source.find("#version");
+            size_t newline_pos = shader_source.find('\n', version_pos);
+            if (newline_pos != std::string::npos) {
+                combined_source += shader_source.substr(newline_pos + 1);
+            } else {
+                combined_source += shader_source;
+            }
+        }
+    } else {
+        combined_source += shader_source;
+    }
+
+    return combined_source;
+}
+
+const std::string AudioRenderStage::combine_shader_source_with_string(const std::vector<std::string> & import_paths, const std::string & shader_source) {
+    std::string combined_source = "";
+    bool version_added = false;
+    
+    for (auto & import_path : import_paths) {
+        std::string import_source = get_shader_source(import_path);
+        
+        // Check if this import contains a #version directive
+        if (import_source.find("#version") != std::string::npos) {
+            if (!version_added) {
+                // Find the first #version line and add it
+                size_t version_pos = import_source.find("#version");
+                size_t newline_pos = import_source.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_source += import_source.substr(version_pos, newline_pos - version_pos + 1);
+                    // Add the rest of the import source without the #version line
+                    combined_source += import_source.substr(newline_pos + 1);
+                } else {
+                    combined_source += import_source;
+                }
+                version_added = true;
+            } else {
+                // Remove #version line from subsequent imports
+                size_t version_pos = import_source.find("#version");
+                size_t newline_pos = import_source.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_source += import_source.substr(newline_pos + 1);
+                } else {
+                    combined_source += import_source;
+                }
+            }
+        } else {
+            combined_source += import_source;
+        }
+        combined_source += "\n";
+    }
+    
+    // Use the provided shader source string instead of reading from file
+    // Check if the shader source has a #version directive
+    if (shader_source.find("#version") != std::string::npos) {
+        if (!version_added) {
+            // If no version was added yet, keep the one from the shader source
+            combined_source += shader_source;
+        } else {
+            // Remove #version line from shader source
             size_t version_pos = shader_source.find("#version");
             size_t newline_pos = shader_source.find('\n', version_pos);
             if (newline_pos != std::string::npos) {

@@ -29,6 +29,9 @@ public:
 
     static const std::vector<std::string> default_frag_shader_imports;
 
+    // Convenience function to set gains for actual number of channels
+    void set_channel_gains(const std::vector<float>& channel_gains);
+
     ~AudioGainEffectRenderStage() {};
 };
 

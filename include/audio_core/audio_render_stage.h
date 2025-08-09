@@ -36,6 +36,16 @@ public:
                      const std::string& vertex_shader_path = "build/shaders/render_stage_vert.glsl",
                      const std::vector<std::string> & vert_shader_imports = default_vert_shader_imports);
 
+    // Constructor that takes fragment shader source as string instead of file path
+    AudioRenderStage(const unsigned int frames_per_buffer,
+                     const unsigned int sample_rate,
+                     const unsigned int num_channels,
+                     const std::string& fragment_shader_source,
+                     bool use_shader_string, // Dummy parameter to differentiate constructors
+                     const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports,
+                     const std::string& vertex_shader_path = "build/shaders/render_stage_vert.glsl",
+                     const std::vector<std::string> & vert_shader_imports = default_vert_shader_imports);
+
     // Destructor
     virtual ~AudioRenderStage();
 
@@ -114,6 +124,7 @@ public:
 
     static const std::string get_shader_source(const std::string & file_path);
     static const std::string combine_shader_source(const std::vector<std::string> & import_paths, const std::string & shader_path);
+    static const std::string combine_shader_source_with_string(const std::vector<std::string> & import_paths, const std::string & shader_source);
 
     const unsigned int gid;    
 
