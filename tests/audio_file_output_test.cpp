@@ -14,13 +14,55 @@
 #include "audio_output/audio_wav.h"
 #include "utils/audio_test_utils.h"
 
+// Test parameter structure for audio output tests
+struct AudioOutputTestParams {
+    unsigned frames_per_buffer;
+    unsigned sample_rate;
+    unsigned channels;
+    const char* name;
+};
+
+// Define 3 different test parameter combinations
+using AudioTestParam1 = std::integral_constant<int, 0>; // 256 frames, 48000 Hz, 1 channel
+using AudioTestParam2 = std::integral_constant<int, 1>; // 512 frames, 44100 Hz, 2 channels
+using AudioTestParam3 = std::integral_constant<int, 2>; // 1024 frames, 96000 Hz, 2 channels
+
+// Multi-channel test parameters
+using MultiChannelTestParam1 = std::integral_constant<int, 0>; // 512 frames, 44100 Hz, 4 channels
+using MultiChannelTestParam2 = std::integral_constant<int, 1>; // 256 frames, 48000 Hz, 8 channels
+using MultiChannelTestParam3 = std::integral_constant<int, 2>; // 1024 frames, 96000 Hz, 6 channels
+
+// Parameter lookup function for audio tests
+constexpr AudioOutputTestParams get_audio_test_params(int index) {
+    constexpr AudioOutputTestParams params[] = {
+        {256, 48000, 1, "256f_48000Hz_1ch"},
+        {512, 44100, 2, "512f_44100Hz_2ch"},
+        {1024, 96000, 2, "1024f_96000Hz_2ch"}
+    };
+    return params[index];
+}
+
+// Parameter lookup function for multi-channel tests
+constexpr AudioOutputTestParams get_multi_channel_test_params(int index) {
+    constexpr AudioOutputTestParams params[] = {
+        {512, 44100, 4, "512f_44100Hz_4ch"},
+        {256, 48000, 8, "256f_48000Hz_8ch"},
+        {1024, 96000, 6, "1024f_96000Hz_6ch"}
+    };
+    return params[index];
+}
 
 
-TEST_CASE("AudioFileOutput basic functionality") {
-    const unsigned frames_per_buffer = 512;
-    const unsigned sample_rate = 44100;
-    const unsigned channels = 2;
-    const std::string test_filename = "build/tests/test_output.wav";
+TEMPLATE_TEST_CASE("AudioFileOutput basic functionality", "[audio_file_output][template]",
+                   AudioTestParam1, AudioTestParam2, AudioTestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_audio_test_params(TestType::value);
+    constexpr unsigned frames_per_buffer = params.frames_per_buffer;
+    constexpr unsigned sample_rate = params.sample_rate;
+    constexpr unsigned channels = params.channels;
+    
+    const std::string test_filename = std::string("build/tests/test_output_") + params.name + ".wav";
     
     // Clean up any existing test file
     cleanup_test_file(test_filename);
@@ -101,13 +143,17 @@ TEST_CASE("AudioFileOutput basic functionality") {
     }
 }
 
-TEST_CASE("AudioFileOutput sine wave writing") {
-    const unsigned frames_per_buffer = 512;
-    const unsigned sample_rate = 44100;
-    const unsigned channels = 2;
+TEMPLATE_TEST_CASE("AudioFileOutput sine wave writing", "[audio_file_output][template]",
+                   AudioTestParam1, AudioTestParam2, AudioTestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_audio_test_params(TestType::value);
+    constexpr unsigned frames_per_buffer = params.frames_per_buffer;
+    constexpr unsigned sample_rate = params.sample_rate;
+    constexpr unsigned channels = params.channels;
     const float frequency = 440.0f; // A4 note
     const float amplitude = 0.3f;
-    const std::string test_filename = "build/tests/sine_wave_test.wav";
+    const std::string test_filename = std::string("build/tests/sine_wave_test_") + params.name + ".wav";
     
     // Clean up any existing test file
     cleanup_test_file(test_filename);
@@ -204,151 +250,102 @@ TEST_CASE("AudioFileOutput error handling") {
     }
 }
 
-TEST_CASE("AudioFileOutput different configurations") {
-    SECTION("Mono audio") {
-        const unsigned frames_per_buffer = 256;
-        const unsigned sample_rate = 48000;
-        const unsigned channels = 1;
-        const std::string test_filename = "build/tests/mono_test.wav";
-        
-        cleanup_test_file(test_filename);
-        
-        AudioFileOutput file_output(frames_per_buffer, sample_rate, channels, test_filename);
-        
-        REQUIRE(file_output.open() == true);
-        REQUIRE(file_output.start() == true);
-        
-        // Generate and write a short sine wave
-        auto buffer = generate_sine_wave(440.0f, 0.2f, sample_rate, frames_per_buffer, channels);
-        file_output.push(buffer.data());
-        
-        REQUIRE(file_output.stop() == true);
-        REQUIRE(file_output.close() == true);
-        
-        // Verify file was created and has valid WAV header
-        REQUIRE(validate_wav_header(test_filename, channels, sample_rate, 16));
-        
-        // Read and verify audio data
-        auto audio_data = read_wav_audio_data(test_filename);
-        REQUIRE(!audio_data.empty());
-        REQUIRE(audio_data.size() == frames_per_buffer * channels);
-    }
+TEMPLATE_TEST_CASE("AudioFileOutput different configurations", "[audio_file_output][template]",
+                   AudioTestParam1, AudioTestParam2, AudioTestParam3) {
     
-    SECTION("High sample rate") {
-        const unsigned frames_per_buffer = 1024;
-        const unsigned sample_rate = 96000;
-        const unsigned channels = 2;
-        const std::string test_filename = "build/tests/high_sample_rate_test.wav";
-        
-        cleanup_test_file(test_filename);
-        
-        AudioFileOutput file_output(frames_per_buffer, sample_rate, channels, test_filename);
-        
-        REQUIRE(file_output.open() == true);
-        REQUIRE(file_output.start() == true);
-        
-        // Generate and write a short sine wave
-        auto buffer = generate_sine_wave(880.0f, 0.1f, sample_rate, frames_per_buffer, channels);
-        file_output.push(buffer.data());
-        
-        REQUIRE(file_output.stop() == true);
-        REQUIRE(file_output.close() == true);
-        
-        // Verify file was created and has valid WAV header
-        REQUIRE(validate_wav_header(test_filename, channels, sample_rate, 16));
-        
-        // Read and verify audio data
-        auto audio_data = read_wav_audio_data(test_filename);
-        REQUIRE(!audio_data.empty());
-        REQUIRE(audio_data.size() == frames_per_buffer * channels);
-    }
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_audio_test_params(TestType::value);
+    constexpr unsigned frames_per_buffer = params.frames_per_buffer;
+    constexpr unsigned sample_rate = params.sample_rate;
+    constexpr unsigned channels = params.channels;
     
-    SECTION("Multi-channel audio (4 channels)") {
-        const unsigned frames_per_buffer = 512;
-        const unsigned sample_rate = 44100;
-        const unsigned channels = 4;
-        const std::string test_filename = "build/tests/multichannel_test.wav";
-        
-        cleanup_test_file(test_filename);
-        
-        AudioFileOutput file_output(frames_per_buffer, sample_rate, channels, test_filename);
-        
-        REQUIRE(file_output.open() == true);
-        REQUIRE(file_output.start() == true);
-        
-        // Generate and write a short sine wave
-        auto buffer = generate_sine_wave(440.0f, 0.2f, sample_rate, frames_per_buffer, channels);
-        file_output.push(buffer.data());
-        
-        REQUIRE(file_output.stop() == true);
-        REQUIRE(file_output.close() == true);
-        
-        // Verify file was created and has valid WAV header
-        REQUIRE(validate_wav_header(test_filename, channels, sample_rate, 16));
-        
-        // Read and verify audio data
-        auto audio_data = read_wav_audio_data(test_filename);
-        REQUIRE(!audio_data.empty());
-        REQUIRE(audio_data.size() == frames_per_buffer * channels);
-        
-        // Verify that all channels contain data (not just zeros)
-        bool has_non_zero_data = false;
-        for (int16_t sample : audio_data) {
-            if (sample != 0) {
-                has_non_zero_data = true;
-                break;
-            }
-        }
-        REQUIRE(has_non_zero_data);
-        
-        // Test frequency detection on multiple channels
-        for (unsigned ch = 0; ch < channels; ++ch) {
-            REQUIRE(detect_frequency_int16_channel(audio_data, 440.0f, sample_rate, channels, ch));
+    const std::string test_filename = std::string("build/tests/config_test_") + params.name + ".wav";
+    
+    cleanup_test_file(test_filename);
+    
+    AudioFileOutput file_output(frames_per_buffer, sample_rate, channels, test_filename);
+    
+    REQUIRE(file_output.open() == true);
+    REQUIRE(file_output.start() == true);
+    
+    // Generate and write a short sine wave (frequency varies by channel count)
+    float frequency = 440.0f + (channels * 100.0f); // 440Hz for mono, 640Hz for stereo, etc.
+    auto buffer = generate_sine_wave(frequency, 0.2f, sample_rate, frames_per_buffer, channels);
+    file_output.push(buffer.data());
+    
+    REQUIRE(file_output.stop() == true);
+    REQUIRE(file_output.close() == true);
+    
+    // Verify file was created and has valid WAV header
+    REQUIRE(validate_wav_header(test_filename, channels, sample_rate, 16));
+    
+    // Read and verify audio data
+    auto audio_data = read_wav_audio_data(test_filename);
+    REQUIRE(!audio_data.empty());
+    REQUIRE(audio_data.size() == frames_per_buffer * channels);
+    
+    // Verify that all channels contain data (not just zeros)
+    bool has_non_zero_data = false;
+    for (int16_t sample : audio_data) {
+        if (sample != 0) {
+            has_non_zero_data = true;
+            break;
         }
     }
+    REQUIRE(has_non_zero_data);
     
-    SECTION("Multi-channel audio (8 channels)") {
-        const unsigned frames_per_buffer = 256;
-        const unsigned sample_rate = 48000;
-        const unsigned channels = 8;
-        const std::string test_filename = "build/tests/octochannel_test.wav";
-        
-        cleanup_test_file(test_filename);
-        
-        AudioFileOutput file_output(frames_per_buffer, sample_rate, channels, test_filename);
-        
-        REQUIRE(file_output.open() == true);
-        REQUIRE(file_output.start() == true);
-        
-        // Generate and write a short sine wave
-        auto buffer = generate_sine_wave(440.0f, 0.2f, sample_rate, frames_per_buffer, channels);
-        file_output.push(buffer.data());
-        
-        REQUIRE(file_output.stop() == true);
-        REQUIRE(file_output.close() == true);
-        
-        // Verify file was created and has valid WAV header
-        REQUIRE(validate_wav_header(test_filename, channels, sample_rate, 16));
-        
-        // Read and verify audio data
-        auto audio_data = read_wav_audio_data(test_filename);
-        REQUIRE(!audio_data.empty());
-        REQUIRE(audio_data.size() == frames_per_buffer * channels);
-        
-        // Verify that all channels contain data (not just zeros)
-        bool has_non_zero_data = false;
-        for (int16_t sample : audio_data) {
-            if (sample != 0) {
-                has_non_zero_data = true;
-                break;
-            }
+    // Test frequency detection on all channels
+    for (unsigned ch = 0; ch < channels; ++ch) {
+        REQUIRE(detect_frequency_int16_channel(audio_data, frequency, sample_rate, channels, ch));
+    }
+}
+
+TEMPLATE_TEST_CASE("AudioFileOutput multi-channel configurations", "[audio_file_output][multi_channel][template]",
+                   MultiChannelTestParam1, MultiChannelTestParam2, MultiChannelTestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_multi_channel_test_params(TestType::value);
+    constexpr unsigned frames_per_buffer = params.frames_per_buffer;
+    constexpr unsigned sample_rate = params.sample_rate;
+    constexpr unsigned channels = params.channels;
+    
+    const std::string test_filename = std::string("build/tests/multichannel_test_") + params.name + ".wav";
+    
+    cleanup_test_file(test_filename);
+    
+    AudioFileOutput file_output(frames_per_buffer, sample_rate, channels, test_filename);
+    
+    REQUIRE(file_output.open() == true);
+    REQUIRE(file_output.start() == true);
+    
+    // Generate and write a short sine wave
+    auto buffer = generate_sine_wave(440.0f, 0.2f, sample_rate, frames_per_buffer, channels);
+    file_output.push(buffer.data());
+    
+    REQUIRE(file_output.stop() == true);
+    REQUIRE(file_output.close() == true);
+    
+    // Verify file was created and has valid WAV header
+    REQUIRE(validate_wav_header(test_filename, channels, sample_rate, 16));
+    
+    // Read and verify audio data
+    auto audio_data = read_wav_audio_data(test_filename);
+    REQUIRE(!audio_data.empty());
+    REQUIRE(audio_data.size() == frames_per_buffer * channels);
+    
+    // Verify that all channels contain data (not just zeros)
+    bool has_non_zero_data = false;
+    for (int16_t sample : audio_data) {
+        if (sample != 0) {
+            has_non_zero_data = true;
+            break;
         }
-        REQUIRE(has_non_zero_data);
-        
-        // Test frequency detection on multiple channels
-        for (unsigned ch = 0; ch < channels; ++ch) {
-            REQUIRE(detect_frequency_int16_channel(audio_data, 440.0f, sample_rate, channels, ch));
-        }
+    }
+    REQUIRE(has_non_zero_data);
+    
+    // Test frequency detection on multiple channels
+    for (unsigned ch = 0; ch < channels; ++ch) {
+        REQUIRE(detect_frequency_int16_channel(audio_data, 440.0f, sample_rate, channels, ch));
     }
 }
 

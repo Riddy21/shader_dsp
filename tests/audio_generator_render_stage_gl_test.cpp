@@ -37,8 +37,28 @@
  * Note: These tests require a valid OpenGL context to run, which may not be available
  * in all test environments. They are marked with [gl] tag.
  */
-constexpr int WIDTH = 512;
-constexpr int HEIGHT = 2;
+
+// Test parameter structure to hold buffer size and channel count combinations
+struct TestParams {
+    int buffer_size;
+    int num_channels;
+    const char* name;
+};
+
+// Define 3 different test parameter combinations
+using TestParam1 = std::integral_constant<int, 0>; // 256 buffer, 2 channels
+using TestParam2 = std::integral_constant<int, 1>; // 512 buffer, 2 channels  
+using TestParam3 = std::integral_constant<int, 2>; // 1024 buffer, 2 channels
+
+// Parameter lookup function
+constexpr TestParams get_test_params(int index) {
+    constexpr TestParams params[] = {
+        {256, 2, "256_buffer_2_channels"},
+        {512, 2, "512_buffer_2_channels"},
+        {1024, 2, "1024_buffer_2_channels"}
+    };
+    return params[index];
+}
 
 // Helper function to load original audio data from WAV file
 std::vector<std::vector<float>> load_original_audio_data(const std::string& filename) {
@@ -113,13 +133,18 @@ float calculate_rms_error(const std::vector<float>& a, const std::vector<float>&
     return std::sqrt(sum_squared_error / static_cast<float>(a.size()));
 }
 
-TEST_CASE("AudioGeneratorRenderStage - Sine Wave Generation", "[audio_generator_render_stage][gl_test]") {
-    SDLWindow window(WIDTH, HEIGHT);
-    GLContext context;
-
-    constexpr int BUFFER_SIZE = WIDTH;
+TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Sine Wave Generation", "[audio_generator_render_stage][gl_test][template]",
+                   TestParam1, TestParam2, TestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
     constexpr int SAMPLE_RATE = 44100;
-    constexpr int NUM_CHANNELS = HEIGHT;
+
+    // Initialize window and OpenGL context with appropriate dimensions
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
     constexpr float TEST_FREQUENCY = 450.0f; // A4 note
     constexpr float TEST_GAIN = 0.3f;
     constexpr int NUM_FRAMES = SAMPLE_RATE / BUFFER_SIZE * 5; // 5 seconds
@@ -364,13 +389,18 @@ TEST_CASE("AudioGeneratorRenderStage - Sine Wave Generation", "[audio_generator_
     delete global_time_param;
 }
 
-TEST_CASE("AudioFileGeneratorRenderStage - Content Accuracy Test", "[audio_file_generator_render_stage][gl_test][content]") {
-    SDLWindow window(WIDTH, HEIGHT);
-    GLContext context;
-
-    constexpr int BUFFER_SIZE = WIDTH;
+TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Content Accuracy Test", "[audio_file_generator_render_stage][gl_test][content][template]",
+                   TestParam1, TestParam2, TestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
     constexpr int SAMPLE_RATE = 44100;
-    constexpr int NUM_CHANNELS = HEIGHT;
+
+    // Initialize window and OpenGL context with appropriate dimensions
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
     constexpr float TEST_GAIN = 1.0f; // Use full gain for accurate comparison
     constexpr int NUM_FRAMES = SAMPLE_RATE / BUFFER_SIZE * 2; // 2 seconds
 
@@ -723,13 +753,18 @@ TEST_CASE("AudioFileGeneratorRenderStage - Content Accuracy Test", "[audio_file_
     }
 }
 
-TEST_CASE("AudioFileGeneratorRenderStage - Speed Change Artifacts and Correlation Test", "[audio_file_generator_render_stage][gl_test][speed_artifacts]") {
-    SDLWindow window(WIDTH, HEIGHT);
-    GLContext context;
-
-    constexpr int BUFFER_SIZE = WIDTH;
+TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Speed Change Artifacts and Correlation Test", "[audio_file_generator_render_stage][gl_test][speed_artifacts][template]",
+                   TestParam1, TestParam2, TestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
     constexpr int SAMPLE_RATE = 44100;
-    constexpr int NUM_CHANNELS = HEIGHT;
+
+    // Initialize window and OpenGL context with appropriate dimensions
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
     constexpr float TEST_GAIN = 1.0f;
     constexpr int NUM_FRAMES = SAMPLE_RATE / BUFFER_SIZE * 4; // 4 seconds for better analysis
 
@@ -911,13 +946,18 @@ TEST_CASE("AudioFileGeneratorRenderStage - Speed Change Artifacts and Correlatio
     }
 }
 
-TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[audio_generator_render_stage][gl_test][audio_output]") {
-    SDLWindow window(WIDTH, HEIGHT);
-    GLContext context;
-
-    constexpr int BUFFER_SIZE = WIDTH;
+TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[audio_generator_render_stage][gl_test][audio_output][template]",
+                   TestParam1, TestParam2, TestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
     constexpr int SAMPLE_RATE = 44100;
-    constexpr int NUM_CHANNELS = HEIGHT;
+
+    // Initialize window and OpenGL context with appropriate dimensions
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
     constexpr float TEST_FREQUENCY = 450.0f; // A4 note
     constexpr float TEST_GAIN = 0.3f; // Lower gain to prevent clipping
 
@@ -1051,13 +1091,18 @@ TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[audio_genera
 }
 
 // FIXME: This test is not working as expected, fix using debug display
-TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "[audio_file_generator_render_stage][gl_test][audio_output]") {
-    SDLWindow window(WIDTH, HEIGHT);
-    GLContext context;
-
-    constexpr int BUFFER_SIZE = WIDTH;
+TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "[audio_file_generator_render_stage][gl_test][audio_output][template]",
+                   TestParam1, TestParam2, TestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
     constexpr int SAMPLE_RATE = 44100;
-    constexpr int NUM_CHANNELS = HEIGHT;
+
+    // Initialize window and OpenGL context with appropriate dimensions
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
     constexpr float TEST_GAIN = 0.5f;
     constexpr int NUM_FRAMES = SAMPLE_RATE / BUFFER_SIZE * 3; // 3 seconds
 

@@ -12,6 +12,29 @@
 #include "audio_output/audio_player_output.h"
 #include "utils/audio_test_utils.h"
 
+// Test parameter structure for audio player output tests
+struct AudioPlayerTestParams {
+    unsigned frames_per_buffer;
+    unsigned sample_rate;
+    unsigned channels;
+    const char* name;
+};
+
+// Define 3 different test parameter combinations
+using PlayerTestParam1 = std::integral_constant<int, 0>; // 256 frames, 48000 Hz, 1 channel
+using PlayerTestParam2 = std::integral_constant<int, 1>; // 512 frames, 44100 Hz, 2 channels
+using PlayerTestParam3 = std::integral_constant<int, 2>; // 1024 frames, 96000 Hz, 2 channels
+
+// Parameter lookup function for player tests
+constexpr AudioPlayerTestParams get_player_test_params(int index) {
+    constexpr AudioPlayerTestParams params[] = {
+        {256, 48000, 1, "256f_48000Hz_1ch"},
+        {512, 44100, 2, "512f_44100Hz_2ch"},
+        {1024, 96000, 2, "1024f_96000Hz_2ch"}
+    };
+    return params[index];
+}
+
 // Global variables for audio capture
 std::vector<float> captured_audio;
 std::mutex audio_mutex;
@@ -32,10 +55,14 @@ void audio_capture_callback(void* userdata, Uint8* stream, int len) {
 
 
 
-TEST_CASE("AudioPlayerOutput basic functionality") {
-    const unsigned frames_per_buffer = 512;
-    const unsigned sample_rate = 44100;
-    const unsigned channels = 2;
+TEMPLATE_TEST_CASE("AudioPlayerOutput basic functionality", "[audio_player_output][template]",
+                   PlayerTestParam1, PlayerTestParam2, PlayerTestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_player_test_params(TestType::value);
+    constexpr unsigned frames_per_buffer = params.frames_per_buffer;
+    constexpr unsigned sample_rate = params.sample_rate;
+    constexpr unsigned channels = params.channels;
     
     SECTION("Open and close audio device") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
@@ -95,10 +122,14 @@ TEST_CASE("AudioPlayerOutput basic functionality") {
     }
 }
 
-TEST_CASE("AudioPlayerOutput sine wave playback") {
-    const unsigned frames_per_buffer = 512;
-    const unsigned sample_rate = 44100;
-    const unsigned channels = 2;
+TEMPLATE_TEST_CASE("AudioPlayerOutput sine wave playback", "[audio_player_output][template]",
+                   PlayerTestParam1, PlayerTestParam2, PlayerTestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_player_test_params(TestType::value);
+    constexpr unsigned frames_per_buffer = params.frames_per_buffer;
+    constexpr unsigned sample_rate = params.sample_rate;
+    constexpr unsigned channels = params.channels;
     const float frequency = 440.0f; // A4 note
     const float amplitude = 0.3f;
     
@@ -111,8 +142,8 @@ TEST_CASE("AudioPlayerOutput sine wave playback") {
         // Clear any initial queued audio to start with a clean state
         player.clear_queue();
         
-        // Generate and play sine wave for 5 seconds
-        const unsigned num_buffers = (sample_rate / frames_per_buffer) * 5;
+        // Generate and play sine wave for 2 seconds
+        const unsigned num_buffers = (sample_rate / frames_per_buffer) * 2;
         float phase = 0.0f;
         
         for (unsigned i = 0; i < num_buffers; ++i) {
@@ -151,10 +182,14 @@ TEST_CASE("AudioPlayerOutput sine wave playback") {
     }
 }
 
-TEST_CASE("AudioPlayerOutput error handling") {
-    const unsigned frames_per_buffer = 512;
-    const unsigned sample_rate = 44100;
-    const unsigned channels = 2;
+TEMPLATE_TEST_CASE("AudioPlayerOutput error handling", "[audio_player_output][template]",
+                   PlayerTestParam1, PlayerTestParam2, PlayerTestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_player_test_params(TestType::value);
+    constexpr unsigned frames_per_buffer = params.frames_per_buffer;
+    constexpr unsigned sample_rate = params.sample_rate;
+    constexpr unsigned channels = params.channels;
     
     SECTION("Try to start without opening") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
@@ -182,54 +217,40 @@ TEST_CASE("AudioPlayerOutput error handling") {
     }
 }
 
-TEST_CASE("AudioPlayerOutput different configurations") {
-    SECTION("Mono audio") {
-        const unsigned frames_per_buffer = 256;
-        const unsigned sample_rate = 48000;
-        const unsigned channels = 1;
-        
-        AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
-        
-        REQUIRE(player.open() == true);
-        REQUIRE(player.start() == true);
-        
-        // Generate and play a short sine wave
-        auto buffer = generate_sine_wave(440.0f, 0.2f, sample_rate, 
-                                       frames_per_buffer, channels);
-        player.push(buffer.data());
-        
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        
-        REQUIRE(player.stop() == true);
-        REQUIRE(player.close() == true);
-    }
+TEMPLATE_TEST_CASE("AudioPlayerOutput different configurations", "[audio_player_output][template]",
+                   PlayerTestParam1, PlayerTestParam2, PlayerTestParam3) {
     
-    SECTION("High sample rate") {
-        const unsigned frames_per_buffer = 1024;
-        const unsigned sample_rate = 96000;
-        const unsigned channels = 2;
-        
-        AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
-        
-        REQUIRE(player.open() == true);
-        REQUIRE(player.start() == true);
-        
-        // Generate and play a short sine wave
-        auto buffer = generate_sine_wave(880.0f, 0.1f, sample_rate, 
-                                       frames_per_buffer, channels);
-        player.push(buffer.data());
-        
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        
-        REQUIRE(player.stop() == true);
-        REQUIRE(player.close() == true);
-    }
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_player_test_params(TestType::value);
+    constexpr unsigned frames_per_buffer = params.frames_per_buffer;
+    constexpr unsigned sample_rate = params.sample_rate;
+    constexpr unsigned channels = params.channels;
+    
+    AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
+    
+    REQUIRE(player.open() == true);
+    REQUIRE(player.start() == true);
+    
+    // Generate and play a short sine wave (frequency varies by sample rate)
+    float frequency = 440.0f + (sample_rate / 1000.0f); // Vary frequency based on sample rate
+    auto buffer = generate_sine_wave(frequency, 0.2f, sample_rate, 
+                                   frames_per_buffer, channels);
+    player.push(buffer.data());
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    
+    REQUIRE(player.stop() == true);
+    REQUIRE(player.close() == true);
 }
 
-TEST_CASE("AudioPlayerOutput continuous playback") {
-    const unsigned frames_per_buffer = 512;
-    const unsigned sample_rate = 44100;
-    const unsigned channels = 2;
+TEMPLATE_TEST_CASE("AudioPlayerOutput continuous playback", "[audio_player_output][template]",
+                   PlayerTestParam1, PlayerTestParam2, PlayerTestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_player_test_params(TestType::value);
+    constexpr unsigned frames_per_buffer = params.frames_per_buffer;
+    constexpr unsigned sample_rate = params.sample_rate;
+    constexpr unsigned channels = params.channels;
     
     SECTION("Continuous sine wave with frequency sweep") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
@@ -285,10 +306,14 @@ TEST_CASE("AudioPlayerOutput continuous playback") {
     }
 }
 
-TEST_CASE("AudioPlayerOutput buffer management") {
-    const unsigned frames_per_buffer = 256;
-    const unsigned sample_rate = 44100;
-    const unsigned channels = 2;
+TEMPLATE_TEST_CASE("AudioPlayerOutput buffer management", "[audio_player_output][template]",
+                   PlayerTestParam1, PlayerTestParam2, PlayerTestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_player_test_params(TestType::value);
+    constexpr unsigned frames_per_buffer = params.frames_per_buffer;
+    constexpr unsigned sample_rate = params.sample_rate;
+    constexpr unsigned channels = params.channels;
     
     SECTION("Test buffer overflow handling") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);

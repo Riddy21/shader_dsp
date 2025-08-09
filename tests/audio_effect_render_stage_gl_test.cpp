@@ -16,20 +16,46 @@
  * Note: These tests require a valid OpenGL context to run, which may not be available
  * in all test environments. They are marked with [gl] tag.
  */
-constexpr int WIDTH = 512;
-constexpr int HEIGHT = 2;
 
-TEST_CASE("AudioGainEffectRenderStage - Simple Gain Test", "[audio_effect_render_stage][gl_test]") {
-    SDLWindow window(WIDTH, HEIGHT);
-    GLContext context;
+// Test parameter structure to hold buffer size and channel count combinations
+struct TestParams {
+    int buffer_size;
+    int num_channels;
+    const char* name;
+};
 
-    constexpr int BUFFER_SIZE = WIDTH;
+// Define 3 different test parameter combinations
+using TestParam1 = std::integral_constant<int, 0>; // 256 buffer, 1 channel
+using TestParam2 = std::integral_constant<int, 1>; // 512 buffer, 2 channels  
+using TestParam3 = std::integral_constant<int, 2>; // 1024 buffer, 4 channels
+
+// Parameter lookup function
+constexpr TestParams get_test_params(int index) {
+    constexpr TestParams params[] = {
+        {256, 1, "256_buffer_1_channel"},
+        {512, 2, "512_buffer_2_channels"},
+        {1024, 4, "1024_buffer_4_channels"}
+    };
+    return params[index];
+}
+
+TEMPLATE_TEST_CASE("AudioGainEffectRenderStage - Parameterized Gain Test", 
+                   "[audio_effect_render_stage][gl_test][template]", 
+                   TestParam1, TestParam2, TestParam3) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
     constexpr int SAMPLE_RATE = 44100;
-    constexpr int NUM_CHANNELS = HEIGHT;
     constexpr float TEST_CONSTANT_VALUE = 1.0f; // All channels output constant 1.0
     constexpr float TEST_GAIN_REDUCTION = 0.5f; // Gain effect reduces by half
     constexpr float EXPECTED_OUTPUT = TEST_CONSTANT_VALUE * TEST_GAIN_REDUCTION; // Expected result
     constexpr int NUM_FRAMES = 5; // Short test
+
+    // Initialize window and OpenGL context with appropriate dimensions
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
 
     // Create test fragment shader that outputs a constant value of 1.0 for all channels
     std::string constant_shader = R"(
@@ -98,21 +124,30 @@ void main() {
         const float* output_data = static_cast<const float*>(output_param->get_value());
         REQUIRE(output_data != nullptr);
 
-        // Store samples for analysis - separate left and right channels
+        // Store samples for analysis - separate channels based on NUM_CHANNELS
         for (int i = 0; i < BUFFER_SIZE; i++) {
             left_channel_samples.push_back(output_data[i * NUM_CHANNELS]);
-            right_channel_samples.push_back(output_data[i * NUM_CHANNELS + 1]);
+            if (NUM_CHANNELS > 1) {
+                right_channel_samples.push_back(output_data[i * NUM_CHANNELS + 1]);
+            }
         }
     }
 
     // Verify the gain effect worked correctly
     REQUIRE(left_channel_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-    REQUIRE(right_channel_samples.size() == BUFFER_SIZE * NUM_FRAMES);
+    if (NUM_CHANNELS > 1) {
+        REQUIRE(right_channel_samples.size() == BUFFER_SIZE * NUM_FRAMES);
+    }
 
     SECTION("Gain Effect Verification") {
-        // Test both channels
-        std::vector<std::vector<float>*> channels = {&left_channel_samples, &right_channel_samples};
-        std::vector<std::string> channel_names = {"Left", "Right"};
+        // Test available channels based on NUM_CHANNELS
+        std::vector<std::vector<float>*> channels = {&left_channel_samples};
+        std::vector<std::string> channel_names = {"Channel_0"};
+        
+        if (NUM_CHANNELS > 1) {
+            channels.push_back(&right_channel_samples);
+            channel_names.push_back("Channel_1");
+        }
         
         for (size_t ch = 0; ch < channels.size(); ch++) {
             const auto& samples = *channels[ch];
@@ -139,10 +174,16 @@ void main() {
         // Test that different channels can have different gain reductions from the constant 1.0 input
         
         // Set different reductions for different channels using the convenience function
-        std::vector<float> test_gains = {0.25f}; // Channel 0: reduce to 0.25 (75% reduction)
-        if (NUM_CHANNELS > 1) {
-            test_gains.push_back(0.5f);  // Channel 1: reduce to 0.5 (50% reduction)  
+        std::vector<float> test_gains;
+        std::vector<float> expected_values;
+        
+        // Generate test gains for each channel
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+            float gain = 0.2f + (ch * 0.15f); // Channel 0: 0.2, Channel 1: 0.35, Channel 2: 0.5, etc.
+            test_gains.push_back(gain);
+            expected_values.push_back(TEST_CONSTANT_VALUE * gain);
         }
+        
         gain_effect.set_channel_gains(test_gains);
         
         for (int frame = 0; frame < 2; frame++) {
@@ -154,17 +195,16 @@ void main() {
         auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
         const float* output_data = static_cast<const float*>(output_param->get_value());
         
-        // For 2-channel audio (HEIGHT=2), test the first few samples
-        // Channel 0 (y=0 to 0.5): 1.0 input reduced to 0.25
-        // Channel 1 (y=0.5 to 1.0): 1.0 input reduced to 0.5
-        float channel0_sample = output_data[0];  // First sample, channel 0
-        float channel1_sample = output_data[1]; // First sample, channel 1
-        
-        INFO("Channel 0 sample: " << channel0_sample << ", expected: " << 0.25f << " (1.0 reduced by 0.25)");
-        INFO("Channel 1 sample: " << channel1_sample << ", expected: " << 0.5f << " (1.0 reduced by 0.5)");
-        
-        REQUIRE(channel0_sample == Catch::Approx(0.25f).margin(0.01f));
-        REQUIRE(channel1_sample == Catch::Approx(0.5f).margin(0.01f));
+        // Test the first sample of each channel
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+            float sample = output_data[ch];  // First sample, channel ch
+            float expected = expected_values[ch];
+            
+            INFO("Channel " << ch << " sample: " << sample << ", expected: " << expected 
+                 << " (1.0 reduced by " << test_gains[ch] << ")");
+            
+            REQUIRE(sample == Catch::Approx(expected).margin(0.01f));
+        }
     }
 
     SECTION("Error Handling Verification") {

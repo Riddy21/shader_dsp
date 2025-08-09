@@ -13,7 +13,31 @@
  * Note: These tests require a valid OpenGL context to run, which may not be available
  * in all test environments. They are marked with [gl] tag.
  */
-TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_test]") {
+
+// Test parameter structure for output tests
+struct OutputTestParams {
+    int width;
+    int height;
+    const char* name;
+};
+
+// Define 3 different output test parameter combinations
+using OutputTestParam1 = std::integral_constant<int, 0>; // 256x1
+using OutputTestParam2 = std::integral_constant<int, 1>; // 64x4
+using OutputTestParam3 = std::integral_constant<int, 2>; // 128x2
+
+// Parameter lookup function for output tests
+constexpr OutputTestParams get_output_test_params(int index) {
+    constexpr OutputTestParams params[] = {
+        {256, 1, "256x1"},
+        {64, 4, "64x4"},
+        {128, 2, "128x2"}
+    };
+    return params[index];
+}
+
+TEMPLATE_TEST_CASE("AudioTexture2DParameter Output Tests", "[audio_parameter][gl_test][output][template]",
+                   OutputTestParam1, OutputTestParam2, OutputTestParam3) {
     const char* vert_src = R"(
         #version 300 es
         precision mediump float;
@@ -36,8 +60,13 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
         }
     )";
 
-    SECTION("RGBA32F, 256x1, OUTPUT") {
-        SDLWindow window(256, 1);
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_output_test_params(TestType::value);
+    constexpr int WIDTH = params.width;
+    constexpr int HEIGHT = params.height;
+
+    SECTION("RGBA32F OUTPUT") {
+        SDLWindow window(WIDTH, HEIGHT);
 
         GLContext context;
         AudioShaderProgram shader_prog(vert_src, frag_src);
@@ -48,7 +77,7 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
         AudioTexture2DParameter output_param(
             "color",
             AudioParameter::ConnectionType::OUTPUT,
-            256, 1,
+            WIDTH, HEIGHT,
             0, // active_texture
             0, // color_attachment
             GL_NEAREST,
@@ -73,112 +102,10 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
 
         const float* pixels = static_cast<const float*>(output_param.get_value());
         
-        for (int i = 0; i < 256; ++i) {
-            float expectedRed = sin(static_cast<float>(i) / 256 * 2.0f * M_PI);
-            float actualRed = pixels[i * 4 + 0];
-            REQUIRE(actualRed == Catch::Approx(expectedRed).margin(0.05f));
-            REQUIRE(pixels[i * 4 + 1] == 0.0f);
-            REQUIRE(pixels[i * 4 + 2] == 0.0f);
-            REQUIRE(pixels[i * 4 + 3] == 1.0f);
-        }
-
-        output_param.unbind();
-    }
-
-    SECTION("RGBA32F, 64x4, OUTPUT") {
-        SDLWindow window(64, 4);
-
-        GLContext context;
-        AudioShaderProgram shader_prog(vert_src, frag_src);
-        REQUIRE(shader_prog.initialize());
-
-        GLFramebuffer framebuffer = GLFramebuffer();
-
-        AudioTexture2DParameter output_param(
-            "color",
-            AudioParameter::ConnectionType::OUTPUT,
-            64, 4,
-            0, // active_texture
-            0, // color_attachment
-            GL_NEAREST,
-            GL_FLOAT,
-            GL_RGBA,
-            GL_RGBA32F
-        );
-        REQUIRE(output_param.initialize(framebuffer.fbo, &shader_prog));
-
-        framebuffer.bind();
-
-        REQUIRE(output_param.bind());
-
-        shader_prog.use_program();
-
-        context.prepare_draw();
-        output_param.render();
-
-        std::vector<GLenum> drawBuffers = {GL_COLOR_ATTACHMENT0 + output_param.get_color_attachment()};
-        context.set_draw_buffers(drawBuffers);
-        context.draw();
-
-        const float* pixels = static_cast<const float*>(output_param.get_value());
-        
-        for (int y = 0; y < 4; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                float expectedRed = sin(static_cast<float>(x) / 64 * 2.0f * M_PI);
-                float actualRed = pixels[idx + 0];
-                REQUIRE(actualRed == Catch::Approx(expectedRed).margin(0.05f));
-                REQUIRE(pixels[idx + 1] == 0.0f);
-                REQUIRE(pixels[idx + 2] == 0.0f);
-                REQUIRE(pixels[idx + 3] == 1.0f);
-            }
-        }
-
-        output_param.unbind();
-    }
-
-    // Add more sections/configurations as needed
-    SECTION("RGBA32F, 128x2, OUTPUT") {
-        SDLWindow window(128, 2);
-
-        GLContext context;
-        AudioShaderProgram shader_prog(vert_src, frag_src);
-        REQUIRE(shader_prog.initialize());
-
-        GLFramebuffer framebuffer = GLFramebuffer();
-
-        AudioTexture2DParameter output_param(
-            "color",
-            AudioParameter::ConnectionType::OUTPUT,
-            128, 2,
-            0, // active_texture
-            0, // color_attachment
-            GL_NEAREST,
-            GL_FLOAT,
-            GL_RGBA,
-            GL_RGBA32F
-        );
-        REQUIRE(output_param.initialize(framebuffer.fbo, &shader_prog));
-
-        framebuffer.bind();
-
-        REQUIRE(output_param.bind());
-
-        shader_prog.use_program();
-
-        context.prepare_draw();
-        output_param.render();
-
-        std::vector<GLenum> drawBuffers = {GL_COLOR_ATTACHMENT0 + output_param.get_color_attachment()};
-        context.set_draw_buffers(drawBuffers);
-        context.draw();
-
-        const float* pixels = static_cast<const float*>(output_param.get_value());
-        
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 128; ++x) {
-                int idx = (y * 128 + x) * 4;
-                float expectedRed = sin(static_cast<float>(x) / 128 * 2.0f * M_PI);
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                float expectedRed = sin(static_cast<float>(x) / WIDTH * 2.0f * M_PI);
                 float actualRed = pixels[idx + 0];
                 REQUIRE(actualRed == Catch::Approx(expectedRed).margin(0.05f));
                 REQUIRE(pixels[idx + 1] == 0.0f);
@@ -190,8 +117,23 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
         output_param.unbind();
         framebuffer.unbind();
     }
+}
 
-    SECTION("RGBA32F, 512x3, INPUT") {
+TEST_CASE("AudioTexture2DParameter Input Test", "[audio_parameter][gl_test][input]") {
+    const char* vert_src = R"(
+        #version 300 es
+        precision mediump float;
+        layout(location = 0) in vec2 aPos;
+        layout(location = 1) in vec2 aTexCoord;
+        out vec2 TexCoord;
+        void main()
+        {
+            gl_Position = vec4(aPos, 0.0, 1.0);
+            TexCoord = aTexCoord;
+        }
+    )";
+
+    SECTION("RGBA32F, 128x1, INPUT") {
         SDLWindow window(128, 1);
 
         // Vertex shader: pass through position and texcoord
@@ -282,11 +224,32 @@ TEST_CASE("AudioTexture2DParameter with OpenGL context", "[audio_parameter][gl_t
         output_param.unbind();
         framebuffer.unbind();
     }
-
-    // Multiple inputs/outputs test moved to separate test case below
 }
 
-TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_parameter][gl_test][multi_io]") {
+// Multi I/O test parameter structure
+struct MultiIOTestParams {
+    int width;
+    int height;
+    const char* name;
+};
+
+// Define parameter combinations for Multi I/O tests
+using MultiIOTestParam1 = std::integral_constant<int, 0>; // 64x2
+using MultiIOTestParam2 = std::integral_constant<int, 1>; // 128x1
+using MultiIOTestParam3 = std::integral_constant<int, 2>; // 32x4
+
+// Parameter lookup function for Multi I/O tests
+constexpr MultiIOTestParams get_multi_io_test_params(int index) {
+    constexpr MultiIOTestParams params[] = {
+        {64, 2, "64x2"},
+        {128, 1, "128x1"},
+        {32, 4, "32x4"}
+    };
+    return params[index];
+}
+
+TEMPLATE_TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_parameter][gl_test][multi_io][template]",
+                   MultiIOTestParam1, MultiIOTestParam2, MultiIOTestParam3) {
     const char* vert_src = R"(
         #version 300 es
         precision mediump float;
@@ -300,8 +263,13 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         }
     )";
 
-    SECTION("RGBA32F, 64x2, BASIC_MULTIPLE_IO") {
-        SDLWindow window(64, 2);
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_multi_io_test_params(TestType::value);
+    constexpr int WIDTH = params.width;
+    constexpr int HEIGHT = params.height;
+
+    SECTION("RGBA32F BASIC_MULTIPLE_IO") {
+        SDLWindow window(WIDTH, HEIGHT);
 
         // Fragment shader: sample multiple input textures and write to multiple outputs
         const char* frag_src_multi = R"(
@@ -336,11 +304,11 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         GLFramebuffer framebuffer;
 
         // Prepare input data A: sine wave pattern
-        std::vector<float> input_a_data(64 * 2 * 4);
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                float v = sin(static_cast<float>(x) / 63.0f * 2.0f * M_PI);
+        std::vector<float> input_a_data(WIDTH * HEIGHT * 4);
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                float v = sin(static_cast<float>(x) / (WIDTH - 1.0f) * 2.0f * M_PI);
                 input_a_data[idx + 0] = v;           // Red: sine wave
                 input_a_data[idx + 1] = 0.0f;       // Green: 0
                 input_a_data[idx + 2] = 0.0f;       // Blue: 0
@@ -349,11 +317,11 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         }
 
         // Prepare input data B: cosine wave pattern
-        std::vector<float> input_b_data(64 * 2 * 4);
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                float v = cos(static_cast<float>(x) / 63.0f * 2.0f * M_PI);
+        std::vector<float> input_b_data(WIDTH * HEIGHT * 4);
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                float v = cos(static_cast<float>(x) / (WIDTH - 1.0f) * 2.0f * M_PI);
                 input_b_data[idx + 0] = 0.0f;       // Red: 0
                 input_b_data[idx + 1] = v;          // Green: cosine wave
                 input_b_data[idx + 2] = 0.0f;       // Blue: 0
@@ -362,11 +330,11 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         }
 
         // Prepare input data C: linear gradient pattern
-        std::vector<float> input_c_data(64 * 2 * 4);
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                float v = static_cast<float>(x) / 63.0f;
+        std::vector<float> input_c_data(WIDTH * HEIGHT * 4);
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                float v = static_cast<float>(x) / (WIDTH - 1.0f);
                 input_c_data[idx + 0] = 0.0f;       // Red: 0
                 input_c_data[idx + 1] = 0.0f;       // Green: 0
                 input_c_data[idx + 2] = v;          // Blue: linear gradient
@@ -378,7 +346,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter input_a_param(
             "input_a",
             AudioParameter::ConnectionType::INPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             1, // active_texture (use texture unit 1)
             0, // color_attachment (not used for input)
             GL_NEAREST,
@@ -393,7 +361,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter input_b_param(
             "input_b",
             AudioParameter::ConnectionType::INPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             2, // active_texture (use texture unit 2)
             0, // color_attachment (not used for input)
             GL_NEAREST,
@@ -408,7 +376,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter input_c_param(
             "input_c",
             AudioParameter::ConnectionType::INPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             3, // active_texture (use texture unit 3)
             0, // color_attachment (not used for input)
             GL_NEAREST,
@@ -423,7 +391,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter output_1_param(
             "output_1",
             AudioParameter::ConnectionType::OUTPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             0, // active_texture
             0, // color_attachment
             GL_NEAREST,
@@ -437,7 +405,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter output_2_param(
             "output_2",
             AudioParameter::ConnectionType::OUTPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             0, // active_texture
             1, // color_attachment
             GL_NEAREST,
@@ -451,7 +419,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter output_3_param(
             "output_3",
             AudioParameter::ConnectionType::OUTPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             0, // active_texture
             2, // color_attachment
             GL_NEAREST,
@@ -491,10 +459,10 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
 
         // Check output 1 (A + B)
         const float* pixels_1 = static_cast<const float*>(output_1_param.get_value());
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                int data_idx = (y * 64 + x) * 4;
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                int data_idx = (y * WIDTH + x) * 4;
                 
                 float expected_red = input_a_data[data_idx + 0] + input_b_data[data_idx + 0];
                 float expected_green = input_a_data[data_idx + 1] + input_b_data[data_idx + 1];
@@ -510,10 +478,10 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
 
         // Check output 2 (B * C)
         const float* pixels_2 = static_cast<const float*>(output_2_param.get_value());
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                int data_idx = (y * 64 + x) * 4;
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                int data_idx = (y * WIDTH + x) * 4;
                 
                 float expected_red = input_b_data[data_idx + 0] * input_c_data[data_idx + 0];
                 float expected_green = input_b_data[data_idx + 1] * input_c_data[data_idx + 1];
@@ -529,10 +497,10 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
 
         // Check output 3 (A - C)
         const float* pixels_3 = static_cast<const float*>(output_3_param.get_value());
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                int data_idx = (y * 64 + x) * 4;
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                int data_idx = (y * WIDTH + x) * 4;
                 
                 float expected_red = input_a_data[data_idx + 0] - input_c_data[data_idx + 0];
                 float expected_green = input_a_data[data_idx + 1] - input_c_data[data_idx + 1];
@@ -555,8 +523,8 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         framebuffer.unbind();
     }
 
-    SECTION("RGBA32F, 64x2, DYNAMIC_INPUT_UPDATE") {
-        SDLWindow window(64, 2);
+    SECTION("RGBA32F DYNAMIC_INPUT_UPDATE") {
+        SDLWindow window(WIDTH, HEIGHT);
 
         // Fragment shader: sample multiple input textures and write to multiple outputs
         const char* frag_src_multi = R"(
@@ -592,11 +560,11 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
 
         std::vector<GLenum> drawBuffers;
         // Prepare input data A: sine wave pattern
-        std::vector<float> input_a_data(64 * 2 * 4);
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                float v = sin(static_cast<float>(x) / 63.0f * 2.0f * M_PI);
+        std::vector<float> input_a_data(WIDTH * HEIGHT * 4);
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                float v = sin(static_cast<float>(x) / (WIDTH - 1.0f) * 2.0f * M_PI);
                 input_a_data[idx + 0] = v;           // Red: sine wave
                 input_a_data[idx + 1] = 0.0f;       // Green: 0
                 input_a_data[idx + 2] = 0.0f;       // Blue: 0
@@ -605,11 +573,11 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         }
 
         // Prepare input data B: cosine wave pattern
-        std::vector<float> input_b_data(64 * 2 * 4);
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                float v = cos(static_cast<float>(x) / 63.0f * 2.0f * M_PI);
+        std::vector<float> input_b_data(WIDTH * HEIGHT * 4);
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                float v = cos(static_cast<float>(x) / (WIDTH - 1.0f) * 2.0f * M_PI);
                 input_b_data[idx + 0] = 0.0f;       // Red: 0
                 input_b_data[idx + 1] = v;          // Green: cosine wave
                 input_b_data[idx + 2] = 0.0f;       // Blue: 0
@@ -618,11 +586,11 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         }
 
         // Prepare input data C: linear gradient pattern
-        std::vector<float> input_c_data(64 * 2 * 4);
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                float v = static_cast<float>(x) / 63.0f;
+        std::vector<float> input_c_data(WIDTH * HEIGHT * 4);
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                float v = static_cast<float>(x) / (WIDTH - 1.0f);
                 input_c_data[idx + 0] = 0.0f;       // Red: 0
                 input_c_data[idx + 1] = 0.0f;       // Green: 0
                 input_c_data[idx + 2] = v;          // Blue: linear gradient
@@ -634,7 +602,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter input_a_param(
             "input_a",
             AudioParameter::ConnectionType::INPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             1, // active_texture (use texture unit 1)
             0, // color_attachment (not used for input)
             GL_NEAREST,
@@ -649,7 +617,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter input_c_param(
             "input_c",
             AudioParameter::ConnectionType::INPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             3, // active_texture (use texture unit 3)
             0, // color_attachment (not used for input)
             GL_NEAREST,
@@ -665,7 +633,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter input_b_param(
             "input_b",
             AudioParameter::ConnectionType::INPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             2, // active_texture (use texture unit 2)
             0, // color_attachment (not used for input)
             GL_NEAREST,
@@ -680,7 +648,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter output_2_param(
             "output_2",
             AudioParameter::ConnectionType::OUTPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             0, // active_texture
             1, // color_attachment
             GL_NEAREST,
@@ -694,7 +662,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter output_1_param(
             "output_1",
             AudioParameter::ConnectionType::OUTPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             0, // active_texture
             0, // color_attachment
             GL_NEAREST,
@@ -708,7 +676,7 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         AudioTexture2DParameter output_3_param(
             "output_3",
             AudioParameter::ConnectionType::OUTPUT,
-            64, 2,
+            WIDTH, HEIGHT,
             0, // active_texture
             2, // color_attachment
             GL_NEAREST,
@@ -747,10 +715,10 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
         context.draw();
 
         // Test dynamic updates: change input B and verify outputs update correctly
-        std::vector<float> new_input_b_data(64 * 2 * 4);
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
+        std::vector<float> new_input_b_data(WIDTH * HEIGHT * 4);
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
                 float v = static_cast<float>(y) / 1.0f; // Constant value based on y
                 new_input_b_data[idx + 0] = v;          // Red: y-based constant
                 new_input_b_data[idx + 1] = 0.5f;      // Green: constant 0.5
@@ -792,10 +760,10 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
 
         // Verify output 1 (A + new_B) updated correctly
         const float* new_pixels_1 = static_cast<const float*>(output_1_param.get_value());
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                int data_idx = (y * 64 + x) * 4;
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                int data_idx = (y * WIDTH + x) * 4;
                 
                 float expected_red = input_a_data[data_idx + 0] + new_input_b_data[data_idx + 0];
                 float expected_green = input_a_data[data_idx + 1] + new_input_b_data[data_idx + 1];
@@ -811,10 +779,10 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
 
         // Verify output 2 (new_B * C) updated correctly
         const float* new_pixels_2 = static_cast<const float*>(output_2_param.get_value());
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                int data_idx = (y * 64 + x) * 4;
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                int data_idx = (y * WIDTH + x) * 4;
 
                 float expected_red = new_input_b_data[data_idx + 0] * input_c_data[data_idx + 0];
                 float expected_green = new_input_b_data[data_idx + 1] * input_c_data[data_idx + 1];
@@ -830,10 +798,10 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
 
         // Verify output 3 (A - C) remains unchanged
         const float* new_pixels_3 = static_cast<const float*>(output_3_param.get_value());
-        for (int y = 0; y < 2; ++y) {
-            for (int x = 0; x < 64; ++x) {
-                int idx = (y * 64 + x) * 4;
-                int data_idx = (y * 64 + x) * 4;
+        for (int y = 0; y < HEIGHT; ++y) {
+            for (int x = 0; x < WIDTH; ++x) {
+                int idx = (y * WIDTH + x) * 4;
+                int data_idx = (y * WIDTH + x) * 4;
 
                 float expected_red = input_a_data[data_idx + 0] - input_c_data[data_idx + 0];
                 float expected_green = input_a_data[data_idx + 1] - input_c_data[data_idx + 1];
@@ -857,7 +825,30 @@ TEST_CASE("Multiple Inputs to Multiple Outputs with OpenGL context", "[audio_par
     }
 }
 
-TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_test][passthrough_link]") {
+// Pipeline test parameter structure
+struct PipelineTestParams {
+    int width;
+    int height;
+    const char* name;
+};
+
+// Define parameter combinations for Pipeline tests
+using PipelineTestParam1 = std::integral_constant<int, 0>; // 64x1
+using PipelineTestParam2 = std::integral_constant<int, 1>; // 128x1
+using PipelineTestParam3 = std::integral_constant<int, 2>; // 32x2
+
+// Parameter lookup function for Pipeline tests
+constexpr PipelineTestParams get_pipeline_test_params(int index) {
+    constexpr PipelineTestParams params[] = {
+        {64, 1, "64x1"},
+        {128, 1, "128x1"},
+        {32, 2, "32x2"}
+    };
+    return params[index];
+}
+
+TEMPLATE_TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_test][passthrough_link][template]",
+                   PipelineTestParam1, PipelineTestParam2, PipelineTestParam3) {
     const char* vert_src = R"(
         #version 300 es
         precision mediump float;
@@ -870,9 +861,12 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         }
     )";
 
-    SECTION("RGBA32F, 64x1, SCALE_HALF") {
-        constexpr int WIDTH = 64;
-        constexpr int HEIGHT = 1;
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_pipeline_test_params(TestType::value);
+    constexpr int WIDTH = params.width;
+    constexpr int HEIGHT = params.height;
+
+    SECTION("RGBA32F SCALE_HALF") {
 
         SDLWindow window(WIDTH, HEIGHT);
 
@@ -968,7 +962,9 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         // Optional: verify Stage 1 output texture values
         const float* stage1_pixels = static_cast<const float*>(stage1_output.get_value());
         for (int x = 0; x < WIDTH; ++x) {
-            float expected = sin(static_cast<float>(x) / WIDTH * 2.0f * static_cast<float>(M_PI));
+            // TexCoord.x for pixel x is (x + 0.5) / WIDTH
+            float tex_coord_x = (static_cast<float>(x) + 0.5f) / WIDTH;
+            float expected = sin(tex_coord_x * 2.0f * static_cast<float>(M_PI));
             REQUIRE(stage1_pixels[x * 4 + 0] == Catch::Approx(expected).margin(0.05f));
         }
 
@@ -990,7 +986,9 @@ TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parameter][gl_t
         // Validate Stage 2 output values (should be half of Stage 1)
         const float* stage2_pixels = static_cast<const float*>(stage2_output.get_value());
         for (int x = 0; x < WIDTH; ++x) {
-            float expected_red = sin(static_cast<float>(x) / WIDTH * 2.0f * static_cast<float>(M_PI)) * 0.5f;
+            // TexCoord.x for pixel x is (x + 0.5) / WIDTH
+            float tex_coord_x = (static_cast<float>(x) + 0.5f) / WIDTH;
+            float expected_red = sin(tex_coord_x * 2.0f * static_cast<float>(M_PI)) * 0.5f;
             REQUIRE(stage2_pixels[x * 4 + 0] == Catch::Approx(expected_red).margin(0.05f));
             REQUIRE(stage2_pixels[x * 4 + 1] == 0.0f);
             REQUIRE(stage2_pixels[x * 4 + 2] == 0.0f);
@@ -1259,7 +1257,30 @@ TEST_CASE("AudioIntBufferParameter uniform value across shader stages", "[audio_
     }
 }
 
-TEST_CASE("Texture2DParameter pass-through copy linking", "[audio_parameter][gl_test][passthrough_copy]") {
+// Copy linking test parameter structure
+struct CopyTestParams {
+    int width;
+    int height;
+    const char* name;
+};
+
+// Define parameter combinations for Copy tests
+using CopyTestParam1 = std::integral_constant<int, 0>; // 256x2
+using CopyTestParam2 = std::integral_constant<int, 1>; // 128x1
+using CopyTestParam3 = std::integral_constant<int, 2>; // 64x4
+
+// Parameter lookup function for Copy tests
+constexpr CopyTestParams get_copy_test_params(int index) {
+    constexpr CopyTestParams params[] = {
+        {256, 2, "256x2"},
+        {128, 1, "128x1"},
+        {64, 4, "64x4"}
+    };
+    return params[index];
+}
+
+TEMPLATE_TEST_CASE("Texture2DParameter pass-through copy linking", "[audio_parameter][gl_test][passthrough_copy][template]",
+                   CopyTestParam1, CopyTestParam2, CopyTestParam3) {
     // Vertex shader identical to default render-stage vertex
     const char* vert_src = R"(
         #version 300 es
@@ -1272,9 +1293,12 @@ TEST_CASE("Texture2DParameter pass-through copy linking", "[audio_parameter][gl_
         }
     )";
 
-    SECTION("RGBA32F, 256x2, COPY") {
-        constexpr int WIDTH  = 256;
-        constexpr int HEIGHT = 2;
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_copy_test_params(TestType::value);
+    constexpr int WIDTH = params.width;
+    constexpr int HEIGHT = params.height;
+
+    SECTION("RGBA32F COPY") {
 
         SDLWindow window(WIDTH, HEIGHT);
 
