@@ -1,22 +1,13 @@
 #include "catch2/catch_all.hpp"
 #include "framework/test_gl.h"
-#include "utilities/egl_compatibility.h"
 
 #include "audio_core/audio_render_stage.h"
-#include "audio_core/audio_render_graph.h"
-#include "audio_core/audio_renderer.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "audio_render_stage/audio_file_generator_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
-#include "audio_parameter/audio_texture2d_parameter.h"
-#include "audio_parameter/audio_uniform_parameter.h"
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_output/audio_wav.h"
-#include "engine/event_loop.h"
-#include "graphics_core/graphics_display.h"
-#include "graphics_views/debug_view.h"
-#include "engine/event_loop.h"
 
 #include <X11/X.h>
 #include <functional>

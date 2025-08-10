@@ -182,21 +182,21 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
 }
 
 void AudioEchoEffectRenderStage::render(unsigned int time) {
-    // Get the audio data
-    auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
-
-    // Update the echo buffer with the new data
-    std::copy(data, data + frames_per_buffer * num_channels, m_echo_buffer.begin());
+    // Always set echo_audio_texture to the current m_echo_buffer
+    this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
 
     if (time != m_time) {
         // Shift the echo buffer
         std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - frames_per_buffer * num_channels, m_echo_buffer.begin() + frames_per_buffer * num_channels);
     }
 
-    // Always set echo_audio_texture to the current m_echo_buffer
-    this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
-
     AudioRenderStage::render(time);
+
+    // Get the audio data
+    auto * data = (float *)this->find_parameter("output_audio_texture")->get_value();
+
+    // Update the echo buffer with the new data
+    std::copy(data, data + frames_per_buffer * num_channels, m_echo_buffer.begin());
 }
 
 bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * render_stage) {
