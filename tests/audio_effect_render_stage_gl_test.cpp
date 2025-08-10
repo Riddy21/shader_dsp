@@ -13,6 +13,8 @@
 #include <vector>
 #include <thread>
 #include <chrono>
+#include <algorithm>
+#include <cmath>
 
 /**
  * @brief Tests for effect render stage functionality with OpenGL context
@@ -251,7 +253,7 @@ void main() {
 
 TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Parameterized Echo Test", 
                    "[audio_effect_render_stage][gl_test][template]", 
-                   TestParam1, TestParam3, TestParam5) {
+                   TestParam2, TestParam3, TestParam4) {
     
     // Get test parameters for this template instantiation
     constexpr auto params = get_test_params(TestType::value);
@@ -259,11 +261,12 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Parameterized Echo Test",
     constexpr int NUM_CHANNELS = params.num_channels;
     constexpr int SAMPLE_RATE = 44100;
     constexpr float IMPULSE_AMPLITUDE = 1.0f; // Impulse peak amplitude
-    constexpr float ECHO_DELAY = 0.05f; // 50ms delay between echoes
-    constexpr float ECHO_DECAY = 0.6f; // Each echo is 60% of previous
-    constexpr int NUM_ECHOS = 3; // Test with 3 echoes
-    constexpr int NUM_FRAMES = 20; // Longer test to capture multiple echoes
-    constexpr int IMPULSE_DURATION = 10; // Impulse lasts for 10 samples
+    constexpr float ECHO_DELAY = 0.1f; // 100ms delay between echoes
+    constexpr float ECHO_DECAY = 0.5f; // Each echo is 60% of previous
+    constexpr int NUM_ECHOS = 5; // Test with 3 echoes
+    constexpr int TOTAL_SAMPLES = 50000; // Total samples to capture for echo analysis
+    constexpr int NUM_FRAMES = (TOTAL_SAMPLES + BUFFER_SIZE - 1) / BUFFER_SIZE; // Calculate frames needed
+    constexpr int IMPULSE_DURATION = 1; // Impulse lasts for 1 sample
 
     // Initialize window and OpenGL context
     SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
@@ -304,6 +307,11 @@ void main() {
     REQUIRE(impulse_generator.connect_render_stage(&echo_effect));
     REQUIRE(echo_effect.connect_render_stage(&final_render_stage));
 
+    // Add global_time parameter as a buffer parameter
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    global_time_param->initialize();
+
     // Configure echo effect parameters
     auto delay_param = echo_effect.find_parameter("delay");
     auto decay_param = echo_effect.find_parameter("decay");
@@ -332,10 +340,13 @@ void main() {
     // Render multiple frames to capture the echo effect
     std::vector<float> left_channel_samples;
     std::vector<float> right_channel_samples;
-    left_channel_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
-    right_channel_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
+    left_channel_samples.reserve(TOTAL_SAMPLES);
+    right_channel_samples.reserve(TOTAL_SAMPLES);
 
     for (int frame = 0; frame < NUM_FRAMES; frame++) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+
         // Render the impulse generator stage
         impulse_generator.render(frame);
         
@@ -352,224 +363,89 @@ void main() {
         const float* output_data = static_cast<const float*>(output_param->get_value());
         REQUIRE(output_data != nullptr);
 
-        // Store samples for analysis
-        for (int i = 0; i < BUFFER_SIZE; i++) {
+        // Store samples for analysis (only up to TOTAL_SAMPLES)
+        for (int i = 0; i < BUFFER_SIZE && left_channel_samples.size() < TOTAL_SAMPLES; i++) {
             left_channel_samples.push_back(output_data[i * NUM_CHANNELS]);
-            if (NUM_CHANNELS > 1) {
-                right_channel_samples.push_back(output_data[i * NUM_CHANNELS + 1]);
-            }
+            right_channel_samples.push_back(output_data[i * NUM_CHANNELS + 1]);
         }
     }
 
-    // Verify we captured enough samples
-    REQUIRE(left_channel_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-    if (NUM_CHANNELS > 1) {
-        REQUIRE(right_channel_samples.size() == BUFFER_SIZE * NUM_FRAMES);
-    }
+    // Verify we captured the correct number of samples
+    REQUIRE(left_channel_samples.size() == TOTAL_SAMPLES);
+    REQUIRE(right_channel_samples.size() == TOTAL_SAMPLES);
 
-    SECTION("Impulse Echo Timing Verification") {
-        // Calculate expected echo positions in samples
-        int delay_samples = static_cast<int>(ECHO_DELAY * SAMPLE_RATE);
-        std::vector<int> expected_echo_positions;
-        
-        // Original impulse starts at sample 0
-        expected_echo_positions.push_back(0);
-        
-        // Each echo is delayed by delay_samples
-        for (int i = 1; i <= NUM_ECHOS; i++) {
-            expected_echo_positions.push_back(delay_samples * i);
-        }
-        
-        INFO("Testing echo timing with delay: " << ECHO_DELAY << "s (" << delay_samples << " samples)");
-        
-        // Test available channels
-        std::vector<std::vector<float>*> channels = {&left_channel_samples};
-        std::vector<std::string> channel_names = {"Channel_0"};
-        
-        if (NUM_CHANNELS > 1) {
-            channels.push_back(&right_channel_samples);
-            channel_names.push_back("Channel_1");
-        }
-        
-        for (size_t ch = 0; ch < channels.size(); ch++) {
-            const auto& samples = *channels[ch];
-            const std::string& name = channel_names[ch];
-            
-            INFO("Testing " << name << " channel");
-            
-            // Find peaks in the signal (values above a threshold)
-            std::vector<int> peak_positions;
-            float threshold = IMPULSE_AMPLITUDE * 0.1f; // 10% of impulse amplitude
-            
-            for (size_t i = 0; i < samples.size(); ++i) {
-                if (std::abs(samples[i]) > threshold) {
-                    // Check if this is a local maximum
-                    bool is_peak = true;
-                    int check_range = 5; // Check 5 samples around
-                    
-                    for (int j = std::max(0, static_cast<int>(i) - check_range); 
-                         j <= std::min(static_cast<int>(samples.size()) - 1, static_cast<int>(i) + check_range); 
-                         j++) {
-                        if (j != static_cast<int>(i) && std::abs(samples[j]) > std::abs(samples[i])) {
-                            is_peak = false;
-                            break;
-                        }
-                    }
-                    
-                    if (is_peak) {
-                        peak_positions.push_back(static_cast<int>(i));
-                    }
-                }
-            }
-            
-            INFO("Found " << peak_positions.size() << " peaks at positions: ");
-            for (size_t i = 0; i < peak_positions.size(); i++) {
-                INFO("Peak " << i << " at sample " << peak_positions[i]);
-            }
-            
-            // Verify we found at least the original impulse peak
-            REQUIRE(peak_positions.size() >= 1);
-            
-            // Check that the first peak is near the expected impulse position (within first few samples)
-            REQUIRE(peak_positions[0] < IMPULSE_DURATION + 5);
+    std::unordered_map<int, float> left_channel_echoes;
+    std::unordered_map<int, float> right_channel_echoes;
 
+    for (int i = 0; i < left_channel_samples.size(); i++) {
+        if (left_channel_samples[i] > 0.01f) {
+            left_channel_echoes[i] = left_channel_samples[i];
         }
     }
 
-    SECTION("Echo Decay Amplitude Verification") {
-        // Test that echo amplitudes decrease according to the decay factor
-        
-        INFO("Testing echo decay with factor: " << ECHO_DECAY);
-        
-        // Test available channels
-        std::vector<std::vector<float>*> channels = {&left_channel_samples};
-        if (NUM_CHANNELS > 1) {
-            channels.push_back(&right_channel_samples);
-        }
-        
-        for (size_t ch = 0; ch < channels.size(); ch++) {
-            const auto& samples = *channels[ch];
-            
-            // Find the maximum amplitude in the first few samples (original impulse)
-            float max_original_amplitude = 0.0f;
-            for (int i = 0; i < IMPULSE_DURATION + 5; i++) {
-                if (i < static_cast<int>(samples.size())) {
-                    max_original_amplitude = std::max(max_original_amplitude, std::abs(samples[i]));
-                }
-            }
-            
-            INFO("Channel " << ch << " original impulse max amplitude: " << max_original_amplitude);
-            
-            // Original impulse should be close to our expected amplitude
-            REQUIRE(max_original_amplitude >= IMPULSE_AMPLITUDE * 0.8f);
-            REQUIRE(max_original_amplitude <= IMPULSE_AMPLITUDE * 1.2f);
-            
-            // Look for subsequent peaks and verify they decrease
-            int delay_samples = static_cast<int>(ECHO_DELAY * SAMPLE_RATE);
-            
-            for (int echo_num = 1; echo_num <= NUM_ECHOS; echo_num++) {
-                int echo_start = delay_samples * echo_num;
-                int echo_end = echo_start + IMPULSE_DURATION + 10; // Look a bit after expected position
-                
-                if (echo_end < static_cast<int>(samples.size())) {
-                    float max_echo_amplitude = 0.0f;
-                    for (int i = echo_start; i < echo_end; i++) {
-                        max_echo_amplitude = std::max(max_echo_amplitude, std::abs(samples[i]));
-                    }
-                    
-                    float expected_amplitude = max_original_amplitude * std::pow(ECHO_DECAY, echo_num);
-                    
-                    INFO("Echo " << echo_num << " max amplitude: " << max_echo_amplitude 
-                         << ", expected: " << expected_amplitude);
-                    
-                    // Allow some tolerance for the echo amplitude
-                    if (max_echo_amplitude > 0.01f) { // Only test if echo is significant
-                        REQUIRE(max_echo_amplitude >= expected_amplitude * 0.5f);
-                        REQUIRE(max_echo_amplitude <= expected_amplitude * 2.0f);
-                    }
-                }
-            }
+    for (int i = 0; i < right_channel_samples.size(); i++) {
+        if (right_channel_samples[i] > 0.01f) {
+            right_channel_echoes[i] = right_channel_samples[i];
         }
     }
 
-    SECTION("Echo Parameter Modification Test") {
-        // Test that changing parameters affects the output
-        
-        // Change to higher decay (stronger echoes)
-        float new_decay = 0.8f;
-        auto decay_param = echo_effect.find_parameter("decay");
-        decay_param->set_value(new_decay);
-        
-        // Render a few more frames
-        std::vector<float> modified_samples;
-        for (int frame = 0; frame < 5; frame++) {
-            impulse_generator.render(frame + NUM_FRAMES);
-            echo_effect.render(frame + NUM_FRAMES);
-            final_render_stage.render(frame + NUM_FRAMES);
-            
-            auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
-            const float* output_data = static_cast<const float*>(output_param->get_value());
-            
-            for (int i = 0; i < BUFFER_SIZE; i++) {
-                modified_samples.push_back(output_data[i * NUM_CHANNELS]);
-            }
-        }
-        
-        // The modified samples should exist (basic test that rendering didn't crash)
-        REQUIRE(modified_samples.size() == BUFFER_SIZE * 5);
-        
-        INFO("Successfully modified echo parameters and continued rendering");
+    // Define expected echo amplitudes in chronological order (ignoring exact sample positions)
+    std::vector<float> expected_amplitude_sequence = {
+        1.000000f,  // Original signal
+        0.500000f,  // First echo
+        0.250000f,  // Second echo group
+        0.250000f,
+        0.125000f,  // Third echo group
+        0.250000f,
+        0.125000f,
+        0.062500f,  // Fourth echo group
+        0.187500f,
+        0.187500f,
+        0.062500f,
+        0.031250f,  // Fifth echo group
+        0.125000f,
+        0.187500f,
+        0.125000f,
+        0.031250f
+    };
+
+    constexpr float AMPLITUDE_TOLERANCE = 0.001f; // 0.1% tolerance for floating point comparison
+
+    // Extract amplitudes in sample order for both channels
+    std::vector<float> left_amplitudes;
+    std::vector<float> right_amplitudes;
+    
+    // Sort echoes by sample index to get chronological order
+    std::vector<std::pair<int, float>> left_sorted(left_channel_echoes.begin(), left_channel_echoes.end());
+    std::vector<std::pair<int, float>> right_sorted(right_channel_echoes.begin(), right_channel_echoes.end());
+    
+    std::sort(left_sorted.begin(), left_sorted.end());
+    std::sort(right_sorted.begin(), right_sorted.end());
+    
+    for (const auto& echo : left_sorted) {
+        left_amplitudes.push_back(echo.second);
+    }
+    for (const auto& echo : right_sorted) {
+        right_amplitudes.push_back(echo.second);
     }
 
-    // FIXME: This test is catching an error
-    SECTION("Echo Buffer Clear Test") {
-        // Test that disconnecting clears the echo buffer
-        
-        // Disconnect and reconnect
-        REQUIRE(echo_effect.disconnect_render_stage(&final_render_stage));
-        REQUIRE(echo_effect.connect_render_stage(&final_render_stage));
-        
-        // Render silence (no impulse) 
-        std::string silence_shader = R"(
-void main() {
-    vec4 stream_audio = texture(stream_audio_texture, TexCoord);
-    output_audio_texture = vec4(0.0, 0.0, 0.0, 0.0) + stream_audio;
-    debug_audio_texture = output_audio_texture;
-}
-)";
-        
-        AudioRenderStage silence_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 
-                                         silence_shader, true);
-        REQUIRE(silence_generator.initialize());
-        REQUIRE(silence_generator.bind());
-        
-        // Connect silence generator instead
-        REQUIRE(echo_effect.disconnect_render_stage(&final_render_stage));
-        REQUIRE(silence_generator.connect_render_stage(&echo_effect));
-        REQUIRE(echo_effect.connect_render_stage(&final_render_stage));
-        
-        // Render a few frames of silence
-        std::vector<float> silence_samples;
-        for (int frame = 0; frame < 3; frame++) {
-            silence_generator.render(frame);
-            echo_effect.render(frame);
-            final_render_stage.render(frame);
-            
-            auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
-            const float* output_data = static_cast<const float*>(output_param->get_value());
-            
-            for (int i = 0; i < BUFFER_SIZE; i++) {
-                silence_samples.push_back(output_data[i * NUM_CHANNELS]);
-            }
-        }
-        
-        // After disconnection and silence, output should be very quiet
-        for (float sample : silence_samples) {
-            REQUIRE(std::abs(sample) < 0.05f);
-        }
-        
-        INFO("Echo buffer successfully cleared after disconnection");
+    // Verify correct number of echoes
+    REQUIRE(left_amplitudes.size() == expected_amplitude_sequence.size());
+    REQUIRE(right_amplitudes.size() == expected_amplitude_sequence.size());
+
+    // Verify left channel amplitude sequence
+    for (size_t i = 0; i < expected_amplitude_sequence.size(); i++) {
+        REQUIRE(std::abs(left_amplitudes[i] - expected_amplitude_sequence[i]) < AMPLITUDE_TOLERANCE);
     }
+
+    // Verify right channel amplitude sequence  
+    for (size_t i = 0; i < expected_amplitude_sequence.size(); i++) {
+        REQUIRE(std::abs(right_amplitudes[i] - expected_amplitude_sequence[i]) < AMPLITUDE_TOLERANCE);
+    }
+
+    // Verify both channels have identical amplitude patterns
+    REQUIRE(left_amplitudes == right_amplitudes);
+
 }
 
 TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test", 

@@ -68,6 +68,12 @@ AddOption('--section',
           metavar='SECTION_NAME',
           help='Run a specific section within a test case (e.g. --section="RGBA32F, 256x1, OUTPUT")')
 
+AddOption('--verbose',
+          dest='verbose',
+          action='store_true',
+          default=False,
+          help='Run tests with verbose output to show INFO messages and detailed test information')
+
 # Define compiler environment
 env = Environment(CXX='g++', CXXFLAGS='-std=c++20')
 
@@ -147,7 +153,7 @@ for src in SHADER_SOURCES:
 env.Depends(LIB_SOURCES, all_shaders)
 
 # Function to build and run tests
-def build_tests(env, specific_test=None, test_case=None, section=None):
+def build_tests(env, specific_test=None, test_case=None, section=None, verbose=False):
     # Get all test files from tests directory and framework subdirectory
     test_files = Glob(os.path.join(TEST_DIR, '*_test.cpp'), strings=True)
     framework_test_files = Glob(os.path.join(TEST_FRAMEWORK_DIR, '*_test.cpp'), strings=True) if os.path.exists(TEST_FRAMEWORK_DIR) else []
@@ -184,6 +190,11 @@ def build_tests(env, specific_test=None, test_case=None, section=None):
             # Set up the command with XDG_RUNTIME_DIR
             test_command = f'mkdir -p {xdg_runtime_dir} && XDG_RUNTIME_DIR={xdg_runtime_dir} '
             test_command += 'xvfb-run -a ' + test_executable[0].abspath + ' -d yes'
+            
+            # Add verbose flags if specified
+            if verbose:
+                test_command += ' -s'  # Show successful test cases
+                test_command += ' -v high'  # High verbosity level
             
             # Add test case filter if specified
             if test_case:
@@ -225,6 +236,11 @@ def build_tests(env, specific_test=None, test_case=None, section=None):
     
     if section:
         test_filter += f" -c '{section}'"
+    
+    # Add verbose flags if specified
+    if verbose:
+        test_filter += ' -s'  # Show successful test cases
+        test_filter += ' -v high'  # High verbosity level
     
     # Create a temp directory for XDG_RUNTIME_DIR
     xdg_runtime_dir = '/tmp/xdg-runtime-dir'
@@ -278,7 +294,7 @@ targets = []
 
 # Handle --all-tests option (build all tests)
 if GetOption('all_tests'):
-    test_targets = build_tests(test_env)
+    test_targets = build_tests(test_env, verbose=GetOption('verbose'))
     if test_targets:
         targets.append(test_targets)
 
@@ -286,13 +302,14 @@ if GetOption('all_tests'):
 test_name = GetOption('test')
 test_case = GetOption('test_case')
 section = GetOption('section')
+verbose = GetOption('verbose')
 if test_name:
-    test_targets = build_tests(test_env, test_name, test_case, section)
+    test_targets = build_tests(test_env, test_name, test_case, section, verbose)
     if test_targets:
         targets.append(test_targets)
 elif test_case or section:
     # If only --test-case or --section is specified, run all tests but filter by test case/section
-    test_targets = build_tests(test_env, None, test_case, section)
+    test_targets = build_tests(test_env, None, test_case, section, verbose)
     if test_targets:
         targets.append(test_targets)
 
