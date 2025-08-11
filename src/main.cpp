@@ -85,7 +85,7 @@ int main() {
     graphics_display->add_view("debug", new DebugView());
     graphics_display->change_view("debug");
 
-    synthesizer.get_track(0).change_voice("file");
+    synthesizer.get_track(0).change_voice("sine");
     synthesizer.get_track(0).change_effect("echo");
 
     //// Create another window for the interface
