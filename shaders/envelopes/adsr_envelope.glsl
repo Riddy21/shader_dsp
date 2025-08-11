@@ -18,7 +18,8 @@ float custom_smoothstep(float edge0, float edge1, float x) {
 
 float adsr_envelope(float start_time, float end_time, float time) {
     float from_start = time - start_time;  // Time since note-on
-    float from_end   = time - end_time;    // Time since note-off
+    float time_for_one_frame = 1.0 / float(sample_rate/buffer_size); // Need to shift by one frame because you don't know the end time until one frame after
+    float from_end   = time - end_time - time_for_one_frame;    // Time since note-off
 
     bool play = end_time < start_time;
 
@@ -58,7 +59,7 @@ float adsr_envelope(float start_time, float end_time, float time) {
         }
         // If in the middle of release_time, smoothly go currentLevel → 0
         else if (from_end <= release_time) {
-            float t = from_end / release_time; 
+            float t = (from_end) / release_time; 
             return mix(currentLevel, 0.0, custom_smoothstep(0.0, 1.0, t));
         }
         // If release fully completed

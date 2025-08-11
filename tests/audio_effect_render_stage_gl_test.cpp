@@ -15,6 +15,8 @@
 #include <chrono>
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <iomanip>
 
 /**
  * @brief Tests for effect render stage functionality with OpenGL context
@@ -566,4 +568,328 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
         std::cout << "Echo effect playback complete!" << std::endl;
         std::cout << "Did you hear the original " << SINE_FREQUENCY << "Hz tone followed by echoes getting progressively quieter?" << std::endl;
     }
+}
+
+TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity Test", 
+                   "[audio_effect_render_stage][gl_test][audio_output][template][discontinuity]", 
+                   TestParam2, TestParam3, TestParam4) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
+    constexpr int SAMPLE_RATE = 44100;
+    
+    // Test configuration
+    constexpr float NOTE_FREQUENCIES[] = {261.63f, 293.66f, 329.63f, 349.23f, 392.00f}; // C, D, E, F, G
+    constexpr int NUM_TEST_NOTES = sizeof(NOTE_FREQUENCIES) / sizeof(NOTE_FREQUENCIES[0]);
+    constexpr float NOTE_GAIN = 0.4f; // Moderate volume to avoid clipping
+    constexpr float NOTE_DURATION = 0.2f; // Note duration in seconds
+    constexpr float NOTE_GAP = 0.2f; // Gap between notes in seconds
+    constexpr float ECHO_DELAY = 0.1f; // 150ms delay between echoes
+    constexpr float ECHO_DECAY = 0.4f; // Each echo is 60% of previous
+    constexpr int NUM_ECHOS = 5; // Number of echoes
+    
+    // ADSR parameters for smooth envelope
+    constexpr float ATTACK_TIME = 0.1f; // 50ms smooth attack
+    constexpr float DECAY_TIME = 0.1f; // 100ms decay
+    constexpr float SUSTAIN_LEVEL = 0.8f; // 80% sustain level
+    constexpr float RELEASE_TIME = 0.3f; // 300ms smooth release
+    
+    // Calculate total test duration
+    constexpr float TOTAL_DURATION = NUM_TEST_NOTES * (NOTE_DURATION + NOTE_GAP) + 2.0f; // Extra time for echoes
+    constexpr int TOTAL_FRAMES = static_cast<int>((SAMPLE_RATE * TOTAL_DURATION) / BUFFER_SIZE);
+    
+    // Initialize window and OpenGL context
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+    
+    // Create sine wave generator render stage with multinote support
+    AudioGeneratorRenderStage sine_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, "build/shaders/multinote_sine_generator_render_stage.glsl");
+
+    // Create echo effect render stage
+    AudioEchoEffectRenderStage echo_effect(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    // Create final render stage
+    AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    // Connect: sine generator -> echo effect -> final render stage
+    REQUIRE(sine_generator.connect_render_stage(&echo_effect));
+    REQUIRE(echo_effect.connect_render_stage(&final_render_stage));
+
+    // Add global_time parameter
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    global_time_param->initialize();
+    
+    // Initialize the render stages
+    REQUIRE(sine_generator.initialize());
+    REQUIRE(echo_effect.initialize());
+    REQUIRE(final_render_stage.initialize());
+
+    // Configure echo effect parameters
+    REQUIRE(AudioControlRegistry::instance().set_control<float>("delay", ECHO_DELAY));
+    REQUIRE(AudioControlRegistry::instance().set_control<float>("decay", ECHO_DECAY));
+    REQUIRE(AudioControlRegistry::instance().set_control<int>("num_echos", NUM_ECHOS));
+
+    // Configure ADSR envelope for smooth note transitions
+    auto attack_param = sine_generator.find_parameter("attack_time");
+    auto decay_param = sine_generator.find_parameter("decay_time");
+    auto sustain_param = sine_generator.find_parameter("sustain_level");
+    auto release_param = sine_generator.find_parameter("release_time");
+    
+    REQUIRE(attack_param != nullptr);
+    REQUIRE(decay_param != nullptr);
+    REQUIRE(sustain_param != nullptr);
+    REQUIRE(release_param != nullptr);
+    
+    attack_param->set_value(ATTACK_TIME);
+    decay_param->set_value(DECAY_TIME);
+    sustain_param->set_value(SUSTAIN_LEVEL);
+    release_param->set_value(RELEASE_TIME);
+
+    context.prepare_draw();
+    
+    // Bind the render stages
+    REQUIRE(sine_generator.bind());
+    REQUIRE(echo_effect.bind());
+    REQUIRE(final_render_stage.bind());
+
+    // Storage for recorded audio analysis
+    std::vector<float> recorded_audio;
+    std::vector<float> left_channel, right_channel;
+    recorded_audio.reserve(TOTAL_FRAMES * BUFFER_SIZE * NUM_CHANNELS);
+    
+    // Create audio output for real-time playback
+    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    REQUIRE(audio_output.open());
+    REQUIRE(audio_output.start());
+
+    // Timing variables
+    float current_time = 0.0f;
+    const float frame_duration = static_cast<float>(BUFFER_SIZE) / SAMPLE_RATE;
+    int current_note_index = 0;
+    bool note_playing = false;
+    float note_start_time = 0.0f;
+    float current_note_freq = 0.0f;
+    
+    std::cout << "ADSR Configuration: Attack=" << ATTACK_TIME << "s, Decay=" << DECAY_TIME 
+              << "s, Sustain=" << SUSTAIN_LEVEL << ", Release=" << RELEASE_TIME << "s" << std::endl;
+
+    // Render and analyze audio
+    for (int frame = 0; frame < TOTAL_FRAMES; frame++) {
+        current_time = frame * frame_duration;
+        
+        // Note sequencing logic
+        if (current_note_index < NUM_TEST_NOTES) {
+            float note_sequence_start = current_note_index * (NOTE_DURATION + NOTE_GAP);
+            
+            // Start new note
+            if (!note_playing && current_time >= note_sequence_start) {
+                current_note_freq = NOTE_FREQUENCIES[current_note_index];
+                sine_generator.play_note(current_note_freq, NOTE_GAIN);
+                note_playing = true;
+                note_start_time = current_time;
+                std::cout << "Frame " << frame << " (t=" << current_time << "s): Playing note " 
+                          << current_note_index + 1 << " (" << current_note_freq << "Hz)" << std::endl;
+            }
+            
+            // Stop current note
+            if (note_playing && (current_time - note_start_time) >= NOTE_DURATION) {
+                sine_generator.stop_note(current_note_freq);
+                note_playing = false;
+                std::cout << "Frame " << frame << " (t=" << current_time << "s): Stopped note " 
+                          << current_note_index + 1 << " (" << current_note_freq << "Hz)" << std::endl;
+                current_note_index++;
+            }
+        }
+        
+        // Update global time and render
+        global_time_param->set_value(frame);
+        global_time_param->render();
+
+        // Render all stages
+        sine_generator.render(frame);
+        echo_effect.render(frame);
+        final_render_stage.render(frame);
+        
+        // Get the final output audio data
+        auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
+        REQUIRE(output_param != nullptr);
+
+        const float* output_data = static_cast<const float*>(output_param->get_value());
+        REQUIRE(output_data != nullptr);
+
+        // Record audio data for analysis
+        for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; i++) {
+            recorded_audio.push_back(output_data[i]);
+        }
+
+        // Wait for audio output to be ready and play
+        //while (!audio_output.is_ready()) {
+        //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        //}
+        //audio_output.push(output_data);
+    }
+
+    // Let audio finish
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    audio_output.stop();
+    
+    // Separate stereo channels for analysis
+    for (size_t i = 0; i < recorded_audio.size(); i += NUM_CHANNELS) {
+        left_channel.push_back(recorded_audio[i]);
+        if (NUM_CHANNELS > 1) {
+            right_channel.push_back(recorded_audio[i + 1]);
+        }
+    }
+
+    SECTION("Discontinuity Detection Test") {
+        std::cout << "\n=== Discontinuity Detection Analysis ===" << std::endl;
+        
+        constexpr float DISCONTINUITY_THRESHOLD = 0.05f; // Same threshold as Python script
+        std::vector<size_t> discontinuity_indices;
+        std::vector<float> discontinuity_magnitudes;
+        
+        // Calculate sample-to-sample differences to detect discontinuities
+        for (size_t i = 1; i < left_channel.size(); ++i) {
+            float sample_diff = std::abs(left_channel[i] - left_channel[i - 1]);
+            if (sample_diff > DISCONTINUITY_THRESHOLD) {
+                discontinuity_indices.push_back(i);
+                discontinuity_magnitudes.push_back(sample_diff);
+            }
+        }
+        
+        std::cout << "Discontinuity threshold: " << DISCONTINUITY_THRESHOLD << std::endl;
+        std::cout << "Found " << discontinuity_indices.size() << " discontinuities" << std::endl;
+        
+        // Test assertion: discontinuity ratio should be reasonable
+        REQUIRE(discontinuity_indices.size() == 0);
+    }
+    
+    //SECTION("Derivative Analysis and CSV Export") {
+    //    // Export audio data to CSV for visualization and analysis
+    //    std::string csv_filename = "echo_test_audio_data.csv";
+    //    std::ofstream csv_file(csv_filename);
+    
+    //    if (csv_file.is_open()) {
+    //        // Write header
+    //        if (NUM_CHANNELS == 1) {
+    //            csv_file << "time,amplitude,note_index,note_frequency\n";
+    //        } else {
+    //            csv_file << "time,left_channel,right_channel,note_index,note_frequency\n";
+    //        }
+
+    //        // Calculate which note was playing at each sample
+    //        const float sample_duration = 1.0f / SAMPLE_RATE;
+
+    //        for (size_t i = 0; i < left_channel.size(); ++i) {
+    //            float time_val = static_cast<float>(i) * sample_duration;
+
+    //            // Determine which note (if any) was playing at this time
+    //            int active_note_index = -1;
+    //            float active_note_freq = 0.0f;
+
+    //            for (int note_idx = 0; note_idx < NUM_TEST_NOTES; note_idx++) {
+    //                float note_start_time = note_idx * (NOTE_DURATION + NOTE_GAP);
+    //                float note_end_time = note_start_time + NOTE_DURATION;
+
+    //                if (time_val >= note_start_time && time_val <= note_end_time) {
+    //                    active_note_index = note_idx;
+    //                    active_note_freq = NOTE_FREQUENCIES[note_idx];
+    //                    break;
+    //                }
+    //            }
+
+    //            // Write data to CSV
+    //            csv_file << time_val << ",";
+    //            if (NUM_CHANNELS == 1) {
+    //                csv_file << left_channel[i] << ",";
+    //            } else {
+    //                csv_file << left_channel[i] << ",";
+    //                if (i < right_channel.size()) {
+    //                    csv_file << right_channel[i] << ",";
+    //                } else {
+    //                    csv_file << "0.0,";
+    //                }
+    //            }
+    //            csv_file << active_note_index << "," << active_note_freq << "\n";
+    //        }
+
+    //        csv_file.close();
+    //        std::cout << "\n=== Audio Data Export ===" << std::endl;
+    //        std::cout << "Audio data exported to: " << csv_filename << std::endl;
+    //        std::cout << "Total samples: " << left_channel.size() << std::endl;
+    //        std::cout << "Duration: " << (left_channel.size() / static_cast<float>(SAMPLE_RATE)) << " seconds" << std::endl;
+    //        std::cout << "Sample rate: " << SAMPLE_RATE << " Hz" << std::endl;
+    //        std::cout << "Channels: " << NUM_CHANNELS << std::endl;
+    //        std::cout << "Run 'python analyze_echo_audio.py' to visualize and analyze the audio data" << std::endl;
+    //    } else {
+    //        std::cout << "Failed to open " << csv_filename << " for writing" << std::endl;
+    //    }
+
+    //    std::cout << "\n=== Derivative-Based Smoothness Analysis ===" << std::endl;
+    //    
+    //    // Derivative-Based Smoothness Analysis
+    //    const float dt = 1.0f / SAMPLE_RATE; // Time step between samples
+    //    
+    //    std::vector<float> derivatives;
+    //    std::vector<float> second_derivatives;
+    //    float max_derivative = 0.0f;
+    //    float max_second_derivative = 0.0f;
+    //    int sharp_edge_count = 0;
+    //    
+    //    // First derivative using central difference
+    //    for (size_t i = 1; i < left_channel.size() - 1; ++i) {
+    //        float derivative = (left_channel[i + 1] - left_channel[i - 1]) / (2.0f * dt);
+    //        derivatives.push_back(derivative);
+    //        max_derivative = std::max(max_derivative, std::abs(derivative));
+    //    }
+    //    
+    //    // Second derivative (curvature analysis)
+    //    for (size_t i = 1; i < derivatives.size() - 1; ++i) {
+    //        float second_derivative = (derivatives[i + 1] - derivatives[i - 1]) / (2.0f * dt);
+    //        second_derivatives.push_back(second_derivative);
+    //        max_second_derivative = std::max(max_second_derivative, std::abs(second_derivative));
+    //        
+    //        // Check for sharp changes in derivative (sudden curvature changes)
+    //        const float sharp_edge_threshold = 5000.0f;  // Higher threshold for audio with echo effects
+    //        if (std::abs(second_derivative) > sharp_edge_threshold) {
+    //            sharp_edge_count++;
+    //            float time_at_edge = static_cast<float>(i + 1) / SAMPLE_RATE;
+    //            std::cout << "Sharp edge detected at sample " << (i + 1) << " (t=" << time_at_edge 
+    //                      << "s): second derivative = " << second_derivative << std::endl;
+    //        }
+    //    }
+    //    
+    //    std::cout << "Total samples analyzed: " << left_channel.size() << std::endl;
+    //    std::cout << "Max |derivative|: " << max_derivative << std::endl;
+    //    std::cout << "Max |second derivative|: " << max_second_derivative << std::endl;
+    //    std::cout << "Sharp edges detected: " << sharp_edge_count << std::endl;
+    //    
+    //    // Export derivative analysis data to CSV
+    //    std::string smoothness_csv = "echo_smoothness_analysis.csv";
+    //    std::ofstream smoothness_file(smoothness_csv);
+    //    if (smoothness_file.is_open()) {
+    //        smoothness_file << "time,amplitude,derivative,second_derivative\n";
+    //        
+    //        for (size_t i = 1; i < derivatives.size() - 1 && i + 1 < left_channel.size(); ++i) {
+    //            float time_val = static_cast<float>(i + 1) / SAMPLE_RATE;
+    //            smoothness_file << time_val << "," << left_channel[i + 1] << "," 
+    //                     << derivatives[i] << "," << second_derivatives[i] << "\n";
+    //        }
+    //        
+    //        smoothness_file.close();
+    //        std::cout << "Derivative analysis data saved to " << smoothness_csv << std::endl;
+    //    }
+    //    
+    //}
+
+    audio_output.close();
+    
+    // Cleanup
+    final_render_stage.unbind();
+    echo_effect.unbind();
+    sine_generator.unbind();
+    delete global_time_param;
 }

@@ -86,7 +86,7 @@ int main() {
     graphics_display->change_view("debug");
 
     synthesizer.get_track(0).change_voice("sine");
-    synthesizer.get_track(0).change_effect("echo");
+    synthesizer.get_track(0).change_effect("none");
 
     //// Create another window for the interface
     //GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
