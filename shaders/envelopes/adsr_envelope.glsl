@@ -18,8 +18,7 @@ float custom_smoothstep(float edge0, float edge1, float x) {
 
 float adsr_envelope(float start_time, float end_time, float time) {
     float from_start = time - start_time;  // Time since note-on
-    float time_for_one_frame = 1.0 / float(sample_rate/buffer_size); // Need to shift by one frame because you don't know the end time until one frame after
-    float from_end   = time - end_time - time_for_one_frame;    // Time since note-off
+    float from_end   = time - end_time;    // Time since note-off
 
     bool play = end_time < start_time;
 

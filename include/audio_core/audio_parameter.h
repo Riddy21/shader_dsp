@@ -41,7 +41,6 @@ public:
     }
 
     ~AudioParameter() {
-        printf("Deleting parameter %s\n", name.c_str());
     }
 
     // Setters

@@ -203,7 +203,7 @@ def main():
         # Look for both the new single file and old multiple file patterns
         csv_pattern = "envelope_analysis_data.csv"
         if not os.path.exists(csv_pattern):
-            csv_pattern = "envelope_data_*.csv"
+            csv_pattern = "envelope_shape_*.csv"
     
     if csv_pattern.endswith('.csv'):
         csv_files = [csv_pattern] if os.path.exists(csv_pattern) else []

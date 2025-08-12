@@ -400,7 +400,11 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
 
 void AudioGeneratorRenderStage::play_note(const float tone, const float gain)
 {
-    unsigned int idx = m_note_state.add_note(m_time, -1, tone, gain, MAX_NOTES_PLAYED_AT_ONCE);
+    unsigned int time;
+    if (m_time == 0) time = m_time;
+    else time = m_time + 1;
+
+    unsigned int idx = m_note_state.add_note(time, -1, tone, gain, MAX_NOTES_PLAYED_AT_ONCE); // Shift by one because note doesn't start until next frame
 
     if (idx >= MAX_NOTES_PLAYED_AT_ONCE) {
         delete_note(0);
@@ -413,7 +417,11 @@ void AudioGeneratorRenderStage::play_note(const float tone, const float gain)
 
 void AudioGeneratorRenderStage::stop_note(const float tone)
 {
-    int tone_index = m_note_state.stop_note(tone, m_time);
+    unsigned int time;
+    if (m_time == 0) time = m_time;
+    else time = m_time + 1;
+
+    int tone_index = m_note_state.stop_note(tone, time);
 
     if (tone_index == -1) {
         return;
