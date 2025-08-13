@@ -85,8 +85,8 @@ int main() {
     graphics_display->add_view("debug", new DebugView());
     graphics_display->change_view("debug");
 
-    synthesizer.get_track(0).change_voice("sine");
-    synthesizer.get_track(0).change_effect("none");
+    synthesizer.get_track(0).change_voice("triangle");
+    synthesizer.get_track(0).change_effect("frequency_filter");
 
     //// Create another window for the interface
     //GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");

@@ -18,6 +18,9 @@
 #include <fstream>
 #include <iomanip>
 
+// Add after existing includes
+#include <complex>
+
 /**
  * @brief Tests for effect render stage functionality with OpenGL context
  * 
@@ -892,4 +895,280 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
     echo_effect.unbind();
     sine_generator.unbind();
     delete global_time_param;
+}
+
+TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Parameterized Filter Test", 
+                   "[audio_effect_render_stage][gl_test][template]", 
+                   TestParam2, TestParam3, TestParam4) {
+    
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
+    constexpr int SAMPLE_RATE = 44100;
+    constexpr float SINE_AMPLITUDE = 0.3f; // Reduced to avoid clipping with multiple notes
+    constexpr float NOTE1_FREQ = 300.0f; // Below bandpass
+    constexpr float NOTE2_FREQ = 700.0f; // Inside bandpass
+    constexpr float NOTE3_FREQ = 1200.0f; // Above bandpass
+    constexpr float LOW_CUTOFF = 500.0f;
+    constexpr float HIGH_CUTOFF = 1000.0f;
+    constexpr float RESONANCE = 1.0f;
+    constexpr int NUM_TAPS = 101;
+    constexpr float NYQUIST = SAMPLE_RATE / 2.0f;
+    constexpr int TOTAL_SAMPLES = SAMPLE_RATE * 2; // 2 seconds
+    constexpr int NUM_FRAMES = (TOTAL_SAMPLES + BUFFER_SIZE - 1) / BUFFER_SIZE;
+
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+
+    AudioGeneratorRenderStage sine_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 
+                                            "build/shaders/multinote_sine_generator_render_stage.glsl");
+
+    AudioFrequencyFilterEffectRenderStage filter_effect(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    auto num_taps_param = filter_effect.find_parameter("num_taps");
+    REQUIRE(num_taps_param != nullptr);
+    num_taps_param->set_value(NUM_TAPS);
+    filter_effect.set_low_pass(LOW_CUTOFF);
+    filter_effect.set_high_pass(HIGH_CUTOFF);
+    filter_effect.set_resonance(RESONANCE);
+    filter_effect.set_filter_follower(0.0f);
+
+    AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    REQUIRE(sine_generator.connect_render_stage(&filter_effect));
+    REQUIRE(filter_effect.connect_render_stage(&final_render_stage));
+
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    global_time_param->initialize();
+
+    REQUIRE(sine_generator.initialize());
+    REQUIRE(filter_effect.initialize());
+    REQUIRE(final_render_stage.initialize());
+
+    context.prepare_draw();
+    
+    REQUIRE(sine_generator.bind());
+    REQUIRE(filter_effect.bind());
+    REQUIRE(final_render_stage.bind());
+
+    // Play three notes
+    sine_generator.play_note(NOTE1_FREQ, SINE_AMPLITUDE);
+    sine_generator.play_note(NOTE2_FREQ, SINE_AMPLITUDE);
+    sine_generator.play_note(NOTE3_FREQ, SINE_AMPLITUDE);
+
+    std::vector<float> left_channel_samples;
+    std::vector<float> right_channel_samples;
+    left_channel_samples.reserve(TOTAL_SAMPLES);
+    if (NUM_CHANNELS > 1) right_channel_samples.reserve(TOTAL_SAMPLES);
+
+    for (int frame = 0; frame < NUM_FRAMES; frame++) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+
+        sine_generator.render(frame);
+        filter_effect.render(frame);
+        final_render_stage.render(frame);
+        
+        auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
+        REQUIRE(output_param != nullptr);
+
+        const float* output_data = static_cast<const float*>(output_param->get_value());
+        REQUIRE(output_data != nullptr);
+
+        int samples_this_frame = std::min(BUFFER_SIZE, TOTAL_SAMPLES - static_cast<int>(left_channel_samples.size()));
+        for (int i = 0; i < samples_this_frame; i++) {
+            left_channel_samples.push_back(output_data[i * NUM_CHANNELS]);
+            if (NUM_CHANNELS > 1) {
+                right_channel_samples.push_back(output_data[i * NUM_CHANNELS + 1]);
+            }
+        }
+    }
+
+    REQUIRE(left_channel_samples.size() == TOTAL_SAMPLES);
+    if (NUM_CHANNELS > 1) REQUIRE(right_channel_samples.size() == TOTAL_SAMPLES);
+
+    SECTION("Filter Frequency Response Verification") {
+        auto compute_power = [](const std::vector<float>& samples, float freq, float sr) -> float {
+            int N = samples.size();
+            std::complex<float> sum(0.0f, 0.0f);
+            for (int n = 0; n < N; n++) {
+                float angle = -2.0f * M_PI * freq * n / sr;
+                sum += samples[n] * std::complex<float>(std::cos(angle), std::sin(angle));
+            }
+            return std::abs(sum) / static_cast<float>(N);
+        };
+
+        // Analyze the second half to avoid transients
+        constexpr int ANALYSIS_START = TOTAL_SAMPLES / 2;
+        constexpr int ANALYSIS_SIZE = TOTAL_SAMPLES - ANALYSIS_START;
+        std::vector<float> analysis_samples(left_channel_samples.begin() + ANALYSIS_START, 
+                                             left_channel_samples.begin() + ANALYSIS_START + ANALYSIS_SIZE);
+
+        float power_note1 = compute_power(analysis_samples, NOTE1_FREQ, SAMPLE_RATE);
+        float power_note2 = compute_power(analysis_samples, NOTE2_FREQ, SAMPLE_RATE);
+        float power_note3 = compute_power(analysis_samples, NOTE3_FREQ, SAMPLE_RATE);
+
+        INFO("Power at " << NOTE1_FREQ << "Hz (below): " << power_note1);
+        INFO("Power at " << NOTE2_FREQ << "Hz (inside): " << power_note2);
+        INFO("Power at " << NOTE3_FREQ << "Hz (above): " << power_note3);
+
+        // Note2 should have significantly higher power than Note1 and Note3
+        REQUIRE(power_note2 > power_note1 * 5.0f);
+        REQUIRE(power_note2 > power_note3 * 5.0f);
+
+        if (NUM_CHANNELS > 1) {
+            std::vector<float> right_analysis(right_channel_samples.begin() + ANALYSIS_START, 
+                                               right_channel_samples.begin() + ANALYSIS_START + ANALYSIS_SIZE);
+            float r_power_note1 = compute_power(right_analysis, NOTE1_FREQ, SAMPLE_RATE);
+            float r_power_note2 = compute_power(right_analysis, NOTE2_FREQ, SAMPLE_RATE);
+            float r_power_note3 = compute_power(right_analysis, NOTE3_FREQ, SAMPLE_RATE);
+
+            REQUIRE(r_power_note2 > r_power_note1 * 5.0f);
+            REQUIRE(r_power_note2 > r_power_note3 * 5.0f);
+        }
+    }
+}
+
+TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test", 
+                   "[audio_effect_render_stage][gl_test][audio_output][template]", 
+                   TestParam3, TestParam4, TestParam5) {
+    
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
+    constexpr int SAMPLE_RATE = 44100;
+    constexpr float SINE_AMPLITUDE = 0.5f;
+    constexpr float NOTE1_FREQ = 440.0f;
+    constexpr float NOTE2_FREQ = 880.0f;
+    constexpr float LOW_CUTOFF = 400.0f;
+    constexpr float HIGH_CUTOFF = 480.0f;
+    constexpr int PLAYBACK_SECONDS = 5;
+    constexpr int NUM_FRAMES = (SAMPLE_RATE * PLAYBACK_SECONDS) / BUFFER_SIZE;
+
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+
+    AudioGeneratorRenderStage sine_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, "build/shaders/multinote_sine_generator_render_stage.glsl");
+
+    AudioFrequencyFilterEffectRenderStage filter_effect(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    filter_effect.set_low_pass(LOW_CUTOFF);
+    filter_effect.set_high_pass(HIGH_CUTOFF);
+    filter_effect.set_resonance(1.0f);
+    filter_effect.set_filter_follower(0.0f);
+
+    AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    REQUIRE(sine_generator.connect_render_stage(&filter_effect));
+    REQUIRE(filter_effect.connect_render_stage(&final_render_stage));
+
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    global_time_param->initialize();
+    
+    REQUIRE(sine_generator.initialize());
+    REQUIRE(filter_effect.initialize());
+    REQUIRE(final_render_stage.initialize());
+
+    context.prepare_draw();
+    
+    REQUIRE(sine_generator.bind());
+    REQUIRE(filter_effect.bind());
+    REQUIRE(final_render_stage.bind());
+
+    std::vector<float> recorded_audio;
+    recorded_audio.reserve(NUM_FRAMES * BUFFER_SIZE * NUM_CHANNELS);
+
+    std::cout << "\n=== Filter Effect Audio Playback Test ===" << std::endl;
+    std::cout << "Playing two tones (" << NOTE1_FREQ << "Hz and " << NOTE2_FREQ << "Hz) with band pass filter around " << NOTE1_FREQ << "Hz for " 
+              << PLAYBACK_SECONDS << " seconds..." << std::endl;
+    std::cout << "You should hear only the " << NOTE1_FREQ << "Hz tone." << std::endl;
+
+    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    REQUIRE(audio_output.open());
+    REQUIRE(audio_output.start());
+
+    sine_generator.play_note(NOTE1_FREQ, SINE_AMPLITUDE / 2.0f);
+    sine_generator.play_note(NOTE2_FREQ, SINE_AMPLITUDE / 2.0f);
+
+    for (int frame = 0; frame < NUM_FRAMES; frame++) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+
+        sine_generator.render(frame);
+        filter_effect.render(frame);
+        final_render_stage.render(frame);
+        
+        auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
+        REQUIRE(output_param != nullptr);
+
+        const float* output_data = static_cast<const float*>(output_param->get_value());
+        REQUIRE(output_data != nullptr);
+
+        for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; i++) {
+            recorded_audio.push_back(output_data[i]);
+        }
+
+        while (!audio_output.is_ready()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        audio_output.push(output_data);
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    
+    audio_output.stop();
+    std::cout << "Filter effect playback complete!" << std::endl;
+
+    SECTION("Save Recorded Audio to CSV") {
+        std::ofstream csv_file("./playground/filter_output.csv");
+        if (!csv_file.is_open()) {
+            std::cerr << "Failed to open CSV file!" << std::endl;
+            return;
+        }
+        csv_file << "Sample";
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            csv_file << ",Channel" << ch;
+        }
+        csv_file << std::endl;
+        for (size_t i = 0; i < recorded_audio.size(); i += NUM_CHANNELS) {
+            csv_file << (i / NUM_CHANNELS);
+            for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+                csv_file << "," << std::fixed << std::setprecision(6) << recorded_audio[i + ch];
+            }
+            csv_file << std::endl;
+        }
+        csv_file.close();
+        std::cout << "Saved recorded audio to /workspace/playground/filter_output.csv" << std::endl;
+    }
+
+    std::vector<float> left_channel;
+    for (size_t i = 0; i < recorded_audio.size(); i += NUM_CHANNELS) {
+        left_channel.push_back(recorded_audio[i]);
+    }
+
+    SECTION("Frequency Domain Analysis") {
+        auto compute_power = [](const std::vector<float>& samples, float freq, float sr) -> float {
+            int N = samples.size();
+            std::complex<float> sum(0.0f, 0.0f);
+            for (int n = 0; n < N; n++) {
+                float angle = -2.0f * M_PI * freq * n / sr;
+                sum += samples[n] * std::complex<float>(std::cos(angle), std::sin(angle));
+            }
+            return std::abs(sum) / N;
+        };
+
+        constexpr int FFT_SIZE = 1024;
+        constexpr int START = SAMPLE_RATE; // Start after 1 second to avoid transients
+        if (START + FFT_SIZE > left_channel.size()) return;
+
+        std::vector<float> analysis_samples(left_channel.begin() + START, left_channel.begin() + START + FFT_SIZE);
+
+        float power_note1 = compute_power(analysis_samples, NOTE1_FREQ, SAMPLE_RATE);
+        float power_note2 = compute_power(analysis_samples, NOTE2_FREQ, SAMPLE_RATE);
+
+        INFO("Power at " << NOTE1_FREQ << "Hz: " << power_note1 << ", at " << NOTE2_FREQ << "Hz: " << power_note2);
+        REQUIRE(power_note1 > power_note2 * 10.0f);
+    }
 }

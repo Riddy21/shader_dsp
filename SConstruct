@@ -212,6 +212,7 @@ def build_tests(env, specific_test=None, test_case=None, section=None, verbose=F
             )
             
             env.Alias('test-' + specific_test, test_output)
+            env.Depends(test_output, all_shaders)
             return test_output
         else:
             print(f"Test '{specific_test}' not found. Building and running all tests instead.")
@@ -256,6 +257,7 @@ def build_tests(env, specific_test=None, test_case=None, section=None, verbose=F
     )
     
     env.Alias('all-tests', test_output)
+    test_env.Depends(test_output, all_shaders)
     return test_output
 
 # Function to build playground examples
