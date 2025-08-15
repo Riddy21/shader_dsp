@@ -196,6 +196,14 @@ const void * const AudioTexture2DParameter::get_value() const {
     if (connection_type == ConnectionType::INPUT) {
         return AudioParameter::get_value();
     }
+    else if (connection_type == ConnectionType::PASSTHROUGH) {
+        AudioTexture2DParameter* previous_param = dynamic_cast<AudioTexture2DParameter*>(m_previous_parameter);
+        if (previous_param == nullptr) {
+            printf("Error: Previous parameter is not an AudioTexture2DParameter in parameter %s\n", name.c_str());
+            return nullptr;
+        }
+        return previous_param->get_value();
+    }
     else {
         // Bind framebuffer to read from texture
         glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);

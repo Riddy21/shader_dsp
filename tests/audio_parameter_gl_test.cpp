@@ -968,6 +968,15 @@ TEMPLATE_TEST_CASE("Two-stage pipeline with passthrough linking", "[audio_parame
             REQUIRE(stage1_pixels[x * 4 + 0] == Catch::Approx(expected).margin(0.05f));
         }
 
+        // Verify passthrough parameter values after Stage 1 render
+        const float* passthrough_pixels = static_cast<const float*>(passthrough_param.get_value());
+        for (int x = 0; x < WIDTH; ++x) {
+            // TexCoord.x for pixel x is (x + 0.5) / WIDTH
+            float tex_coord_x = (static_cast<float>(x) + 0.5f) / WIDTH;
+            float expected = sin(tex_coord_x * 2.0f * static_cast<float>(M_PI));
+            REQUIRE(passthrough_pixels[x * 4 + 0] == Catch::Approx(expected).margin(0.05f));
+        }
+
         // ---------------- Stage 2 render ----------------
         framebuffer2.bind();
         REQUIRE(passthrough_param.bind());

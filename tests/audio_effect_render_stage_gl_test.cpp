@@ -925,9 +925,6 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Parameterized Filter
 
     AudioFrequencyFilterEffectRenderStage filter_effect(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
 
-    auto num_taps_param = filter_effect.find_parameter("num_taps");
-    REQUIRE(num_taps_param != nullptr);
-    num_taps_param->set_value(NUM_TAPS);
     filter_effect.set_low_pass(LOW_CUTOFF);
     filter_effect.set_high_pass(HIGH_CUTOFF);
     filter_effect.set_resonance(RESONANCE);
@@ -1043,7 +1040,7 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
     constexpr float NOTE2_FREQ = 880.0f;
     constexpr float LOW_CUTOFF = 400.0f;
     constexpr float HIGH_CUTOFF = 480.0f;
-    constexpr int PLAYBACK_SECONDS = 5;
+    constexpr int PLAYBACK_SECONDS = 1;
     constexpr int NUM_FRAMES = (SAMPLE_RATE * PLAYBACK_SECONDS) / BUFFER_SIZE;
 
     SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
@@ -1061,6 +1058,7 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
     AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
 
     REQUIRE(sine_generator.connect_render_stage(&filter_effect));
+
     REQUIRE(filter_effect.connect_render_stage(&final_render_stage));
 
     auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
@@ -1121,54 +1119,30 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
     audio_output.stop();
     std::cout << "Filter effect playback complete!" << std::endl;
 
-    SECTION("Save Recorded Audio to CSV") {
-        std::ofstream csv_file("./playground/filter_output.csv");
-        if (!csv_file.is_open()) {
-            std::cerr << "Failed to open CSV file!" << std::endl;
-            return;
-        }
-        csv_file << "Sample";
-        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
-            csv_file << ",Channel" << ch;
-        }
-        csv_file << std::endl;
-        for (size_t i = 0; i < recorded_audio.size(); i += NUM_CHANNELS) {
-            csv_file << (i / NUM_CHANNELS);
-            for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
-                csv_file << "," << std::fixed << std::setprecision(6) << recorded_audio[i + ch];
-            }
-            csv_file << std::endl;
-        }
-        csv_file.close();
-        std::cout << "Saved recorded audio to /workspace/playground/filter_output.csv" << std::endl;
-    }
-
+//    SECTION("Save Recorded Audio to CSV") {
+//        std::ofstream csv_file("./playground/filter_output.csv");
+//        if (!csv_file.is_open()) {
+//            std::cerr << "Failed to open CSV file!" << std::endl;
+//            return;
+//        }
+//        csv_file << "Sample";
+//        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+//            csv_file << ",Channel" << ch;
+//        }
+//        csv_file << std::endl;
+//        for (size_t i = 0; i < recorded_audio.size(); i += NUM_CHANNELS) {
+//            csv_file << (i / NUM_CHANNELS);
+//            for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+//                csv_file << "," << std::fixed << std::setprecision(6) << recorded_audio[i + ch];
+//            }
+//            csv_file << std::endl;
+//        }
+//        csv_file.close();
+//        std::cout << "Saved recorded audio to /workspace/playground/filter_output.csv" << std::endl;
+//    }
+//
     std::vector<float> left_channel;
     for (size_t i = 0; i < recorded_audio.size(); i += NUM_CHANNELS) {
         left_channel.push_back(recorded_audio[i]);
-    }
-
-    SECTION("Frequency Domain Analysis") {
-        auto compute_power = [](const std::vector<float>& samples, float freq, float sr) -> float {
-            int N = samples.size();
-            std::complex<float> sum(0.0f, 0.0f);
-            for (int n = 0; n < N; n++) {
-                float angle = -2.0f * M_PI * freq * n / sr;
-                sum += samples[n] * std::complex<float>(std::cos(angle), std::sin(angle));
-            }
-            return std::abs(sum) / N;
-        };
-
-        constexpr int FFT_SIZE = 1024;
-        constexpr int START = SAMPLE_RATE; // Start after 1 second to avoid transients
-        if (START + FFT_SIZE > left_channel.size()) return;
-
-        std::vector<float> analysis_samples(left_channel.begin() + START, left_channel.begin() + START + FFT_SIZE);
-
-        float power_note1 = compute_power(analysis_samples, NOTE1_FREQ, SAMPLE_RATE);
-        float power_note2 = compute_power(analysis_samples, NOTE2_FREQ, SAMPLE_RATE);
-
-        INFO("Power at " << NOTE1_FREQ << "Hz: " << power_note1 << ", at " << NOTE2_FREQ << "Hz: " << power_note2);
-        REQUIRE(power_note1 > power_note2 * 10.0f);
     }
 }

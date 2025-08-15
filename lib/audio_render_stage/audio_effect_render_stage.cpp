@@ -235,7 +235,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     auto num_taps_parameter =
         new AudioIntParameter("num_taps",
                                 AudioParameter::ConnectionType::INPUT);
-    num_taps_parameter->set_value(510); // Strange restriction, this cannot be larger than the buffer size
+    num_taps_parameter->set_value(frames_per_buffer - 1); // Strange restriction, this cannot be larger than the buffer size
 
     auto b_coeff_texture =
         new AudioTexture2DParameter("b_coeff_texture",
@@ -442,15 +442,6 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     m_audio_history->update_audio_history_texture();
 
     AudioRenderStage::render(time);
-
-    // FIXME: Stream audio texture is giving us super weird values, not correct
-    // I think the inputs are being passed as the outputs Need to get as inputs
-    auto * data2 = (float *)this->find_parameter("stream_audio_texture")->get_value();
-
-    for (int i = 0; i < frames_per_buffer * num_channels; i++) {
-        printf("%f\n", data2[i]);
-    }
-
 }
 
 void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float current_amplitude) {

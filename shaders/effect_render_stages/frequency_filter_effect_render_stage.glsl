@@ -44,13 +44,6 @@ void main() {
     // Output the result to the red channel.
     int channel = int(TexCoord.y * float(num_channels));
 
-    int total_history_size = get_audio_history_size();
-
-    float x = get_audio_history_sample(outputIndex + total_history_size - buffer_size, channel);
-
-    output_audio_texture = vec4(y + x, 0.0, 0.0, 0.0);
-    
-    //output_audio_texture = vec4(y, 0.0, 0.0, 0.0);
-    vec4 z = texture(stream_audio_texture, TexCoord);
-    debug_audio_texture = z;
+    output_audio_texture = vec4(y, 0.0, 0.0, 0.0);
+    debug_audio_texture = texture(stream_audio_texture, TexCoord);
 }
