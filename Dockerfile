@@ -92,6 +92,8 @@ RUN apt-get update && apt-get install -y \
     iotop \
     sysstat \
     cpufrequtils \
+    # Add GDB for debugging
+    gdb \
     && rm -rf /var/lib/apt/lists/*
 
 # Create symbolic links to simulate Pi libraries
@@ -134,6 +136,14 @@ RUN chmod +x /usr/local/bin/performance_optimize.sh
 # Copy Cursor sync/link script
 COPY scripts/link_cursor_server.sh /usr/local/bin/link_cursor_server.sh
 RUN chmod +x /usr/local/bin/link_cursor_server.sh
+
+# Copy GDB scripts and set up GDB configuration
+COPY gdb_scripts/ /usr/local/share/gdb_scripts/
+RUN mkdir -p /root/.gdb && \
+    echo "source /usr/local/share/gdb_scripts/useful.gdb" > /root/.gdbinit && \
+    echo "source /usr/local/share/gdb_scripts/stl_printers.gdb" >> /root/.gdbinit && \
+    echo "source /usr/local/share/gdb_scripts/history.gdb" >> /root/.gdbinit && \
+    chmod 644 /root/.gdbinit
 
 # Create workspace directory
 RUN mkdir -p /workspace
