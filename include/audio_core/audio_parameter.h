@@ -30,28 +30,8 @@ public:
     const ConnectionType connection_type;
 
     // Linking to other parameters
-    virtual bool link(AudioParameter * parameter) {
-        // Set up bidirectional linking
-        if (parameter != nullptr) {
-            m_linked_parameter = parameter;
-            // Set the reverse link (previous parameter)
-            parameter->m_previous_parameter = this;
-        }
-        return true;
-    }
-
-    virtual bool unlink() {
-        // Remove bidirectional linking
-        if (m_linked_parameter != nullptr) {
-            m_linked_parameter->m_previous_parameter = nullptr;
-            m_linked_parameter = nullptr;
-        }
-        if (m_previous_parameter != nullptr) {
-            m_previous_parameter->m_linked_parameter = nullptr;
-            m_previous_parameter = nullptr;
-        }
-        return true;
-    }
+    bool link(AudioParameter * parameter);
+    bool unlink();
 
     ~AudioParameter() {
     }
