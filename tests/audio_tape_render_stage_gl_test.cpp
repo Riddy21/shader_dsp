@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <string>
 
 // Test parameter structure to hold buffer size and channel count combinations
 struct TestParams {
@@ -55,7 +56,7 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
 
     // Create sine generator
     AudioGeneratorRenderStage generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 
-                                        "build/shaders/multinote_triangle_generator_render_stage.glsl");
+                                        "build/shaders/multinote_sine_generator_render_stage.glsl");
 
     // Create record stage with default shader
     AudioRecordRenderStage record_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
@@ -96,8 +97,14 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
 
     // Play note
     generator.play_note(TEST_FREQUENCY, TEST_GAIN);
-    generator.play_note(TEST_FREQUENCY * 2, TEST_GAIN);
-    generator.play_note(TEST_FREQUENCY * 3, TEST_GAIN);
+
+    // Prepare audio output
+    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    REQUIRE(audio_output.open());
+    REQUIRE(audio_output.start());
+
+    std::vector<float> input_samples;
+    input_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
 
     // Render frames for recording
     for (int frame = 0; frame < NUM_FRAMES; ++frame) {
@@ -106,6 +113,15 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
 
         generator.render(frame);
         record_stage.render(frame);
+
+        auto input_param = generator.find_parameter("output_audio_texture");
+        REQUIRE(input_param != nullptr);
+        const float* input_data = static_cast<const float*>(input_param->get_value());
+        REQUIRE(input_data != nullptr);
+
+        for (int i = 0; i < BUFFER_SIZE; ++i) {
+            input_samples.push_back(input_data[i]);
+        }
     }
 
     // Stop note
@@ -117,17 +133,12 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
     // Load tape from record to playback
     playback_stage.load_tape(record_stage.get_tape());
 
-    // Prepare audio output
-    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-    REQUIRE(audio_output.open());
-    REQUIRE(audio_output.start());
-
     // Start playback
     playback_stage.play(0);
 
     // Render playback frames and push to audio output
     std::vector<float> output_samples;
-    output_samples.reserve(BUFFER_SIZE * NUM_FRAMES * NUM_CHANNELS);
+    output_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
 
     for (int frame = 0; frame < NUM_FRAMES; ++frame) {
         global_time_param->set_value(frame);
@@ -136,6 +147,13 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
         playback_stage.render(frame);
         final_stage.render(frame);
 
+        auto before_final_param = playback_stage.find_parameter("output_audio_texture");
+
+        REQUIRE(before_final_param != nullptr);
+
+        const float* before_final_data = static_cast<const float*>(before_final_param->get_value());
+        REQUIRE(before_final_data != nullptr);
+
         auto output_param = final_stage.find_parameter("final_output_audio_texture");
         REQUIRE(output_param != nullptr);
 
@@ -143,8 +161,8 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
         REQUIRE(output_data != nullptr);
 
         // Store for verification
-        for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
-            output_samples.push_back(output_data[i]);
+        for (int i = 0; i < BUFFER_SIZE; ++i) {
+            output_samples.push_back(before_final_data[i]);
         }
 
         // Push to audio output
@@ -161,6 +179,60 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     audio_output.stop();
     audio_output.close();
+
+    //SECTION("Export CSV") {
+    //    // Build a base filename that encodes the test parameter combination
+    //    std::string csv_base = std::string("audio_simple_record_playback_") + params.name;
+
+    //    // 1) Write playback output samples (interleaved by channel)
+    //    {
+    //        std::ofstream csv_out(csv_base + std::string("_output.csv"), std::ios::out | std::ios::trunc);
+    //        if (csv_out.is_open()) {
+    //            // Header
+    //            csv_out << "sample_index";
+    //            csv_out << ",input";
+    //            csv_out << ",output";
+    //            csv_out << '\n';
+
+    //            const std::size_t total_samples = input_samples.size();
+    //            for (std::size_t i = 0; i < total_samples; ++i) {
+    //                csv_out << i;
+    //                csv_out << ',' << input_samples[i];
+    //                csv_out << ',' << output_samples[i];
+    //                csv_out << ',';
+    //            }
+    //            csv_out.close();
+    //        }
+    //    }
+    //}
+
+    SECTION("Continuity and Discontinuity Check") {
+        // Split interleaved samples into per-channel vectors
+        std::vector<std::vector<float>> channel_samples(NUM_CHANNELS);
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            channel_samples[ch].reserve(output_samples.size() / NUM_CHANNELS);
+        }
+        for (size_t i = 0; i + (NUM_CHANNELS - 1) < output_samples.size(); i += NUM_CHANNELS) {
+            for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+                channel_samples[ch].push_back(output_samples[i + ch]);
+            }
+        }
+
+        // Check for sample-to-sample discontinuities per channel
+        constexpr float MAX_SAMPLE_DIFF = 0.1f; // conservative for multi-tone content
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            std::size_t discontinuity_count = 0;
+            const auto &samples = channel_samples[ch];
+            for (size_t i = 1; i < samples.size(); ++i) {
+                float diff = std::abs(samples[i] - samples[i - 1]);
+                if (diff > MAX_SAMPLE_DIFF) {
+                    discontinuity_count++;
+                }
+            }
+            INFO("Channel " << ch << " discontinuities: " << discontinuity_count);
+            REQUIRE(discontinuity_count == 0);
+        }
+    }
 
     // Cleanup
     delete global_time_param;

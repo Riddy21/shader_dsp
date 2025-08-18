@@ -13,7 +13,7 @@ void main() {
 
         int offset = ((global_time_val - time_at_start + play_position) * num_channels + channel) % (playback_buffer_size.y);
 
-        float epsilon = 0.000000000001;
+        float epsilon = 0.0001;
 
         float playback_sample_index =  (float(offset) + epsilon) / float(playback_buffer_size.y);
 
