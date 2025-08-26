@@ -106,6 +106,10 @@ public:
         return m_output_parameters;
     }
 
+    const std::unordered_set<AudioRenderStage *> & get_input_connections() const {
+        return m_connected_stream_render_stages;
+    }
+
     GLuint get_shader_program() const {
         return m_shader_program->get_program();
     }
