@@ -85,8 +85,50 @@ int main() {
     graphics_display->add_view("debug", new DebugView());
     graphics_display->change_view("debug");
 
-    synthesizer.get_track(0).change_voice("triangle");
-    synthesizer.get_track(0).change_effect("none");
+    auto & event_handler = EventHandler::get_instance();
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'z',
+        [&synthesizer](const SDL_Event&) {
+            synthesizer.get_track(0).change_effect("none");
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'x',
+        [&synthesizer](const SDL_Event&) {
+            synthesizer.get_track(0).change_effect("echo");
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'c',
+        [&synthesizer](const SDL_Event&) {
+            synthesizer.get_track(0).change_effect("frequency_filter");
+            return true;
+        }
+    ));
+
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'v',
+        [&synthesizer](const SDL_Event&) {
+            synthesizer.get_track(0).change_voice("sine");
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'b',
+        [&synthesizer](const SDL_Event&) {
+            synthesizer.get_track(0).change_voice("saw");
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'n',
+        [&synthesizer](const SDL_Event&) {
+            synthesizer.get_track(0).change_voice("square");
+            return true;
+        }
+    ));
 
     //// Create another window for the interface
     //GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
@@ -119,7 +161,7 @@ int main() {
     //    }
     //));
 
-    //// Register key to toggle component outlines
+    // Register key to toggle component outlines
     //event_handler.register_entry(new KeyboardEventHandlerEntry(
     //    SDL_KEYDOWN, 'o',
     //    [](const SDL_Event&) {
@@ -131,8 +173,8 @@ int main() {
     //    }
     //));
     
-    std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
-    std::cout << "Press 'o' to toggle component outlines for debugging layout." << std::endl;
+    //std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
+    //std::cout << "Press 'o' to toggle component outlines for debugging layout." << std::endl;
 
     event_loop.run_loop();
     return 0;

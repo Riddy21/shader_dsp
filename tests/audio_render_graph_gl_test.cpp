@@ -10,6 +10,7 @@
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
 #include "audio_render_stage/audio_multitrack_join_render_stage.h"
+#include "audio_render_stage/audio_effect_render_stage.h"
 
 #include <string>
 #include <cmath>
@@ -214,6 +215,226 @@ void main() {
     delete graph;
 }
 
+
+TEMPLATE_TEST_CASE("AudioRenderGraph insert infront/behind plus replace/remove on linear chain", "[audio_render_graph][gl_test][template]",
+                   TestParam1, TestParam2, TestParam3) {
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
+    constexpr int SAMPLE_RATE = 44100;
+    constexpr int NUM_FRAMES = 3;
+
+    // OpenGL/EGL context for shader-based stages
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+
+    // Shaders
+    std::string constant_generator_shader = R"(
+void main() {
+    vec4 stream_audio = texture(stream_audio_texture, TexCoord);
+    output_audio_texture = vec4(CONSTANT_VALUE) + stream_audio;
+    debug_audio_texture = output_audio_texture;
+}
+)";
+
+    std::string multiplier_shader_tmpl = R"(
+void main() {
+    vec4 stream_audio = texture(stream_audio_texture, TexCoord);
+    output_audio_texture = stream_audio * MULTIPLY_FACTOR;
+    debug_audio_texture = output_audio_texture;
+}
+)";
+
+    std::string adder_shader_tmpl = R"(
+void main() {
+    vec4 stream_audio = texture(stream_audio_texture, TexCoord);
+    output_audio_texture = stream_audio + vec4(ADD_OFFSET);
+    debug_audio_texture = output_audio_texture;
+}
+)";
+
+    std::string identity_shader = R"(
+void main() {
+    vec4 stream_audio = texture(stream_audio_texture, TexCoord);
+    output_audio_texture = stream_audio;
+    debug_audio_texture = output_audio_texture;
+}
+)";
+
+    // Constants
+    const float GEN_CONSTANT = 0.4f;
+    const float MULTIPLY_FACTOR_1 = 2.0f;
+    const float ADD_OFFSET_1 = 0.1f;
+    const float ADD_OFFSET_2 = 0.3f; // for replacement
+
+    // Build initial chain: generator -> final
+    std::string gen_shader = constant_generator_shader;
+    gen_shader.replace(gen_shader.find("CONSTANT_VALUE"), 14, std::to_string(GEN_CONSTANT));
+    auto * generator = new AudioRenderStage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, gen_shader, true);
+
+    auto * final_stage = new AudioFinalRenderStage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    REQUIRE(generator->connect_render_stage(final_stage));
+
+    auto * graph = new AudioRenderGraph(final_stage);
+
+    const auto & initial_order = graph->get_render_order();
+    REQUIRE(initial_order.size() == 2);
+    REQUIRE(initial_order[0] == generator->gid);
+    REQUIRE(initial_order[1] == final_stage->gid);
+
+    REQUIRE(graph->initialize());
+    context.prepare_draw();
+
+    // Global time param
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    REQUIRE(global_time_param->initialize());
+
+    // Phase 1: insert behind generator (between generator and final)
+    std::string mult_shader = multiplier_shader_tmpl;
+    mult_shader.replace(mult_shader.find("MULTIPLY_FACTOR"), 15, std::to_string(MULTIPLY_FACTOR_1));
+    auto * mult_stage = new AudioRenderStage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, mult_shader, false);
+
+    REQUIRE(graph->insert_render_stage_behind(generator->gid, std::shared_ptr<AudioRenderStage>(mult_stage)));
+
+    {
+        const auto & order = graph->get_render_order();
+        REQUIRE(order.size() == 3);
+        REQUIRE(order[0] == generator->gid);
+        REQUIRE(order[1] == mult_stage->gid);
+        REQUIRE(order[2] == final_stage->gid);
+    }
+
+    // Verify rendering matches expected: GEN_CONSTANT * MULTIPLY_FACTOR_1
+    for (int frame = 0; frame < NUM_FRAMES; ++frame) {
+        graph->bind();
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        graph->render(frame);
+        const auto & data = final_stage->get_output_buffer_data();
+        REQUIRE(data.size() == static_cast<size_t>(BUFFER_SIZE * NUM_CHANNELS));
+        float expected = GEN_CONSTANT * MULTIPLY_FACTOR_1;
+        REQUIRE(std::abs(data[0] - expected) < 0.001f);
+    }
+
+    // Phase 2: insert in front of final (between mult and final) with adder (+0.1)
+    std::string add1_shader = adder_shader_tmpl;
+    add1_shader.replace(add1_shader.find("ADD_OFFSET"), 10, std::to_string(ADD_OFFSET_1));
+    auto * add_stage_1 = new AudioRenderStage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, add1_shader, false);
+
+    REQUIRE(graph->insert_render_stage_infront(final_stage->gid, std::shared_ptr<AudioRenderStage>(add_stage_1)));
+
+    {
+        const auto & order = graph->get_render_order();
+        REQUIRE(order.size() == 4);
+        REQUIRE(order[0] == generator->gid);
+        REQUIRE(order[1] == mult_stage->gid);
+        REQUIRE(order[2] == add_stage_1->gid);
+        REQUIRE(order[3] == final_stage->gid);
+    }
+
+    for (int frame = 0; frame < NUM_FRAMES; ++frame) {
+        graph->bind();
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        graph->render(frame);
+        const auto & data = final_stage->get_output_buffer_data();
+        REQUIRE(data.size() == static_cast<size_t>(BUFFER_SIZE * NUM_CHANNELS));
+        float expected = GEN_CONSTANT * MULTIPLY_FACTOR_1 + ADD_OFFSET_1;
+        REQUIRE(std::abs(data[0] - expected) < 0.001f);
+    }
+
+    // Phase 3: insert in front of generator (leading insert) with identity stage
+    auto * identity_stage = new AudioRenderStage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, identity_shader, false);
+    REQUIRE(graph->insert_render_stage_infront(generator->gid, std::shared_ptr<AudioRenderStage>(identity_stage)));
+
+    {
+        const auto & order = graph->get_render_order();
+        REQUIRE(order.size() == 5);
+        REQUIRE(order[0] == identity_stage->gid);
+        REQUIRE(order[1] == generator->gid);
+        REQUIRE(order[2] == mult_stage->gid);
+        REQUIRE(order[3] == add_stage_1->gid);
+        REQUIRE(order[4] == final_stage->gid);
+    }
+
+    // Value should remain unchanged with identity leading stage
+    for (int frame = 0; frame < NUM_FRAMES; ++frame) {
+        graph->bind();
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        graph->render(frame);
+        const auto & data = final_stage->get_output_buffer_data();
+        REQUIRE(data.size() == static_cast<size_t>(BUFFER_SIZE * NUM_CHANNELS));
+        float expected = GEN_CONSTANT * MULTIPLY_FACTOR_1 + ADD_OFFSET_1;
+        REQUIRE(std::abs(data[0] - expected) < 0.001f);
+    }
+
+    // Phase 4: replace adder (+0.1) with adder (+0.3)
+    std::string add2_shader = adder_shader_tmpl;
+    add2_shader.replace(add2_shader.find("ADD_OFFSET"), 10, std::to_string(ADD_OFFSET_2));
+    auto * add_stage_2 = new AudioRenderStage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, add2_shader, false);
+
+    auto replaced = graph->replace_render_stage(add_stage_1->gid, std::shared_ptr<AudioRenderStage>(add_stage_2));
+    REQUIRE(replaced != nullptr);
+    REQUIRE(replaced.get() == add_stage_1);
+
+    {
+        const auto & order = graph->get_render_order();
+        REQUIRE(order.size() == 5);
+        REQUIRE(order[0] == identity_stage->gid);
+        REQUIRE(order[1] == generator->gid);
+        REQUIRE(order[2] == mult_stage->gid);
+        REQUIRE(order[3] == add_stage_2->gid);
+        REQUIRE(order[4] == final_stage->gid);
+    }
+
+    for (int frame = 0; frame < NUM_FRAMES; ++frame) {
+        graph->bind();
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        graph->render(frame);
+        const auto & data = final_stage->get_output_buffer_data();
+        REQUIRE(data.size() == static_cast<size_t>(BUFFER_SIZE * NUM_CHANNELS));
+        float expected = GEN_CONSTANT * MULTIPLY_FACTOR_1 + ADD_OFFSET_2;
+        REQUIRE(std::abs(data[0] - expected) < 0.001f);
+    }
+
+    // Phase 5: remove multiplier stage
+    auto removed = graph->remove_render_stage(mult_stage->gid);
+    REQUIRE(removed != nullptr);
+    REQUIRE(removed.get() == mult_stage);
+
+    {
+        const auto & order = graph->get_render_order();
+        REQUIRE(order.size() == 4);
+        REQUIRE(order[0] == identity_stage->gid);
+        REQUIRE(order[1] == generator->gid);
+        REQUIRE(order[2] == add_stage_2->gid);
+        REQUIRE(order[3] == final_stage->gid);
+    }
+
+    for (int frame = 0; frame < NUM_FRAMES; ++frame) {
+        graph->bind();
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        graph->render(frame);
+        const auto & data = final_stage->get_output_buffer_data();
+        REQUIRE(data.size() == static_cast<size_t>(BUFFER_SIZE * NUM_CHANNELS));
+        float expected = GEN_CONSTANT + ADD_OFFSET_2;
+        REQUIRE(std::abs(data[0] - expected) < 0.001f);
+    }
+
+    // Phase 6: verify insert behind final fails
+    std::string mult2_shader = multiplier_shader_tmpl;
+    mult2_shader.replace(mult2_shader.find("MULTIPLY_FACTOR"), 15, "1.5");
+    auto * bad_stage = new AudioRenderStage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, mult2_shader, false);
+    REQUIRE_FALSE(graph->insert_render_stage_behind(final_stage->gid, std::shared_ptr<AudioRenderStage>(bad_stage)));
+
+    // Cleanup
+    delete graph;
+}
 
 TEMPLATE_TEST_CASE("AudioRenderGraph dynamic generator deletion with output capture", "[audio_render_graph][gl_test][template]",
                    TestParam1, TestParam2, TestParam3) {
@@ -1429,5 +1650,275 @@ void main() {
     // Cleanup
     delete graph;
     // All stages are owned by the graph and will be cleaned up when graph is deleted
+}
+
+
+TEMPLATE_TEST_CASE("AudioRenderGraph sine generator with echo and filter effects pipeline", "[audio_render_graph][gl_test][template][effects_pipeline]",
+                   TestParam1, TestParam2, TestParam3) {
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
+    constexpr int SAMPLE_RATE = 44100;
+    constexpr int NUM_FRAMES = SAMPLE_RATE/BUFFER_SIZE * 3; // 3 seconds
+    constexpr int PLAY_NOTE_FRAMES = SAMPLE_RATE/BUFFER_SIZE * 1; // 1 second
+
+    // OpenGL/EGL context for shader-based stages
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+
+    // Create the render graph pipeline: sine generator -> echo effect -> filter effect -> final stage
+    auto * sine_generator = new AudioGeneratorRenderStage(
+        BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS,
+        "build/shaders/multinote_sine_generator_render_stage.glsl"
+    );
+    
+    auto * echo_effect = new AudioEchoEffectRenderStage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    
+    auto * filter_effect = new AudioFrequencyFilterEffectRenderStage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    
+    auto * final_stage = new AudioFinalRenderStage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    // Connect the pipeline: generator -> echo -> filter -> final
+    REQUIRE(sine_generator->connect_render_stage(echo_effect));
+    REQUIRE(echo_effect->connect_render_stage(filter_effect));
+    REQUIRE(filter_effect->connect_render_stage(final_stage));
+
+    // Build graph from final output node
+    auto * graph = new AudioRenderGraph(final_stage);
+
+    // Verify render order is topologically sorted: generator, echo, filter, final
+    const auto & order = graph->get_render_order();
+    REQUIRE(order.size() == 4);
+    REQUIRE(order[0] == sine_generator->gid);
+    REQUIRE(order[1] == echo_effect->gid);
+    REQUIRE(order[2] == filter_effect->gid);
+    REQUIRE(order[3] == final_stage->gid);
+
+    // Initialize via the graph (initializes and binds all stages)
+    REQUIRE(graph->initialize());
+    context.prepare_draw();
+
+    // Configure effect parameters
+    // Echo effect settings
+    auto delay_param = echo_effect->find_parameter("delay");
+    auto decay_param = echo_effect->find_parameter("decay");
+    auto num_echos_param = echo_effect->find_parameter("num_echos");
+    
+    REQUIRE(delay_param != nullptr);
+    REQUIRE(decay_param != nullptr);
+    REQUIRE(num_echos_param != nullptr);
+    
+    delay_param->set_value(0.1f);
+    decay_param->set_value(0.3f);
+    num_echos_param->set_value(10);
+
+    // Filter effect settings - bandpass filter around the sine frequency
+    filter_effect->set_low_pass(800.0f);   // Low cutoff at 800Hz
+    filter_effect->set_high_pass(400.0f);  // High cutoff at 400Hz (creates bandpass)
+    filter_effect->set_resonance(1.2f);    // Slight resonance boost
+    filter_effect->set_filter_follower(0.0f); // No filter following
+
+    // Global time buffer param used by shaders
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    REQUIRE(global_time_param->initialize());
+
+    // Play a note and render frames, verifying output becomes non-zero
+    const float TONE = 440.0f;  // A4 note
+    const float GAIN = 0.4f;    // Moderate gain
+    sine_generator->play_note(TONE, GAIN);
+
+    // Create audio output for real-time playback
+    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    REQUIRE(audio_output.open());
+    REQUIRE(audio_output.start());
+
+    // Vector to store captured output samples for analysis
+    std::vector<float> captured_samples;
+    captured_samples.reserve(BUFFER_SIZE * NUM_CHANNELS * NUM_FRAMES);
+
+    bool produced_signal = false;
+    float max_amplitude = 0.0f;
+
+    for (int frame = 0; frame < NUM_FRAMES; ++frame) {
+
+        if (frame == PLAY_NOTE_FRAMES) {
+            sine_generator->stop_note(TONE);
+        }
+
+        graph->bind();
+
+        global_time_param->set_value(frame);
+        global_time_param->render();
+
+        graph->render(frame);
+
+        const auto & data = final_stage->get_output_buffer_data();
+        REQUIRE(data.size() == static_cast<size_t>(BUFFER_SIZE * NUM_CHANNELS));
+
+        // Capture the output data for analysis
+        captured_samples.insert(captured_samples.end(), data.begin(), data.end());
+
+        // Check for signal production
+        for (const auto& sample : data) {
+            if (std::abs(sample) > 0.001f) {
+                produced_signal = true;
+                max_amplitude = std::max(max_amplitude, std::abs(sample));
+            }
+        }
+
+        // Wait for audio output to be ready and push data
+        while (!audio_output.is_ready()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        audio_output.push(data.data());
+    }
+
+
+    // Analyze the captured audio for smoothness and continuity
+    SECTION("Audio Smoothness Analysis") {
+        INFO("Analyzing " << captured_samples.size() << " captured samples for smoothness");
+        
+        // Verify we have captured samples
+        REQUIRE(captured_samples.size() > 0);
+        
+        // Check that the audio is not all zeros
+        bool has_non_zero_samples = false;
+        for (const auto& sample : captured_samples) {
+            if (std::abs(sample) > 0.001f) {
+                has_non_zero_samples = true;
+                break;
+            }
+        }
+        REQUIRE(has_non_zero_samples);
+        
+        // Calculate RMS (Root Mean Square) to measure overall signal strength
+        float rms = 0.0f;
+        for (const auto& sample : captured_samples) {
+            rms += sample * sample;
+        }
+        rms = std::sqrt(rms / captured_samples.size());
+        
+        INFO("Audio RMS: " << rms);
+        REQUIRE(rms > 0.001f); // Should have some signal strength
+        
+        // Check for amplitude variation (indicating echo effect)
+        float min_amplitude = std::numeric_limits<float>::max();
+        float max_amplitude = 0.0f;
+        
+        for (const auto& sample : captured_samples) {
+            float abs_sample = std::abs(sample);
+            min_amplitude = std::min(min_amplitude, abs_sample);
+            max_amplitude = std::max(max_amplitude, abs_sample);
+        }
+        
+        INFO("Amplitude range: " << min_amplitude << " to " << max_amplitude);
+        REQUIRE(max_amplitude > min_amplitude); // Should have some variation
+        
+        // Verify the signal is not clipping (should be well below 1.0)
+        REQUIRE(max_amplitude < 0.95f);
+
+        // Check for smoothness by analyzing sample-to-sample differences
+        constexpr float MAX_SAMPLE_DIFF = 0.1f; // Maximum allowed difference between consecutive samples
+        constexpr float SMOOTHNESS_THRESHOLD = 0.05f; // Threshold for detecting discontinuities
+        
+        int discontinuity_count = 0;
+        float max_sample_diff = 0.0f;
+        float total_sample_diff = 0.0f;
+        int sample_diff_count = 0;
+        
+        for (size_t i = 1; i < captured_samples.size(); ++i) {
+            float diff = std::abs(captured_samples[i] - captured_samples[i-1]);
+            max_sample_diff = std::max(max_sample_diff, diff);
+            total_sample_diff += diff;
+            sample_diff_count++;
+            
+            // Count discontinuities (sudden large jumps)
+            if (diff > SMOOTHNESS_THRESHOLD) {
+                discontinuity_count++;
+            }
+        }
+        
+        float avg_sample_diff = total_sample_diff / sample_diff_count;
+        
+        INFO("Sample-to-sample analysis:");
+        INFO("  Maximum sample difference: " << max_sample_diff);
+        INFO("  Average sample difference: " << avg_sample_diff);
+        INFO("  Discontinuities detected: " << discontinuity_count << " out of " << sample_diff_count << " samples");
+        INFO("  Discontinuity rate: " << (float)discontinuity_count / sample_diff_count * 100.0f << "%");
+        
+        // Verify smoothness characteristics
+        REQUIRE(max_sample_diff < MAX_SAMPLE_DIFF); // No extreme jumps
+        REQUIRE(avg_sample_diff < 0.02f); // Generally smooth transitions
+        REQUIRE(discontinuity_count < sample_diff_count * 0.01f); // Less than 1% discontinuities
+        
+        // Check for frame boundary artifacts (common in render graph implementations)
+        constexpr int SAMPLES_PER_FRAME = BUFFER_SIZE * NUM_CHANNELS;
+        int frame_boundary_discontinuities = 0;
+        
+        for (int frame = 1; frame < NUM_FRAMES; ++frame) {
+            size_t frame_start = frame * SAMPLES_PER_FRAME;
+            if (frame_start < captured_samples.size() && frame_start > 0) {
+                float frame_boundary_diff = std::abs(captured_samples[frame_start] - captured_samples[frame_start - 1]);
+                if (frame_boundary_diff > SMOOTHNESS_THRESHOLD) {
+                    frame_boundary_discontinuities++;
+                }
+            }
+        }
+        
+        INFO("Frame boundary analysis:");
+        INFO("  Frame boundary discontinuities: " << frame_boundary_discontinuities << " out of " << (NUM_FRAMES - 1) << " frame boundaries");
+        INFO("  Frame boundary discontinuity rate: " << (float)frame_boundary_discontinuities / (NUM_FRAMES - 1) * 100.0f << "%");
+        
+        // Frame boundaries should be smooth (no more than 10% should have discontinuities)
+        REQUIRE(frame_boundary_discontinuities < (NUM_FRAMES - 1) * 0.1f);
+        
+        // Check for frequency domain smoothness (basic spectral analysis)
+        // Calculate power spectrum using simple FFT-like analysis
+        std::vector<float> power_spectrum(64, 0.0f); // Simple 64-bin spectrum
+        constexpr int FFT_SIZE = 256;
+        
+        for (int bin = 0; bin < 64; ++bin) {
+            float real_sum = 0.0f;
+            float imag_sum = 0.0f;
+            
+            for (int sample = 0; sample < std::min(FFT_SIZE, (int)captured_samples.size()); ++sample) {
+                float phase = 2.0f * M_PI * bin * sample / FFT_SIZE;
+                real_sum += captured_samples[sample] * std::cos(phase);
+                imag_sum += captured_samples[sample] * std::sin(phase);
+            }
+            
+            power_spectrum[bin] = std::sqrt(real_sum * real_sum + imag_sum * imag_sum);
+        }
+        
+        // Check for spectral smoothness (no sudden spikes in frequency domain)
+        float max_spectral_spike = 0.0f;
+        for (int bin = 1; bin < 63; ++bin) {
+            float left = power_spectrum[bin - 1];
+            float center = power_spectrum[bin];
+            float right = power_spectrum[bin + 1];
+            float avg_neighbors = (left + right) / 2.0f;
+            
+            if (avg_neighbors > 0.001f) { // Avoid division by zero
+                float spike_ratio = center / avg_neighbors;
+                max_spectral_spike = std::max(max_spectral_spike, spike_ratio);
+            }
+        }
+        
+        INFO("Spectral analysis:");
+        INFO("  Maximum spectral spike ratio: " << max_spectral_spike);
+        
+        // Spectral spikes should be reasonable (not more than 10x neighbors)
+        REQUIRE(max_spectral_spike < 10.0f);
+        
+        std::cout << "Audio smoothness analysis complete - signal appears smooth and continuous" << std::endl;
+    }
+
+    // Cleanup
+    audio_output.stop();
+    audio_output.close();
+    
+    // Cleanup via graph ownership of stages
+    delete graph;
 }
 

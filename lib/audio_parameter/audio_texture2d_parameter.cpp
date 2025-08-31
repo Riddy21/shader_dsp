@@ -199,8 +199,9 @@ const void * const AudioTexture2DParameter::get_value() const {
     else if (connection_type == ConnectionType::PASSTHROUGH) {
         AudioTexture2DParameter* previous_param = dynamic_cast<AudioTexture2DParameter*>(m_previous_parameter);
         if (previous_param == nullptr) {
-            printf("Error: Previous parameter is not an AudioTexture2DParameter in parameter %s\n", name.c_str());
-            return nullptr;
+            static std::vector<float> zero_data(m_parameter_width * m_parameter_height * 4, 0.0f);
+            return zero_data.data();
+
         }
         return previous_param->get_value();
     }

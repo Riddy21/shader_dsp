@@ -1529,3 +1529,57 @@ TEMPLATE_TEST_CASE("Texture2DParameter pass-through copy linking", "[audio_param
         framebuffer2.unbind();
     }
 }
+
+TEST_CASE("Unconnected PASSTHROUGH get_value returns 0 values", "[audio_parameter][gl_test][passthrough]") {
+    const char* vert_src = R"(
+        #version 300 es
+        precision mediump float;
+        layout(location = 0) in vec2 aPos;
+        layout(location = 1) in vec2 aTexCoord;
+        out vec2 TexCoord;
+        void main() {
+            gl_Position = vec4(aPos, 0.0, 1.0);
+            TexCoord = aTexCoord;
+        }
+    )";
+
+    const char* frag_src = R"(
+        #version 300 es
+        precision mediump float;
+        in vec2 TexCoord;
+        uniform sampler2D shared_tex;
+        out vec4 color;
+        void main() {
+            // Sample to ensure the uniform is active (non-optimized-out)
+            float r = texture(shared_tex, TexCoord).r;
+            color = vec4(r, 0.0, 0.0, 1.0);
+        }
+    )";
+
+    SDLWindow window(8, 1);
+    GLContext context;
+    AudioShaderProgram shader_prog(vert_src, frag_src);
+    REQUIRE(shader_prog.initialize());
+    GLFramebuffer framebuffer;
+
+    AudioTexture2DParameter passthrough_param(
+        "shared_tex",
+        AudioParameter::ConnectionType::PASSTHROUGH,
+        8, 1,
+        0,  // active texture
+        0,  // color attachment
+        GL_NEAREST,
+        GL_FLOAT,
+        GL_RGBA,
+        GL_RGBA32F
+    );
+
+    REQUIRE(passthrough_param.initialize(framebuffer.fbo, &shader_prog));
+
+    const float* pixels = static_cast<const float*>(passthrough_param.get_value());
+    // Check if its a vector of 0s
+    for (int i = 0; i < 8; i++) {
+        REQUIRE(pixels[i] == 0.0f);
+    }
+
+}
