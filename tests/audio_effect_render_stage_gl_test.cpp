@@ -462,11 +462,11 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
     constexpr int BUFFER_SIZE = params.buffer_size;
     constexpr int NUM_CHANNELS = params.num_channels;
     constexpr int SAMPLE_RATE = 44100;
-    constexpr float SINE_FREQUENCY = 440.0f; // A4 note
-    constexpr float SINE_AMPLITUDE = 0.5f; // Moderate volume
+    constexpr float SINE_FREQUENCY = 261.63 * std::pow(SEMI_TONE, 2);
+    constexpr float SINE_AMPLITUDE = 0.3f; // Moderate volume
     constexpr float ECHO_DELAY = 0.1f; // 200ms delay between echoes
-    constexpr float ECHO_DECAY = 0.5f; // Each echo is 50% of previous
-    constexpr int NUM_ECHOS = 10; // Test with 4 echoes for clear effect
+    constexpr float ECHO_DECAY = 0.4f; // Each echo is 50% of previous
+    constexpr int NUM_ECHOS = 5; // Test with 4 echoes for clear effect
     constexpr int PLAYBACK_SECONDS = 5; // Play for 5 seconds
     constexpr int NUM_FRAMES = (SAMPLE_RATE * PLAYBACK_SECONDS) / BUFFER_SIZE;
 
@@ -522,7 +522,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
         REQUIRE(audio_output.start());
 
         // Convert frequency to MIDI note (A4 = 440Hz = MIDI note 69)
-        float midi_note = 440.0f; // A4 note
+        float midi_note = SINE_FREQUENCY; // A4 note
         float note_gain = SINE_AMPLITUDE;
 
         // Start playing the note
