@@ -267,15 +267,24 @@ void TextComponent::initialize_text() {
         printf("Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError());
         return;
     }
-    
+
+    // Convert to ABGR8888 to match GL_RGBA byte order and eliminate padding
+    SDL_Surface* converted = SDL_ConvertSurfaceFormat(surface, SDL_PIXELFORMAT_ABGR8888, 0);
+    SDL_FreeSurface(surface);
+    if (!converted) {
+        printf("Unable to convert text surface! SDL Error: %s\n", SDL_GetError());
+        return;
+    }
+    surface = converted; // Use converted surface for texture creation
+
     // Create texture from surface
     glGenTextures(1, &m_text_texture);
     glBindTexture(GL_TEXTURE_2D, m_text_texture);
-    
+
     // Set texture parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    
+
     // Upload texture data
     glTexImage2D(
         GL_TEXTURE_2D, 
@@ -288,13 +297,13 @@ void TextComponent::initialize_text() {
         GL_UNSIGNED_BYTE, 
         surface->pixels
     );
-    
+
     // Store texture dimensions for aspect ratio calculations
     m_texture_width = surface->w;
     m_texture_height = surface->h;
-    
+
     glBindTexture(GL_TEXTURE_2D, 0);
-    
+
     // Free surface
     SDL_FreeSurface(surface);
 }
