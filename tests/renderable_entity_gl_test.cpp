@@ -68,7 +68,7 @@ private:
 };
 
 // Helper that renders the entity once and returns the centre pixel as floats
-static std::array<float, 4> read_center_pixel(DummyRenderableEntity & entity) {
+static std::array<float, 4> read_center_pixel(IRenderableEntity & entity) {
     // Read back a single pixel from the middle of the window's back buffer
     auto [w, h] = entity.get_render_context().get_size();
     GLint x = static_cast<GLint>(w / 2);
@@ -266,6 +266,85 @@ TEST_CASE("IRenderableEntity VSync affects presentation FPS", "[renderable_entit
     REQUIRE((fps_no_vsync - fps_vsync) > 1.0f); // Reduced threshold
 
     entity.unactivate_render_context();
+}
+
+// Define a minimal dummy entity that doesn't set clear color in render()
+class MinimalRenderableEntity : public IRenderableEntity {
+public:
+    MinimalRenderableEntity(unsigned int w = 64, unsigned int h = 64, bool visible = false, const std::string& title = "MinimalEntity")
+    {
+        REQUIRE(initialize_sdl(w, h, title, SDL_WINDOW_HIDDEN, visible, false));
+    }
+
+    bool is_ready() override { return true; }
+
+    void render() override {
+        activate_render_context();
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, get_render_context().get_size().first, get_render_context().get_size().second);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        update_render_fps();
+        // Do NOT unactivate here; let the test control it
+    }
+
+    void present() override {
+        IRenderableEntity::present();
+    }
+};
+
+TEST_CASE("IRenderableEntity OpenGL state independence between contexts", "[renderable_entity][context][state]") {
+    SDLInitGuard sdl_guard;
+
+    // Create two hidden entities
+    MinimalRenderableEntity entity1(64, 64, false, "Entity1");
+    MinimalRenderableEntity entity2(64, 64, false, "Entity2");
+
+    // Set clear color in entity1 to red (once)
+    entity1.activate_render_context();
+    glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+    entity1.unactivate_render_context();
+
+    // Set clear color in entity2 to green (once)
+    entity2.activate_render_context();
+    glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
+    entity2.unactivate_render_context();
+
+    // Now test rendering and state preservation over multiple switches
+    for (int iteration = 0; iteration < 3; ++iteration) {
+        // Render entity1, check pixel color and query clear color state
+        entity1.render();
+        entity1.present();
+        auto px1 = read_center_pixel(entity1);
+        REQUIRE(px1[0] == Catch::Approx(1.0f).margin(0.01f));
+        REQUIRE(px1[1] == Catch::Approx(0.0f).margin(0.01f));
+        REQUIRE(px1[2] == Catch::Approx(0.0f).margin(0.01f));
+
+        float clear_color1[4];
+        glGetFloatv(GL_COLOR_CLEAR_VALUE, clear_color1);
+        REQUIRE(clear_color1[0] == Catch::Approx(1.0f).margin(0.01f));
+        REQUIRE(clear_color1[1] == Catch::Approx(0.0f).margin(0.01f));
+        REQUIRE(clear_color1[2] == Catch::Approx(0.0f).margin(0.01f));
+        entity1.unactivate_render_context();
+
+        // Render entity2, check pixel color and query clear color state
+        entity2.render();
+        entity2.present();
+        auto px2 = read_center_pixel(entity2);
+        REQUIRE(px2[0] == Catch::Approx(0.0f).margin(0.01f));
+        REQUIRE(px2[1] == Catch::Approx(1.0f).margin(0.01f));
+        REQUIRE(px2[2] == Catch::Approx(0.0f).margin(0.01f));
+
+        float clear_color2[4];
+        glGetFloatv(GL_COLOR_CLEAR_VALUE, clear_color2);
+        REQUIRE(clear_color2[0] == Catch::Approx(0.0f).margin(0.01f));
+        REQUIRE(clear_color2[1] == Catch::Approx(1.0f).margin(0.01f));
+        REQUIRE(clear_color2[2] == Catch::Approx(0.0f).margin(0.01f));
+        entity2.unactivate_render_context();
+    }
+
+    // Final cleanup
+    entity1.unactivate_render_context();
+    entity2.unactivate_render_context();
 }
 
 #endif // RENDERABLE_ENTITY_GL_TEST_CPP 

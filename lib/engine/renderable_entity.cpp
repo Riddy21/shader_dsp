@@ -33,6 +33,8 @@ bool IRenderableEntity::initialize_sdl(
     bool visible,
     bool vsync_enabled
 ) {
+    activate_render_context();
+
     m_visible = visible; // Store visibility state
     m_vsync_enabled = vsync_enabled;
     m_title = title;
