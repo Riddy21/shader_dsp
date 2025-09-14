@@ -14,7 +14,7 @@ ButtonComponent::ButtonComponent(
 ) : GraphicsComponent(x, y, width, height),
     m_callback(callback)
 {
-    initialize_graphics();
+    // OpenGL resource initialization moved to initialize() method
 
     // Get window size at construction time
     int screen_width = 1, screen_height = 1;
@@ -114,7 +114,7 @@ ButtonComponent::~ButtonComponent() {
     unregister_event_handlers();
 }
 
-void ButtonComponent::initialize_graphics() {
+bool ButtonComponent::initialize() {
     // Simple vertex and fragment shaders for drawing a rectangle
     const std::string vertex_shader_src = R"(
         #version 300 es
@@ -139,7 +139,8 @@ void ButtonComponent::initialize_graphics() {
 
     m_shader_program = std::make_unique<AudioShaderProgram>(vertex_shader_src, fragment_shader_src);
     if (!m_shader_program->initialize()) {
-        throw std::runtime_error("Failed to initialize shader program for ButtonComponent");
+        std::cerr << "Failed to initialize shader program for ButtonComponent" << std::endl;
+        return false;
     }
 
     // Create a rectangle shape (two triangles)
@@ -166,9 +167,15 @@ void ButtonComponent::initialize_graphics() {
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+
+    GraphicsComponent::initialize();
+    
+    return true;
 }
 
 void ButtonComponent::render_content() {
+    if (!m_shader_program || m_vao == 0) return;
+    
     glUseProgram(m_shader_program->get_program());
     
     // Set color based on button state

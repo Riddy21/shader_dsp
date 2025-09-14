@@ -49,6 +49,17 @@ MenuSelectionComponent::~MenuSelectionComponent() {
     // Child components are cleaned up by the base class
 }
 
+bool MenuSelectionComponent::initialize() {
+    // MenuSelectionComponent doesn't have its own OpenGL resources
+    // Child components will be initialized by the base class
+    return true;
+}
+
+void MenuSelectionComponent::render_content() {
+    // MenuSelectionComponent doesn't render anything itself
+    // All rendering is done by child components
+}
+
 int MenuSelectionComponent::add_item(const std::string& text) {
     int index = static_cast<int>(m_items.size());
     

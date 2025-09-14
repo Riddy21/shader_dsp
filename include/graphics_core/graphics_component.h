@@ -25,6 +25,8 @@ public:
     virtual void register_event_handlers(EventHandler* event_handler);
     virtual void unregister_event_handlers();
     
+    // Initialize component resources - called when OpenGL context is available
+    virtual bool initialize();
     void render();
     void set_position(const float x, const float y);
     void get_position(float& x, float& y) const;
@@ -76,6 +78,9 @@ protected:
     EventHandler* m_event_handler = nullptr;
     std::vector<std::shared_ptr<EventHandlerEntry>> m_event_handler_entries;
     bool m_event_handlers_registered = false; // Flag to prevent double registration
+    
+    // Component initialization tracking
+    bool m_initialized = false;
     
     // Child components (owned by this component)
     std::vector<std::unique_ptr<GraphicsComponent>> m_children;

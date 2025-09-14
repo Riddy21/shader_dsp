@@ -9,7 +9,8 @@ MenuItemComponent::MenuItemComponent(
 ) : GraphicsComponent(x, y, width, height),
     m_index(item_index)
 {
-    initialize_graphics();
+    // Don't initialize OpenGL resources here - they'll be initialized by the base class
+    // when render() is first called and an OpenGL context is available
     
     // Create the text component as a child
     m_text_component = new TextComponent(x, y, width, height, text);
@@ -37,7 +38,7 @@ MenuItemComponent::~MenuItemComponent() {
     // Child components are cleaned up by the base class
 }
 
-void MenuItemComponent::initialize_graphics() {
+bool MenuItemComponent::initialize() {
     // Simple vertex and fragment shaders for drawing a rectangle
     const std::string vertex_shader_src = R"(
         #version 300 es
@@ -90,9 +91,18 @@ void MenuItemComponent::initialize_graphics() {
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+
+    GraphicsComponent::initialize();
+
+    return true;
 }
 
 void MenuItemComponent::render_content() {
+    // Skip rendering if shader program is not available
+    if (!m_shader_program) {
+        return;
+    }
+    
     glUseProgram(m_shader_program->get_program());
 
     if (m_colors_dirty) {

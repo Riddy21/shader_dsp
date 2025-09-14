@@ -25,10 +25,10 @@ TextComponent::TextComponent(
     m_scaling_params.vertical_alignment = 0.5;
     m_scaling_params.custom_aspect_ratio = 1.0f; // Use natural aspect ratio
     
+    // Initialize non-OpenGL resources
     initialize_ttf();
     initialize_default_font();
-    initialize_static_graphics();
-    initialize_text();
+    // OpenGL resource initialization moved to initialize() method
 
     m_text_dirty = true;
 }
@@ -38,6 +38,18 @@ TextComponent::~TextComponent() {
     if (m_text_texture != 0) {
         glDeleteTextures(1, &m_text_texture);
     }
+}
+
+bool TextComponent::initialize() {
+    // Initialize static graphics resources
+    initialize_static_graphics();
+    
+    // Initialize text texture
+    initialize_text();
+
+    GraphicsComponent::initialize();
+    
+    return true;
 }
 
 void TextComponent::initialize_ttf() {
@@ -287,6 +299,8 @@ void TextComponent::initialize_text() {
 }
 
 void TextComponent::render_content() {
+    if (!s_graphics_initialized || !s_text_shader) return;
+    
     if (m_text_dirty) {
         initialize_text();
         m_text_dirty = false;

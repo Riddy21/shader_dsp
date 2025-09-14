@@ -43,8 +43,11 @@ public:
     int get_index() const { return m_index; }
     void set_index(int index) { m_index = index; }
 
+protected:
+    // Override the base class initialization
+    bool initialize() override;
+    
 private:
-    void initialize_graphics();
     void update_colors();
 
     TextComponent* m_text_component;

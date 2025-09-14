@@ -43,8 +43,10 @@ public:
     // Get the aspect ratio of the loaded image
     float get_natural_aspect_ratio() const { return m_natural_aspect_ratio; }
 
+protected:
+    bool initialize() override;
+
 private:
-    void initialize_graphics();
     void create_texture_from_surface(SDL_Surface* surface);
     
     std::string m_image_path;

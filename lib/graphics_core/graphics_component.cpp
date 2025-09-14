@@ -20,11 +20,25 @@ GraphicsComponent::GraphicsComponent(
     }
 }
 
-// Virtual destructor is defaulted in header
+bool GraphicsComponent::initialize() {
+    for (auto& child : m_children) {
+        child->initialize();
+    }
+
+    m_initialized = true;
+
+    return true;
+}
+
 
 void GraphicsComponent::render() {
     // Skip rendering if dimensions are zero
     if (m_width <= 0 || m_height <= 0) return;
+
+    if (!m_initialized) {
+        printf("Component %p not initialized\n", this);
+        return;
+    }
     
     // Begin local rendering with viewport and scissor
     begin_local_rendering();

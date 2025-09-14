@@ -24,9 +24,9 @@ ImageComponent::ImageComponent(
     m_scaling_params.vertical_alignment = 0.5;
     m_scaling_params.custom_aspect_ratio = 1.0f; // Use natural aspect ratio
     
+    // Initialize SDL_image (non-OpenGL initialization)
     initialize_img();
-    initialize_static_graphics();
-    load_image(image_path);
+    // OpenGL resource initialization moved to initialize() method
 }
 
 ImageComponent::~ImageComponent() {
@@ -34,6 +34,22 @@ ImageComponent::~ImageComponent() {
     if (m_texture != 0) {
         glDeleteTextures(1, &m_texture);
     }
+}
+
+bool ImageComponent::initialize() {
+    // Initialize static graphics resources
+    initialize_static_graphics();
+    
+    // Load the image if a path was provided
+    if (!m_image_path.empty()) {
+        if (!load_image(m_image_path)) {
+            std::cerr << "Failed to load image: " << m_image_path << std::endl;
+            return false;
+        }
+    }
+    
+    GraphicsComponent::initialize();
+    return true;
 }
 
 void ImageComponent::initialize_img() {
@@ -201,7 +217,7 @@ void ImageComponent::create_texture_from_surface(SDL_Surface* surface) {
 }
 
 void ImageComponent::render_content() {
-    if (m_texture == 0) return;
+    if (m_texture == 0 || !s_graphics_initialized || !s_image_shader) return;
     
     // Bind texture
     glBindTexture(GL_TEXTURE_2D, m_texture);

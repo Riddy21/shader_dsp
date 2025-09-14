@@ -16,6 +16,19 @@ GraphComponent::GraphComponent(
     m_vbo(0),
     m_is_dynamic(is_dynamic)
 {
+    // OpenGL resource initialization moved to initialize() method
+}
+
+GraphComponent::~GraphComponent() {
+    if (m_vao != 0) {
+        glDeleteVertexArrays(1, &m_vao);
+    }
+    if (m_vbo != 0) {
+        glDeleteBuffers(1, &m_vbo);
+    }
+}
+
+bool GraphComponent::initialize() {
     // Initialize shader program using AudioShaderProgram
     const std::string vertex_shader_src = R"(
         #version 300 es
@@ -39,33 +52,37 @@ GraphComponent::GraphComponent(
 
     m_shader_program = std::make_unique<AudioShaderProgram>(vertex_shader_src, fragment_shader_src);
     if (!m_shader_program->initialize()) {
-        throw std::runtime_error("Failed to initialize shader program for GraphComponent");
+        std::cerr << "Failed to initialize shader program for GraphComponent" << std::endl;
+        return false;
     }
 
     glGenVertexArrays(1, &m_vao);
     glGenBuffers(1, &m_vbo);
 
-    set_data(data);
-}
+    // Initialize with current data
+    set_data(*m_data);
 
-GraphComponent::~GraphComponent() {
-    glDeleteVertexArrays(1, &m_vao);
-    glDeleteBuffers(1, &m_vbo);
+    GraphicsComponent::initialize();
+    
+    return true;
 }
 
 void GraphComponent::set_data(const std::vector<float>& data) {
     m_data = &data;
 
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    if (m_is_dynamic) {
-        glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), m_data, GL_DYNAMIC_DRAW);
-    } else {
-        glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), m_data, GL_STATIC_DRAW);
-    }   
+    // Only update buffer if OpenGL resources are initialized
+    if (m_vbo != 0) {
+        glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+        if (m_is_dynamic) {
+            glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), m_data->data(), GL_DYNAMIC_DRAW);
+        } else {
+            glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(float), m_data->data(), GL_STATIC_DRAW);
+        }   
+    }
 }
 
 void GraphComponent::render_content() {
-    if (!m_data->size()) return;
+    if (!m_data->size() || !m_shader_program || m_vao == 0) return;
 
     // Use the shader program with simplified coordinate system
     glUseProgram(m_shader_program->get_program());

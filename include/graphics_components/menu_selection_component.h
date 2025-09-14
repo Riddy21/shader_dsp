@@ -49,6 +49,10 @@ public:
     void set_font_size(int size);
     bool set_font(const std::string& font_name);
 
+protected:
+    bool initialize() override;
+    void render_content() override;
+
 private:
     void update_layout();
     
