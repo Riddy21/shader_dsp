@@ -48,10 +48,10 @@ void GraphicsView::remove_component(GraphicsComponent* component) {
 }
 
 void GraphicsView::initialize(EventHandler& event_handler, const RenderContext& render_context) {
+    std::cerr << "Initializing GraphicsView, GL context current: " << (SDL_GL_GetCurrentContext() != nullptr) << std::endl;
     set_render_context(render_context);
     set_event_handler(event_handler);
-    
-    // Initialize all components now that we have a valid OpenGL context
+
     for (auto& component : m_components) {
         component->initialize();
     }

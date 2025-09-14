@@ -1,6 +1,7 @@
 #include "graphics_views/debug_view.h"
 #include "audio_synthesizer/audio_synthesizer.h"
 #include "graphics_components/graph_component.h"
+#include "graphics_components/menu_item_component.h"
 
 DebugView::DebugView(const std::vector<const std::vector<float>*>& data)
     : GraphicsView()

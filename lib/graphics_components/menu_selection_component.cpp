@@ -49,17 +49,6 @@ MenuSelectionComponent::~MenuSelectionComponent() {
     // Child components are cleaned up by the base class
 }
 
-bool MenuSelectionComponent::initialize() {
-    // MenuSelectionComponent doesn't have its own OpenGL resources
-    // Child components will be initialized by the base class
-    return true;
-}
-
-void MenuSelectionComponent::render_content() {
-    // MenuSelectionComponent doesn't render anything itself
-    // All rendering is done by child components
-}
-
 int MenuSelectionComponent::add_item(const std::string& text) {
     int index = static_cast<int>(m_items.size());
     
@@ -172,6 +161,7 @@ void MenuSelectionComponent::select_previous() {
 }
 
 void MenuSelectionComponent::update_layout() {
+    m_item_height = m_height / m_items.size();
     float total_height = m_item_height * m_items.size() + m_item_padding * (m_items.size() - 1);
     float start_y = m_y;
     

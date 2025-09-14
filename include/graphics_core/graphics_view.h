@@ -45,6 +45,7 @@ protected:
     EventHandler* m_event_handler = nullptr; // Reference to the event handler
     RenderContext m_render_context; // Render context for this view
     std::vector<std::unique_ptr<GraphicsComponent>> m_components;
+    bool m_components_initialized = false; // Add this flag
 
     bool m_event_handlers_registered = false; // Flag to prevent double registration
 };

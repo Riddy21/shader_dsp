@@ -24,9 +24,6 @@ ImageComponent::ImageComponent(
     m_scaling_params.vertical_alignment = 0.5;
     m_scaling_params.custom_aspect_ratio = 1.0f; // Use natural aspect ratio
     
-    // Initialize SDL_image (non-OpenGL initialization)
-    initialize_img();
-    // OpenGL resource initialization moved to initialize() method
 }
 
 ImageComponent::~ImageComponent() {
@@ -37,6 +34,9 @@ ImageComponent::~ImageComponent() {
 }
 
 bool ImageComponent::initialize() {
+    // Initialize SDL_image (non-OpenGL initialization)
+    initialize_img();
+
     // Initialize static graphics resources
     initialize_static_graphics();
     

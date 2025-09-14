@@ -53,7 +53,6 @@ void EventLoop::run_loop() {
             // Dispatch SDL events to registered event handlers only
             for (auto* handler : m_event_handlers) {
                 if (handler->handle_event(event)) {
-                    printf("Event occurred: %d\n", event.type);
                     event_occurred = true;
                 }
             }

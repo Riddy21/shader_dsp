@@ -63,8 +63,10 @@ private:
     float m_normal_text_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     float m_selected_text_color[4] = {1.0f, 1.0f, 0.8f, 1.0f};
     
-    // OpenGL resources
+    // Static shader program shared by all menu items
     std::unique_ptr<AudioShaderProgram> m_shader_program;
+    
+    // Instance-specific OpenGL resources
     GLuint m_vao = 0;
     GLuint m_vbo = 0;
 };

@@ -49,10 +49,6 @@ public:
     void set_font_size(int size);
     bool set_font(const std::string& font_name);
 
-protected:
-    bool initialize() override;
-    void render_content() override;
-
 private:
     void update_layout();
     
@@ -61,7 +57,7 @@ private:
     SelectionCallback m_callback;
     
     float m_item_height = .50f;
-    float m_item_padding = 0.00f;
+    float m_item_padding = -0.001f;
     
     // Appearance settings (passed to items)
     float m_normal_color[4] = {0.2f, 0.2f, 0.2f, 1.0f};

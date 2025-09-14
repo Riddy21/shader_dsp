@@ -12,7 +12,8 @@ GraphicsComponent::GraphicsComponent(
     EventHandler* event_handler,
     const RenderContext& render_context
 ) : m_x(x), m_y(y), m_width(width), m_height(height), 
-    m_event_handler(event_handler), m_render_context(render_context) 
+    m_event_handler(event_handler), m_render_context(render_context),
+    m_initialized(false)
 {
     // Register event handlers if the event handler is provided
     if (m_event_handler) {
@@ -36,8 +37,11 @@ void GraphicsComponent::render() {
     if (m_width <= 0 || m_height <= 0) return;
 
     if (!m_initialized) {
-        printf("Component %p not initialized\n", this);
-        return;
+        std::cerr << "Calling initialize for GraphicsComponent" << std::endl;
+        if (!initialize()) {
+            std::cerr << "Failed to initialize GraphicsComponent" << std::endl;
+            return;
+        }
     }
     
     // Begin local rendering with viewport and scissor

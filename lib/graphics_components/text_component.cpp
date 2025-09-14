@@ -25,9 +25,6 @@ TextComponent::TextComponent(
     m_scaling_params.vertical_alignment = 0.5;
     m_scaling_params.custom_aspect_ratio = 1.0f; // Use natural aspect ratio
     
-    // Initialize non-OpenGL resources
-    initialize_ttf();
-    initialize_default_font();
     // OpenGL resource initialization moved to initialize() method
 
     m_text_dirty = true;
@@ -41,6 +38,10 @@ TextComponent::~TextComponent() {
 }
 
 bool TextComponent::initialize() {
+    // Initialize non-OpenGL resources
+    initialize_ttf();
+    initialize_default_font();
+
     // Initialize static graphics resources
     initialize_static_graphics();
     
