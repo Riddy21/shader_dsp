@@ -412,7 +412,6 @@ void AudioGeneratorRenderStage::play_note(const float tone, const float gain)
 
     // Update the shader parameters
     m_note_state.set_parameters(this);
-    printf("Played note %f\n", tone);
 }
 
 void AudioGeneratorRenderStage::stop_note(const float tone)

@@ -67,7 +67,6 @@ void EventLoop::run_loop() {
         if (event_occurred) {
             for (auto &item : m_items) {
                 item->activate_render_context();
-                item->present(); // Update immediately when event occurs
                 item->render();
             }
         }

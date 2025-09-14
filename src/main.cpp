@@ -92,7 +92,7 @@ int main() {
     interface_display->add_view("menu", new MenuView());
     interface_display->change_view("menu");
 
-    auto & event_handler = EventHandler::get_instance();
+   auto & event_handler = EventHandler::get_instance();
 
     event_handler.register_entry(new KeyboardEventHandlerEntry(
         SDL_KEYDOWN, 'z',

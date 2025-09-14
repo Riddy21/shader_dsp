@@ -16,31 +16,10 @@ ButtonComponent::ButtonComponent(
 {
     // OpenGL resource initialization moved to initialize() method
 
-    // Get window size at construction time
-    int screen_width = 1, screen_height = 1;
-    SDL_Window* win = SDL_GL_GetCurrentWindow();
-    if (win) {
-        SDL_Surface* surf = SDL_GetWindowSurface(win);
-        if (surf) {
-            screen_width = surf->w;
-            screen_height = surf->h;
-        }
-    }
-    
-    // Convert from normalized coordinates (-1 to 1, with -1 at top and 1 at bottom)
-    // to SDL event coordinates (0,0 top-left to width,height bottom-right)
-    int window_x = (int)((m_x + 1.0f) * screen_width / 2);
-    // For Y, -1 is at top and 1 is at bottom, so we need to invert
-    int window_y = (int)((1.0f - m_y) * screen_height / 2);
-    int window_width = (int)(m_width * screen_width / 2);
-    int window_height = (int)(m_height * screen_height / 2);
-
-    int rect_x = window_x;
-    int rect_y = window_y;
-
+    // Mouse event handlers now accept normalized coordinates directly
     auto mouse_down_handler = std::make_shared<MouseClickEventHandlerEntry>(
         SDL_MOUSEBUTTONDOWN,
-        rect_x, rect_y, window_width, window_height,
+        m_x, m_y, m_width, m_height,
         [this](const SDL_Event& event) {
             m_is_pressed = true;
             return true;
@@ -50,7 +29,7 @@ ButtonComponent::ButtonComponent(
 
     auto mouse_up_handler = std::make_shared<MouseClickEventHandlerEntry>(
         SDL_MOUSEBUTTONUP,
-        0, 0, screen_width, screen_height,
+        -1.0f, 1.0f, 2.0f, 2.0f,
         [this](const SDL_Event& event) {
             if (m_is_pressed) {
                 m_is_pressed = false;
@@ -64,7 +43,7 @@ ButtonComponent::ButtonComponent(
     );
 
     auto mouse_motion_handler = std::make_shared<MouseMotionEventHandlerEntry>(
-        rect_x, rect_y, window_width, window_height,
+        m_x, m_y, m_width, m_height,
         [this](const SDL_Event& event) {
             m_is_hovered = true;
             return true;
@@ -73,7 +52,7 @@ ButtonComponent::ButtonComponent(
     );
 
     auto mouse_enter_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
-        rect_x, rect_y, window_width, window_height,
+        m_x, m_y, m_width, m_height,
         MouseEnterLeaveEventHandlerEntry::Mode::ENTER,
         [this](const SDL_Event& event) {
             m_is_hovered = true;
@@ -83,7 +62,7 @@ ButtonComponent::ButtonComponent(
     );
 
     auto mouse_leave_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
-        rect_x, rect_y, window_width, window_height,
+        m_x, m_y, m_width, m_height,
         MouseEnterLeaveEventHandlerEntry::Mode::LEAVE,
         [this](const SDL_Event& event) {
             m_is_hovered = false;
