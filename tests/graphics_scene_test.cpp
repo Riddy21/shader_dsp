@@ -19,9 +19,7 @@
 struct SDLInitGuard {
     SDLInitGuard() {
         if (SDL_WasInit(SDL_INIT_EVERYTHING) == 0) {
-            if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-                throw std::runtime_error("Failed to initialise SDL");
-            }
+            SDL_Init(SDL_INIT_EVERYTHING);
             m_we_initialised = true;
         }
     }

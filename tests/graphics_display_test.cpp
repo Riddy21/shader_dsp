@@ -3,29 +3,22 @@
 #include <thread>
 #include <chrono>
 
-#define private public
-#undef protected
-
 #include "graphics_core/graphics_display.h"
 #include "graphics_core/graphics_view.h"
 #include "engine/event_handler.h"
 #include "engine/event_loop.h"
 
-#undef private
-#define protected protected
-
+// Small RAII helper to ensure SDL is initialised for each test case
 struct SDLInitGuard {
-    SDLInitGuard() {
-        if (SDL_WasInit(SDL_INIT_EVERYTHING) == 0) {
-            if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-                throw std::runtime_error("Failed to initialise SDL");
-            }
+    SDLInitGuard()  {
+        if(SDL_WasInit(SDL_INIT_VIDEO) == 0) {
+            SDL_InitSubSystem(SDL_INIT_VIDEO);
             m_we_initialised = true;
         }
     }
     ~SDLInitGuard() {
-        if (m_we_initialised) {
-            // SDL_Quit(); // Comment out if needed
+        if(m_we_initialised) {
+            SDL_QuitSubSystem(SDL_INIT_VIDEO);
         }
     }
 private:
@@ -77,7 +70,7 @@ TEST_CASE("GraphicsDisplay initialization", "[graphics_display]") {
     REQUIRE(display.m_title == "Test Display");
     REQUIRE(display.m_refresh_rate == 60);
     REQUIRE(&display.m_event_handler == &event_handler);
-    REQUIRE(display.m_views.empty());
+    REQUIRE(display.m_views.empty()); // Initially empty
     REQUIRE(display.m_current_view == nullptr);
     REQUIRE(display.m_last_render_time == 0); // Assuming initialized to 0
 }

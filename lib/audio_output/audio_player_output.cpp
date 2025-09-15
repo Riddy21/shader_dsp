@@ -47,7 +47,6 @@ bool AudioPlayerOutput::start() {
 
 void AudioPlayerOutput::error(const char* message) {
     fprintf(stderr, "SDL error: %s\n", message);
-    SDL_Quit();
 }
 
 AudioPlayerOutput::~AudioPlayerOutput() {
@@ -55,7 +54,6 @@ AudioPlayerOutput::~AudioPlayerOutput() {
         clear_queue();
         SDL_CloseAudioDevice(m_device_id);
     }
-    SDL_Quit();
     printf("AudioPlayerOutput Destroyed\n");
 }
 

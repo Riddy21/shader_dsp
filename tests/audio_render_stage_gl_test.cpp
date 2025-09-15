@@ -349,6 +349,7 @@ void main(){
     // Disconnect and connect to passthrough2
     REQUIRE(stage1.disconnect_render_stage(&passthrough1));
     REQUIRE(stage1.connect_render_stage(&passthrough2));
+    REQUIRE(stage1.bind());
     REQUIRE(passthrough2.bind());
 
     // Render next 2 frames with passthrough2 and check continuity

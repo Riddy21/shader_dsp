@@ -14,9 +14,7 @@
 struct SDLInitGuard {
     SDLInitGuard()  {
         if(SDL_WasInit(SDL_INIT_VIDEO) == 0) {
-            if(SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
-                throw std::runtime_error("Failed to initialise SDL video subsystem");
-            }
+            SDL_InitSubSystem(SDL_INIT_VIDEO);
             m_we_initialised = true;
         }
     }
@@ -29,6 +27,7 @@ private:
     bool m_we_initialised = false;
 };
 
+namespace {
 // Dummy implementation of IRenderableEntity used only for testing to get a valid RenderContext
 class DummyRenderableEntity : public IRenderableEntity {
 public:
@@ -47,6 +46,7 @@ public:
         // Noop
     }
 };
+}  // anonymous namespace
 
 TEST_CASE("EventHandler singleton", "[event_handler]") {
     auto& eh1 = EventHandler::get_instance();

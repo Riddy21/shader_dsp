@@ -16,9 +16,6 @@ EventLoop& EventLoop::get_instance() {
 
 EventLoop::~EventLoop() {
     m_items.clear();
-    
-    // The render context items will clean up their SDL resources
-    SDL_Quit();
 }
 
 // Changed to accept reference and move to unique_ptr
@@ -59,6 +56,7 @@ void EventLoop::run_loop() {
             // If user requests exit through SDL window close
             if (event.type == SDL_QUIT) {
                 printf("Received SDL_QUIT event, terminating event loop.\n");
+                SDL_Quit();
                 return;
             }
         }
@@ -99,13 +97,12 @@ void EventLoop::run_loop() {
             last_time = current_time;
         }
     }
-
-    SDL_Quit();
 }
 
 void EventLoop::terminate() {
     SDL_Event event;
     event.type = SDL_QUIT;
     SDL_PushEvent(&event);
+    SDL_Quit();
 }
 

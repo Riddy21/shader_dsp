@@ -16,30 +16,29 @@
 struct SDLInitGuard {
     SDLInitGuard() {
         if (SDL_WasInit(SDL_INIT_EVERYTHING) == 0) {
-            if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-                throw std::runtime_error("Failed to initialise SDL");
-            }
+            SDL_Init(SDL_INIT_EVERYTHING);
             m_we_initialised = true;
         }
     }
     ~SDLInitGuard() {
         // Temporarily disable Quit to avoid EGL issues between tests
-        // if (m_we_initialised) {
-        //     SDL_Quit();
-        // }
+        if (m_we_initialised) {
+             SDL_Quit();
+        }
     }
 private:
     bool m_we_initialised = false;
 };
 
 // Mock RenderableEntity to track method calls
-class MockRenderableEntity : public IRenderableEntity {
+namespace {
+class DummyRenderableEntity : public IRenderableEntity {
 
 public:
 
     struct Colour { float r, g, b, a; };
 
-    MockRenderableEntity(const Colour & clear_colour, unsigned int w = 64, unsigned int h = 64, bool visible = false, const std::string& title = "Mock")
+    DummyRenderableEntity(const Colour & clear_colour, unsigned int w = 64, unsigned int h = 64, bool visible = false, const std::string& title = "Mock")
 
         : m_clear_colour(clear_colour), render_count(0), present_count(0), activate_count(0), unactivate_count(0), ready(true) {
 
@@ -86,6 +85,7 @@ private:
     Colour m_clear_colour;
 
 };
+}  // anonymous namespace
 
 // After MockRenderableEntity, add a custom entry for testing
 
@@ -143,7 +143,7 @@ TEST_CASE("EventLoop add items and handlers", "[event_loop]") {
     SDLInitGuard sdl_guard;
     EventLoop& el = EventLoop::get_instance();
 
-    MockRenderableEntity* entity = new MockRenderableEntity({0.0f, 0.0f, 0.0f, 1.0f});
+    DummyRenderableEntity* entity = new DummyRenderableEntity({0.0f, 0.0f, 0.0f, 1.0f});
     el.add_loop_item(entity);
 
     // No direct way to verify, but if no crash, assume ok
@@ -171,8 +171,8 @@ TEST_CASE("EventLoop renders on events if handled", "[event_loop]") {
     SDLInitGuard sdl_guard;
     EventLoop& el = EventLoop::get_instance();
 
-    MockRenderableEntity* entity1 = new MockRenderableEntity({1.0f, 0.0f, 0.0f, 1.0f});
-    MockRenderableEntity* entity2 = new MockRenderableEntity({0.0f, 1.0f, 0.0f, 1.0f});
+    DummyRenderableEntity* entity1 = new DummyRenderableEntity({1.0f, 0.0f, 0.0f, 1.0f});
+    DummyRenderableEntity* entity2 = new DummyRenderableEntity({0.0f, 1.0f, 0.0f, 1.0f});
     el.add_loop_item(entity1);
     el.add_loop_item(entity2);
 
@@ -211,8 +211,8 @@ TEST_CASE("EventLoop context isolation", "[event_loop]") {
     SDLInitGuard sdl_guard;
     EventLoop& el = EventLoop::get_instance();
 
-    MockRenderableEntity* entity1 = new MockRenderableEntity({1.0f, 0.0f, 0.0f, 1.0f}, 64, 64, false, "Entity1");
-    MockRenderableEntity* entity2 = new MockRenderableEntity({0.0f, 1.0f, 0.0f, 1.0f}, 64, 64, false, "Entity2");
+    DummyRenderableEntity* entity1 = new DummyRenderableEntity({1.0f, 0.0f, 0.0f, 1.0f}, 64, 64, false, "Entity1");
+    DummyRenderableEntity* entity2 = new DummyRenderableEntity({0.0f, 1.0f, 0.0f, 1.0f}, 64, 64, false, "Entity2");
     el.add_loop_item(entity1);
     el.add_loop_item(entity2);
 

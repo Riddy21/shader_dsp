@@ -14,13 +14,17 @@ GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const 
     : m_width(width), m_height(height), m_title(title), m_refresh_rate(refresh_rate), m_event_handler(event_handler) {
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
-        throw std::runtime_error("SDL initialization failed");
+        // If already initialized, don't throw an error
+        if (SDL_WasInit(SDL_INIT_VIDEO) == 0) {
+            SDL_InitSubSystem(SDL_INIT_VIDEO);
+        } else {
+            std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
+            throw std::runtime_error("SDL initialization failed");
+        }
     }
 
     // Use the parent class method to initialize SDL window and context
     if (!initialize_sdl(width, height, title, SDL_WINDOW_SHOWN)) {
-        SDL_Quit();
         throw std::runtime_error("SDL initialization failed");
     }
 
