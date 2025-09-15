@@ -1,5 +1,4 @@
 #include <iostream>
-#include <GL/glew.h>
 #include "graphics_components/menu_item_component.h"
 #include "utilities/shader_program.h"
 #include "engine/event_handler.h"
@@ -10,7 +9,8 @@ MenuItemComponent::MenuItemComponent(
 ) : GraphicsComponent(x, y, width, height),
     m_index(item_index)
 {
-    initialize_graphics();
+    // Don't initialize OpenGL resources here - they'll be initialized by the base class
+    // when render() is first called and an OpenGL context is available
     
     // Create the text component as a child
     m_text_component = new TextComponent(x, y, width, height, text);
@@ -22,7 +22,6 @@ MenuItemComponent::MenuItemComponent(
         m_normal_text_color[2], 
         m_normal_text_color[3]
     );
-    
     add_child(m_text_component);
 }
 
@@ -38,20 +37,20 @@ MenuItemComponent::~MenuItemComponent() {
     // Child components are cleaned up by the base class
 }
 
-void MenuItemComponent::initialize_graphics() {
+bool MenuItemComponent::initialize() {
     // Simple vertex and fragment shaders for drawing a rectangle
     const std::string vertex_shader_src = R"(
-        #version 330 core
+        #version 300 es
         layout (location = 0) in vec2 aPos;
         
         void main() {
-            // aPos is already in [-1, 1] range
             gl_Position = vec4(aPos, 0.0, 1.0);
         }
     )";
 
     const std::string fragment_shader_src = R"(
-        #version 330 core
+        #version 300 es
+        precision mediump float;
         out vec4 FragColor;
         
         uniform vec4 uColor;
@@ -63,7 +62,8 @@ void MenuItemComponent::initialize_graphics() {
 
     m_shader_program = std::make_unique<AudioShaderProgram>(vertex_shader_src, fragment_shader_src);
     if (!m_shader_program->initialize()) {
-        throw std::runtime_error("Failed to initialize shader program for MenuItemComponent");
+        std::cerr << "Failed to initialize shader program for MenuItemComponent" << std::endl;
+        return false;
     }
 
     // Create a rectangle shape (two triangles)
@@ -90,23 +90,27 @@ void MenuItemComponent::initialize_graphics() {
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+
+    GraphicsComponent::initialize();
+    
+    return true;
 }
 
 void MenuItemComponent::render_content() {
+    if (!m_shader_program || m_vao == 0) return;
+    
     glUseProgram(m_shader_program->get_program());
-
+    
+    float* color = m_is_selected ? m_selected_color : m_normal_color;
     if (m_colors_dirty) {
         update_colors();
         m_colors_dirty = false;
     }
-    
-    // Set color based on selected state
-    float* color = m_is_selected ? m_selected_color : m_normal_color;
 
     glUniform4f(glGetUniformLocation(m_shader_program->get_program(), "uColor"), 
                 color[0], color[1], color[2], color[3]);
     
-    // Draw the menu item background
+    // Draw the button background
     glBindVertexArray(m_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     glBindVertexArray(0);

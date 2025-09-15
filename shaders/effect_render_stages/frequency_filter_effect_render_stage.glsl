@@ -42,7 +42,8 @@ void main() {
     }
     
     // Output the result to the red channel.
+    int channel = int(TexCoord.y * float(num_channels));
 
     output_audio_texture = vec4(y, 0.0, 0.0, 0.0);
-    debug_audio_texture = output_audio_texture;
+    debug_audio_texture = texture(stream_audio_texture, TexCoord);
 }

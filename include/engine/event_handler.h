@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
-#include "engine/renderable_item.h"
+#include "engine/renderable_entity.h"
 
 // Forward declarations
 class EventHandlerEntry;
@@ -97,17 +97,20 @@ private:
 // Mouse event handler entry base class (abstract)
 class MouseEventHandlerEntry : public EventHandlerEntry {
 protected:
-    MouseEventHandlerEntry(int x, int y, int w, int h, EventCallback cb, RenderContext context = RenderContext())
-        : EventHandlerEntry(context, std::move(cb)),
-          rect_x(x), rect_y(y), rect_w(w), rect_h(h) {}
+    MouseEventHandlerEntry(float x, float y, float w, float h, EventCallback cb, RenderContext context = RenderContext())
+        : EventHandlerEntry(context, std::move(cb)), 
+          normalized_x(x), normalized_y(y), normalized_w(w), normalized_h(h) {}
+
+    float normalized_x, normalized_y, normalized_w, normalized_h;
     
-    // Legacy constructor for backward compatibility
-    MouseEventHandlerEntry(int x, int y, int w, int h, EventCallback cb, unsigned int window_id)
-        : EventHandlerEntry(window_id, std::move(cb)),
-          rect_x(x), rect_y(y), rect_w(w), rect_h(h) {}
-          
-    int rect_x, rect_y, rect_w, rect_h;
+protected:
+    // Helper methods for converting normalized coordinates to screen coordinates
+    void convert_normalized_to_rect(int& rect_x, int& rect_y, int& rect_w, int& rect_h) const;
+    // Helper methods for state tracking
+    bool is_inside(int mouse_x, int mouse_y) const;
+
 private:
+
     // Prevent direct instantiation
     MouseEventHandlerEntry(const MouseEventHandlerEntry&) = delete;
     MouseEventHandlerEntry& operator=(const MouseEventHandlerEntry&) = delete;
@@ -116,23 +119,19 @@ private:
 // Mouse click event handler entry
 class MouseClickEventHandlerEntry : public MouseEventHandlerEntry {
 public:
-    MouseClickEventHandlerEntry(Uint32 type, int x, int y, int w, int h, EventCallback cb, RenderContext context = RenderContext());
-    // Legacy constructor for backward compatibility
-    MouseClickEventHandlerEntry(Uint32 type, int x, int y, int w, int h, EventCallback cb, unsigned int window_id);
+    MouseClickEventHandlerEntry(Uint32 type, float x, float y, float w, float h, EventCallback cb, RenderContext context = RenderContext());
     bool matches(const SDL_Event& event) override;
 private:
     Uint32 event_type;
-    // rect_x, rect_y, rect_w, rect_h inherited
+    // normalized_x, normalized_y, normalized_w, normalized_h inherited
 };
 
 // Mouse motion handler entry for tracking cursor movement over a region
 class MouseMotionEventHandlerEntry : public MouseEventHandlerEntry {
 public:
-    MouseMotionEventHandlerEntry(int x, int y, int w, int h, EventCallback cb, RenderContext context = RenderContext());
-    // Legacy constructor for backward compatibility
-    MouseMotionEventHandlerEntry(int x, int y, int w, int h, EventCallback cb, unsigned int window_id);
+    MouseMotionEventHandlerEntry(float x, float y, float w, float h, EventCallback cb, RenderContext context = RenderContext());
     bool matches(const SDL_Event& event) override;
-    // rect_x, rect_y, rect_w, rect_h inherited
+    // normalized_x, normalized_y, normalized_w, normalized_h inherited
 };
 
 // Mouse enter/leave handler to detect when cursor enters or leaves a region
@@ -140,14 +139,10 @@ class MouseEnterLeaveEventHandlerEntry : public MouseEventHandlerEntry {
 public:
     enum class Mode { ENTER, LEAVE };
     
-    MouseEnterLeaveEventHandlerEntry(int x, int y, int w, int h, Mode mode, EventCallback cb, RenderContext context = RenderContext());
-    // Legacy constructor for backward compatibility
-    MouseEnterLeaveEventHandlerEntry(int x, int y, int w, int h, Mode mode, EventCallback cb, unsigned int window_id);
+    MouseEnterLeaveEventHandlerEntry(float x, float y, float w, float h, Mode mode, EventCallback cb, RenderContext context = RenderContext());
     bool matches(const SDL_Event& event) override;
     
 private:
-    // Helper methods for state tracking
-    bool is_inside(int mouse_x, int mouse_y) const;
     void update_last_position(int mouse_x, int mouse_y);
 
     Mode mode;

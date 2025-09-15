@@ -29,6 +29,9 @@ public:
 
     static const std::vector<std::string> default_frag_shader_imports;
 
+    // Convenience function to set gains for actual number of channels
+    void set_channel_gains(const std::vector<float>& channel_gains);
+
     ~AudioGainEffectRenderStage() {};
 };
 
@@ -45,13 +48,13 @@ public:
     ~AudioEchoEffectRenderStage() {};
 
 private:
+    static constexpr unsigned int M_MAX_ECHO_BUFFER_SIZE = 500;
+
     void render(const unsigned int time) override;
 
     bool disconnect_render_stage(AudioRenderStage * render_stage) override;
 
     std::vector<float> m_echo_buffer;
-
-    static const unsigned int M_MAX_ECHO_BUFFER_SIZE = 300;
 };
 
 class AudioFrequencyFilterEffectRenderStage : public AudioEffectRenderStage {

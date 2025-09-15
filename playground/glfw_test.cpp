@@ -1,5 +1,3 @@
-#define GLEW_ES
-#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
 
@@ -25,12 +23,6 @@ int main() {
     }
 
     glfwMakeContextCurrent(window);
-    
-    glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK) {
-        std::cerr << "Failed to initialize GLEW\n";
-        return -1;
-    }
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 

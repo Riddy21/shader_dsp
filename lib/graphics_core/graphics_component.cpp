@@ -12,7 +12,8 @@ GraphicsComponent::GraphicsComponent(
     EventHandler* event_handler,
     const RenderContext& render_context
 ) : m_x(x), m_y(y), m_width(width), m_height(height), 
-    m_event_handler(event_handler), m_render_context(render_context) 
+    m_event_handler(event_handler), m_render_context(render_context),
+    m_initialized(false)
 {
     // Register event handlers if the event handler is provided
     if (m_event_handler) {
@@ -20,7 +21,16 @@ GraphicsComponent::GraphicsComponent(
     }
 }
 
-// Virtual destructor is defaulted in header
+bool GraphicsComponent::initialize() {
+    for (auto& child : m_children) {
+        child->initialize();
+    }
+
+    m_initialized = true;
+
+    return true;
+}
+
 
 void GraphicsComponent::render() {
     // Skip rendering if dimensions are zero
@@ -274,7 +284,7 @@ void GraphicsComponent::draw_outline() {
     
     // We'll use a simple pass-through shader
     const char* vert_src = R"(
-        #version 330 core
+        #version 300 es
         layout (location = 0) in vec2 aPos;
         void main() {
             gl_Position = vec4(aPos, 0.0, 1.0);
@@ -282,7 +292,8 @@ void GraphicsComponent::draw_outline() {
     )";
     
     const char* frag_src = R"(
-        #version 330 core
+        #version 300 es
+        precision mediump float;
         out vec4 FragColor;
         uniform vec4 uColor;
         void main() {
@@ -313,7 +324,6 @@ void GraphicsComponent::draw_outline() {
     // Setup for line drawing
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glLineWidth(2.0f);
     
     // Draw the outline
     glBindVertexArray(line_vao);

@@ -1,4 +1,3 @@
-#include <GL/glew.h>
 #include <GL/glut.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -205,12 +204,6 @@ int main(int argc, char** argv) {
     glutCreateWindow("Rotating Cube");
 
     glEnable(GL_DEPTH_TEST);
-
-    GLenum err = glewInit();
-    if (err != GLEW_OK) {
-        std::cerr << "Error: " << glewGetErrorString(err) << std::endl;
-        return -1;
-    }
 
     createShaderProgram();
     initVAO();

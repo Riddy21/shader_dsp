@@ -25,7 +25,7 @@ AudioSingleShaderFileGeneratorRenderStage::AudioSingleShaderFileGeneratorRenderS
         new AudioTexture2DParameter("full_audio_data_texture",
                               AudioParameter::ConnectionType::INITIALIZATION,
                               width, height,
-                              ++m_active_texture_count,
+                              m_active_texture_count++,
                               0, GL_LINEAR);
 
     full_audio_texture->set_value(full_audio_data.data());
@@ -53,7 +53,7 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int 
         new AudioTexture2DParameter("full_audio_data_texture",
                               AudioParameter::ConnectionType::INITIALIZATION,
                               width, height,
-                              ++m_active_texture_count,
+                              m_active_texture_count++,
                               0, GL_LINEAR);
 
     full_audio_texture->set_value(full_audio_data.data());

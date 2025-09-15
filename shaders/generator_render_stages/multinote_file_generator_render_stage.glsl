@@ -1,14 +1,14 @@
 uniform sampler2D full_audio_data_texture;
 
 vec2 translate_coord(vec2 coord, int time, float speed, int channel) {
-    // Get the chunk size
+    // get the chunk size
     ivec2 audio_size = textureSize(full_audio_data_texture, 0);
 
     int total_audio_size = audio_size.x * audio_size.y / 2 / num_channels; // divide by 2 because spacing
 
     ivec2 chunk_size = ivec2(float(buffer_size) * speed, 1);
 
-    // Calculate the offset
+    // calculate the offset
     int chunk_offset = time * chunk_size.x % total_audio_size; // repeat
     //int chunk_offset = time * chunk_size.x; // no repeat
 

@@ -63,7 +63,7 @@ AudioPlaybackRenderStage::AudioPlaybackRenderStage(const unsigned int frames_per
     auto playback_texture = new AudioTexture2DParameter("playback_texture",
                                                         AudioParameter::ConnectionType::INPUT,
                                                         frames_per_buffer, num_channels * M_TAPE_SIZE, // Store 2 seconds of sound at a time
-                                                        ++m_active_texture_count,
+                                                        m_active_texture_count++,
                                                         0,
                                                         GL_NEAREST);
     auto playback_data = new float[frames_per_buffer * num_channels * M_TAPE_SIZE];
@@ -104,7 +104,6 @@ void AudioPlaybackRenderStage::load_tape(const Tape & tape) {
 void AudioPlaybackRenderStage::play(unsigned int play_position) {
     printf("Playing at position %d\n", play_position);
     this->find_parameter("play_position")->set_value(play_position);
-    this->find_parameter("time_at_start")->set_value(m_time);
     this->find_parameter("play")->set_value(true);
 }
 
@@ -146,32 +145,35 @@ void AudioPlaybackRenderStage::load_tape_data_to_texture(const Tape & tape, cons
 }
 
 void AudioPlaybackRenderStage::render(const unsigned int time) {
-    // Only load the data into the playback_texture if 
-    // Play parameter is true
-    // tape is loaded
-    // There is still data left to play
-    auto offset = get_current_tape_position(time);
+    // Detect play state transition and preload the correct chunk for a seamless start
+    const bool now_playing = is_playing();
+    const unsigned int chunk_size = frames_per_buffer * num_channels * M_TAPE_SIZE;
 
-    // Use a member variable instead of a static variable
-    if (is_playing() && !m_playing) {
-        load_tape_data_to_texture(*m_tape_ptr, 0);
+    if (now_playing && !m_playing) {
+        // Start playback on this frame: capture start time and load the tape chunk
+        this->find_parameter("time_at_start")->set_value(time);
+
+        if (m_tape_ptr != nullptr) {
+            const unsigned int start_offset = get_current_tape_position(time);
+            const unsigned int aligned_offset = start_offset - (start_offset % chunk_size);
+            load_tape_data_to_texture(*m_tape_ptr, aligned_offset);
+        }
     }
 
-    m_playing = is_playing();
+    m_playing = now_playing;
 
-    // If it's still currently playing and the time has changed
-    if (is_playing()) {
-        // If there is still audio to play
+    if (now_playing) {
+        const unsigned int offset = get_current_tape_position(time);
+
+        // Keep streaming while there is audio left
         if (m_tape_ptr != nullptr && offset < m_tape_ptr->size()) {
-            // If there's a need to load more data from the tape
-            if (offset % (frames_per_buffer * num_channels * M_TAPE_SIZE) == 0) {
+            if (offset % chunk_size == 0) {
                 load_tape_data_to_texture(*m_tape_ptr, offset);
             }
         } else {
             stop();
         }
     }
-    
 
     AudioRenderStage::render(time);
 }

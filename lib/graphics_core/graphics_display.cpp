@@ -1,5 +1,4 @@
 #include <SDL2/SDL.h>
-#include <GL/glew.h>
 #include <iostream>
 #include <thread>
 #include <string>
@@ -15,19 +14,25 @@ GraphicsDisplay::GraphicsDisplay(unsigned int width, unsigned int height, const 
     : m_width(width), m_height(height), m_title(title), m_refresh_rate(refresh_rate), m_event_handler(event_handler) {
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
-        throw std::runtime_error("SDL initialization failed");
+        // If already initialized, don't throw an error
+        if (SDL_WasInit(SDL_INIT_VIDEO) == 0) {
+            SDL_InitSubSystem(SDL_INIT_VIDEO);
+        } else {
+            std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
+            throw std::runtime_error("SDL initialization failed");
+        }
     }
 
     // Use the parent class method to initialize SDL window and context
-    if (!initialize_sdl(width, height, title, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN)) {
-        SDL_Quit();
+    if (!initialize_sdl(width, height, title, SDL_WINDOW_SHOWN)) {
         throw std::runtime_error("SDL initialization failed");
     }
 
     if (SDL_GL_SetSwapInterval(0) < 0) { // Disable VSync
         std::cerr << "Warning: Unable to disable VSync: " << SDL_GetError() << std::endl;
     }
+
+    set_vsync_enabled(false);
 
     // TODO: Consdier putting this in Constructor as a default
     auto& event_loop = EventLoop::get_instance();
@@ -39,8 +44,11 @@ GraphicsDisplay::~GraphicsDisplay() {
 }
 
 void GraphicsDisplay::add_view(const std::string& name, GraphicsView* view) {
+    // TODO: Think of way to avoid this by making it RAII
+    activate_render_context();
     m_views[name] = std::unique_ptr<GraphicsView>(view);
     m_views[name]->initialize(m_event_handler, this->get_render_context());
+    unactivate_render_context();
 }
 
 void GraphicsDisplay::change_view(const std::string& name) {

@@ -33,3 +33,9 @@ yarn-error.log
 # Claude
 .build_completed
 .claude
+
+# Cursor
+.cursor_server/
+
+# PulseAudio
+.pulse_audio_ready

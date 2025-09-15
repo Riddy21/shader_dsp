@@ -2,8 +2,9 @@
 #ifndef AUDIO_SHADER_PROGRAM_H
 #define AUDIO_SHADER_PROGRAM_H
 
-#include <GL/glew.h>
 #include <string>
+#include <GLES3/gl3.h>
+#include <EGL/egl.h>
 
 class AudioShaderProgram {
 public:
@@ -14,6 +15,8 @@ public:
     GLuint get_program() const;
     const std::string get_vertex_shader_source() const {return m_vertex_shader_source;}
     const std::string get_fragment_shader_source() const {return m_fragment_shader_source;}
+    
+    void use_program() const;
 
 private:
     bool compile_shader(GLuint shader, const std::string& source);

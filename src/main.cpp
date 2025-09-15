@@ -61,17 +61,13 @@ void setup_keyboard(AudioSynthesizer& synthesizer, EventLoop& event_loop) {
 }
 
 int main() {
-    EventLoop& event_loop = EventLoop::get_instance();
-
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Failed to initialize SDL2: " << SDL_GetError() << std::endl;
         return false;
     }
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    
+    EventLoop& event_loop = EventLoop::get_instance();
+
     auto & synthesizer = AudioSynthesizer::get_instance();
     if (!synthesizer.initialize(512, 44100, 2)) {
         std::cerr << "Failed to initialize AudioSynthesizer." << std::endl;
@@ -96,7 +92,7 @@ int main() {
     interface_display->add_view("menu", new MenuView());
     interface_display->change_view("menu");
 
-    auto & event_handler = EventHandler::get_instance();
+   auto & event_handler = EventHandler::get_instance();
 
     event_handler.register_entry(new KeyboardEventHandlerEntry(
         SDL_KEYDOWN, 'z',
@@ -120,7 +116,7 @@ int main() {
         }
     ));
 
-    // Register key to toggle component outlines
+    //Register key to toggle component outlines
     event_handler.register_entry(new KeyboardEventHandlerEntry(
         SDL_KEYDOWN, 'o',
         [](const SDL_Event&) {
@@ -136,5 +132,6 @@ int main() {
     std::cout << "Press 'o' to toggle component outlines for debugging layout." << std::endl;
 
     event_loop.run_loop();
+    SDL_Quit();
     return 0;
 }

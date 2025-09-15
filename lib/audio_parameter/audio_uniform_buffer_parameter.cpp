@@ -1,5 +1,6 @@
 #include <cstring>
 #include <stdexcept>
+#include <unordered_map>
 
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
 
@@ -7,8 +8,7 @@ unsigned int AudioUniformBufferParameter::total_binding_points = 0;
 
 AudioUniformBufferParameter::AudioUniformBufferParameter(const std::string name,
                                                          AudioParameter::ConnectionType connection_type)
-    : AudioParameter(name, connection_type),
-      m_binding_point(total_binding_points++)
+    : AudioParameter(name, connection_type)
 {
     // Cannot set value for output or passthrough parameters
     if (connection_type == ConnectionType::OUTPUT || connection_type == ConnectionType::PASSTHROUGH) {
@@ -80,3 +80,41 @@ void AudioUniformBufferParameter::render() {
     }
 
 }
+
+// ----------  Per-context binding-point registry  -------------------------
+
+#include <EGL/egl.h>
+
+std::unordered_map<void*, AudioUniformBufferParameter::ContextData>
+    AudioUniformBufferParameter::s_context_registry;
+
+AudioUniformBufferParameter::ContextData &
+AudioUniformBufferParameter::current_context_data()
+{
+    void *ctx = static_cast<void*>(eglGetCurrentContext()); // per-thread current EGL context
+    return s_context_registry[ctx]; // default-construct if absent
+}
+
+unsigned AudioUniformBufferParameter::get_binding_point_for_block(const std::string &name)
+{
+    auto &ctxData = current_context_data();
+    auto it = ctxData.binding_points.find(name);
+    if (it != ctxData.binding_points.end()) return it->second;
+
+    unsigned newPoint = ctxData.next_binding_point++;
+    ctxData.binding_points[name] = newPoint;
+    return newPoint;
+}
+
+void AudioUniformBufferParameter::bind_registered_blocks(GLuint program)
+{
+    const auto &ctxData = current_context_data();
+    for (const auto &kv : ctxData.binding_points) {
+        GLuint blockIndex = glGetUniformBlockIndex(program, kv.first.c_str());
+        if (blockIndex != GL_INVALID_INDEX) {
+            glUniformBlockBinding(program, blockIndex, kv.second);
+        }
+    }
+}
+
+// -------------------------------------------------------------------------

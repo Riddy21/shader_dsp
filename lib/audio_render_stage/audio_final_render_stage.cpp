@@ -21,7 +21,7 @@ AudioFinalRenderStage::AudioFinalRenderStage(const unsigned int frames_per_buffe
                                     frames_per_buffer,
                                     num_channels,
                                     0,
-                                    ++m_color_attachment_count,
+                                    m_color_attachment_count++,
                                     GL_NEAREST);
 
     m_output_data_channel_seperated.resize(num_channels);

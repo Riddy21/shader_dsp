@@ -15,5 +15,6 @@ void main(){
     
     // Finally, sample the input texture at the rotated coordinate.
     final_output_audio_texture = texture(stream_audio_texture, inTexCoord);
+    debug_audio_texture = texture(stream_audio_texture, inTexCoord);
     output_audio_texture = texture(stream_audio_texture, TexCoord);
 }

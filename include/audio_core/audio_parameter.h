@@ -2,7 +2,6 @@
 #ifndef AUDIO_PARAMETER_H
 #define AUDIO_PARAMETER_H
 
-#include <GL/glew.h>
 #include <GL/glut.h>
 #include <GL/freeglut.h>
 #include <memory>
@@ -31,18 +30,10 @@ public:
     const ConnectionType connection_type;
 
     // Linking to other parameters
-    virtual bool link(AudioParameter * parameter) {
-        m_linked_parameter = parameter;
-        return true;
-    }
-
-    virtual bool unlink() {
-        m_linked_parameter = nullptr;
-        return true;
-    }
+    bool link(AudioParameter * parameter);
+    bool unlink();
 
     ~AudioParameter() {
-        printf("Deleting parameter %s\n", name.c_str());
     }
 
     // Setters
@@ -75,8 +66,20 @@ public:
         return m_linked_parameter;
     }
 
+    AudioParameter * get_previous_parameter() const {
+        return m_previous_parameter;
+    }
+
+    GLuint get_framebuffer_linked() const {
+        return m_framebuffer_linked;
+    }
+
     bool is_connected() const {
         return m_linked_parameter != nullptr;
+    }
+
+    bool has_previous() const {
+        return m_previous_parameter != nullptr;
     }
 
 
@@ -100,9 +103,16 @@ protected:
 
     std::unique_ptr<ParamData> m_data = nullptr; // Using unique pointer to cast to derived class
     AudioParameter * m_linked_parameter = nullptr;
+    AudioParameter * m_previous_parameter = nullptr; // Reverse link for bidirectional traversal
     GLuint m_framebuffer_linked = 0;
     AudioShaderProgram * m_shader_program_linked = nullptr;
     bool m_update_param = true;
+
+    AudioParameter(const AudioParameter&) = delete;    // Disable copy and assignment
+    AudioParameter& operator=(const AudioParameter&) = delete;
+
+
+
 };
 
 #endif // AUDIO_PARAMETER_H

@@ -92,6 +92,7 @@ AudioModule::AudioModule(const std::string& name,
         throw std::invalid_argument("Render stages cannot be empty");
     }
     for (const auto & stage : render_stages) {
+        std::cout << "Stage GID: " << stage->gid << " Name: " << typeid(*stage).name() << std::endl;
         if (stage->frames_per_buffer != this->m_buffer_size ||
             stage->sample_rate != this->m_sample_rate ||
             stage->num_channels != this->m_num_channels) {

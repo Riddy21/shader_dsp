@@ -1,5 +1,4 @@
 #include <iostream>
-#include <GL/glew.h>
 #include "graphics_components/menu_selection_component.h"
 #include "engine/event_handler.h"
 #include "graphics_core/graphics_display.h"
@@ -162,6 +161,7 @@ void MenuSelectionComponent::select_previous() {
 }
 
 void MenuSelectionComponent::update_layout() {
+    m_item_height = m_height / m_items.size();
     float total_height = m_item_height * m_items.size() + m_item_padding * (m_items.size() - 1);
     float start_y = m_y;
     

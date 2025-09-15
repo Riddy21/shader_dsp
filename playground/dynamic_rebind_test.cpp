@@ -1,5 +1,7 @@
-#include <GL/glew.h>
+#include <GLES3/gl3.h>
+#include <EGL/egl.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_syswm.h>
 #include <iostream>
 
 // -----------------------------------------------------------------------------
@@ -15,6 +17,8 @@ static GLuint vbo         = 0;
 static GLuint programFirstPass = 0;
 // Second-pass program (just displays the chosen texture)
 static GLuint programDisplay   = 0;
+// Modified display program for window A
+static GLuint programDisplayWindowA = 0;
 
 // Toggle which texture to attach to the FBO
 static bool useTextureB = false;
@@ -31,11 +35,16 @@ static const GLfloat quadVertices[] = {
      1.f,  1.f,     1.f, 1.f
 };
 
-// SDL Globals
+// SDL and EGL Globals
 static SDL_Window* windowA = nullptr;
 static SDL_Window* windowB = nullptr;
-static SDL_GLContext contextA = nullptr;
-static SDL_GLContext contextB = nullptr;
+
+// EGL objects - shared between windows
+static EGLDisplay eglDisplay = EGL_NO_DISPLAY;
+static EGLSurface eglSurfaceA = EGL_NO_SURFACE;
+static EGLSurface eglSurfaceB = EGL_NO_SURFACE;
+static EGLContext eglContext = EGL_NO_CONTEXT;
+static EGLConfig eglConfig = nullptr;
 
 // Starting clear colors for each context
 static const GLfloat clearColorA[] = {0.2f, 0.2f, 0.2f, 1.0f};
@@ -106,6 +115,11 @@ void main() {
     float tri = movingTriangle(vTexCoord, uTime);
     base = mix(base, vec3(1.0, 1.0, 0.2), tri);
 
+    // Ensure we have a visible color even if uniforms fail
+    if (length(base) < 0.1) {
+        base = vec3(1.0, 0.0, 0.0); // Fallback to red
+    }
+
     FragColor = vec4(base, 1.0);
 }
 )";
@@ -123,6 +137,36 @@ uniform sampler2D uTexture;
 
 void main() {
     FragColor = texture(uTexture, vTexCoord);
+}
+)";
+
+// Modified display shader for window A - inverts colors and adds a border
+static const char* fsDisplayWindowA = R"(
+#version 300 es
+precision mediump float;
+
+in vec2 vTexCoord;
+out vec4 FragColor;
+
+uniform sampler2D uTexture;
+
+void main() {
+    vec4 texColor = texture(uTexture, vTexCoord);
+    
+    // Invert the colors
+    vec3 inverted = 1.0 - texColor.rgb;
+    
+    // Add a subtle border effect
+    float border = 0.05;
+    float edge = smoothstep(0.0, border, vTexCoord.x) * 
+                 smoothstep(1.0, 1.0 - border, vTexCoord.x) *
+                 smoothstep(0.0, border, vTexCoord.y) * 
+                 smoothstep(1.0, 1.0 - border, vTexCoord.y);
+    
+    // Mix inverted color with border
+    vec3 finalColor = mix(inverted, vec3(0.8, 0.8, 0.8), 1.0 - edge);
+    
+    FragColor = vec4(finalColor, texColor.a);
 }
 )";
 
@@ -153,8 +197,11 @@ static GLuint createProgram(const char* vs, const char* fs) {
     GLuint vsObj = compileShader(GL_VERTEX_SHADER, vs);
     GLuint fsObj = compileShader(GL_FRAGMENT_SHADER, fs);
     if (!vsObj || !fsObj) {
+        std::cerr << "Failed to compile shaders" << std::endl;
         return 0;
     }
+
+    std::cout << "Shaders compiled successfully" << std::endl;
 
     GLuint prog = glCreateProgram();
     glAttachShader(prog, vsObj);
@@ -173,6 +220,8 @@ static GLuint createProgram(const char* vs, const char* fs) {
         glDeleteProgram(prog);
         return 0;
     }
+
+    std::cout << "Program linked successfully" << std::endl;
 
     // Clean up
     glDetachShader(prog, vsObj);
@@ -233,6 +282,95 @@ static void rebindFramebufferTexture() {
 }
 
 // -----------------------------------------------------------------------------
+// EGL initialization helpers
+// -----------------------------------------------------------------------------
+static bool initializeEGL(EGLDisplay& display, EGLSurface& surface, EGLContext& context, EGLConfig& config, SDL_Window* window) {
+    // Get EGL display
+    display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (display == EGL_NO_DISPLAY) {
+        std::cerr << "EGL: Failed to get EGL display" << std::endl;
+        return false;
+    }
+
+    // Initialize EGL
+    EGLint majorVersion, minorVersion;
+    if (!eglInitialize(display, &majorVersion, &minorVersion)) {
+        std::cerr << "EGL: Failed to initialize EGL" << std::endl;
+        return false;
+    }
+
+    // Choose EGL config
+    const EGLint configAttribs[] = {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RED_SIZE, 8,
+        EGL_GREEN_SIZE, 8,
+        EGL_BLUE_SIZE, 8,
+        EGL_ALPHA_SIZE, 8,
+        EGL_DEPTH_SIZE, 24,
+        EGL_STENCIL_SIZE, 8,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,
+        EGL_NONE
+    };
+
+    EGLint numConfigs;
+    if (!eglChooseConfig(display, configAttribs, &config, 1, &numConfigs)) {
+        std::cerr << "EGL: Failed to choose EGL config" << std::endl;
+        return false;
+    }
+
+    if (numConfigs == 0) {
+        std::cerr << "EGL: No suitable EGL config found" << std::endl;
+        return false;
+    }
+
+    // Create EGL surface
+    SDL_SysWMinfo wmInfo;
+    SDL_VERSION(&wmInfo.version);
+    if (!SDL_GetWindowWMInfo(window, &wmInfo)) {
+        std::cerr << "EGL: Failed to get window WM info" << std::endl;
+        return false;
+    }
+
+    surface = eglCreateWindowSurface(display, config, 
+                                   (EGLNativeWindowType)wmInfo.info.x11.window, NULL);
+    if (surface == EGL_NO_SURFACE) {
+        std::cerr << "EGL: Failed to create EGL surface" << std::endl;
+        return false;
+    }
+
+    // Create EGL context - share with the first context if it exists
+    const EGLint contextAttribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 3,
+        EGL_NONE
+    };
+
+    context = eglCreateContext(display, config, EGL_NO_CONTEXT, contextAttribs);
+    if (context == EGL_NO_CONTEXT) {
+        std::cerr << "EGL: Failed to create EGL context" << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+static void cleanupEGL(EGLDisplay& display, EGLSurface& surface, EGLContext& context) {
+    if (context != EGL_NO_CONTEXT) {
+        eglDestroyContext(display, context);
+        context = EGL_NO_CONTEXT;
+    }
+    
+    if (surface != EGL_NO_SURFACE) {
+        eglDestroySurface(display, surface);
+        surface = EGL_NO_SURFACE;
+    }
+    
+    if (display != EGL_NO_DISPLAY) {
+        eglTerminate(display);
+        display = EGL_NO_DISPLAY;
+    }
+}
+
+// -----------------------------------------------------------------------------
 // Initialization
 // -----------------------------------------------------------------------------
 static void initSDL() {
@@ -241,45 +379,55 @@ static void initSDL() {
         exit(EXIT_FAILURE);
     }
 
-    // Set OpenGL attributes
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-
     // Create two windows
-    windowA = SDL_CreateWindow("Window A", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
-    windowB = SDL_CreateWindow("Window B", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN);
+    windowA = SDL_CreateWindow("Window A", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_SHOWN);
+    windowB = SDL_CreateWindow("Window B", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_SHOWN);
 
     if (!windowA || !windowB) {
         std::cerr << "SDL window creation error: " << SDL_GetError() << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    // Create OpenGL contexts
-    contextA = SDL_GL_CreateContext(windowA);
-    contextB = SDL_GL_CreateContext(windowB);
-
-    if (!contextA || !contextB) {
-        std::cerr << "SDL context creation error: " << SDL_GetError() << std::endl;
+    // Initialize EGL for both windows with shared context
+    if (!initializeEGL(eglDisplay, eglSurfaceA, eglContext, eglConfig, windowA)) {
+        std::cerr << "Failed to initialize EGL for window A" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    
+    // Create surface for second window using same display and context
+    SDL_SysWMinfo wmInfo;
+    SDL_VERSION(&wmInfo.version);
+    if (!SDL_GetWindowWMInfo(windowB, &wmInfo)) {
+        std::cerr << "EGL: Failed to get window WM info for window B" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    // Initialize GLEW
-    glewExperimental = GL_TRUE;
-    GLenum err = glewInit();
-    if (GLEW_OK != err) {
-        std::cerr << "GLEW init error: " << glewGetErrorString(err) << std::endl;
+    eglSurfaceB = eglCreateWindowSurface(eglDisplay, eglConfig, 
+                                       (EGLNativeWindowType)wmInfo.info.x11.window, NULL);
+    if (eglSurfaceB == EGL_NO_SURFACE) {
+        std::cerr << "EGL: Failed to create EGL surface for window B" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    // Enable VSync
-    SDL_GL_SetSwapInterval(1);
+    // Make window A context current initially
+    if (!eglMakeCurrent(eglDisplay, eglSurfaceA, eglSurfaceA, eglContext)) {
+        std::cerr << "EGL: Failed to make context current for window A" << std::endl;
+        exit(EXIT_FAILURE);
+    }
 }
 
 static void initGL() {
     // Create programs
     programFirstPass = createProgram(vsSource, fsFirstPass);
     programDisplay   = createProgram(vsSource, fsDisplay);
+    programDisplayWindowA = createProgram(vsSource, fsDisplayWindowA);
+
+    if (!programFirstPass || !programDisplay || !programDisplayWindowA) {
+        std::cerr << "Failed to create shader programs" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::cout << "Shader programs created successfully" << std::endl;
 
     // Setup VAO/VBO
     glGenVertexArrays(1, &vao);
@@ -311,18 +459,39 @@ static void initGL() {
 // -----------------------------------------------------------------------------
 // Display function
 // -----------------------------------------------------------------------------
-static void renderToContext(SDL_Window* window, SDL_GLContext context, const GLfloat* clearColor, GLuint targetTexture, bool isWindowA) {
-    SDL_GL_MakeCurrent(window, context);
+static void renderToContext(SDL_Window* window, EGLDisplay display, EGLSurface surface, EGLContext context, const GLfloat* clearColor, GLuint targetTexture, bool isWindowA) {
+    // Make the context current
+    if (!eglMakeCurrent(display, surface, surface, context)) {
+        std::cerr << "EGL: Failed to make context current" << std::endl;
+        return;
+    }
+
+    // Check for OpenGL errors
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        std::cerr << "OpenGL error before rendering: 0x" << std::hex << error << std::dec << std::endl;
+    }
 
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
 
     if (isWindowA) {
-        // Render a moving solid color for windowA
+        // Render a texture to windowA - use the same texture as window B but with different shader
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, w, h);
-        glClearColor(0.5f + 0.5f * sin(offsetX), 0.0f, 0.0f, 1.0f); // Moving red intensity
+        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        // Use a modified display shader for window A
+        glUseProgram(programDisplayWindowA);
+        GLint locTex = glGetUniformLocation(programDisplayWindowA, "uTexture");
+        glUniform1i(locTex, 0);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, targetTexture);
+
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
     } else {
         // Pass 1: Render to FBO with the specified target texture
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -337,6 +506,14 @@ static void renderToContext(SDL_Window* window, SDL_GLContext context, const GLf
         // Pass time to shader
         GLint locTime = glGetUniformLocation(programFirstPass, "uTime");
         glUniform1f(locTime, animTime);
+
+        // Debug: Check if uniforms were set correctly
+        if (locUseTexB == -1) {
+            std::cerr << "Warning: uUseTexB uniform not found" << std::endl;
+        }
+        if (locTime == -1) {
+            std::cerr << "Warning: uTime uniform not found" << std::endl;
+        }
 
         glBindVertexArray(vao);
         glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -357,7 +534,8 @@ static void renderToContext(SDL_Window* window, SDL_GLContext context, const GLf
         glDrawArrays(GL_TRIANGLES, 0, 6);
     }
 
-    SDL_GL_SwapWindow(window);
+    // Swap buffers
+    eglSwapBuffers(display, surface);
 }
 
 static void display() {
@@ -366,13 +544,14 @@ static void display() {
     // Update animation time for windowB
     animTime += animSpeed;
 
-    // Render a moving graphic to windowA
-    renderToContext(windowA, contextA, clearColorA, colorTexA, true);
-
-    // Render the triangle and gradient to the currently selected texture,
-    // then display that texture in windowB.
+    // Render the triangle and gradient to the currently selected texture
     GLuint targetTex = useTextureB ? colorTexB : colorTexA;
-    renderToContext(windowB, contextB, clearColorB, targetTex, false);
+    
+    // First, render the gradient to the texture in window B
+    renderToContext(windowB, eglDisplay, eglSurfaceB, eglContext, clearColorB, targetTex, false);
+
+    // Then display that texture in window A
+    renderToContext(windowA, eglDisplay, eglSurfaceA, eglContext, clearColorA, targetTex, true);
 }
 
 // -----------------------------------------------------------------------------
@@ -408,8 +587,8 @@ int main(int argc, char** argv) {
     }
 
     // Cleanup
-    SDL_GL_DeleteContext(contextA);
-    SDL_GL_DeleteContext(contextB);
+    cleanupEGL(eglDisplay, eglSurfaceA, eglContext);
+    cleanupEGL(eglDisplay, eglSurfaceB, eglContext);
     SDL_DestroyWindow(windowA);
     SDL_DestroyWindow(windowB);
     SDL_Quit();

@@ -19,6 +19,7 @@ public:
     void add_event_handler(EventHandler* handler); // New method
     void run_loop();
     void terminate();
+    void remove_loop_item(IRenderableEntity* item);
 
 private:
     EventLoop() = default;
