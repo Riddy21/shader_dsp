@@ -131,6 +131,7 @@ TEST_CASE("EventLoop add items and handlers", "[event_loop]") {
     el.add_loop_item(entity);
 
     // No direct way to verify, but if no crash, assume ok
+    el.remove_loop_item(entity);
 }
 
 TEST_CASE("EventLoop terminates on SDL_QUIT", "[event_loop]") {
@@ -182,6 +183,9 @@ TEST_CASE("EventLoop renders on events if handled", "[event_loop]") {
     el.run_loop();
 
     terminator.join();
+
+    el.remove_loop_item(entity1);
+    el.remove_loop_item(entity2);
 
     // Check that handle was called and renders happened
     REQUIRE(handled.load());
@@ -249,6 +253,9 @@ TEST_CASE("EventLoop context isolation", "[event_loop]") {
     // Check activation counts to ensure isolation
     REQUIRE(entity1->activate_count.load() > 0);
     REQUIRE(entity2->activate_count.load() > 0);
+
+    el.remove_loop_item(entity1);
+    el.remove_loop_item(entity2);
 }
 
 #endif // EVENT_LOOP_TEST_CPP
