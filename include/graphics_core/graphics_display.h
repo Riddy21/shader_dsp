@@ -3,12 +3,11 @@
 #define GRAPHICS_DISPLAY_H
 
 #include <string>
-#include <GL/glew.h>
 #include <unordered_map>
 #include <memory>
 #include <vector>
 
-#include "engine/renderable_item.h"
+#include "engine/renderable_entity.h"
 #include "engine/event_handler.h"
 #include "graphics_core/graphics_view.h"
 #include "graphics_core/graphics_component.h"

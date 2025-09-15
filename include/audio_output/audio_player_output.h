@@ -32,6 +32,16 @@ public:
     */
     bool is_ready() override;
     /**
+     * Return the number of bytes currently queued in SDL for playback.
+     * This can be used in tests to confirm that the device is consuming data.
+     */
+    size_t queued_bytes() const;
+    /**
+     * Clear the audio queue, removing all pending audio data.
+     * This is useful for test cleanup to ensure tests start with a clean state.
+     */
+    void clear_queue();
+    /**
      * Push audio data to the audio output device.
      * 
      * @param data The audio data to push.

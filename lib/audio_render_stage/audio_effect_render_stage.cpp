@@ -5,6 +5,7 @@
 #include <numeric>  // for std::accumulate
 
 #include "audio_parameter/audio_uniform_parameter.h"
+#include "audio_parameter/audio_uniform_array_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
 #include "audio_render_stage/audio_effect_render_stage.h"
 
@@ -20,42 +21,83 @@ AudioGainEffectRenderStage::AudioGainEffectRenderStage(const unsigned int frames
                                                const std::vector<std::string> & frag_shader_imports)
     : AudioEffectRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
 
-    // TODO: Change balance to be an array of channels
-    // Add new parameter objects to the parameter list
-    auto gain_parameter =
-        new AudioFloatParameter("gain",
-                                AudioParameter::ConnectionType::INPUT);
-    gain_parameter->set_value(1.0f);
-
-    auto balance_parameter =
-        new AudioFloatParameter("balance",
-                                AudioParameter::ConnectionType::INPUT);
-    balance_parameter->set_value(0.5f);
-
-    if (!this->add_parameter(gain_parameter)) {
-        std::cerr << "Failed to add gain_parameter" << std::endl;
+    // Create gains array parameter - one gain per channel, max 8 channels
+    constexpr size_t MAX_CHANNELS = 8;
+    auto gains_parameter =
+        new AudioFloatArrayParameter("gains",
+                                     AudioParameter::ConnectionType::INPUT,
+                                     MAX_CHANNELS);
+    
+    // Initialize gains array - set all channels to 1.0f (unity gain)
+    float* gains = new float[MAX_CHANNELS];
+    for (size_t i = 0; i < MAX_CHANNELS; i++) {
+        gains[i] = 1.0f;
     }
-    if (!this->add_parameter(balance_parameter)) {
-        std::cerr << "Failed to add balance_parameter" << std::endl;
+    gains_parameter->set_value(gains);
+
+    if (!this->add_parameter(gains_parameter)) {
+        std::cerr << "Failed to add gains_parameter" << std::endl;
     }
 
-    // Register controls
+    // Register controls - for now, create a single gain control that sets all channels to the same value
+    // TODO: In the future, this could be expanded to have per-channel controls
     m_controls.clear();
     auto gain_control = new AudioControl<float>(
         "gain",
         1.0f,
-        [gain_parameter](const float& v) { gain_parameter->set_value(v); }
+        [gains_parameter](const float& v) { 
+            // Set all channels to the same gain value
+            float* gains = new float[MAX_CHANNELS];
+            for (size_t i = 0; i < MAX_CHANNELS; i++) {
+                gains[i] = v;
+            }
+            gains_parameter->set_value(gains);
+        }
     );
     AudioControlRegistry::instance().register_control<float>("gain", gain_control);
     m_controls.push_back(gain_control);
+}
 
-    auto balance_control = new AudioControl<float>(
-        "balance",
-        0.5f,
-        [balance_parameter](const float& v) { balance_parameter->set_value(v); }
-    );
-    AudioControlRegistry::instance().register_control<float>("balance", balance_control);
-    m_controls.push_back(balance_control);
+void AudioGainEffectRenderStage::set_channel_gains(const std::vector<float>& channel_gains) {
+    constexpr size_t MAX_CHANNELS = 8;
+    auto gains_param = find_parameter("gains");
+    if (!gains_param) {
+        std::cerr << "Error: gains parameter not found" << std::endl;
+        return;
+    }
+    
+    // Error checking: vector size cannot exceed num_channels or MAX_CHANNELS
+    if (channel_gains.size() > num_channels) {
+        std::cerr << "Error: provided " << channel_gains.size() << " channel gains, but render stage only has " 
+                  << num_channels << " channels" << std::endl;
+        return;
+    }
+    
+    if (channel_gains.size() > MAX_CHANNELS) {
+        std::cerr << "Error: provided " << channel_gains.size() << " channel gains, but maximum supported is " 
+                  << MAX_CHANNELS << " channels" << std::endl;
+        return;
+    }
+    
+    // Create a new full-size array and fill it
+    float* full_gains = new float[MAX_CHANNELS];
+    
+    // Copy the provided channel gains (up to num_channels)
+    for (size_t i = 0; i < channel_gains.size(); i++) {
+        full_gains[i] = channel_gains[i];
+    }
+    
+    // Fill remaining slots up to num_channels with 1.0f (unity gain)
+    for (size_t i = channel_gains.size(); i < num_channels; i++) {
+        full_gains[i] = 1.0f;
+    }
+    
+    // Fill remaining slots beyond num_channels with 1.0f (for unused channels)
+    for (size_t i = num_channels; i < MAX_CHANNELS; i++) {
+        full_gains[i] = 1.0f;
+    }
+    
+    gains_param->set_value(full_gains);
 }
 
 const std::vector<std::string> AudioEchoEffectRenderStage::default_frag_shader_imports = {
@@ -90,7 +132,7 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
         new AudioTexture2DParameter("echo_audio_texture",
                                 AudioParameter::ConnectionType::INPUT,
                                 frames_per_buffer, M_MAX_ECHO_BUFFER_SIZE * num_channels, // Around 2s of audio data
-                                ++m_active_texture_count,
+                                m_active_texture_count++,
                                 0, GL_NEAREST);
 
     // Set the echo buffer to the size of the audio data and set to 0
@@ -140,21 +182,21 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
 }
 
 void AudioEchoEffectRenderStage::render(unsigned int time) {
-    // Get the audio data
-    auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
-
-    // Update the echo buffer with the new data
-    std::copy(data, data + frames_per_buffer * num_channels, m_echo_buffer.begin());
+    // Always set echo_audio_texture to the current m_echo_buffer
+    this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
 
     if (time != m_time) {
         // Shift the echo buffer
         std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - frames_per_buffer * num_channels, m_echo_buffer.begin() + frames_per_buffer * num_channels);
     }
 
-    // Always set echo_audio_texture to the current m_echo_buffer
-    this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
-
     AudioRenderStage::render(time);
+
+    // Get the audio data
+    auto * data = (float *)this->find_parameter("output_audio_texture")->get_value();
+
+    // Update the echo buffer with the new data
+    std::copy(data, data + frames_per_buffer * num_channels, m_echo_buffer.begin());
 }
 
 bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * render_stage) {
@@ -193,13 +235,13 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     auto num_taps_parameter =
         new AudioIntParameter("num_taps",
                                 AudioParameter::ConnectionType::INPUT);
-    num_taps_parameter->set_value(1001); // Strange restriction, this cannot be larger than the buffer size
+    num_taps_parameter->set_value(frames_per_buffer - 1); // Strange restriction, this cannot be larger than the buffer size
 
     auto b_coeff_texture =
         new AudioTexture2DParameter("b_coeff_texture",
                                 AudioParameter::ConnectionType::INPUT,
                                 MAX_TEXTURE_SIZE, 1, // Due to restriction of the shader only can be as big as the buffer size
-                                ++m_active_texture_count,
+                                m_active_texture_count++,
                                 0, GL_NEAREST);
     
     if (!this->add_parameter(num_taps_parameter)) {
@@ -211,6 +253,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     if (!this->add_parameter(m_audio_history->create_audio_history_texture(++m_active_texture_count))) {
         std::cerr << "Failed to add audio_history_texture" << std::endl;
     }
+
 
     // Register controls
     m_controls.clear();
@@ -390,7 +433,7 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
         }) / (frames_per_buffer * num_channels);
         update_b_coefficients(current_amplitude);
     }
-
+    
     if (time != m_time) {
         m_audio_history->shift_history_buffer();
     }

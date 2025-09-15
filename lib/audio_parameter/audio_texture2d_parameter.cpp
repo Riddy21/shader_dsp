@@ -1,4 +1,3 @@
-#include <GL/glew.h>
 #include <cstring>
 #include <regex>
 #include <string>
@@ -20,6 +19,8 @@ AudioTexture2DParameter::AudioTexture2DParameter(const std::string name,
                           GLuint internal_format
                           )
         : AudioParameter(name, connection_type),
+        m_texture(0),
+        m_PBO(0),
         m_parameter_width(parameter_width),
         m_parameter_height(parameter_height),
         m_active_texture(active_texture),
@@ -35,7 +36,7 @@ AudioTexture2DParameter::AudioTexture2DParameter(const std::string name,
 AudioTexture2DParameter::~AudioTexture2DParameter() {
     if (m_texture != 0) {
         glDeleteTextures(1, &m_texture);
-        printf("Deleted texture %s: %d\n", name.c_str(), m_texture);
+        m_texture = 0;
     }
 }
 
@@ -43,7 +44,8 @@ bool AudioTexture2DParameter::initialize(GLuint frame_buffer, AudioShaderProgram
     m_framebuffer_linked = frame_buffer;
     m_shader_program_linked = shader_program;
 
-    if (m_framebuffer_linked == 0) {
+    // Only require framebuffer for OUTPUT and PASSTHROUGH parameters
+    if ((connection_type == ConnectionType::OUTPUT || connection_type == ConnectionType::PASSTHROUGH) && m_framebuffer_linked == 0) {
         printf("Error: render stage linked is nullptr in parameter %s\n, cannot be a global parameter.", name.c_str());
         return false;
     }
@@ -194,20 +196,24 @@ const void * const AudioTexture2DParameter::get_value() const {
     if (connection_type == ConnectionType::INPUT) {
         return AudioParameter::get_value();
     }
+    else if (connection_type == ConnectionType::PASSTHROUGH) {
+        AudioTexture2DParameter* previous_param = dynamic_cast<AudioTexture2DParameter*>(m_previous_parameter);
+        if (previous_param == nullptr) {
+            static std::vector<float> zero_data(m_parameter_width * m_parameter_height * 4, 0.0f);
+            return zero_data.data();
+
+        }
+        return previous_param->get_value();
+    }
     else {
-        glBindTexture(GL_TEXTURE_2D, m_texture);
-        glGetTexImage(GL_TEXTURE_2D, 0, m_format, m_datatype, m_data->get_data());
-        glBindTexture(GL_TEXTURE_2D, 0);
-
-        //  Using pixel buffer object may be faster
-        //glBindBuffer(GL_PIXEL_PACK_BUFFER, m_PBO);
-        //glBindTexture(GL_TEXTURE_2D, m_texture);
-        //glGetTexImage(GL_TEXTURE_2D, 0, m_format, m_datatype, nullptr);
-        //glBindTexture(GL_TEXTURE_2D, 0);
-        //memcpy(m_data->get_data(), glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY), m_parameter_width * m_parameter_height * sizeof(float));
-
-        //glUnmapBuffer(GL_PIXEL_PACK_BUFFER);
-        //glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        // Bind framebuffer to read from texture
+        glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);
+        glReadBuffer(GL_COLOR_ATTACHMENT0 + m_color_attachment);
+        
+        // Read pixels from framebuffer instead of using glGetTexImage
+        glReadPixels(0, 0, m_parameter_width, m_parameter_height, m_format, m_datatype, m_data->get_data());
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         return m_data->get_data();
     }
@@ -216,17 +222,49 @@ const void * const AudioTexture2DParameter::get_value() const {
 void AudioTexture2DParameter::clear_value() {
     AudioParameter::clear_value();
 
-    glBindTexture(GL_TEXTURE_2D, m_texture);
-    std::vector<unsigned char> zero_data(m_parameter_width * m_parameter_height * 4, 0); // Assuming 4 channels (RGBA)
-    glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, zero_data.data());
-    glBindTexture(GL_TEXTURE_2D, 0);
+    // Only clear if texture is initialized
+    if (m_texture != 0) {
+        glBindTexture(GL_TEXTURE_2D, m_texture);
+        std::vector<unsigned char> zero_data(m_parameter_width * m_parameter_height * 4, 0); // Assuming 4 channels (RGBA)
+        glTexImage2D(GL_TEXTURE_2D, 0, m_internal_format, m_parameter_width, m_parameter_height, 0, m_format, m_datatype, zero_data.data());
+        glBindTexture(GL_TEXTURE_2D, 0);
 
-    // Clear the color attachment of the frame buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);
-    // Set the draw buffer to the correct color attachment
-    glDrawBuffer(GL_COLOR_ATTACHMENT0 + m_color_attachment);
+        // Only clear framebuffer if it's linked
+        if (m_framebuffer_linked != 0) {
+            // Clear the color attachment of the frame buffer
+            glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer_linked);
+            // Set the draw buffer to the correct color attachment
+            GLenum draw_buffers[] = { GL_COLOR_ATTACHMENT0 + m_color_attachment };
+            glDrawBuffers(1, draw_buffers);
 
-    // Clear the color attachment
-    glClear(GL_COLOR_BUFFER_BIT);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            // Clear the color attachment
+            glClear(GL_COLOR_BUFFER_BIT);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
+    }
+}
+
+std::unique_ptr<ParamData> AudioTexture2DParameter::create_param_data() {
+    size_t element_count = m_parameter_width * m_parameter_height;
+    size_t scale_factor = 1;
+
+    // Adjust scale factor based on format
+    switch (m_format) {
+        case GL_RED:
+            scale_factor = 1; // Single channel
+            break;
+        case GL_RG:
+            scale_factor = 2; // Two channels
+            break;
+        case GL_RGB:
+            scale_factor = 3; // Three channels
+            break;
+        case GL_RGBA:
+            scale_factor = 4; // Four channels
+            break;
+        default:
+            throw std::invalid_argument("Unsupported format");
+    }
+
+    return std::unique_ptr<ParamData>(new ParamFloatArrayData(element_count * scale_factor));
 }

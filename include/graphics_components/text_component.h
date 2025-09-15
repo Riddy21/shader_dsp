@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <GL/glew.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 
@@ -43,8 +42,10 @@ public:
     // Get list of available fonts
     static std::vector<std::string> get_available_fonts();
 
+protected:
+    bool initialize() override;
+
 private:
-    void initialize_graphics();
     void initialize_text();
     
     // Get the appropriate font with current size

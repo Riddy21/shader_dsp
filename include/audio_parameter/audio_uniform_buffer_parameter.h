@@ -2,8 +2,9 @@
 #ifndef AUDIO_UNIFORM_BUFFER_PARAMETERS_H   
 #define AUDIO_UNIFORM_BUFFER_PARAMETERS_H
 
-#include <GL/glew.h>
-#include <GL/glut.h>
+#include <GLES3/gl3.h>
+#include <EGL/egl.h>
+#include <unordered_map>
 
 #include "audio_core/audio_parameter.h"
 
@@ -28,6 +29,25 @@ private:
     const unsigned int m_binding_point = 0;
 
     static unsigned int total_binding_points;
+
+    struct ContextData {
+        std::unordered_map<std::string, unsigned> binding_points;
+        unsigned next_binding_point = 0;
+    };
+
+    static std::unordered_map<void*, ContextData> s_context_registry;
+
+    static ContextData &current_context_data();
+
+    // Returns the binding point that should be used for the given block name
+    // *for the current GL context*. A fresh binding point is allocated the
+    // first time a block-name is requested inside a context.
+    static unsigned get_binding_point_for_block(const std::string &name);
+
+    // Bind every uniform block that has been registered **in the current GL
+    // context** to its remembered binding point for this program.
+public:
+    static void bind_registered_blocks(GLuint program);
 
 };
 

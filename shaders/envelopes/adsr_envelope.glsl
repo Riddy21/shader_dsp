@@ -58,7 +58,7 @@ float adsr_envelope(float start_time, float end_time, float time) {
         }
         // If in the middle of release_time, smoothly go currentLevel → 0
         else if (from_end <= release_time) {
-            float t = from_end / release_time; 
+            float t = (from_end) / release_time; 
             return mix(currentLevel, 0.0, custom_smoothstep(0.0, 1.0, t));
         }
         // If release fully completed

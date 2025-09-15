@@ -15,19 +15,18 @@ MenuView::MenuView()
     auto menu = new MenuSelectionComponent(
         -1.0f, 1.0f, 1.0f, 2.0f,
         track.get_effect_names(),
-        [&track](std::string title) {
+        [&track, this](std::string title) {
             track.change_effect(title);
         }
     );
     add_component(menu);
 
-    auto menu1= new MenuSelectionComponent(
+    auto menu2 = new MenuSelectionComponent(
         0.0f, 1.0f, 1.0f, 2.0f,
         track.get_generator_names(),
         [&track](std::string title) {
             track.change_voice(title);
         }
     );
-    menu1->set_dimensions(1.0f, 1.0f);
-    add_component(menu1);
+    add_component(menu2);
 }

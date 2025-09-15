@@ -47,12 +47,13 @@ bool AudioPlayerOutput::start() {
 
 void AudioPlayerOutput::error(const char* message) {
     fprintf(stderr, "SDL error: %s\n", message);
-    SDL_Quit();
 }
 
 AudioPlayerOutput::~AudioPlayerOutput() {
-    SDL_CloseAudioDevice(m_device_id);
-    SDL_Quit();
+    if (m_device_id != 0) {
+        clear_queue();
+        SDL_CloseAudioDevice(m_device_id);
+    }
     printf("AudioPlayerOutput Destroyed\n");
 }
 
@@ -104,5 +105,21 @@ bool AudioPlayerOutput::close() {
 
     printf("Closed audio device.\n");
     return true;
+}
+
+size_t AudioPlayerOutput::queued_bytes() const {
+    if (m_device_id == 0) {
+        return 0;
+    }
+
+    return static_cast<size_t>(SDL_GetQueuedAudioSize(m_device_id));
+}
+
+void AudioPlayerOutput::clear_queue() {
+    if (m_device_id == 0) {
+        return;
+    }
+
+    SDL_ClearQueuedAudio(m_device_id);
 }
 

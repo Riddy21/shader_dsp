@@ -1,0 +1,20 @@
+CompileFlags:
+  # Global flags used when no compile_commands.json is present
+  Add:
+    - -std=c++20
+    - -I/workspace
+    - -I/workspace/include
+    - -I/workspace/tests
+    # System/common include locations
+    - -I/usr/include
+    - -I/usr/local/include
+    # SDL2 typical include locations
+    - -I/usr/include/SDL2
+    - -I/usr/local/include/SDL2
+    - -I/opt/homebrew/include/SDL2
+    # Catch2 typical include locations
+    - -I/usr/include/catch2
+    - -I/usr/local/include/catch2
+
+  # Optionally trim noisy default flags when falling back
+  Remove: []

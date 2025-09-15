@@ -33,7 +33,7 @@ AudioMultitrackJoinRenderStage::AudioMultitrackJoinRenderStage(const unsigned in
                 new AudioTexture2DParameter(stream_name,
                                             AudioParameter::ConnectionType::PASSTHROUGH,
                                             frames_per_buffer, num_channels,
-                                            ++m_active_texture_count,
+                                            m_active_texture_count++,
                                             0, GL_NEAREST);
 
         if (!this->add_parameter(input_audio_texture)) {

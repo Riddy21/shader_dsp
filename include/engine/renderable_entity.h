@@ -1,9 +1,12 @@
-#ifndef ENGINE_RENDERABLE_ITEM_H
-#define ENGINE_RENDERABLE_ITEM_H
+#ifndef ENGINE_RENDERABLE_ENTITY_H
+#define ENGINE_RENDERABLE_ENTITY_H
 
 #include <SDL2/SDL.h> // For SDL_GetTicks
 #include <cstdint>    // For standard integer types like Uint32
 #include <string>
+
+// Include EGL compatibility header
+#include "utilities/egl_compatibility.h"
 
 // Structure to encapsulate rendering context information
 struct RenderContext {
@@ -32,19 +35,20 @@ struct RenderContext {
     // Activate this render context
     // FIXME: Think of way to avoid switching contexts when rendering events, instead only running the events in the right contexts
     void activate() const {
-        if (window && gl_context && SDL_GL_GetCurrentContext() != gl_context) {
+        if (window && gl_context) {
             previous_window = SDL_GL_GetCurrentWindow();
             previous_context = SDL_GL_GetCurrentContext();
-            SDL_GL_MakeCurrent(window, gl_context);
+            // Use EGL compatibility layer for context activation
+            EGLCompatibility::make_current(window, gl_context);
         }
     }
 
     // Unactivate this render context and restore the previous context and window
     void unactivate() const {
         if (previous_window && previous_context) {
-            SDL_GL_MakeCurrent(previous_window, previous_context);
+            EGLCompatibility::make_current(previous_window, previous_context);
         } else {
-            SDL_GL_MakeCurrent(nullptr, nullptr);
+            EGLCompatibility::make_current(nullptr, nullptr);
         }
     }
 
@@ -90,7 +94,8 @@ public:
         unsigned int height, 
         const std::string& title = "OpenGL Window", 
         Uint32 window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN,
-        bool visible = true
+        bool visible = true,
+        bool vsync_enabled = false
     );
 
     SDL_Window* get_window() const;
@@ -100,6 +105,10 @@ public:
     // Get the render context
     const RenderContext& get_render_context() const { return m_render_context; }
     
+    // Control vertical sync
+    void set_vsync_enabled(bool enabled);
+    bool is_vsync_enabled() const { return m_vsync_enabled; }
+
 protected:
     void update_render_fps();
     void update_present_fps();
@@ -121,6 +130,7 @@ private:
     int m_render_frame_count{0};
     int m_present_frame_count{0};
     bool m_visible;
+    bool m_vsync_enabled{false};
 };
 
-#endif // ENGINE_RENDERABLE_ITEM_H
+#endif // ENGINE_RENDERABLE_ENTITY_H

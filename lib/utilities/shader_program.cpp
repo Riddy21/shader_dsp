@@ -41,6 +41,10 @@ GLuint AudioShaderProgram::get_program() const {
     return m_shader_program;
 }
 
+void AudioShaderProgram::use_program() const {
+    glUseProgram(m_shader_program);
+}
+
 bool AudioShaderProgram::compile_shader(GLuint shader, const std::string& source) {
     const GLchar* shader_source = source.c_str();
     glShaderSource(shader, 1, &shader_source, NULL);

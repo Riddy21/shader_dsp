@@ -14,11 +14,12 @@
 #include "audio_core/audio_parameter.h"
 #include "audio_core/audio_render_graph.h"
 #include "engine/event_loop.h"
-#include "engine/renderable_item.h"
+#include "engine/renderable_entity.h"
 
 /**
  * @class AudioRenderer
  * @brief The AudioRenderer class is responsible for rendering audio data.
+ 
  * 
  * The AudioRenderer class provides functionality to initialize and terminate the audio renderer,
  * as well as holding audio texture output and managing audio buffer size and number of channels.

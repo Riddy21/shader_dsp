@@ -1,119 +1,165 @@
-FROM node:20-alpine
+FROM debian:bookworm-slim
 
 ARG TZ=UTC
-ENV TZ="${TZ}"
 
-# Install basic dependencies including X11, SDL2 and GL dependencies
-RUN apk update && apk add --no-cache \
+# Update package lists and install basic dependencies
+RUN apt-get update && apt-get install -y \
     git \
     procps \
     sudo \
-    zsh \
-    man-pages \
+    bash \
     unzip \
     gnupg \
     curl \
     wget \
-    bind-tools \
+    dnsutils \
     jq \
     ripgrep \
     xvfb \
-    xvfb-run \
-    mesa-gl \
-    mesa-dev \
-    mesa-dri-gallium \
-    sdl2-dev \
-    sdl2_ttf-dev \
-    sdl2_image-dev \
-    sdl2_gfx-dev \
-    sdl2_mixer-dev \
-    glew-dev \
-    freeglut-dev \
+    mesa-utils \
+    libgl1-mesa-dev \
+    libgl1-mesa-glx \
+    libglu1-mesa-dev \
+    libsdl2-dev \
+    libsdl2-ttf-dev \
+    libsdl2-image-dev \
+    libsdl2-gfx-dev \
+    libsdl2-mixer-dev \
+    libglew-dev \
+    freeglut3-dev \
     g++ \
     scons \
-    portaudio-dev \
     libx11-dev \
+    libxext-dev \
+    libxrandr-dev \
+    libxinerama-dev \
+    libxcursor-dev \
+    libxi-dev \
+    libxfixes-dev \
+    libxrender-dev \
+    libxss-dev \
+    libxxf86vm-dev \
+    libxkbcommon-dev \
     iptables \
     iproute2 \
     fzf \
-    github-cli \
     cmake \
-    make
+    make \
+    build-essential \
+    pkg-config \
+    libavcodec-dev \
+    libavformat-dev \
+    libswscale-dev \
+    libv4l-dev \
+    libxvidcore-dev \
+    libx264-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libtiff-dev \
+    libatlas-base-dev \
+    gfortran \
+    python3 \
+    python3-pip \
+    python3-dev \
+    # Add PulseAudio packages (exactly as in SDL example)
+    pulseaudio \
+    pulseaudio-utils \
+    alsa-utils \
+    libasound2-plugins \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Catch2 from source
+# Install Node.js (simulating Pi environment)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs
+
+# Install Catch2 from source (compatible with Pi environment)
 RUN cd /tmp && \
     git clone https://github.com/catchorg/Catch2.git && \
     cd Catch2 && \
-    git checkout v2.13.10 && \
+    git checkout v3.5.4 && \
     mkdir -p build && \
     cd build && \
-    cmake .. -DBUILD_TESTING=OFF && \
+    cmake .. -DBUILD_TESTING=OFF -DCATCH_BUILD_STATIC_LIBRARY=ON && \
     make -j$(nproc) && \
     make install && \
     rm -rf /tmp/Catch2
 
-# Create non-root user
-RUN addgroup -g 2000 developer && \
-    adduser -D -u 2000 -G developer -s /bin/zsh developer && \
-    mkdir -p /etc/sudoers.d && \
-    echo "developer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/developer && \
-    chmod 0440 /etc/sudoers.d/developer
+# Install Pi-specific libraries and tools (simulated for x86_64)
+RUN apt-get update && apt-get install -y \
+    python3-gpiozero \
+    # Add performance monitoring tools
+    htop \
+    iotop \
+    sysstat \
+    cpufrequtils \
+    # Add GDB for debugging
+    gdb \
+    && rm -rf /var/lib/apt/lists/*
 
-# Ensure developer user has access to /usr/local/share
-RUN mkdir -p /usr/local/share/npm-global && \
-    chown -R developer:developer /usr/local/share
+# Create symbolic links to simulate Pi libraries
+RUN mkdir -p /opt/vc/lib /opt/vc/include /opt/vc/bin \
+    && ln -sf /usr/lib/x86_64-linux-gnu/libbcm_host.so /opt/vc/lib/libbcm_host.so 2>/dev/null || true \
+    && ln -sf /usr/lib/x86_64-linux-gnu/libvcos.so /opt/vc/lib/libvcos.so 2>/dev/null || true \
+    && ln -sf /usr/lib/x86_64-linux-gnu/libvchiq_arm.so /opt/vc/lib/libvchiq_arm.so 2>/dev/null || true \
+    && ln -sf /usr/include/bcm_host.h /opt/vc/include/bcm_host.h 2>/dev/null || true
 
-ARG USERNAME=developer
+# Create XDG runtime directories
+RUN mkdir -p /tmp/runtime-root /tmp/data /tmp/config /tmp/cache && \
+    chmod 700 /tmp/runtime-root
 
-# Persist command history
-RUN mkdir -p /commandhistory && \
-    touch /commandhistory/.zsh_history && \
-    mkdir -p /home/$USERNAME && \
-    ln -s /commandhistory/.zsh_history /home/$USERNAME/.zsh_history && \
-    chown -R $USERNAME:$USERNAME /commandhistory /home/$USERNAME/.zsh_history
+# Create pulse audio user and group (handle existing group) - exactly as in SDL example
+RUN groupadd -r pulse 2>/dev/null || true && \
+    useradd -r -g pulse pulse 2>/dev/null || true
 
-# Set `DEVCONTAINER` environment variable to help with orientation
-ENV DEVCONTAINER=true
+# Create necessary directories - exactly as in SDL example
+RUN mkdir -p /etc/pulse /root/.config/pulse /home/pulse/.config/pulse
 
-# Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/$USERNAME/.claude && \
-    chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.claude
+# Copy pulse audio configuration - exactly as in SDL example
+COPY conf/pulse-client.conf /etc/pulse/client.conf
+
+# Copy audio setup script - exactly as in SDL example
+COPY scripts/audio_setup.sh /usr/local/bin/audio_setup.sh
+RUN chmod +x /usr/local/bin/audio_setup.sh
+
+# Copy device listing script - exactly as in SDL example
+COPY scripts/list_devices.sh /usr/local/bin/list_devices.sh
+RUN chmod +x /usr/local/bin/list_devices.sh
+
+# Copy audio test script - exactly as in SDL example
+COPY scripts/test_audio.sh /usr/local/bin/test_audio.sh
+RUN chmod +x /usr/local/bin/test_audio.sh
+
+# Copy performance optimization script
+COPY scripts/performance_optimize.sh /usr/local/bin/performance_optimize.sh
+RUN chmod +x /usr/local/bin/performance_optimize.sh
+
+# Copy Cursor sync/link script
+COPY scripts/link_cursor_server.sh /usr/local/bin/link_cursor_server.sh
+RUN chmod +x /usr/local/bin/link_cursor_server.sh
+
+# Copy GDB scripts and set up GDB configuration
+COPY gdb_scripts/ /usr/local/share/gdb_scripts/
+RUN mkdir -p /root/.gdb && \
+    echo "source /usr/local/share/gdb_scripts/useful.gdb" > /root/.gdbinit && \
+    echo "source /usr/local/share/gdb_scripts/stl_printers.gdb" >> /root/.gdbinit && \
+    echo "source /usr/local/share/gdb_scripts/history.gdb" >> /root/.gdbinit && \
+    chmod 644 /root/.gdbinit
+
+# Create workspace directory
+RUN mkdir -p /workspace
 
 WORKDIR /workspace
-
-# Set up non-root user
-USER $USERNAME
-
-# Install global packages
-ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
-ENV PATH=$PATH:/usr/local/share/npm-global/bin
 
 # Install Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code
 
 # Create a simple wrapper script to fix the shebang issue
 RUN mkdir -p /usr/local/share/npm-global/bin \
-    && echo '#!/bin/sh' > /usr/local/share/npm-global/bin/claude-wrapper \
-    && echo 'exec /usr/local/bin/node --no-warnings --enable-source-maps /usr/local/share/npm-global/lib/node_modules/@anthropic-ai/claude-code/cli.js "$@"' >> /usr/local/share/npm-global/bin/claude-wrapper \
+    && echo '#!/bin/bash' > /usr/local/share/npm-global/bin/claude-wrapper \
+    && echo 'exec /usr/bin/node --no-warnings --enable-source-maps /usr/local/share/npm-global/lib/node_modules/@anthropic-ai/claude-code/cli.js "$@"' >> /usr/local/share/npm-global/bin/claude-wrapper \
     && chmod +x /usr/local/share/npm-global/bin/claude-wrapper \
     && (mv /usr/local/share/npm-global/bin/claude /usr/local/share/npm-global/bin/claude-original 2>/dev/null || true) \
     && ln -sf /usr/local/share/npm-global/bin/claude-wrapper /usr/local/share/npm-global/bin/claude
 
-# Set environment variables for Claude
-ENV CLAUDE_CONFIG_DIR=/home/$USERNAME/.claude
-ENV NODE_OPTIONS="--max-old-space-size=4096"
-
-# Set the default shell to zsh
-ENV SHELL /bin/zsh
-
-# Setup zsh configuration
-RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended \
-    && echo 'export PATH=$PATH:/usr/local/share/npm-global/bin' >> ~/.zshrc \
-    && echo 'export PATH=$PATH:/workspace/build/bin' >> ~/.zshrc \
-    && echo '# Auto-build on login' >> ~/.zshrc \
-    && echo 'if [ -f /workspace/SConstruct ] && [ ! -f /workspace/.build_completed ]; then' >> ~/.zshrc \
-    && echo '  echo "Building project on first login..."' >> ~/.zshrc \
-    && echo '  cd /workspace && scons -j15 && touch /workspace/.build_completed' >> ~/.zshrc \
-    && echo 'fi' >> ~/.zshrc
-
-CMD ["/bin/zsh"]
+# Set default command
+CMD ["/bin/bash"]

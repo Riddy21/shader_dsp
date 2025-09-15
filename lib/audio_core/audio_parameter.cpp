@@ -21,3 +21,23 @@ bool AudioParameter::set_value(const void * value_ptr) {
 
     return true;
 }
+
+bool AudioParameter::link(AudioParameter * parameter) {
+    if (parameter == nullptr) {
+        return false;
+    }
+
+    m_linked_parameter = parameter;
+    m_linked_parameter->m_previous_parameter = this;
+    return true;
+}
+
+bool AudioParameter::unlink() {
+    if (m_linked_parameter == nullptr) {
+        return false;
+    }
+
+    m_linked_parameter->m_previous_parameter = nullptr;
+    m_linked_parameter = nullptr;
+    return true;
+}

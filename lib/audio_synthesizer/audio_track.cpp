@@ -27,7 +27,7 @@ AudioTrack::AudioTrack(AudioRenderGraph * render_graph, AudioRenderStage * root_
 
     initialize_modules();
 
-    m_current_effect = m_effect_modules["gain"];
+    m_current_effect = m_effect_modules["none"];
     m_current_voice = m_voice_modules["sine"];
 
     // Add default modules to the manager (voice first, then effect)

@@ -5,11 +5,10 @@
 #include <string>
 #include <functional>
 #include <vector>
-#include <GL/glew.h>
 
 #include "utilities/shader_program.h"
 #include "graphics_core/graphics_component.h"
-#include "engine/renderable_item.h"
+#include "engine/renderable_entity.h"
 #include "engine/event_handler.h"
 #include "audio_core/audio_renderer.h"
 
@@ -38,6 +37,7 @@ public:
     virtual void update_children();
 
 protected:
+    bool initialize() override;
     ButtonCallback m_callback;
     bool m_is_hovered = false;
     bool m_is_pressed = false;
@@ -45,8 +45,8 @@ protected:
     float m_color[4] = {0.3f, 0.3f, 0.3f, 1.0f};         // Normal state color
     float m_hover_color[4] = {0.4f, 0.4f, 0.4f, 1.0f};   // Hover state color
     float m_active_color[4] = {0.2f, 0.2f, 0.2f, 1.0f};  // Pressed state color
+
 private:
-    void initialize_graphics();
 
     std::unique_ptr<AudioShaderProgram> m_shader_program;
     GLuint m_vao = 0;

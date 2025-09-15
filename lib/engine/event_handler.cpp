@@ -85,54 +85,59 @@ bool KeyboardEventHandlerEntry::matches(const SDL_Event& event) {
 
 // --- MouseClickEventHandlerEntry ---
 
-MouseClickEventHandlerEntry::MouseClickEventHandlerEntry(
-    Uint32 type, int x, int y, int w, int h, EventCallback cb, RenderContext context)
-    : MouseEventHandlerEntry(x, y, w, h, std::move(cb), context), event_type(type) {}
+void MouseEventHandlerEntry::convert_normalized_to_rect(int& rect_x, int& rect_y, int& rect_w, int& rect_h) const {
+    auto [screen_width, screen_height] = render_context.get_size();
+    // Convert from normalized coordinates (-1 to 1, with -1 at top and 1 at bottom)
+    // to SDL event coordinates (0,0 top-left to width,height bottom-right)
+    rect_x = (int)((normalized_x + 1.0f) * screen_width / 2);
+    // For Y, -1 is at top and 1 is at bottom, so we need to invert
+    rect_y = (int)((1.0f - normalized_y) * screen_height / 2);
+    rect_w = (int)(normalized_w * screen_width / 2);
+    rect_h = (int)(normalized_h * screen_height / 2);
+}
+
+bool MouseEventHandlerEntry::is_inside(int mouse_x, int mouse_y) const {
+    int rect_x, rect_y, rect_w, rect_h;
+    convert_normalized_to_rect(rect_x, rect_y, rect_w, rect_h);
+    return mouse_x >= rect_x && mouse_x < (rect_x + rect_w) && 
+           mouse_y >= rect_y && mouse_y < (rect_y + rect_h);
+}
+
 
 MouseClickEventHandlerEntry::MouseClickEventHandlerEntry(
-    Uint32 type, int x, int y, int w, int h, EventCallback cb, unsigned int window_id)
-    : MouseEventHandlerEntry(x, y, w, h, std::move(cb), window_id), event_type(type) {}
+    Uint32 type, float x, float y, float w, float h, EventCallback cb, RenderContext context)
+    : MouseEventHandlerEntry(x, y, w, h, std::move(cb), context), event_type(type) {}
+
 
 bool MouseClickEventHandlerEntry::matches(const SDL_Event& event) {
     if (render_context.window_id && event.button.windowID != render_context.window_id) return false;
     if (event.type != event_type) return false;
     int ex = event.button.x;
     int ey = event.button.y;
-    return ex >= rect_x && ex < (rect_x + rect_w) && ey >= rect_y && ey < (rect_y + rect_h);
+    return is_inside(ex, ey);
 }
 
 // --- MouseMotionEventHandlerEntry ---
 
 MouseMotionEventHandlerEntry::MouseMotionEventHandlerEntry(
-    int x, int y, int w, int h, EventCallback cb, RenderContext context)
+    float x, float y, float w, float h, EventCallback cb, RenderContext context)
     : MouseEventHandlerEntry(x, y, w, h, std::move(cb), context) {}
 
-MouseMotionEventHandlerEntry::MouseMotionEventHandlerEntry(
-    int x, int y, int w, int h, EventCallback cb, unsigned int window_id)
-    : MouseEventHandlerEntry(x, y, w, h, std::move(cb), window_id) {}
 
 bool MouseMotionEventHandlerEntry::matches(const SDL_Event& event) {
     if (render_context.window_id && event.motion.windowID != render_context.window_id) return false;
     if (event.type != SDL_MOUSEMOTION) return false;
     int ex = event.motion.x;
     int ey = event.motion.y;
-    return ex >= rect_x && ex < (rect_x + rect_w) && ey >= rect_y && ey < (rect_y + rect_h);
+    return is_inside(ex, ey);
 }
 
 // --- MouseEnterLeaveEventHandlerEntry ---
 
 MouseEnterLeaveEventHandlerEntry::MouseEnterLeaveEventHandlerEntry(
-    int x, int y, int w, int h, Mode mode, EventCallback cb, RenderContext context)
+    float x, float y, float w, float h, Mode mode, EventCallback cb, RenderContext context)
     : MouseEventHandlerEntry(x, y, w, h, std::move(cb), context), mode(mode) {}
 
-MouseEnterLeaveEventHandlerEntry::MouseEnterLeaveEventHandlerEntry(
-    int x, int y, int w, int h, Mode mode, EventCallback cb, unsigned int window_id)
-    : MouseEventHandlerEntry(x, y, w, h, std::move(cb), window_id), mode(mode) {}
-
-bool MouseEnterLeaveEventHandlerEntry::is_inside(int mouse_x, int mouse_y) const {
-    return mouse_x >= rect_x && mouse_x < (rect_x + rect_w) && 
-           mouse_y >= rect_y && mouse_y < (rect_y + rect_h);
-}
 
 void MouseEnterLeaveEventHandlerEntry::update_last_position(int mouse_x, int mouse_y) {
     last_x = mouse_x;

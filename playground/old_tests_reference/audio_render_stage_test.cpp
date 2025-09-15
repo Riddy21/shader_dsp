@@ -1,5 +1,4 @@
 #include "catch2/catch_all.hpp"
-#include <GL/glew.h>
 #include <GL/glut.h>
 
 #include "audio_parameter/audio_texture2d_parameter.h"
@@ -15,7 +14,6 @@ public:
                 glutInit(&argc, argv);
                 glutInitDisplayMode(GLUT_RGBA | GLUT_SINGLE);
                 glutCreateWindow("Audio Processing");
-                glewInit();
 
                 initialized = true;
         }

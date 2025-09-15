@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <GL/glew.h>
 #include <SDL2/SDL.h>
 
 #include "utilities/shader_program.h"
@@ -18,6 +17,9 @@ public:
     ~GraphComponent() override;
 
     void set_data(const std::vector<float>& data);
+    
+protected:
+    bool initialize() override;
     void render_content() override;
 
 private:

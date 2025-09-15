@@ -1,7 +1,8 @@
 #include <iostream>
+#include <algorithm>
 
 #include "engine/event_loop.h"
-#include "engine/renderable_item.h"
+#include "engine/renderable_entity.h"
 #include "engine/event_handler.h"
 
 // Define static instance pointer
@@ -16,14 +17,18 @@ EventLoop& EventLoop::get_instance() {
 
 EventLoop::~EventLoop() {
     m_items.clear();
-    
-    // The render context items will clean up their SDL resources
-    SDL_Quit();
 }
 
 // Changed to accept reference and move to unique_ptr
 void EventLoop::add_loop_item(IRenderableEntity * item) {
     m_items.push_back(std::unique_ptr<IRenderableEntity>(item));
+}
+
+void EventLoop::remove_loop_item(IRenderableEntity* item) {
+    auto it = std::find_if(m_items.begin(), m_items.end(), [item](const auto& p) { return p.get() == item; });
+    if (it != m_items.end()) {
+        m_items.erase(it);
+    }
 }
 
 void EventLoop::add_event_handler(EventHandler* handler) {
@@ -99,8 +104,6 @@ void EventLoop::run_loop() {
             last_time = current_time;
         }
     }
-
-    SDL_Quit();
 }
 
 void EventLoop::terminate() {
