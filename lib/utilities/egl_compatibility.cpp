@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <EGL/eglext.h>
 #include <cstring> // for strstr
+#include <iomanip> // for std::hex
 
 // Static member initialization
 EGLDisplay EGLCompatibility::s_eglDisplay = EGL_NO_DISPLAY;
@@ -138,20 +139,27 @@ void EGLCompatibility::cleanup_egl_context(SDL_Window* window) {
         eglDestroyContext(s_eglDisplay, cit->second);
         s_contexts.erase(cit);
     }
+}
 
-    // If no more surfaces, teardown EGL display completely
-    if (s_surfaces.empty()) {
-        for (auto& [win, ctx] : s_contexts) {
-            eglDestroyContext(s_eglDisplay, ctx);
-        }
-        s_contexts.clear();
-
-        if (s_eglDisplay != EGL_NO_DISPLAY) {
-            eglTerminate(s_eglDisplay);
-            s_eglDisplay = EGL_NO_DISPLAY;
-        }
-        s_initialized = false;
+void EGLCompatibility::global_cleanup() {
+    // Destroy any remaining surfaces
+    for (auto& pair : s_surfaces) {
+        eglDestroySurface(s_eglDisplay, pair.second);
     }
+    s_surfaces.clear();
+
+    // Destroy any remaining contexts
+    for (auto& pair : s_contexts) {
+        eglDestroyContext(s_eglDisplay, pair.second);
+    }
+    s_contexts.clear();
+
+    // Terminate the display if active
+    if (s_eglDisplay != EGL_NO_DISPLAY) {
+        eglTerminate(s_eglDisplay);
+        s_eglDisplay = EGL_NO_DISPLAY;
+    }
+    s_initialized = false;
 }
 
 void EGLCompatibility::swap_buffers(SDL_Window* window) {
@@ -321,7 +329,7 @@ EGLSurface EGLCompatibility::create_egl_surface(SDL_Window* window) {
     EGLSurface surface = eglCreateWindowSurface(s_eglDisplay, s_eglConfig,
                                                 (EGLNativeWindowType)wmInfo.info.x11.window, NULL);
     if (surface == EGL_NO_SURFACE) {
-        std::cerr << "EGL: Failed to create EGL surface" << std::endl;
+        std::cerr << "EGL: Failed to create EGL surface (error: 0x" << std::hex << eglGetError() << ")" << std::endl;
     }
     return surface;
 }

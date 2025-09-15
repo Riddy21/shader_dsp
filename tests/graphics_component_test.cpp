@@ -5,6 +5,7 @@
 #include "graphics_core/graphics_component.h"
 #include "engine/event_handler.h"
 #include "graphics_components/button_component.h"
+#include "test_sdl_manager.h"
 
 // Mock for child components to track calls
 class MockGraphicsComponent : public GraphicsComponent {
@@ -42,25 +43,6 @@ public:
         draw_outline_called = true;
         GraphicsComponent::draw_outline();
     }
-};
-
-// Local SDLInitGuard
-struct SDLInitGuard {
-    SDLInitGuard() {
-        if (SDL_WasInit(SDL_INIT_VIDEO) == 0) {
-            if (SDL_InitSubSystem(SDL_INIT_VIDEO) != 0) {
-                throw std::runtime_error("Failed to initialise SDL video subsystem");
-            }
-            m_we_initialised = true;
-        }
-    }
-    ~SDLInitGuard() {
-        if (m_we_initialised) {
-            SDL_QuitSubSystem(SDL_INIT_VIDEO);
-        }
-    }
-private:
-    bool m_we_initialised = false;
 };
 
 // Simple EGL setup helper

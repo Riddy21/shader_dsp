@@ -9,23 +9,7 @@
 
 #include "engine/event_handler.h"
 #include "engine/renderable_entity.h"
-
-// Small RAII helper to ensure SDL is initialised for each test case
-struct SDLInitGuard {
-    SDLInitGuard()  {
-        if(SDL_WasInit(SDL_INIT_VIDEO) == 0) {
-            SDL_InitSubSystem(SDL_INIT_VIDEO);
-            m_we_initialised = true;
-        }
-    }
-    ~SDLInitGuard() {
-        if(m_we_initialised) {
-            SDL_QuitSubSystem(SDL_INIT_VIDEO);
-        }
-    }
-private:
-    bool m_we_initialised = false;
-};
+#include "test_sdl_manager.h"
 
 namespace {
 // Dummy implementation of IRenderableEntity used only for testing to get a valid RenderContext
@@ -55,7 +39,7 @@ TEST_CASE("EventHandler singleton", "[event_handler]") {
 }
 
 TEST_CASE("EventHandler register and unregister entry", "[event_handler]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     DummyRenderableEntity dummy;
     RenderContext ctx = dummy.get_render_context();
 
@@ -71,7 +55,7 @@ TEST_CASE("EventHandler register and unregister entry", "[event_handler]") {
 }
 
 TEST_CASE("EventHandler handle event no match", "[event_handler]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     DummyRenderableEntity dummy;
     RenderContext ctx = dummy.get_render_context();
 
@@ -86,7 +70,7 @@ TEST_CASE("EventHandler handle event no match", "[event_handler]") {
 }
 
 TEST_CASE("KeyboardEventHandlerEntry matching and callback", "[event_handler][keyboard]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     DummyRenderableEntity dummy;
     RenderContext ctx = dummy.get_render_context();
 
@@ -114,7 +98,7 @@ TEST_CASE("KeyboardEventHandlerEntry matching and callback", "[event_handler][ke
 }
 
 TEST_CASE("KeyboardEventHandlerEntry sticky keys", "[event_handler][keyboard]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     DummyRenderableEntity dummy;
     RenderContext ctx = dummy.get_render_context();
 
@@ -153,7 +137,7 @@ TEST_CASE("KeyboardEventHandlerEntry sticky keys", "[event_handler][keyboard]") 
 }
 
 TEST_CASE("KeyboardEventHandlerEntry wrong window", "[event_handler][keyboard]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     DummyRenderableEntity dummy1;
     RenderContext ctx1 = dummy1.get_render_context();
     DummyRenderableEntity dummy2;
@@ -182,7 +166,7 @@ TEST_CASE("KeyboardEventHandlerEntry wrong window", "[event_handler][keyboard]")
 // Similar tests for MouseClickEventHandlerEntry
 
 TEST_CASE("MouseClickEventHandlerEntry matching", "[event_handler][mouse]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     DummyRenderableEntity dummy(800, 600, false);
     RenderContext ctx = dummy.get_render_context();
 
@@ -223,7 +207,7 @@ TEST_CASE("MouseClickEventHandlerEntry matching", "[event_handler][mouse]") {
 // For MouseEnterLeave, need multiple events to simulate movement
 
 TEST_CASE("MouseEnterLeaveEventHandlerEntry", "[event_handler][mouse]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     DummyRenderableEntity dummy(800, 600, false);
     RenderContext ctx = dummy.get_render_context();
 

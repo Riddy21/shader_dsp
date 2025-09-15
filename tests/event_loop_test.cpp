@@ -12,23 +12,7 @@
 #include "engine/event_loop.h"
 #include "engine/event_handler.h"
 #include "engine/renderable_entity.h"
-
-struct SDLInitGuard {
-    SDLInitGuard() {
-        if (SDL_WasInit(SDL_INIT_EVERYTHING) == 0) {
-            SDL_Init(SDL_INIT_EVERYTHING);
-            m_we_initialised = true;
-        }
-    }
-    ~SDLInitGuard() {
-        // Temporarily disable Quit to avoid EGL issues between tests
-        if (m_we_initialised) {
-             SDL_Quit();
-        }
-    }
-private:
-    bool m_we_initialised = false;
-};
+#include "test_sdl_manager.h"
 
 // Mock RenderableEntity to track method calls
 namespace {
@@ -140,7 +124,7 @@ TEST_CASE("EventLoop singleton", "[event_loop]") {
 }
 
 TEST_CASE("EventLoop add items and handlers", "[event_loop]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_EVERYTHING);
     EventLoop& el = EventLoop::get_instance();
 
     DummyRenderableEntity* entity = new DummyRenderableEntity({0.0f, 0.0f, 0.0f, 1.0f});
@@ -150,7 +134,7 @@ TEST_CASE("EventLoop add items and handlers", "[event_loop]") {
 }
 
 TEST_CASE("EventLoop terminates on SDL_QUIT", "[event_loop]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_EVERYTHING);
     EventLoop& el = EventLoop::get_instance();
 
     std::thread terminator([&el]() {
@@ -168,7 +152,7 @@ TEST_CASE("EventLoop terminates on SDL_QUIT", "[event_loop]") {
 }
 
 TEST_CASE("EventLoop renders on events if handled", "[event_loop]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_EVERYTHING);
     EventLoop& el = EventLoop::get_instance();
 
     DummyRenderableEntity* entity1 = new DummyRenderableEntity({1.0f, 0.0f, 0.0f, 1.0f});
@@ -208,7 +192,7 @@ TEST_CASE("EventLoop renders on events if handled", "[event_loop]") {
 }
 
 TEST_CASE("EventLoop context isolation", "[event_loop]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_EVERYTHING);
     EventLoop& el = EventLoop::get_instance();
 
     DummyRenderableEntity* entity1 = new DummyRenderableEntity({1.0f, 0.0f, 0.0f, 1.0f}, 64, 64, false, "Entity1");

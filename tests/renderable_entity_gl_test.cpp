@@ -11,23 +11,7 @@
 #include <iostream>
 
 #include "engine/renderable_entity.h"
-
-// Small RAII helper to ensure SDL is initialised for each test case
-struct SDLInitGuard {
-    SDLInitGuard()  {
-        if(SDL_WasInit(SDL_INIT_VIDEO) == 0) {
-            SDL_InitSubSystem(SDL_INIT_VIDEO);
-            m_we_initialised = true;
-        }
-    }
-    ~SDLInitGuard() {
-        if(m_we_initialised) {
-            SDL_QuitSubSystem(SDL_INIT_VIDEO);
-        }
-    }
-private:
-    bool m_we_initialised = false;
-};
+#include "test_sdl_manager.h"
 
 
 namespace {
@@ -78,7 +62,7 @@ static std::array<float, 4> read_center_pixel(IRenderableEntity & entity) {
 }
 
 TEST_CASE("Multiple windows render with hidden windows and colour readback", "[renderable_entity][multi_window][hidden][readpixels]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
 
     // Visible windows
     DummyRenderableEntity red    ({1.0f, 0.0f, 0.0f, 1.0f}, 32, 32, true,  "RedWindow");
@@ -176,7 +160,7 @@ TEST_CASE("IRenderableEntity VSync affects presentation FPS", "[renderable_entit
     // - Need to verify EGL swap interval functionality
     SKIP("VSync functionality is not working properly at the moment - needs investigation");
     
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
 
     // Use a visible window so buffer swaps happen
     DummyRenderableEntity entity({0.1f, 0.2f, 0.3f, 1.0f}, 64, 64, true, "VSyncWindow");
@@ -221,7 +205,7 @@ TEST_CASE("IRenderableEntity VSync affects presentation FPS", "[renderable_entit
 }
 
 TEST_CASE("IRenderableEntity OpenGL state independence between contexts", "[renderable_entity][context][state]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
 
     // Create two hidden entities
     DummyRenderableEntity entity1({1.0f, 0.0f, 0.0f, 1.0f}, 64, 64, false, "Entity1");

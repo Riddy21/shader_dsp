@@ -61,12 +61,12 @@ void setup_keyboard(AudioSynthesizer& synthesizer, EventLoop& event_loop) {
 }
 
 int main() {
-    EventLoop& event_loop = EventLoop::get_instance();
-
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Failed to initialize SDL2: " << SDL_GetError() << std::endl;
         return false;
     }
+
+    EventLoop& event_loop = EventLoop::get_instance();
 
     auto & synthesizer = AudioSynthesizer::get_instance();
     if (!synthesizer.initialize(512, 44100, 2)) {
@@ -132,5 +132,6 @@ int main() {
     std::cout << "Press 'o' to toggle component outlines for debugging layout." << std::endl;
 
     event_loop.run_loop();
+    SDL_Quit();
     return 0;
 }

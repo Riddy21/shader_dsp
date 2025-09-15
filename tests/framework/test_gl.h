@@ -23,7 +23,6 @@ struct SDLWindow {
 
     SDLWindow(int w, int h)
         : width(w), height(h) {
-        SDL_Init(SDL_INIT_VIDEO);
         window = SDL_CreateWindow(
             "Offscreen",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
@@ -37,7 +36,6 @@ struct SDLWindow {
     ~SDLWindow() {
         cleanup_egl();
         SDL_DestroyWindow(window);
-        SDL_Quit();
     }
 
 private:

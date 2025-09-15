@@ -56,7 +56,6 @@ void EventLoop::run_loop() {
             // If user requests exit through SDL window close
             if (event.type == SDL_QUIT) {
                 printf("Received SDL_QUIT event, terminating event loop.\n");
-                SDL_Quit();
                 return;
             }
         }
@@ -103,6 +102,5 @@ void EventLoop::terminate() {
     SDL_Event event;
     event.type = SDL_QUIT;
     SDL_PushEvent(&event);
-    SDL_Quit();
 }
 

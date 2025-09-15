@@ -7,7 +7,6 @@
 
 IRenderableEntity::~IRenderableEntity() {
     cleanup_sdl();
-    SDL_Quit();
 }
 
 void IRenderableEntity::activate_render_context() {

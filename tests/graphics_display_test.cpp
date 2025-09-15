@@ -7,23 +7,7 @@
 #include "graphics_core/graphics_view.h"
 #include "engine/event_handler.h"
 #include "engine/event_loop.h"
-
-// Small RAII helper to ensure SDL is initialised for each test case
-struct SDLInitGuard {
-    SDLInitGuard()  {
-        if(SDL_WasInit(SDL_INIT_VIDEO) == 0) {
-            SDL_InitSubSystem(SDL_INIT_VIDEO);
-            m_we_initialised = true;
-        }
-    }
-    ~SDLInitGuard() {
-        if(m_we_initialised) {
-            SDL_QuitSubSystem(SDL_INIT_VIDEO);
-        }
-    }
-private:
-    bool m_we_initialised = false;
-};
+#include "test_sdl_manager.h"
 
 class MockGraphicsView : public GraphicsView {
 public:
@@ -58,7 +42,7 @@ public:
 };
 
 TEST_CASE("GraphicsDisplay initialization", "[graphics_display]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     EventHandler& event_handler = EventHandler::get_instance();
 
     GraphicsDisplay display(800, 600, "Test Display", 60, event_handler);
@@ -76,7 +60,7 @@ TEST_CASE("GraphicsDisplay initialization", "[graphics_display]") {
 }
 
 TEST_CASE("GraphicsDisplay add_view", "[graphics_display]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     EventHandler& event_handler = EventHandler::get_instance();
 
     GraphicsDisplay display(800, 600, "Test Display", 60, event_handler);
@@ -93,7 +77,7 @@ TEST_CASE("GraphicsDisplay add_view", "[graphics_display]") {
 }
 
 TEST_CASE("GraphicsDisplay change_view", "[graphics_display]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     EventHandler& event_handler = EventHandler::get_instance();
 
     GraphicsDisplay display(800, 600, "Test Display", 60, event_handler);
@@ -116,7 +100,7 @@ TEST_CASE("GraphicsDisplay change_view", "[graphics_display]") {
 }
 
 TEST_CASE("GraphicsDisplay is_ready", "[graphics_display]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     EventHandler& event_handler = EventHandler::get_instance();
 
     GraphicsDisplay display(800, 600, "Test Display", 60, event_handler);
@@ -140,7 +124,7 @@ TEST_CASE("GraphicsDisplay is_ready", "[graphics_display]") {
 }
 
 TEST_CASE("GraphicsDisplay render", "[graphics_display]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_VIDEO, true);
     EventHandler& event_handler = EventHandler::get_instance();
 
     GraphicsDisplay display(800, 600, "Test Display", 60, event_handler);

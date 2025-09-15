@@ -32,6 +32,8 @@ public:
     // is made current again.
     static void set_swap_interval(SDL_Window* window, int interval);
 
+    static void global_cleanup();
+
 private:
     static EGLDisplay s_eglDisplay;
     static EGLConfig  s_eglConfig;

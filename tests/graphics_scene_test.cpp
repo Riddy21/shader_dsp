@@ -15,22 +15,7 @@
 #include "graphics_components/menu_selection_component.h"
 #include "graphics_components/text_button_component.h"
 #include "graphics_components/text_component.h"
-
-struct SDLInitGuard {
-    SDLInitGuard() {
-        if (SDL_WasInit(SDL_INIT_EVERYTHING) == 0) {
-            SDL_Init(SDL_INIT_EVERYTHING);
-            m_we_initialised = true;
-        }
-    }
-    ~SDLInitGuard() {
-        if (m_we_initialised) {
-            SDL_Quit();
-        }
-    }
-private:
-    bool m_we_initialised = false;
-};
+#include "test_sdl_manager.h"
 
 
 class TestView1 : public GraphicsView {
@@ -75,7 +60,7 @@ public:
 };
 
 TEST_CASE("All components test scene", "[graphics][.]") {
-    SDLInitGuard sdl_guard;
+    TestSDLGuard sdl_guard(SDL_INIT_EVERYTHING);
 
     EventLoop& event_loop = EventLoop::get_instance();
 
