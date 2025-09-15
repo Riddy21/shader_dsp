@@ -35,14 +35,6 @@ bool GraphicsComponent::initialize() {
 void GraphicsComponent::render() {
     // Skip rendering if dimensions are zero
     if (m_width <= 0 || m_height <= 0) return;
-
-    if (!m_initialized) {
-        std::cerr << "Calling initialize for GraphicsComponent" << std::endl;
-        if (!initialize()) {
-            std::cerr << "Failed to initialize GraphicsComponent" << std::endl;
-            return;
-        }
-    }
     
     // Begin local rendering with viewport and scissor
     begin_local_rendering();
