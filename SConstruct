@@ -217,48 +217,54 @@ def build_tests(env, specific_test=None, test_case=None, section=None, verbose=F
         else:
             print(f"Test '{specific_test}' not found. Building and running all tests instead.")
     
-    # Build all tests
-    print(f"Building all tests with {len(test_files_without_main)} test files:")
+    # Build and run each test file separately to avoid EGL context conflicts
+    print(f"Building individual test executables for {len(test_files_without_main)} test files:")
+    test_outputs = []
+    
     for test_file in test_files_without_main:
-        print(f"  - {os.path.basename(test_file)}")
+        test_name = os.path.splitext(os.path.basename(test_file))[0]
+        print(f"  - {test_name}")
+        
+        # Build individual test executable
+        test_objects = create_objects(test_env, [main_test_src, test_file] + LIB_SOURCES, BUILD_DIR, 'tests')
+        test_executable = test_env.Program(target=os.path.join(BUILD_DIR, 'tests', test_name), source=test_objects)
+        
+        # Create a temp directory for XDG_RUNTIME_DIR
+        xdg_runtime_dir = '/tmp/xdg-runtime-dir'
+        
+        # Set up the command with XDG_RUNTIME_DIR
+        test_command = f'mkdir -p {xdg_runtime_dir} && XDG_RUNTIME_DIR={xdg_runtime_dir} '
+        test_command += 'xvfb-run -a ' + test_executable[0].abspath + ' -d yes'
+        
+        # Add verbose flags if specified
+        if verbose:
+            test_command += ' -s'  # Show successful test cases
+            test_command += ' -v high'  # High verbosity level
+        
+        # Add test case filter if specified
+        if test_case:
+            test_command += f" '{test_case}'"
+        
+        if section:
+            test_command += f" -c '{section}'"
+        
+        test_command += ' > ' + test_executable[0].abspath + '.out 2>&1 && cat ' + test_executable[0].abspath + '.out || (cat ' + test_executable[0].abspath + '.out && false)'
+        
+        test_output = test_env.Command(
+            target=test_executable[0].abspath + '.out',
+            source=test_executable,
+            action=test_command
+        )
+        
+        # Create individual alias for each test
+        env.Alias('test-' + test_name, test_output)
+        test_env.Depends(test_output, all_shaders)
+        test_outputs.append(test_output)
     
-    # Build the all-in-one test executable
-    test_objects = create_objects(test_env, [main_test_src] + test_files_without_main + LIB_SOURCES, BUILD_DIR, 'tests')
-    all_tests_executable = test_env.Program(target=os.path.join(BUILD_DIR, 'tests', 'all_tests'), source=test_objects)
+    # Create a combined alias that runs all individual tests
+    env.Alias('all-tests', test_outputs)
     
-    # Create a command to run all tests
-    test_filter = ""
-    if specific_test:
-        # Add a test name filter to the Catch2 command line
-        test_filter = f" '{specific_test}'"
-    elif test_case:
-        # Add a test case filter to the Catch2 command line
-        test_filter = f" '{test_case}'"
-    
-    if section:
-        test_filter += f" -c '{section}'"
-    
-    # Add verbose flags if specified
-    if verbose:
-        test_filter += ' -s'  # Show successful test cases
-        test_filter += ' -v high'  # High verbosity level
-    
-    # Create a temp directory for XDG_RUNTIME_DIR
-    xdg_runtime_dir = '/tmp/xdg-runtime-dir'
-    
-    # Set up the command with XDG_RUNTIME_DIR for xvfb-run
-    test_command = f'mkdir -p {xdg_runtime_dir} && XDG_RUNTIME_DIR={xdg_runtime_dir} '
-    test_command += 'xvfb-run -a ' + all_tests_executable[0].abspath + test_filter + ' -d yes > ' + all_tests_executable[0].abspath + '.out 2>&1 && cat ' + all_tests_executable[0].abspath + '.out || (cat ' + all_tests_executable[0].abspath + '.out && false)'
-    
-    test_output = test_env.Command(
-        target=all_tests_executable[0].abspath + '.out',
-        source=all_tests_executable,
-        action=test_command
-    )
-    
-    env.Alias('all-tests', test_output)
-    test_env.Depends(test_output, all_shaders)
-    return test_output
+    return test_outputs
 
 # Function to build playground examples
 def build_playground(env, specific_example=None):
