@@ -1,10 +1,4 @@
 template <typename T>
-void AudioControlRegistry::register_control(const std::string& name, AudioControl<T>* control) {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_controls[name] = std::unique_ptr<AudioControlBase>(control);
-}
-
-template <typename T>
 bool AudioControlRegistry::set_control(const std::string& name, const T& value) {
     std::lock_guard<std::mutex> lock(m_mutex);
     auto it = m_controls.find(name);

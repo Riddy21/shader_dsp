@@ -13,4 +13,9 @@ std::vector<std::string> AudioControlRegistry::list_controls() {
     return names;
 }
 
+void AudioControlRegistry::register_control(const std::string& name, AudioControlBase* control) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_controls[name] = std::unique_ptr<AudioControlBase>(control);
+}
+
 AudioControlRegistry::AudioControlRegistry() = default;

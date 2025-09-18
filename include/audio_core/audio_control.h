@@ -61,8 +61,7 @@ class AudioControlRegistry {
 public:
     static AudioControlRegistry& instance();
 
-    template <typename T>
-    void register_control(const std::string& name, AudioControl<T>* control);
+    void register_control(const std::string& name, AudioControlBase* control);
 
     template <typename T>
     bool set_control(const std::string& name, const T& value);

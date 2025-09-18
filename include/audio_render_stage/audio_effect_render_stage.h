@@ -67,10 +67,10 @@ public:
 
     static const std::vector<std::string> default_frag_shader_imports;
 
-    void set_low_pass(const float low_pass) { m_low_pass = low_pass; update_b_coefficients(); };
-    void set_high_pass(const float high_pass) { m_high_pass = high_pass; update_b_coefficients(); };
+    void set_low_pass(const float low_pass) { m_low_pass = low_pass; m_b_coefficients_dirty = true; };
+    void set_high_pass(const float high_pass) { m_high_pass = high_pass; m_b_coefficients_dirty = true; };
     void set_filter_follower(const float filter_follower) { m_filter_follower = filter_follower; };
-    void set_resonance(const float resonance) { m_resonance = resonance; update_b_coefficients(); };
+    void set_resonance(const float resonance) { m_resonance = resonance; m_b_coefficients_dirty = true; };
 
     const float get_low_pass() { return m_low_pass; };
     const float get_high_pass() { return m_high_pass; };
@@ -91,6 +91,8 @@ private:
     float m_filter_follower;
     float m_resonance;
     const float NYQUIST;
+
+    bool m_b_coefficients_dirty = true;
 };
 
 #endif // AUDIO_EFFECT_RENDER_STAGE_H
