@@ -313,6 +313,7 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     m_controls.push_back(release_time_control);
 
     // Play notes parameter
+    // TODO: Every generator has the same play_note and stop_note, so need to find a way to differentiate
     auto * play_note_control = new AudioControl<std::pair<float, float>>("play_note", std::make_pair(440.0f, 1.0f), [this](const std::pair<float, float>& v) { play_note(v); });
     AudioControlRegistry::instance().register_control("play_note", play_note_control);
     m_controls.push_back(play_note_control);

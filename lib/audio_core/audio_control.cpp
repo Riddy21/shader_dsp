@@ -15,6 +15,9 @@ std::vector<std::string> AudioControlRegistry::list_controls() {
 
 void AudioControlRegistry::register_control(const std::string& name, AudioControlBase* control) {
     std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_controls.find(name) != m_controls.end()) {
+        throw std::runtime_error("Control already registered: " + name);
+    }
     m_controls[name] = std::unique_ptr<AudioControlBase>(control);
 }
 
