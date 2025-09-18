@@ -116,7 +116,7 @@ TEST_CASE("AudioRenderer - Echo Effect Audio Output Test",
         float note_gain = SINE_AMPLITUDE;
 
         // Start playing the note
-        sine_generator->play_note(midi_note, note_gain);
+        sine_generator->play_note({midi_note, note_gain});
 
         // Render and play audio with echo effect using the AudioRenderer
         for (int frame = 0; frame < NUM_FRAMES; frame++) {

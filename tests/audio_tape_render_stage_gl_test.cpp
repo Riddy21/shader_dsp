@@ -96,7 +96,7 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
     record_stage.record(0);
 
     // Play note
-    generator.play_note(TEST_FREQUENCY, TEST_GAIN);
+    generator.play_note({TEST_FREQUENCY, TEST_GAIN});
 
     // Prepare audio output
     AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);

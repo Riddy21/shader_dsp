@@ -26,6 +26,8 @@ class AudioControl : public AudioControlBase {
 public:
     using ValueType = T;
 
+    // TODO: Make initial value optional and default when not provided
+    // TODO: Call initialize when the control is created
     AudioControl(const std::string& name, ValueType initial_value, std::function<void(const ValueType&)> setter)
         : m_name(name), m_value(initial_value), m_setter(setter) {}
 
@@ -44,10 +46,12 @@ public:
         }
     }
 
+    // TODO: Change this to use template
     std::any get_value() const override {
         return m_value;
     }
 
+    // TODO: Change this to use template
     const ValueType& value() const { return m_value; }
 
 private:
@@ -56,11 +60,13 @@ private:
     std::function<void(const ValueType&)> m_setter;
 };
 
+// TODO: Should add a way to recall the control object as well
 // Global registry for controls
 class AudioControlRegistry {
 public:
     static AudioControlRegistry& instance();
 
+    // TODO: Add bool to return value
     void register_control(const std::string& name, AudioControlBase* control);
 
     template <typename T>

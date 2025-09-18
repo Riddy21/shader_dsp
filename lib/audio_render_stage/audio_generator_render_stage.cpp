@@ -292,6 +292,34 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     if (!this->add_parameter(release_time_parameter)) {
         std::cerr << "Failed to add release_time_parameter" << std::endl;
     }
+
+    // Register controls
+    m_controls.clear();
+
+    auto * attack_time_control = new AudioControl<float>("attack_time", *(float*)attack_time_parameter->get_value(), [attack_time_parameter](const float& v) { attack_time_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control("attack_time", attack_time_control);
+    m_controls.push_back(attack_time_control);
+
+    auto * decay_time_control = new AudioControl<float>("decay_time", *(float*)decay_time_parameter->get_value(), [decay_time_parameter](const float& v) { decay_time_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control("decay_time", decay_time_control);
+    m_controls.push_back(decay_time_control);
+
+    auto * sustain_level_control = new AudioControl<float>("sustain_level", *(float*)sustain_level_parameter->get_value(), [sustain_level_parameter](const float& v) { sustain_level_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control("sustain_level", sustain_level_control);
+    m_controls.push_back(sustain_level_control);
+
+    auto * release_time_control = new AudioControl<float>("release_time", *(float*)release_time_parameter->get_value(), [release_time_parameter](const float& v) { release_time_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control("release_time", release_time_control);
+    m_controls.push_back(release_time_control);
+
+    // Play notes parameter
+    auto * play_note_control = new AudioControl<std::pair<float, float>>("play_note", std::make_pair(440.0f, 1.0f), [this](const std::pair<float, float>& v) { play_note(v); });
+    AudioControlRegistry::instance().register_control("play_note", play_note_control);
+    m_controls.push_back(play_note_control);
+
+    auto * stop_note_control = new AudioControl<float>("stop_note", 0.0f, [this](const float& v) { stop_note(v); });
+    AudioControlRegistry::instance().register_control("stop_note", stop_note_control);
+    m_controls.push_back(stop_note_control);
 }
 
 // String-based constructor for AudioGeneratorRenderStage
@@ -396,10 +424,41 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     if (!this->add_parameter(release_time_parameter)) {
         std::cerr << "Failed to add release_time_parameter" << std::endl;
     }
+
+    // Register controls
+    m_controls.clear();
+
+    auto * attack_time_control = new AudioControl<float>("attack_time", *(float*)attack_time_parameter->get_value(), [attack_time_parameter](const float& v) { attack_time_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control("attack_time", attack_time_control);
+    m_controls.push_back(attack_time_control);
+
+    auto * decay_time_control = new AudioControl<float>("decay_time", *(float*)decay_time_parameter->get_value(), [decay_time_parameter](const float& v) { decay_time_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control("decay_time", decay_time_control);
+    m_controls.push_back(decay_time_control);
+
+    auto * sustain_level_control = new AudioControl<float>("sustain_level", *(float*)sustain_level_parameter->get_value(), [sustain_level_parameter](const float& v) { sustain_level_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control("sustain_level", sustain_level_control);
+    m_controls.push_back(sustain_level_control);
+
+    auto * release_time_control = new AudioControl<float>("release_time", *(float*)release_time_parameter->get_value(), [release_time_parameter](const float& v) { release_time_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control("release_time", release_time_control);
+    m_controls.push_back(release_time_control);
+
+    // Play notes parameter
+    auto * play_note_control = new AudioControl<std::pair<float, float>>("play_note", std::make_pair(440.0f, 1.0f), [this](const std::pair<float, float>& v) { play_note(v); });
+    AudioControlRegistry::instance().register_control("play_note", play_note_control);
+    m_controls.push_back(play_note_control);
+
+    auto * stop_note_control = new AudioControl<float>("stop_note", 0.0f, [this](const float& v) { stop_note(v); });
+    AudioControlRegistry::instance().register_control("stop_note", stop_note_control);
+    m_controls.push_back(stop_note_control);
 }
 
-void AudioGeneratorRenderStage::play_note(const float tone, const float gain)
+void AudioGeneratorRenderStage::play_note(const std::pair<float, float>& note)
 {
+    float tone = note.first;
+    float gain = note.second;
+
     unsigned int time;
     if (m_time == 0) time = m_time;
     else time = m_time + 1;

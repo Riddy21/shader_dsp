@@ -174,7 +174,7 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Sine Wave Generation", "[audio_g
     REQUIRE(final_render_stage.bind());
 
     // Play a note
-    sine_generator.play_note(TEST_FREQUENCY, TEST_GAIN);
+    sine_generator.play_note({TEST_FREQUENCY, TEST_GAIN});
 
     // Render multiple frames to test continuity
     std::vector<float> left_channel_samples;
@@ -437,7 +437,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Content Accuracy Test", "[au
         REQUIRE(final_render_stage.bind());
 
         // Play at normal speed
-        file_generator.play_note(MIDDLE_C, TEST_GAIN);
+        file_generator.play_note({MIDDLE_C, TEST_GAIN});
 
         // Render frames and collect samples
         std::vector<float> rendered_samples;
@@ -547,7 +547,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Content Accuracy Test", "[au
             REQUIRE(final_render_stage.bind());
 
             // Play at specified speed
-            file_generator.play_note(MIDDLE_C * speed, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C * speed, TEST_GAIN});
 
             // Render frames and collect samples
             std::vector<float> rendered_samples;
@@ -813,7 +813,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Speed Change Artifacts and C
             REQUIRE(final_render_stage.bind());
 
             // Play at specified speed
-            file_generator.play_note(MIDDLE_C * speed, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C * speed, TEST_GAIN});
 
             // Render frames and collect samples
             std::vector<float> rendered_samples;
@@ -1004,7 +1004,7 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[aud
         REQUIRE(audio_output.start());
 
         // Play a note
-        sine_generator.play_note(TEST_FREQUENCY, TEST_GAIN);
+        sine_generator.play_note({TEST_FREQUENCY, TEST_GAIN});
         
         // Single loop: render once, save to recording, and play in real-time
         for (int frame = 0; frame < NUM_FRAMES; frame++) {
@@ -1140,7 +1140,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             REQUIRE(audio_output.start());
 
             // Play at normal speed
-            file_generator.play_note(MIDDLE_C, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C, TEST_GAIN});
             
             // Render and play audio data
             for (int frame = 0; frame < NUM_FRAMES; frame++) {
@@ -1180,7 +1180,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             REQUIRE(audio_output.start());
 
             // Play at half speed
-            file_generator.play_note(MIDDLE_C * 0.5f, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C * 0.5f, TEST_GAIN});
             
             // Render and play audio data
             for (int frame = 0; frame < NUM_FRAMES; frame++) {
@@ -1220,7 +1220,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             REQUIRE(audio_output.start());
 
             // Play at double speed
-            file_generator.play_note(MIDDLE_C * 2.0f, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C * 2.0f, TEST_GAIN});
             
             // Render and play audio data
             for (int frame = 0; frame < NUM_FRAMES; frame++) {
@@ -1264,7 +1264,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             REQUIRE(audio_output.start());
 
             // Play at normal speed
-            file_generator.play_note(MIDDLE_C, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C, TEST_GAIN});
             
             // Render, record, and play audio data simultaneously
             for (int frame = 0; frame < NUM_FRAMES; frame++) {

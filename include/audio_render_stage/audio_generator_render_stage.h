@@ -90,7 +90,7 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
          */
         ~AudioGeneratorRenderStage() override {}
 
-        void play_note(const float tone, const float gain);
+        void play_note(const std::pair<float, float>& note); // note is a pair of tone and gain
         void stop_note(const float tone);
 
         bool connect_render_stage(AudioRenderStage * next_stage) override;
@@ -106,7 +106,6 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
             std::vector<float> m_gains;
 
             NoteState(unsigned int max_notes);
-
             void set_parameters(AudioGeneratorRenderStage* owner);
             void copy_from(const NoteState& other);
             unsigned int add_note(int play_position, int stop_position, float tone, float gain, unsigned int max_notes);

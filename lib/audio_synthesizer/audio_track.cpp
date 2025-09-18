@@ -106,14 +106,6 @@ void AudioTrack::initialize_modules() {
     m_audio_renderer->unactivate_render_context();
 }
 
-void AudioTrack::play_note(const float tone, const float gain) {
-    m_current_voice->play_note(tone, gain);
-}
-
-void AudioTrack::stop_note(const float tone) {
-    m_current_voice->stop_note(tone);
-}
-
 void AudioTrack::change_effect(const std::string & effect_name) {
     m_audio_renderer->activate_render_context();
 

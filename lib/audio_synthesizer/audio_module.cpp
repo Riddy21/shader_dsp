@@ -125,7 +125,7 @@ AudioVoiceModule::AudioVoiceModule(const std::string& name,
 
 
 void AudioVoiceModule::play_note(float tone, float gain) {
-    m_generator_render_stage->play_note(tone, gain);
+    m_generator_render_stage->play_note({tone, gain});
 }
 void AudioVoiceModule::stop_note(float tone) {
     m_generator_render_stage->stop_note(tone);
