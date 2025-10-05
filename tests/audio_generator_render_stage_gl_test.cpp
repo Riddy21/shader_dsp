@@ -1039,7 +1039,7 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[aud
         }
 
         // Let it settle for a moment
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        //std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
         // Clean up real-time audio
         audio_output.stop();
@@ -1053,16 +1053,16 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[aud
         // Play back the recorded audio in chunks
         for (size_t offset = 0; offset < recorded_audio.size(); offset += BUFFER_SIZE * NUM_CHANNELS) {
             // Wait for audio output to be ready
-            while (!audio_output.is_ready()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
+            //while (!audio_output.is_ready()) {
+            //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            //}
             
-            // Push the chunk of recorded audio data
-            audio_output.push(&recorded_audio[offset]);
+            //// Push the chunk of recorded audio data
+            //audio_output.push(&recorded_audio[offset]);
         }
         
         // Let it settle for a moment
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        //std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
         // Clean up playback audio
         audio_output.stop();
@@ -1166,7 +1166,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             }
 
             // Let it settle for a moment
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
             // Clean up
             audio_output.stop();
@@ -1206,7 +1206,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             }
 
             // Let it settle for a moment
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
             // Clean up
             audio_output.stop();
@@ -1246,7 +1246,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             }
 
             // Let it settle for a moment
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
             // Clean up
             audio_output.stop();
@@ -1295,7 +1295,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             }
 
             // Let it settle for a moment
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
             // Clean up real-time audio
             audio_output.stop();

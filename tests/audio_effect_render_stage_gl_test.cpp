@@ -563,12 +563,12 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
             REQUIRE(output_data != nullptr);
 
             // Wait for audio output to be ready
-            while (!audio_output.is_ready()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
+            //while (!audio_output.is_ready()) {
+            //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            //}
             
-            // Push the audio data to the output for real-time playback
-            audio_output.push(output_data);
+            //// Push the audio data to the output for real-time playback
+            //audio_output.push(output_data);
         }
 
         // Let the audio finish playing
@@ -753,7 +753,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
     }
 
     // Let audio finish
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    //std::this_thread::sleep_for(std::chrono::milliseconds(500));
     audio_output.stop();
     
     // Separate stereo channels for analysis
@@ -767,7 +767,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
     SECTION("Discontinuity Detection Test") {
         std::cout << "\n=== Discontinuity Detection Analysis ===" << std::endl;
         
-        constexpr float DISCONTINUITY_THRESHOLD = 0.1f; // Same threshold as Python script
+        constexpr float DISCONTINUITY_THRESHOLD = 0.05f; // Same threshold as Python script
         std::vector<size_t> discontinuity_indices;
         std::vector<float> discontinuity_magnitudes;
         
@@ -1125,13 +1125,13 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
             recorded_audio.push_back(output_data[i]);
         }
 
-        while (!audio_output.is_ready()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-        audio_output.push(output_data);
+        //while (!audio_output.is_ready()) {
+        //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        //}
+        //audio_output.push(output_data);
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    //std::this_thread::sleep_for(std::chrono::milliseconds(500));
     
     audio_output.stop();
     std::cout << "Filter effect playback complete!" << std::endl;
