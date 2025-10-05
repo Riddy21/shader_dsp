@@ -154,3 +154,11 @@ TEST_CASE("AudioRenderer - Echo Effect Audio Output Test",
     // Note: We don't delete the renderer as it's a singleton
     // The renderer will be cleaned up when the test framework shuts down
 }
+
+TEST_CASE("AudioRenderer - Empty Audio Output Test", 
+                   "[audio_renderer][gl_test][audio_output]") {
+    // Get test parameters for this template instantiation
+    constexpr int BUFFER_SIZE = 256;
+    constexpr int NUM_CHANNELS = 2;
+    constexpr int SAMPLE_RATE = 44100;
+}
