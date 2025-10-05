@@ -36,6 +36,19 @@ TEST_CASE("AudioControlBase and AudioControl functionality", "[AudioControl]") {
     REQUIRE(std::find(controls.begin(), controls.end(), "test_control") != controls.end());
 }
 
+TEST_CASE("AudioControl constructor without initial value does not invoke setter", "[AudioControl]") {
+    int call_count = 0;
+    auto* control = new AudioControl<int>("no_initial", [&](const int&){ call_count++; });
+    // Constructor should not call setter
+    REQUIRE(call_count == 0);
+    // Value should be default-initialized (0 for int)
+    REQUIRE(control->value() == 0);
+    // Now setting should invoke setter
+    control->set(5);
+    REQUIRE(call_count == 1);
+    REQUIRE(control->value() == 5);
+}
+
 TEST_CASE("AudioControl with different types", "[AudioControl]") {
     // Test int control
     int int_value = 0;
@@ -126,6 +139,105 @@ TEST_CASE("AudioControl error handling", "[AudioControl]") {
 
     // This should throw
     REQUIRE_THROWS_AS(control->set_value(std::any(42)), std::bad_any_cast);
+}
+
+TEST_CASE("AudioControlRegistry supports categories with same control names", "[AudioControl]") {
+    // Arrange two categories with identical control names
+    float piano_freq = 0.0f;
+    float synth_freq = 0.0f;
+
+    auto* piano_play = new AudioControl<float>("play_note", 0.0f, [&](const float& v) { piano_freq = v; });
+    auto* synth_play = new AudioControl<float>("play_note", 0.0f, [&](const float& v) { synth_freq = v; });
+
+    // Register under different categories
+    AudioControlRegistry::instance().register_control("piano", "play_note", piano_play);
+    AudioControlRegistry::instance().register_control("synth", "play_note", synth_play);
+
+    // Verify retrieval by category
+    auto* piano_get = AudioControlRegistry::instance().get_control<float>("piano", "play_note");
+    auto* synth_get = AudioControlRegistry::instance().get_control<float>("synth", "play_note");
+    REQUIRE(piano_get == piano_play);
+    REQUIRE(synth_get == synth_play);
+
+    // Verify setting by category updates the correct target only
+    REQUIRE(AudioControlRegistry::instance().set_control<float>("piano", "play_note", 440.0f));
+    REQUIRE(piano_freq == 440.0f);
+    REQUIRE(synth_freq == 0.0f);
+
+    REQUIRE(AudioControlRegistry::instance().set_control<float>("synth", "play_note", 220.0f));
+    REQUIRE(piano_freq == 440.0f);
+    REQUIRE(synth_freq == 220.0f);
+
+    // Verify listings
+    auto categories = AudioControlRegistry::instance().list_categories();
+    REQUIRE(std::find(categories.begin(), categories.end(), std::string("piano")) != categories.end());
+    REQUIRE(std::find(categories.begin(), categories.end(), std::string("synth")) != categories.end());
+
+    auto piano_controls = AudioControlRegistry::instance().list_controls("piano");
+    auto synth_controls = AudioControlRegistry::instance().list_controls("synth");
+    REQUIRE(std::find(piano_controls.begin(), piano_controls.end(), std::string("play_note")) != piano_controls.end());
+    REQUIRE(std::find(synth_controls.begin(), synth_controls.end(), std::string("play_note")) != synth_controls.end());
+}
+
+TEST_CASE("AudioControlRegistry supports hierarchical categories", "[AudioControl]") {
+    float lead_freq = 0.0f;
+    float pad_freq = 0.0f;
+
+    auto* lead_play = new AudioControl<float>("play_note", 0.0f, [&](const float& v) { lead_freq = v; });
+    auto* pad_play = new AudioControl<float>("play_note", 0.0f, [&](const float& v) { pad_freq = v; });
+
+    // Register under nested category paths
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"synth", "lead"}, "play_note", lead_play);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"synth", "pad"}, "play_note", pad_play);
+
+    // Retrieve by path
+    auto* lead_get = AudioControlRegistry::instance().get_control<float>(std::vector<std::string>{"synth", "lead"}, "play_note");
+    auto* pad_get  = AudioControlRegistry::instance().get_control<float>(std::vector<std::string>{"synth", "pad"},  "play_note");
+    REQUIRE(lead_get == lead_play);
+    REQUIRE(pad_get  == pad_play);
+
+    // Set by path
+    REQUIRE(AudioControlRegistry::instance().set_control<float>(std::vector<std::string>{"synth", "lead"}, "play_note", 880.0f));
+    REQUIRE(lead_freq == 880.0f);
+    REQUIRE(pad_freq == 0.0f);
+
+    REQUIRE(AudioControlRegistry::instance().set_control<float>(std::vector<std::string>{"synth", "pad"}, "play_note", 110.0f));
+    REQUIRE(lead_freq == 880.0f);
+    REQUIRE(pad_freq == 110.0f);
+
+    // List subcategories under synth
+    auto subcats = AudioControlRegistry::instance().list_categories(std::vector<std::string>{"synth"});
+    REQUIRE(std::find(subcats.begin(), subcats.end(), std::string("lead")) != subcats.end());
+    REQUIRE(std::find(subcats.begin(), subcats.end(), std::string("pad"))  != subcats.end());
+
+    // List controls at a node
+    auto lead_controls = AudioControlRegistry::instance().list_controls(std::vector<std::string>{"synth", "lead"});
+    REQUIRE(std::find(lead_controls.begin(), lead_controls.end(), std::string("play_note")) != lead_controls.end());
+}
+
+TEST_CASE("AudioControlRegistry can deregister and transfer ownership", "[AudioControl]") {
+    int call_count = 0;
+    auto* ctrl = new AudioControl<int>("param", 1, [&](const int&){ call_count++; });
+
+    // Register under nested path
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"fx", "reverb"}, "param", ctrl);
+
+    // Ensure it exists
+    auto* found = AudioControlRegistry::instance().get_control<int>(std::vector<std::string>{"fx", "reverb"}, "param");
+    REQUIRE(found == ctrl);
+
+    // Deregister transfers ownership (typed)
+    auto ptr = AudioControlRegistry::instance().deregister_control<int>(std::vector<std::string>{"fx", "reverb"}, "param");
+    REQUIRE(ptr != nullptr);
+    REQUIRE(ptr.get() == ctrl);
+
+    // No longer retrievable
+    auto* not_found = AudioControlRegistry::instance().get_control<int>(std::vector<std::string>{"fx", "reverb"}, "param");
+    REQUIRE(not_found == nullptr);
+
+    // Manipulate after transfer (outside registry) still works
+    ptr->set(42);
+    REQUIRE(call_count == 2);
 }
 
 TEST_CASE("AudioControl with member function simulation", "[AudioControl]") {

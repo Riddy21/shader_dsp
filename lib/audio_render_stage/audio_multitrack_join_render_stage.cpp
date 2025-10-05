@@ -44,6 +44,37 @@ AudioMultitrackJoinRenderStage::AudioMultitrackJoinRenderStage(const unsigned in
     }
 }
 
+AudioMultitrackJoinRenderStage::AudioMultitrackJoinRenderStage(const std::string & stage_name,
+                                                               const unsigned int frames_per_buffer,
+                                                               const unsigned int sample_rate,
+                                                               const unsigned int num_channels,
+                                                               const unsigned int num_tracks,
+                                                               const std::string& fragment_shader_path,
+                                                               const std::vector<std::string> & frag_shader_imports)
+    : AudioRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+
+    if (num_tracks > MAX_TRACKS) {
+        std::cerr << "Cannot add more than " << MAX_TRACKS << " tracks" << std::endl;
+    }
+
+    for (unsigned int i=0; i<num_tracks; i++){
+        std::string stream_name = "stream_audio_texture_" + std::to_string(i);
+
+        AudioParameter * input_audio_texture = 
+                new AudioTexture2DParameter(stream_name,
+                                            AudioParameter::ConnectionType::PASSTHROUGH,
+                                            frames_per_buffer, num_channels,
+                                            m_active_texture_count++,
+                                            0, GL_NEAREST);
+
+        if (!this->add_parameter(input_audio_texture)) {
+            std::cerr << "Failed to add " << stream_name << std::endl;
+        }
+
+        m_free_textures.push(input_audio_texture);
+    }
+}
+
 const std::vector<AudioParameter *> AudioMultitrackJoinRenderStage::get_stream_interface() {
     AudioParameter * free_parameter = m_free_textures.front();
 

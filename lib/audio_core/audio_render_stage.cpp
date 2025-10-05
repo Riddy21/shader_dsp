@@ -23,77 +23,38 @@ const std::vector<std::string> AudioRenderStage::default_vert_shader_imports = {
 
 AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                    const unsigned int sample_rate,
+                                    const unsigned int num_channels,
+                                   const std::string & fragment_shader_path,
+                                   const std::vector<std::string> & frag_shader_imports,
+                                   const std::string & vertex_shader_path,
+                                   const std::vector<std::string> & vert_shader_imports)
+                                  : gid(generate_id()),
+                                    name("RenderStage-" + std::to_string(gid)),
+                                    frames_per_buffer(frames_per_buffer),
+                                    sample_rate(sample_rate),
+                                    num_channels(num_channels),
+                                    m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
+                                    m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
+    setup_default_parameters();
+}
+
+// Constructor with explicit name
+AudioRenderStage::AudioRenderStage(const std::string & stage_name,
+                                   const unsigned int frames_per_buffer,
+                                   const unsigned int sample_rate,
                                    const unsigned int num_channels,
                                    const std::string & fragment_shader_path,
                                    const std::vector<std::string> & frag_shader_imports,
                                    const std::string & vertex_shader_path,
                                    const std::vector<std::string> & vert_shader_imports)
                                   : gid(generate_id()),
+                                    name(stage_name),
                                     frames_per_buffer(frames_per_buffer),
                                     sample_rate(sample_rate),
                                     num_channels(num_channels),
                                     m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
                                     m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
-    
-    int width = frames_per_buffer;
-    int height = num_channels;
-
-
-    auto stream_audio_texture =
-        new AudioTexture2DParameter("stream_audio_texture",
-                                    AudioParameter::ConnectionType::PASSTHROUGH,
-                                    width, height, // Width and height
-                                    m_active_texture_count++,
-                                    0, /* colour attachment not used for passthrough */
-                                    GL_NEAREST);
-    auto output_audio_texture =
-        new AudioTexture2DParameter("output_audio_texture",
-                                    AudioParameter::ConnectionType::OUTPUT,
-                                    width, height,
-                                    0,
-                                    m_color_attachment_count++, GL_NEAREST);
-    auto debug_audio_texture =
-        new AudioTexture2DParameter("debug_audio_texture",
-                                    AudioParameter::ConnectionType::OUTPUT,
-                                    width, height,
-                                    0,
-                                    m_color_attachment_count++, GL_NEAREST);
-
-    auto buffer_size =
-        new AudioIntParameter("buffer_size",
-                  AudioParameter::ConnectionType::INITIALIZATION);
-    buffer_size->set_value(frames_per_buffer);
-
-    auto n_channels = 
-        new AudioIntParameter("num_channels",
-                  AudioParameter::ConnectionType::INITIALIZATION);
-    n_channels->set_value(num_channels);
-
-    auto samp_rate =
-        new AudioIntParameter("sample_rate",
-                  AudioParameter::ConnectionType::INITIALIZATION);
-    samp_rate->set_value(sample_rate);
-    
-    if (!this->add_parameter(output_audio_texture)) {
-        std::cerr << "Failed to add output_audio_texture" << std::endl;
-    }
-    if (!this->add_parameter(stream_audio_texture)) {
-        std::cerr << "Failed to add stream_audio_texture" << std::endl;
-    }
-    if (!this->add_parameter(debug_audio_texture)) {
-        std::cerr << "Failed to add debug_audio_texture" << std::endl;
-    }
-    if (!this->add_parameter(buffer_size)) {
-        std::cerr << "Failed to add buffer_size" << std::endl;
-    }
-    if (!this->add_parameter(n_channels)) {
-        std::cerr << "Failed to add num_channels" << std::endl;
-    }
-    if (!this->add_parameter(samp_rate)) {
-        std::cerr << "Failed to add sample_rate" << std::endl;
-    }
-
-    m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
+    setup_default_parameters();
 }
 
 // Constructor that takes fragment shader source as string
@@ -106,70 +67,33 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                    const std::string & vertex_shader_path,
                                    const std::vector<std::string> & vert_shader_imports)
                                   : gid(generate_id()),
+                                    name("RenderStage-" + std::to_string(gid)),
                                     frames_per_buffer(frames_per_buffer),
                                     sample_rate(sample_rate),
                                     num_channels(num_channels),
                                     m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
                                     m_fragment_shader_source(combine_shader_source_with_string(frag_shader_imports, fragment_shader_source)) {
-    
-    int width = frames_per_buffer;
-    int height = num_channels;
+    setup_default_parameters();
+}
 
-    auto stream_audio_texture =
-        new AudioTexture2DParameter("stream_audio_texture",
-                                    AudioParameter::ConnectionType::PASSTHROUGH,
-                                    width, height, // Width and height
-                                    m_active_texture_count++,
-                                    0, /* colour attachment not used for passthrough */
-                                    GL_NEAREST);
-    auto output_audio_texture =
-        new AudioTexture2DParameter("output_audio_texture",
-                                    AudioParameter::ConnectionType::OUTPUT,
-                                    width, height,
-                                    0,
-                                    m_color_attachment_count++, GL_NEAREST);
-    auto debug_audio_texture =
-        new AudioTexture2DParameter("debug_audio_texture",
-                                    AudioParameter::ConnectionType::OUTPUT,
-                                    width, height,
-                                    0,
-                                    m_color_attachment_count++, GL_NEAREST);
-
-    auto buffer_size =
-        new AudioIntParameter("buffer_size",
-                  AudioParameter::ConnectionType::INITIALIZATION);
-    buffer_size->set_value(frames_per_buffer);
-
-    auto n_channels = 
-        new AudioIntParameter("num_channels",
-                  AudioParameter::ConnectionType::INITIALIZATION);
-    n_channels->set_value(num_channels);
-
-    auto samp_rate =
-        new AudioIntParameter("sample_rate",
-                  AudioParameter::ConnectionType::INITIALIZATION);
-    samp_rate->set_value(sample_rate);
-    
-    if (!this->add_parameter(output_audio_texture)) {
-        std::cerr << "Failed to add output_audio_texture" << std::endl;
-    }
-    if (!this->add_parameter(stream_audio_texture)) {
-        std::cerr << "Failed to add stream_audio_texture" << std::endl;
-    }
-    if (!this->add_parameter(debug_audio_texture)) {
-        std::cerr << "Failed to add debug_audio_texture" << std::endl;
-    }
-    if (!this->add_parameter(buffer_size)) {
-        std::cerr << "Failed to add buffer_size" << std::endl;
-    }
-    if (!this->add_parameter(n_channels)) {
-        std::cerr << "Failed to add num_channels" << std::endl;
-    }
-    if (!this->add_parameter(samp_rate)) {
-        std::cerr << "Failed to add sample_rate" << std::endl;
-    }
-
-    m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
+// String-based constructor with explicit name
+AudioRenderStage::AudioRenderStage(const std::string & stage_name,
+                                   const unsigned int frames_per_buffer,
+                                   const unsigned int sample_rate,
+                                   const unsigned int num_channels,
+                                   const std::string & fragment_shader_source,
+                                   bool use_shader_string,
+                                   const std::vector<std::string> & frag_shader_imports,
+                                   const std::string & vertex_shader_path,
+                                   const std::vector<std::string> & vert_shader_imports)
+                                  : gid(generate_id()),
+                                    name(stage_name),
+                                    frames_per_buffer(frames_per_buffer),
+                                    sample_rate(sample_rate),
+                                    num_channels(num_channels),
+                                    m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
+                                    m_fragment_shader_source(combine_shader_source_with_string(frag_shader_imports, fragment_shader_source)) {
+    setup_default_parameters();
 }
 
 AudioRenderStage::~AudioRenderStage() {
@@ -179,7 +103,7 @@ AudioRenderStage::~AudioRenderStage() {
         m_framebuffer = 0;
     }
 
-    printf("Deleting render stage %d\n", gid);
+    printf("Deleting render stage %d (%s)\n", gid, name.c_str());
 }
 
 bool AudioRenderStage::initialize() {
@@ -686,6 +610,67 @@ void AudioRenderStage::print_output_textures() {
             }
         }
     }
+}
+
+void AudioRenderStage::setup_default_parameters() {
+    int width = frames_per_buffer;
+    int height = num_channels;
+
+    auto stream_audio_texture =
+        new AudioTexture2DParameter("stream_audio_texture",
+                                    AudioParameter::ConnectionType::PASSTHROUGH,
+                                    width, height,
+                                    m_active_texture_count++,
+                                    0,
+                                    GL_NEAREST);
+    auto output_audio_texture =
+        new AudioTexture2DParameter("output_audio_texture",
+                                    AudioParameter::ConnectionType::OUTPUT,
+                                    width, height,
+                                    0,
+                                    m_color_attachment_count++, GL_NEAREST);
+    auto debug_audio_texture =
+        new AudioTexture2DParameter("debug_audio_texture",
+                                    AudioParameter::ConnectionType::OUTPUT,
+                                    width, height,
+                                    0,
+                                    m_color_attachment_count++, GL_NEAREST);
+
+    auto buffer_size =
+        new AudioIntParameter("buffer_size",
+                  AudioParameter::ConnectionType::INITIALIZATION);
+    buffer_size->set_value(frames_per_buffer);
+
+    auto n_channels = 
+        new AudioIntParameter("num_channels",
+                  AudioParameter::ConnectionType::INITIALIZATION);
+    n_channels->set_value(num_channels);
+
+    auto samp_rate =
+        new AudioIntParameter("sample_rate",
+                  AudioParameter::ConnectionType::INITIALIZATION);
+    samp_rate->set_value(sample_rate);
+    
+    if (!this->add_parameter(output_audio_texture)) {
+        std::cerr << "Failed to add output_audio_texture" << std::endl;
+    }
+    if (!this->add_parameter(stream_audio_texture)) {
+        std::cerr << "Failed to add stream_audio_texture" << std::endl;
+    }
+    if (!this->add_parameter(debug_audio_texture)) {
+        std::cerr << "Failed to add debug_audio_texture" << std::endl;
+    }
+    if (!this->add_parameter(buffer_size)) {
+        std::cerr << "Failed to add buffer_size" << std::endl;
+    }
+    if (!this->add_parameter(n_channels)) {
+        std::cerr << "Failed to add num_channels" << std::endl;
+    }
+    if (!this->add_parameter(samp_rate)) {
+        std::cerr << "Failed to add sample_rate" << std::endl;
+    }
+
+    m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
 }
 
 void AudioRenderStage::clear_output_textures() {

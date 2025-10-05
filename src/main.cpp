@@ -35,8 +35,8 @@ void setup_keyboard(AudioSynthesizer& synthesizer, EventLoop& event_loop) {
     for (const auto& control : control_registry.list_controls()) {
         std::cout << "Control: " << control << std::endl;
     }
-    auto * play_note_control = control_registry.get_control<std::pair<float, float>>("play_note");
-    auto * stop_note_control = control_registry.get_control<float>("stop_note");
+    auto * play_note_control = control_registry.get_control<std::pair<float, float>>("voices", "play_note");
+    auto * stop_note_control = control_registry.get_control<float>("voices", "stop_note");
 
     for (const auto& [key, tone] : KEY_TONE_MAPPING) {
         event_handler.register_entry(new KeyboardEventHandlerEntry(

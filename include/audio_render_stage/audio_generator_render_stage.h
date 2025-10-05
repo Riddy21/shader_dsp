@@ -35,8 +35,25 @@ public:
                               const std::string& fragment_shader_path,
                               const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 
+    // Named constructor
+    AudioSingleShaderGeneratorRenderStage(const std::string & stage_name,
+                              const unsigned int frames_per_buffer,
+                              const unsigned int sample_rate,
+                              const unsigned int num_channels,
+                              const std::string& fragment_shader_path,
+                              const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
     // Constructor that takes fragment shader source as string
     AudioSingleShaderGeneratorRenderStage(const unsigned int frames_per_buffer,
+                              const unsigned int sample_rate,
+                              const unsigned int num_channels,
+                              const std::string& fragment_shader_source,
+                              bool use_shader_string,
+                              const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
+    // String-based named constructor
+    AudioSingleShaderGeneratorRenderStage(const std::string & stage_name,
+                              const unsigned int frames_per_buffer,
                               const unsigned int sample_rate,
                               const unsigned int num_channels,
                               const std::string& fragment_shader_source,
@@ -77,8 +94,25 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
                                   const std::string& fragment_shader_path,
                                   const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 
+        // Named constructor
+        AudioGeneratorRenderStage(const std::string & stage_name,
+                                  const unsigned int frames_per_buffer,
+                                  const unsigned int sample_rate,
+                                  const unsigned int num_channels,
+                                  const std::string& fragment_shader_path,
+                                  const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
         // Constructor that takes fragment shader source as string
         AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
+                                  const unsigned int sample_rate,
+                                  const unsigned int num_channels,
+                                  const std::string& fragment_shader_source,
+                                  bool use_shader_string,
+                                  const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
+        // String-based named constructor
+        AudioGeneratorRenderStage(const std::string & stage_name,
+                                  const unsigned int frames_per_buffer,
                                   const unsigned int sample_rate,
                                   const unsigned int num_channels,
                                   const std::string& fragment_shader_source,

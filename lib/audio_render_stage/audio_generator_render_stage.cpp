@@ -22,7 +22,39 @@ AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(con
                                                      const unsigned int num_channels,
                                                      const std::string & fragment_shader_path,
                                                      const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+    : AudioSingleShaderGeneratorRenderStage(
+        frames_per_buffer,
+        sample_rate,
+        num_channels,
+        AudioRenderStage::get_shader_source(fragment_shader_path),
+        true,
+        frag_shader_imports) {
+}
+
+// Named ctor delegating to string-loading path
+AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(const std::string & stage_name,
+                                                     const unsigned int frames_per_buffer,
+                                                     const unsigned int sample_rate,
+                                                     const unsigned int num_channels,
+                                                     const std::string & fragment_shader_path,
+                                                     const std::vector<std::string> & frag_shader_imports)
+    : AudioSingleShaderGeneratorRenderStage(
+        stage_name,
+        frames_per_buffer,
+        sample_rate,
+        num_channels,
+        AudioRenderStage::get_shader_source(fragment_shader_path),
+        true,
+        frag_shader_imports) {}
+
+// String-based constructor for AudioSingleShaderGeneratorRenderStage
+AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(const unsigned int frames_per_buffer,
+                                                     const unsigned int sample_rate,
+                                                     const unsigned int num_channels,
+                                                     const std::string & fragment_shader_source,
+                                                     bool use_shader_string,
+                                                     const std::vector<std::string> & frag_shader_imports)
+    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_source, use_shader_string, frag_shader_imports) {
 
     auto play_position_parameter =
         new AudioIntParameter("play_position",
@@ -100,14 +132,15 @@ AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(con
     }
 }
 
-// String-based constructor for AudioSingleShaderGeneratorRenderStage
-AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(const unsigned int frames_per_buffer,
+// String-based named constructor
+AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(const std::string & stage_name,
+                                                     const unsigned int frames_per_buffer,
                                                      const unsigned int sample_rate,
                                                      const unsigned int num_channels,
                                                      const std::string & fragment_shader_source,
                                                      bool use_shader_string,
                                                      const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_source, use_shader_string, frag_shader_imports) {
+    : AudioRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_source, use_shader_string, frag_shader_imports) {
 
     auto play_position_parameter =
         new AudioIntParameter("play_position",
@@ -197,131 +230,30 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                                                      const unsigned int num_channels,
                                                      const std::string & fragment_shader_path,
                                                      const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
-      m_note_state(MAX_NOTES_PLAYED_AT_ONCE) // initialize NoteState
-{
-
-    auto play_position_parameter =
-        new AudioIntArrayParameter("play_positions",
-                              AudioParameter::ConnectionType::INPUT,
-                              MAX_NOTES_PLAYED_AT_ONCE);
-
-    auto stop_position_parameter =
-        new AudioIntArrayParameter("stop_positions",
-                              AudioParameter::ConnectionType::INPUT,
-                              MAX_NOTES_PLAYED_AT_ONCE);
-
-    auto tone_parameter =
-        new AudioFloatArrayParameter("tones",
-                              AudioParameter::ConnectionType::INPUT,
-                              MAX_NOTES_PLAYED_AT_ONCE);
-    
-    auto gain_parameter =
-        new AudioFloatArrayParameter("gains",
-                              AudioParameter::ConnectionType::INPUT,
-                              MAX_NOTES_PLAYED_AT_ONCE);
-
-    auto active_notes_parameter =
-        new AudioIntParameter("active_notes",
-                              AudioParameter::ConnectionType::INPUT);
-                        
-    // Set to 0s
-    int* play_positions = new int[MAX_NOTES_PLAYED_AT_ONCE]();
-    int* stop_positions = new int[MAX_NOTES_PLAYED_AT_ONCE]();
-    float* tones = new float[MAX_NOTES_PLAYED_AT_ONCE]();
-    float* gains = new float[MAX_NOTES_PLAYED_AT_ONCE]();
-
-    play_position_parameter->set_value(play_positions);
-    stop_position_parameter->set_value(stop_positions);
-    tone_parameter->set_value(tones);
-    gain_parameter->set_value(gains);
-    active_notes_parameter->set_value(0);
-
-    // Clean up allocated arrays
-    delete[] play_positions;
-    delete[] stop_positions;
-    delete[] tones;
-    delete[] gains;
-
-    // Add the parameters
-    if (!this->add_parameter(play_position_parameter)) {
-        std::cerr << "Failed to add play_position_parameter" << std::endl;
-    }
-    if (!this->add_parameter(stop_position_parameter)) {
-        std::cerr << "Failed to add stop_position_parameter" << std::endl;
-    }
-    if (!this->add_parameter(tone_parameter)) {
-        std::cerr << "Failed to add tone_parameter" << std::endl;
-    }
-    if (!this->add_parameter(gain_parameter)) {
-        std::cerr << "Failed to add gain_parameter" << std::endl;
-    }
-    if (!this->add_parameter(active_notes_parameter)) {
-        std::cerr << "Failed to add active_notes_parameter" << std::endl;
-    }
-
-    auto attack_time_parameter =
-        new AudioFloatParameter("attack_time",
-                              AudioParameter::ConnectionType::INPUT);
-    attack_time_parameter->set_value(0.1f);
-
-    auto decay_time_parameter =
-        new AudioFloatParameter("decay_time",
-                              AudioParameter::ConnectionType::INPUT);
-    decay_time_parameter->set_value(1.0f);
-
-    auto sustain_level_parameter =
-        new AudioFloatParameter("sustain_level",
-                              AudioParameter::ConnectionType::INPUT);
-    sustain_level_parameter->set_value(1.0f);
-
-    auto release_time_parameter =
-        new AudioFloatParameter("release_time",
-                              AudioParameter::ConnectionType::INPUT);
-    release_time_parameter->set_value(0.4f);
-
-    if (!this->add_parameter(attack_time_parameter)) {
-        std::cerr << "Failed to add attack_time_parameter" << std::endl;
-    }
-    if (!this->add_parameter(decay_time_parameter)) {
-        std::cerr << "Failed to add decay_time_parameter" << std::endl;
-    }
-    if (!this->add_parameter(sustain_level_parameter)) {
-        std::cerr << "Failed to add sustain_level_parameter" << std::endl;
-    }
-    if (!this->add_parameter(release_time_parameter)) {
-        std::cerr << "Failed to add release_time_parameter" << std::endl;
-    }
-
-    // Register controls
-    m_controls.clear();
-
-    auto * attack_time_control = new AudioControl<float>("attack_time", *(float*)attack_time_parameter->get_value(), [attack_time_parameter](const float& v) { attack_time_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control("attack_time", attack_time_control);
-    m_controls.push_back(attack_time_control);
-
-    auto * decay_time_control = new AudioControl<float>("decay_time", *(float*)decay_time_parameter->get_value(), [decay_time_parameter](const float& v) { decay_time_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control("decay_time", decay_time_control);
-    m_controls.push_back(decay_time_control);
-
-    auto * sustain_level_control = new AudioControl<float>("sustain_level", *(float*)sustain_level_parameter->get_value(), [sustain_level_parameter](const float& v) { sustain_level_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control("sustain_level", sustain_level_control);
-    m_controls.push_back(sustain_level_control);
-
-    auto * release_time_control = new AudioControl<float>("release_time", *(float*)release_time_parameter->get_value(), [release_time_parameter](const float& v) { release_time_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control("release_time", release_time_control);
-    m_controls.push_back(release_time_control);
-
-    // Play notes parameter
-    // TODO: Every generator has the same play_note and stop_note, so need to find a way to differentiate
-    auto * play_note_control = new AudioControl<std::pair<float, float>>("play_note", std::make_pair(440.0f, 1.0f), [this](const std::pair<float, float>& v) { play_note(v); });
-    AudioControlRegistry::instance().register_control("play_note", play_note_control);
-    m_controls.push_back(play_note_control);
-
-    auto * stop_note_control = new AudioControl<float>("stop_note", 0.0f, [this](const float& v) { stop_note(v); });
-    AudioControlRegistry::instance().register_control("stop_note", stop_note_control);
-    m_controls.push_back(stop_note_control);
+    : AudioGeneratorRenderStage(
+        frames_per_buffer,
+        sample_rate,
+        num_channels,
+        AudioRenderStage::get_shader_source(fragment_shader_path),
+        true,
+        frag_shader_imports) {
 }
+
+// Named ctor delegating
+AudioGeneratorRenderStage::AudioGeneratorRenderStage(const std::string & stage_name,
+                                                     const unsigned int frames_per_buffer,
+                                                     const unsigned int sample_rate,
+                                                     const unsigned int num_channels,
+                                                     const std::string & fragment_shader_path,
+                                                     const std::vector<std::string> & frag_shader_imports)
+    : AudioGeneratorRenderStage(
+        stage_name,
+        frames_per_buffer,
+        sample_rate,
+        num_channels,
+        AudioRenderStage::get_shader_source(fragment_shader_path),
+        true,
+        frag_shader_imports) {}
 
 // String-based constructor for AudioGeneratorRenderStage
 AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
@@ -430,28 +362,161 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     m_controls.clear();
 
     auto * attack_time_control = new AudioControl<float>("attack_time", *(float*)attack_time_parameter->get_value(), [attack_time_parameter](const float& v) { attack_time_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control("attack_time", attack_time_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "attack_time", attack_time_control);
     m_controls.push_back(attack_time_control);
 
     auto * decay_time_control = new AudioControl<float>("decay_time", *(float*)decay_time_parameter->get_value(), [decay_time_parameter](const float& v) { decay_time_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control("decay_time", decay_time_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "decay_time", decay_time_control);
     m_controls.push_back(decay_time_control);
 
     auto * sustain_level_control = new AudioControl<float>("sustain_level", *(float*)sustain_level_parameter->get_value(), [sustain_level_parameter](const float& v) { sustain_level_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control("sustain_level", sustain_level_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "sustain_level", sustain_level_control);
     m_controls.push_back(sustain_level_control);
 
     auto * release_time_control = new AudioControl<float>("release_time", *(float*)release_time_parameter->get_value(), [release_time_parameter](const float& v) { release_time_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control("release_time", release_time_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "release_time", release_time_control);
     m_controls.push_back(release_time_control);
 
     // Play notes parameter
-    auto * play_note_control = new AudioControl<std::pair<float, float>>("play_note", std::make_pair(440.0f, 1.0f), [this](const std::pair<float, float>& v) { play_note(v); });
-    AudioControlRegistry::instance().register_control("play_note", play_note_control);
+    auto * play_note_control = new AudioControl<std::pair<float, float>>("play_note", std::pair<float, float>{440.0f, 1.0f}, [this](const std::pair<float, float>& v) { play_note(v); });
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "play_note", play_note_control);
     m_controls.push_back(play_note_control);
 
     auto * stop_note_control = new AudioControl<float>("stop_note", 0.0f, [this](const float& v) { stop_note(v); });
-    AudioControlRegistry::instance().register_control("stop_note", stop_note_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "stop_note", stop_note_control);
+    m_controls.push_back(stop_note_control);
+}
+
+// String-based named ctor
+AudioGeneratorRenderStage::AudioGeneratorRenderStage(const std::string & stage_name,
+                                                     const unsigned int frames_per_buffer,
+                                                     const unsigned int sample_rate,
+                                                     const unsigned int num_channels,
+                                                     const std::string & fragment_shader_source,
+                                                     bool use_shader_string,
+                                                     const std::vector<std::string> & frag_shader_imports)
+    : AudioRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_source, use_shader_string, frag_shader_imports),
+      m_note_state(MAX_NOTES_PLAYED_AT_ONCE) // initialize NoteState
+{
+
+    auto play_position_parameter =
+        new AudioIntArrayParameter("play_positions",
+                              AudioParameter::ConnectionType::INPUT,
+                              MAX_NOTES_PLAYED_AT_ONCE);
+
+    auto stop_position_parameter =
+        new AudioIntArrayParameter("stop_positions",
+                              AudioParameter::ConnectionType::INPUT,
+                              MAX_NOTES_PLAYED_AT_ONCE);
+
+    auto tone_parameter =
+        new AudioFloatArrayParameter("tones",
+                              AudioParameter::ConnectionType::INPUT,
+                              MAX_NOTES_PLAYED_AT_ONCE);
+    
+    auto gain_parameter =
+        new AudioFloatArrayParameter("gains",
+                              AudioParameter::ConnectionType::INPUT,
+                              MAX_NOTES_PLAYED_AT_ONCE);
+
+    auto active_notes_parameter =
+        new AudioIntParameter("active_notes",
+                              AudioParameter::ConnectionType::INPUT);
+                        
+    // Set to 0s
+    int* play_positions = new int[MAX_NOTES_PLAYED_AT_ONCE]();
+    int* stop_positions = new int[MAX_NOTES_PLAYED_AT_ONCE]();
+    float* tones = new float[MAX_NOTES_PLAYED_AT_ONCE]();
+    float* gains = new float[MAX_NOTES_PLAYED_AT_ONCE]();
+
+    play_position_parameter->set_value(play_positions);
+    stop_position_parameter->set_value(stop_positions);
+    tone_parameter->set_value(tones);
+    gain_parameter->set_value(gains);
+    active_notes_parameter->set_value(0);
+
+    // Clean up allocated arrays
+    delete[] play_positions;
+    delete[] stop_positions;
+    delete[] tones;
+    delete[] gains;
+
+    // Add the parameters
+    if (!this->add_parameter(play_position_parameter)) {
+        std::cerr << "Failed to add play_position_parameter" << std::endl;
+    }
+    if (!this->add_parameter(stop_position_parameter)) {
+        std::cerr << "Failed to add stop_position_parameter" << std::endl;
+    }
+    if (!this->add_parameter(tone_parameter)) {
+        std::cerr << "Failed to add tone_parameter" << std::endl;
+    }
+    if (!this->add_parameter(gain_parameter)) {
+        std::cerr << "Failed to add gain_parameter" << std::endl;
+    }
+    if (!this->add_parameter(active_notes_parameter)) {
+        std::cerr << "Failed to add active_notes_parameter" << std::endl;
+    }
+
+    auto attack_time_parameter =
+        new AudioFloatParameter("attack_time",
+                              AudioParameter::ConnectionType::INPUT);
+    attack_time_parameter->set_value(0.1f);
+
+    auto decay_time_parameter =
+        new AudioFloatParameter("decay_time",
+                              AudioParameter::ConnectionType::INPUT);
+    decay_time_parameter->set_value(1.0f);
+
+    auto sustain_level_parameter =
+        new AudioFloatParameter("sustain_level",
+                              AudioParameter::ConnectionType::INPUT);
+    sustain_level_parameter->set_value(1.0f);
+
+    auto release_time_parameter =
+        new AudioFloatParameter("release_time",
+                              AudioParameter::ConnectionType::INPUT);
+    release_time_parameter->set_value(0.4f);
+
+    if (!this->add_parameter(attack_time_parameter)) {
+        std::cerr << "Failed to add attack_time_parameter" << std::endl;
+    }
+    if (!this->add_parameter(decay_time_parameter)) {
+        std::cerr << "Failed to add decay_time_parameter" << std::endl;
+    }
+    if (!this->add_parameter(sustain_level_parameter)) {
+        std::cerr << "Failed to add sustain_level_parameter" << std::endl;
+    }
+    if (!this->add_parameter(release_time_parameter)) {
+        std::cerr << "Failed to add release_time_parameter" << std::endl;
+    }
+
+    // Register controls
+    m_controls.clear();
+
+    auto * attack_time_control = new AudioControl<float>("attack_time", *(float*)attack_time_parameter->get_value(), [attack_time_parameter](const float& v) { attack_time_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "attack_time", attack_time_control);
+    m_controls.push_back(attack_time_control);
+
+    auto * decay_time_control = new AudioControl<float>("decay_time", *(float*)decay_time_parameter->get_value(), [decay_time_parameter](const float& v) { decay_time_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "decay_time", decay_time_control);
+    m_controls.push_back(decay_time_control);
+
+    auto * sustain_level_control = new AudioControl<float>("sustain_level", *(float*)sustain_level_parameter->get_value(), [sustain_level_parameter](const float& v) { sustain_level_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "sustain_level", sustain_level_control);
+    m_controls.push_back(sustain_level_control);
+
+    auto * release_time_control = new AudioControl<float>("release_time", *(float*)release_time_parameter->get_value(), [release_time_parameter](const float& v) { release_time_parameter->set_value(v); });
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "release_time", release_time_control);
+    m_controls.push_back(release_time_control);
+
+    // Play notes parameter
+    auto * play_note_control = new AudioControl<std::pair<float, float>>("play_note", std::pair<float, float>{440.0f, 1.0f}, [this](const std::pair<float, float>& v) { play_note(v); });
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "play_note", play_note_control);
+    m_controls.push_back(play_note_control);
+
+    auto * stop_note_control = new AudioControl<float>("stop_note", 0.0f, [this](const float& v) { stop_note(v); });
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "stop_note", stop_note_control);
     m_controls.push_back(stop_note_control);
 }
 

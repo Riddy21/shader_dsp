@@ -28,7 +28,18 @@ public:
     static const std::vector<std::string> default_frag_shader_imports;
     static const std::vector<std::string> default_vert_shader_imports;
 
+    // Constructor (auto-generated name)
     AudioRenderStage(const unsigned int frames_per_buffer,
+                     const unsigned int sample_rate,
+                     const unsigned int num_channels,
+                     const std::string& fragment_shader_path = "build/shaders/render_stage_frag.glsl",
+                     const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports,
+                     const std::string& vertex_shader_path = "build/shaders/render_stage_vert.glsl",
+                     const std::vector<std::string> & vert_shader_imports = default_vert_shader_imports);
+
+    // Constructor with explicit name
+    AudioRenderStage(const std::string & stage_name,
+                     const unsigned int frames_per_buffer,
                      const unsigned int sample_rate,
                      const unsigned int num_channels,
                      const std::string& fragment_shader_path = "build/shaders/render_stage_frag.glsl",
@@ -38,6 +49,17 @@ public:
 
     // Constructor that takes fragment shader source as string instead of file path
     AudioRenderStage(const unsigned int frames_per_buffer,
+                     const unsigned int sample_rate,
+                     const unsigned int num_channels,
+                     const std::string& fragment_shader_source,
+                     bool use_shader_string, // Dummy parameter to differentiate constructors
+                     const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports,
+                     const std::string& vertex_shader_path = "build/shaders/render_stage_vert.glsl",
+                     const std::vector<std::string> & vert_shader_imports = default_vert_shader_imports);
+
+    // String-based constructor with explicit name
+    AudioRenderStage(const std::string & stage_name,
+                     const unsigned int frames_per_buffer,
                      const unsigned int sample_rate,
                      const unsigned int num_channels,
                      const std::string& fragment_shader_source,
@@ -126,11 +148,16 @@ public:
         return m_controls;
     }
 
+    const std::string & get_name() const {
+        return name;
+    }
+
     static const std::string get_shader_source(const std::string & file_path);
     static const std::string combine_shader_source(const std::vector<std::string> & import_paths, const std::string & shader_path);
     static const std::string combine_shader_source_with_string(const std::vector<std::string> & import_paths, const std::string & shader_source);
 
     const unsigned int gid;    
+    const std::string name;
 
     // TODO: Think of way to make this static
     const std::string m_vertex_shader_source;
@@ -231,6 +258,9 @@ private:
     void clear_input_textures();
 
     void clear_output_textures();
+
+    // Shared constructor logic to set up parameters and shader program
+    void setup_default_parameters();
 };
 
 #endif // AUDIO_RENDER_STAGE_H

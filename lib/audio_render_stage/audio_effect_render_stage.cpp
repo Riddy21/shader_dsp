@@ -44,10 +44,43 @@ AudioGainEffectRenderStage::AudioGainEffectRenderStage(const unsigned int frames
     m_controls.clear();
     auto gain_control = new AudioControl<std::vector<float>>(
         "gain",
-        {1.0f},
+        std::vector<float>(num_channels, 1.0f),
         [this](const std::vector<float>& gains) { this->set_channel_gains(gains); }
     );
-    AudioControlRegistry::instance().register_control("gain", gain_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "gain", gain_control);
+    m_controls.push_back(gain_control);
+}
+
+AudioGainEffectRenderStage::AudioGainEffectRenderStage(const std::string & stage_name,
+                                               const unsigned int frames_per_buffer,
+                                               const unsigned int sample_rate,
+                                               const unsigned int num_channels,
+                                               const std::string & fragment_shader_path,
+                                               const std::vector<std::string> & frag_shader_imports)
+    : AudioEffectRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+
+    constexpr size_t MAX_CHANNELS = 8;
+    auto gains_parameter =
+        new AudioFloatArrayParameter("gains",
+                                     AudioParameter::ConnectionType::INPUT,
+                                     MAX_CHANNELS);
+    float* gains = new float[MAX_CHANNELS];
+    for (size_t i = 0; i < MAX_CHANNELS; i++) {
+        gains[i] = 1.0f;
+    }
+    gains_parameter->set_value(gains);
+
+    if (!this->add_parameter(gains_parameter)) {
+        std::cerr << "Failed to add gains_parameter" << std::endl;
+    }
+
+    m_controls.clear();
+    auto gain_control = new AudioControl<std::vector<float>>(
+        "gain",
+        std::vector<float>(num_channels, 1.0f),
+        [this](const std::vector<float>& gains) { this->set_channel_gains(gains); }
+    );
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{this->name, "effects"}, "gain", gain_control);
     m_controls.push_back(gain_control);
 }
 
@@ -156,7 +189,7 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
         5,
         [feedback_parameter](const int& v) { feedback_parameter->set_value(v); }
     );
-    AudioControlRegistry::instance().register_control("num_echos", num_echos_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "num_echos", num_echos_control);
     m_controls.push_back(num_echos_control);
 
     auto delay_control = new AudioControl<float>(
@@ -164,7 +197,7 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
         0.1f,
         [delay_parameter](const float& v) { delay_parameter->set_value(v); }
     );
-    AudioControlRegistry::instance().register_control("delay", delay_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "delay", delay_control);
     m_controls.push_back(delay_control);
 
     auto decay_control = new AudioControl<float>(
@@ -172,7 +205,79 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
         0.4f,
         [decay_parameter](const float& v) { decay_parameter->set_value(v); }
     );
-    AudioControlRegistry::instance().register_control("decay", decay_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "decay", decay_control);
+    m_controls.push_back(decay_control);
+}
+
+AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage_name,
+                                               const unsigned int frames_per_buffer,
+                                               const unsigned int sample_rate,
+                                               const unsigned int num_channels,
+                                               const std::string & fragment_shader_path,
+                                               const std::vector<std::string> & frag_shader_imports)
+    : AudioEffectRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+
+    auto feedback_parameter =
+        new AudioIntParameter("num_echos",
+                                AudioParameter::ConnectionType::INPUT);
+    feedback_parameter->set_value(5);
+
+    auto delay_parameter =
+        new AudioFloatParameter("delay",
+                                AudioParameter::ConnectionType::INPUT);
+    delay_parameter->set_value(0.1f);
+
+    auto decay_parameter =
+        new AudioFloatParameter("decay",
+                                AudioParameter::ConnectionType::INPUT);
+    decay_parameter->set_value(.4f);
+
+    auto echo_audio_texture =
+        new AudioTexture2DParameter("echo_audio_texture",
+                                AudioParameter::ConnectionType::INPUT,
+                                frames_per_buffer, M_MAX_ECHO_BUFFER_SIZE * num_channels, // Around 2s of audio data
+                                m_active_texture_count++,
+                                0, GL_NEAREST);
+
+    m_echo_buffer.resize(frames_per_buffer * num_channels * M_MAX_ECHO_BUFFER_SIZE, 0.0f);
+    echo_audio_texture->set_value(m_echo_buffer.data());
+
+    if (!this->add_parameter(feedback_parameter)) {
+        std::cerr << "Failed to add feedback_parameter" << std::endl;
+    }
+    if (!this->add_parameter(delay_parameter)) {
+        std::cerr << "Failed to add delay_parameter" << std::endl;
+    }
+    if (!this->add_parameter(decay_parameter)) {
+        std::cerr << "Failed to add decay_parameter" << std::endl;
+    }
+    if (!this->add_parameter(echo_audio_texture)) {
+        std::cerr << "Failed to add echo_audio_texture" << std::endl;
+    }
+
+    m_controls.clear();
+    auto num_echos_control = new AudioControl<int>(
+        "num_echos",
+        5,
+        [feedback_parameter](const int& v) { feedback_parameter->set_value(v); }
+    );
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "num_echos", num_echos_control);
+    m_controls.push_back(num_echos_control);
+
+    auto delay_control = new AudioControl<float>(
+        "delay",
+        0.1f,
+        [delay_parameter](const float& v) { delay_parameter->set_value(v); }
+    );
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "delay", delay_control);
+    m_controls.push_back(delay_control);
+
+    auto decay_control = new AudioControl<float>(
+        "decay",
+        0.4f,
+        [decay_parameter](const float& v) { decay_parameter->set_value(v); }
+    );
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "decay", decay_control);
     m_controls.push_back(decay_control);
 }
 
@@ -257,7 +362,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
         m_low_pass,
         [this](const float& v) { this->set_low_pass(v); }
     );
-    AudioControlRegistry::instance().register_control("low_pass", low_pass_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "low_pass", low_pass_control);
     m_controls.push_back(low_pass_control);
 
     auto high_pass_control = new AudioControl<float>(
@@ -265,7 +370,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
         m_high_pass,
         [this](const float& v) { this->set_high_pass(v); }
     );
-    AudioControlRegistry::instance().register_control("high_pass", high_pass_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "high_pass", high_pass_control);
     m_controls.push_back(high_pass_control);
 
     auto filter_follower_control = new AudioControl<float>(
@@ -273,7 +378,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
         m_filter_follower,
         [this](const float& v) { this->set_filter_follower(v); }
     );
-    AudioControlRegistry::instance().register_control("filter_follower", filter_follower_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "filter_follower", filter_follower_control);
     m_controls.push_back(filter_follower_control);
 
     auto resonance_control = new AudioControl<float>(
@@ -281,7 +386,80 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
         m_resonance,
         [this](const float& v) { this->set_resonance(v); }
     );
-    AudioControlRegistry::instance().register_control("resonance", resonance_control);
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "resonance", resonance_control);
+    m_controls.push_back(resonance_control);
+
+    update_b_coefficients();
+}
+
+AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(const std::string & stage_name,
+                                               const unsigned int frames_per_buffer,
+                                               const unsigned int sample_rate,
+                                               const unsigned int num_channels,
+                                               const std::string & fragment_shader_path,
+                                               const std::vector<std::string> & frag_shader_imports)
+    : AudioEffectRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
+      NYQUIST(sample_rate / 2.0f),
+      m_low_pass(1.0f),
+      m_high_pass(230.0f),
+      m_filter_follower(0.0f),
+      m_resonance(1.0f) {
+
+    m_audio_history = std::make_unique<AudioRenderStageHistory>(MAX_TEXTURE_SIZE, frames_per_buffer, sample_rate, num_channels);
+
+    auto num_taps_parameter =
+        new AudioIntParameter("num_taps",
+                                AudioParameter::ConnectionType::INPUT);
+    num_taps_parameter->set_value(frames_per_buffer - 1);
+
+    auto b_coeff_texture =
+        new AudioTexture2DParameter("b_coeff_texture",
+                                AudioParameter::ConnectionType::INPUT,
+                                MAX_TEXTURE_SIZE, 1,
+                                m_active_texture_count++,
+                                0, GL_NEAREST);
+    
+    if (!this->add_parameter(num_taps_parameter)) {
+        std::cerr << "Failed to add num_taps_parameter" << std::endl;
+    }
+    if (!this->add_parameter(b_coeff_texture)) {
+        std::cerr << "Failed to add b_coeff_texture" << std::endl;
+    }
+    if (!this->add_parameter(m_audio_history->create_audio_history_texture(++m_active_texture_count))) {
+        std::cerr << "Failed to add audio_history_texture" << std::endl;
+    }
+
+    m_controls.clear();
+    auto low_pass_control = new AudioControl<float>(
+        "low_pass",
+        m_low_pass,
+        [this](const float& v) { this->set_low_pass(v); }
+    );
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{this->name, "effects"}, "low_pass", low_pass_control);
+    m_controls.push_back(low_pass_control);
+
+    auto high_pass_control = new AudioControl<float>(
+        "high_pass",
+        m_high_pass,
+        [this](const float& v) { this->set_high_pass(v); }
+    );
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{this->name, "effects"}, "high_pass", high_pass_control);
+    m_controls.push_back(high_pass_control);
+
+    auto filter_follower_control = new AudioControl<float>(
+        "filter_follower",
+        m_filter_follower,
+        [this](const float& v) { this->set_filter_follower(v); }
+    );
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{this->name, "effects"}, "filter_follower", filter_follower_control);
+    m_controls.push_back(filter_follower_control);
+
+    auto resonance_control = new AudioControl<float>(
+        "resonance",
+        m_resonance,
+        [this](const float& v) { this->set_resonance(v); }
+    );
+    AudioControlRegistry::instance().register_control(std::vector<std::string>{this->name, "effects"}, "resonance", resonance_control);
     m_controls.push_back(resonance_control);
 
     update_b_coefficients();

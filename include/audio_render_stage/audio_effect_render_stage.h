@@ -16,6 +16,16 @@ public:
         AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
     }
 
+    // Named constructor
+    AudioEffectRenderStage(const std::string & stage_name,
+                           const unsigned int frames_per_buffer,
+                           const unsigned int sample_rate,
+                           const unsigned int num_channels,
+                           const std::string& fragment_shader_path = "build/shaders/render_stage_frag.glsl",
+                           const std::vector<std::string> & frag_shader_imports = AudioRenderStage::default_frag_shader_imports) : 
+        AudioRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+    }
+
     ~AudioEffectRenderStage() {};
 };
 
@@ -26,6 +36,14 @@ public:
                            const unsigned int num_channels,
                            const std::string& fragment_shader_path = "build/shaders/gain_effect_render_stage.glsl",
                            const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
+    // Named constructor
+    AudioGainEffectRenderStage(const std::string & stage_name,
+                            const unsigned int frames_per_buffer,
+                            const unsigned int sample_rate,
+                            const unsigned int num_channels,
+                            const std::string& fragment_shader_path = "build/shaders/gain_effect_render_stage.glsl",
+                            const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 
     static const std::vector<std::string> default_frag_shader_imports;
 
@@ -38,6 +56,14 @@ public:
 class AudioEchoEffectRenderStage : public AudioEffectRenderStage {
 public:
     AudioEchoEffectRenderStage(const unsigned int frames_per_buffer,
+                           const unsigned int sample_rate,
+                           const unsigned int num_channels,
+                           const std::string& fragment_shader_path = "build/shaders/echo_effect_render_stage.glsl",
+                           const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
+    // Named constructor
+    AudioEchoEffectRenderStage(const std::string & stage_name,
+                           const unsigned int frames_per_buffer,
                            const unsigned int sample_rate,
                            const unsigned int num_channels,
                            const std::string& fragment_shader_path = "build/shaders/echo_effect_render_stage.glsl",
@@ -60,6 +86,14 @@ private:
 class AudioFrequencyFilterEffectRenderStage : public AudioEffectRenderStage {
 public:
     AudioFrequencyFilterEffectRenderStage(const unsigned int frames_per_buffer,
+                           const unsigned int sample_rate,
+                           const unsigned int num_channels,
+                           const std::string& fragment_shader_path = "build/shaders/frequency_filter_effect_render_stage.glsl",
+                           const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
+    // Named constructor
+    AudioFrequencyFilterEffectRenderStage(const std::string & stage_name,
+                           const unsigned int frames_per_buffer,
                            const unsigned int sample_rate,
                            const unsigned int num_channels,
                            const std::string& fragment_shader_path = "build/shaders/frequency_filter_effect_render_stage.glsl",

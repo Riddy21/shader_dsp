@@ -60,6 +60,13 @@ public:
                                   const unsigned int sample_rate,
                                   const unsigned int num_channels,
                                   const std::string& audio_filepath);
+
+    // Named constructor
+    AudioSingleShaderFileGeneratorRenderStage(const std::string & stage_name,
+                                  const unsigned int frames_per_buffer,
+                                  const unsigned int sample_rate,
+                                  const unsigned int num_channels,
+                                  const std::string& audio_filepath);
     /**
      * @brief Destroys the AudioSingleShaderFileGeneratorRenderStage object.
      */
@@ -85,6 +92,13 @@ public:
      * @param audio_filepath The path to the audio file to use
      */
     AudioFileGeneratorRenderStage(const unsigned int frames_per_buffer,
+                                  const unsigned int sample_rate,
+                                  const unsigned int num_channels,
+                                  const std::string& audio_filepath);
+
+    // Named constructor
+    AudioFileGeneratorRenderStage(const std::string & stage_name,
+                                  const unsigned int frames_per_buffer,
                                   const unsigned int sample_rate,
                                   const unsigned int num_channels,
                                   const std::string& audio_filepath);
