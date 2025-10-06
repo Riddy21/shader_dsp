@@ -300,28 +300,28 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const std::string & stage_n
     m_controls.clear();
 
     auto * attack_time_control = new AudioControl<float>("attack_time", *(float*)attack_time_parameter->get_value(), [attack_time_parameter](const float& v) { attack_time_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "attack_time", attack_time_control);
+    AudioControlRegistry::instance().register_control({"voices", this->name, "attack_time"}, attack_time_control);
     m_controls.push_back(attack_time_control);
 
     auto * decay_time_control = new AudioControl<float>("decay_time", *(float*)decay_time_parameter->get_value(), [decay_time_parameter](const float& v) { decay_time_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "decay_time", decay_time_control);
+    AudioControlRegistry::instance().register_control({"voices", this->name, "decay_time"}, decay_time_control);
     m_controls.push_back(decay_time_control);
 
     auto * sustain_level_control = new AudioControl<float>("sustain_level", *(float*)sustain_level_parameter->get_value(), [sustain_level_parameter](const float& v) { sustain_level_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "sustain_level", sustain_level_control);
+    AudioControlRegistry::instance().register_control({"voices", this->name, "sustain_level"}, sustain_level_control);
     m_controls.push_back(sustain_level_control);
 
     auto * release_time_control = new AudioControl<float>("release_time", *(float*)release_time_parameter->get_value(), [release_time_parameter](const float& v) { release_time_parameter->set_value(v); });
-    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "release_time", release_time_control);
+    AudioControlRegistry::instance().register_control({"voices", this->name, "release_time"}, release_time_control);
     m_controls.push_back(release_time_control);
 
     // Play notes parameter
     auto * play_note_control = new AudioControl<std::pair<float, float>>("play_note", [this](const std::pair<float, float>& v) { play_note(v); });
-    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "play_note", play_note_control);
+    AudioControlRegistry::instance().register_control({"voices", this->name, "play_note"}, play_note_control);
     m_controls.push_back(play_note_control);
 
     auto * stop_note_control = new AudioControl<float>("stop_note", [this](const float& v) { stop_note(v); });
-    AudioControlRegistry::instance().register_control(std::vector<std::string>{"voices", this->name}, "stop_note", stop_note_control);
+    AudioControlRegistry::instance().register_control({"voices", this->name, "stop_note"}, stop_note_control);
     m_controls.push_back(stop_note_control);
 }
 

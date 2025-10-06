@@ -52,7 +52,7 @@ AudioGainEffectRenderStage::AudioGainEffectRenderStage(const std::string & stage
         std::vector<float>(num_channels, 1.0f),
         [this](const std::vector<float>& gains) { this->set_channel_gains(gains); }
     );
-    AudioControlRegistry::instance().register_control(std::vector<std::string>{this->name, "effects"}, "gain", gain_control);
+    AudioControlRegistry::instance().register_control({this->name, "effects", "gain"}, gain_control);
     m_controls.push_back(gain_control);
 }
 
@@ -274,7 +274,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
         m_low_pass,
         [this](const float& v) { this->set_low_pass(v); }
     );
-    AudioControlRegistry::instance().register_control(std::vector<std::string>{this->name, "effects"}, "low_pass", low_pass_control);
+    AudioControlRegistry::instance().register_control({this->name, "effects", "low_pass"}, low_pass_control);
     m_controls.push_back(low_pass_control);
 
     auto high_pass_control = new AudioControl<float>(
@@ -282,7 +282,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
         m_high_pass,
         [this](const float& v) { this->set_high_pass(v); }
     );
-    AudioControlRegistry::instance().register_control(std::vector<std::string>{this->name, "effects"}, "high_pass", high_pass_control);
+    AudioControlRegistry::instance().register_control({this->name, "effects", "high_pass"}, high_pass_control);
     m_controls.push_back(high_pass_control);
 
     auto filter_follower_control = new AudioControl<float>(
@@ -290,7 +290,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
         m_filter_follower,
         [this](const float& v) { this->set_filter_follower(v); }
     );
-    AudioControlRegistry::instance().register_control(std::vector<std::string>{this->name, "effects"}, "filter_follower", filter_follower_control);
+    AudioControlRegistry::instance().register_control({this->name, "effects", "filter_follower"}, filter_follower_control);
     m_controls.push_back(filter_follower_control);
 
     auto resonance_control = new AudioControl<float>(
@@ -298,7 +298,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
         m_resonance,
         [this](const float& v) { this->set_resonance(v); }
     );
-    AudioControlRegistry::instance().register_control(std::vector<std::string>{this->name, "effects"}, "resonance", resonance_control);
+    AudioControlRegistry::instance().register_control({this->name, "effects", "resonance"}, resonance_control);
     m_controls.push_back(resonance_control);
 
     update_b_coefficients();

@@ -246,10 +246,13 @@ private:
      */
     bool initialize_framebuffer();
 
+protected:
     unsigned int generate_id() {
         static unsigned int id = 1; // Render stage GIDs start at 1
         return id++;
     }
+
+private:
 
     void print_input_textures();
 

@@ -118,6 +118,8 @@ void AudioTrack::change_effect(const std::string & effect_name) {
         std::cerr << "Effect not found: " << effect_name << std::endl;
     }
 
+    // FIXME: Register as current effect
+
     m_audio_renderer->unactivate_render_context();
 }
 
@@ -132,6 +134,8 @@ void AudioTrack::change_voice(const std::string & voice_name) {
     } else {
         std::cerr << "Voice not found: " << voice_name << std::endl;
     }
+
+    // FIXME: Register as current voice
 
     m_audio_renderer->unactivate_render_context();
 }
