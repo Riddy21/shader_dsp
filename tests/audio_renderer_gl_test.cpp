@@ -87,9 +87,9 @@ TEST_CASE("AudioRenderer - Echo Effect Audio Output Test",
     REQUIRE(audio_renderer.add_render_graph(render_graph));
 
     // Configure echo effect parameters using AudioControlRegistry
-    REQUIRE(AudioControlRegistry::instance().set_control<float>("delay", ECHO_DELAY));
-    REQUIRE(AudioControlRegistry::instance().set_control<float>("decay", ECHO_DECAY));
-    REQUIRE(AudioControlRegistry::instance().set_control<int>("num_echos", NUM_ECHOS));
+    REQUIRE(AudioControlRegistry::instance().set_control<float>({"delay"}, ECHO_DELAY));
+    REQUIRE(AudioControlRegistry::instance().set_control<float>({"decay"}, ECHO_DECAY));
+    REQUIRE(AudioControlRegistry::instance().set_control<int>({"num_echos"}, NUM_ECHOS));
 
     SECTION("Echo Effect Audio Playback with AudioRenderer") {
         std::cout << "\n=== AudioRenderer Echo Effect Audio Playback Test ===" << std::endl;

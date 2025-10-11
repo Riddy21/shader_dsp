@@ -2,6 +2,7 @@
 #include "audio_core/audio_control.h"
 #include <vector>
 #include <string>
+#include <optional>
 
 TEST_CASE("AudioControlBase and AudioControl functionality", "[AudioControl]") {
     float test_value = 0.0f;
@@ -34,8 +35,8 @@ TEST_CASE("AudioControlBase and AudioControl functionality", "[AudioControl]") {
     // List controls and check presence
     auto controls = AudioControlRegistry::instance().list_controls();
     bool found = false;
-    for (const auto& path : controls) {
-        if (path.size() == 1 && path[0] == "test_control") {
+    for (const auto& name : controls) {
+        if (name == "test_control") {
             found = true;
             break;
         }
@@ -124,12 +125,11 @@ TEST_CASE("AudioControlRegistry with multiple controls", "[AudioControl]") {
     auto controls = AudioControlRegistry::instance().list_controls();
     REQUIRE(controls.size() >= 4);
     
-    // Check that all expected controls are present
-    std::vector<std::vector<std::string>> expected_paths = {{"test_int"}, {"test_float"}, {"test_string"}, {"test_vector"}};
-    for (const auto& expected : expected_paths) {
+    std::vector<std::string> expected_names = {"test_int", "test_float", "test_string", "test_vector"};
+    for (const auto& expected : expected_names) {
         bool found = false;
-        for (const auto& path : controls) {
-            if (path == expected) {
+        for (const auto& name : controls) {
+            if (name == expected) {
                 found = true;
                 break;
             }
@@ -185,24 +185,24 @@ TEST_CASE("AudioControlRegistry supports categories with same control names", "[
     REQUIRE(synth_freq == 220.0f);
 
     // Verify listings
-    auto categories = AudioControlRegistry::instance().list_categories();
+    auto categories = AudioControlRegistry::instance().list_controls();
     bool piano_found = false, synth_found = false;
-    for (const auto& path : categories) {
-        if (path.size() == 1 && path[0] == "piano") piano_found = true;
-        if (path.size() == 1 && path[0] == "synth") synth_found = true;
+    for (const auto& name : categories) {
+        if (name == "piano") piano_found = true;
+        if (name == "synth") synth_found = true;
     }
     REQUIRE(piano_found);
     REQUIRE(synth_found);
 
-    auto piano_controls = AudioControlRegistry::instance().list_controls({"piano"});
-    auto synth_controls = AudioControlRegistry::instance().list_controls({"synth"});
+    auto piano_controls = AudioControlRegistry::instance().list_controls(std::optional<std::vector<std::string>>{{"piano"}});
+    auto synth_controls = AudioControlRegistry::instance().list_controls(std::optional<std::vector<std::string>>{{"synth"}});
     
     bool piano_play_found = false, synth_play_found = false;
-    for (const auto& path : piano_controls) {
-        if (path.size() == 2 && path[0] == "piano" && path[1] == "play_note") piano_play_found = true;
+    for (const auto& name : piano_controls) {
+        if (name == "play_note") piano_play_found = true;
     }
-    for (const auto& path : synth_controls) {
-        if (path.size() == 2 && path[0] == "synth" && path[1] == "play_note") synth_play_found = true;
+    for (const auto& name : synth_controls) {
+        if (name == "play_note") synth_play_found = true;
     }
     REQUIRE(piano_play_found);
     REQUIRE(synth_play_found);
@@ -235,20 +235,20 @@ TEST_CASE("AudioControlRegistry supports hierarchical categories", "[AudioContro
     REQUIRE(pad_freq == 110.0f);
 
     // List subcategories under synth
-    auto subcats = AudioControlRegistry::instance().list_categories({"synth"});
+    auto subcats = AudioControlRegistry::instance().list_controls(std::optional<std::vector<std::string>>{{"synth"}});
     bool lead_found = false, pad_found = false;
-    for (const auto& path : subcats) {
-        if (path.size() == 2 && path[0] == "synth" && path[1] == "lead") lead_found = true;
-        if (path.size() == 2 && path[0] == "synth" && path[1] == "pad") pad_found = true;
+    for (const auto& name : subcats) {
+        if (name == "lead") lead_found = true;
+        if (name == "pad") pad_found = true;
     }
     REQUIRE(lead_found);
     REQUIRE(pad_found);
 
     // List controls at a node
-    auto lead_controls = AudioControlRegistry::instance().list_controls({"synth", "lead"});
+    auto lead_controls = AudioControlRegistry::instance().list_controls(std::optional<std::vector<std::string>>{{"synth", "lead"}});
     bool play_note_found = false;
-    for (const auto& path : lead_controls) {
-        if (path.size() == 3 && path[0] == "synth" && path[1] == "lead" && path[2] == "play_note") {
+    for (const auto& name : lead_controls) {
+        if (name == "play_note") {
             play_note_found = true;
             break;
         }
@@ -393,4 +393,32 @@ TEST_CASE("AudioControlRegistry supports category alias links and mid-path contr
     REQUIRE(AudioControlRegistry::instance().unlink_control({"lead_alias"}));
     auto* lead_alias_after_unlink = AudioControlRegistry::instance().get_control<float>({"lead_alias", "cutoff"});
     REQUIRE(lead_alias_after_unlink == nullptr);
+}
+
+TEST_CASE("AudioControlRegistry list_all_controls traverses hierarchy without following links", "[AudioControl]") {
+    auto* ctrl1 = new AudioControl<int>("ctrl1", 0, [](const int&){});
+    auto* ctrl2 = new AudioControl<int>("ctrl2", 0, [](const int&){});
+    auto* ctrl3 = new AudioControl<int>("ctrl3", 0, [](const int&){});
+
+    AudioControlRegistry::instance().register_control({"cat1", "ctrl1"}, ctrl1);
+    AudioControlRegistry::instance().register_control({"cat1", "subcat", "ctrl2"}, ctrl2);
+    AudioControlRegistry::instance().register_control({"cat2", "ctrl3"}, ctrl3);
+
+    AudioControlRegistry::instance().link_control({"alias"}, {"cat1"});
+    AudioControlRegistry::instance().link_control({"alias_ctrl"}, {"cat1", "ctrl1"});
+
+    auto all = AudioControlRegistry::instance().list_all_controls();
+
+    std::vector<std::string> expected = {"cat1/ctrl1", "cat1/subcat/ctrl2", "cat2/ctrl3"};
+    REQUIRE(all.size() == 3);
+    std::sort(all.begin(), all.end());
+    std::sort(expected.begin(), expected.end());
+    REQUIRE(all == expected);
+
+    auto ptr1 = AudioControlRegistry::instance().deregister_control<int>({"cat1", "ctrl1"});
+    auto ptr2 = AudioControlRegistry::instance().deregister_control<int>({"cat1", "subcat", "ctrl2"});
+    auto ptr3 = AudioControlRegistry::instance().deregister_control<int>({"cat2", "ctrl3"});
+
+    AudioControlRegistry::instance().unlink_control({"alias"});
+    AudioControlRegistry::instance().unlink_control({"alias_ctrl"});
 }

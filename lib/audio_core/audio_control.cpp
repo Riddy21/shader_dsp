@@ -12,79 +12,71 @@ const std::string& AudioControlRegistry::default_category() {
     return kDefaultCategory;
 }
 
-std::vector<std::vector<std::string>> AudioControlRegistry::list_controls() {
-    std::vector<std::vector<std::string>> control_paths;
-    std::stack<std::pair<const CategoryNode*, std::vector<std::string>>> stk;
-    stk.push({&m_root, {}});
-    while (!stk.empty()) {
-        auto [node, current_path] = stk.top(); stk.pop();
-        for (const auto& kv : node->controls) {
-            auto path = current_path; path.push_back(kv.first);
-            control_paths.push_back(path);
-        }
-        for (const auto& child : node->children) {
-            auto path = current_path; path.push_back(child.first);
-            stk.push({child.second.get(), path});
-        }
+std::vector<std::string> AudioControlRegistry::list_controls(const std::optional<std::vector<std::string>>& category_path) {
+    CategoryNode* node;
+    if (!category_path.has_value()) {
+        node = &m_root;
+    } else {
+        node = navigate_to_node(category_path.value(), false);
     }
-    return control_paths;
-}
 
-std::vector<std::vector<std::string>> AudioControlRegistry::list_controls(const std::vector<std::string>& category_path) {
-    std::vector<std::vector<std::string>> control_paths;
-    
-    CategoryNode* node = navigate_to_node(category_path, false);
-    if (!node) return control_paths;
-    
+    if (!node) {
+        return {};
+    }
+
+    // List all the names links and aliases and everything
+    std::vector<std::string> control_names;
     for (const auto& kv : node->controls) {
-        std::vector<std::string> control_path = category_path;
-        control_path.push_back(kv.first);
-        control_paths.push_back(control_path);
+        control_names.push_back(kv.first);
     }
-    // Also include controls reachable via control aliases that exist at this node (names only)
-    for (const auto& alias : node->control_aliases) {
-        std::vector<std::string> control_path = category_path;
-        control_path.push_back(alias.first);
-        control_paths.push_back(control_path);
+    for (const auto& kv : node->category_references) {
+        control_names.push_back(kv.first);
     }
-    
-    return control_paths;
+    for (const auto& kv : node->control_aliases) {
+        control_names.push_back(kv.first);
+    }
+    for (const auto& kv : node->children) {
+        control_names.push_back(kv.first);
+    }
+    return control_names;
 }
 
-std::vector<std::vector<std::string>> AudioControlRegistry::list_categories() {
-    std::vector<std::vector<std::string>> category_paths;
-    std::stack<std::pair<const CategoryNode*, std::vector<std::string>>> stk;
-    stk.push({&m_root, {}});
-    while (!stk.empty()) {
-        auto [node, current_path] = stk.top(); stk.pop();
-        for (const auto& child : node->children) {
-            auto path = current_path; path.push_back(child.first);
-            category_paths.push_back(path);
-            stk.push({child.second.get(), path});
+std::vector<std::string> AudioControlRegistry::list_all_controls() {
+    std::vector<std::string> all_controls;
+
+    struct StackItem {
+        CategoryNode* node;
+        std::vector<std::string> path;
+    };
+
+    std::stack<StackItem> stack;
+    stack.push({&m_root, {}});
+
+    while (!stack.empty()) {
+        StackItem item = stack.top();
+        stack.pop();
+        CategoryNode* node = item.node;
+        std::vector<std::string> current_path = item.path;
+
+        for (const auto& kv : node->controls) {
+            std::vector<std::string> control_path = current_path;
+            control_path.push_back(kv.first);
+            std::string full_path;
+            for (size_t i = 0; i < control_path.size(); ++i) {
+                if (i > 0) full_path += "/";
+                full_path += control_path[i];
+            }
+            all_controls.push_back(full_path);
+        }
+
+        for (const auto& child_kv : node->children) {
+            std::vector<std::string> child_path = current_path;
+            child_path.push_back(child_kv.first);
+            stack.push({child_kv.second.get(), child_path});
         }
     }
-    return category_paths;
-}
 
-std::vector<std::vector<std::string>> AudioControlRegistry::list_categories(const std::vector<std::string>& category_path) {
-    std::vector<std::vector<std::string>> category_paths;
-    
-    CategoryNode* node = navigate_to_node(category_path, false);
-    if (!node) return category_paths;
-    
-    for (const auto& child : node->children) {
-        std::vector<std::string> child_path = category_path;
-        child_path.push_back(child.first);
-        category_paths.push_back(child_path);
-    }
-    // Include category references as categories
-    for (const auto& ref : node->category_references) {
-        std::vector<std::string> ref_path = category_path;
-        ref_path.push_back(ref.first);
-        category_paths.push_back(ref_path);
-    }
-    
-    return category_paths;
+    return all_controls;
 }
 
 void AudioControlRegistry::register_control(const std::vector<std::string>& control_path, AudioControlBase* control) {

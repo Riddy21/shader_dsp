@@ -8,6 +8,7 @@
 #include <mutex>
 #include <vector>
 #include <any>
+#include <optional>
 
 // TODO: Add hierarchy for controls and names, so that controls can be searched and grouped
 // TODO: Add ability to select from menu in controls
@@ -85,10 +86,8 @@ public:
     template <typename T>
     AudioControl<T>* get_control(const std::vector<std::string>& control_path);
 
-    std::vector<std::vector<std::string>> list_controls();
-    std::vector<std::vector<std::string>> list_controls(const std::vector<std::string>& category_path);
-    std::vector<std::vector<std::string>> list_categories();
-    std::vector<std::vector<std::string>> list_categories(const std::vector<std::string>& category_path);
+    std::vector<std::string> list_controls(const std::optional<std::vector<std::string>>& category_path = std::nullopt);
+    std::vector<std::string> list_all_controls();
 
 private:
     struct CategoryNode {
@@ -100,7 +99,6 @@ private:
         std::unordered_map<std::string, std::pair<CategoryNode*, std::string>> control_aliases;
     };
     CategoryNode m_root;
-    // Removed: std::mutex m_mutex;
     static const std::string& default_category();
     // Navigates to a node; creates missing nodes if create_if_missing is true.
     CategoryNode* navigate_to_node(const std::vector<std::string>& category_path, bool create_if_missing);
