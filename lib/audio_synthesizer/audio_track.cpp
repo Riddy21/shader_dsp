@@ -39,28 +39,28 @@ void AudioTrack::initialize_modules() {
     m_audio_renderer->activate_render_context();
     // TODO: Change this to be data driven
     // Effect modules
-    auto gain_stage = new AudioGainEffectRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    auto gain_stage = new AudioGainEffectRenderStage("gain", m_buffer_size, m_sample_rate, m_num_channels);
     gain_stage->initialize(); // FIXME: Initilize should be removed once moved to construction is initialization
     m_effect_modules["gain"] = std::make_shared<AudioEffectModule>(
         "gain",
         std::vector<AudioEffectRenderStage*>{gain_stage}
     );
 
-    auto echo_stage = new AudioEchoEffectRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    auto echo_stage = new AudioEchoEffectRenderStage("echo", m_buffer_size, m_sample_rate, m_num_channels);
     echo_stage->initialize();
     m_effect_modules["echo"] = std::make_shared<AudioEffectModule>(
         "echo",
         std::vector<AudioEffectRenderStage*>{echo_stage}
     );
 
-    auto frequency_filter_stage = new AudioFrequencyFilterEffectRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    auto frequency_filter_stage = new AudioFrequencyFilterEffectRenderStage("frequency_filter", m_buffer_size, m_sample_rate, m_num_channels);
     frequency_filter_stage->initialize();
     m_effect_modules["frequency_filter"] = std::make_shared<AudioEffectModule>(
         "frequency_filter",
         std::vector<AudioEffectRenderStage*>{frequency_filter_stage}
     );
 
-    auto none_stage = new AudioEffectRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    auto none_stage = new AudioEffectRenderStage("none", m_buffer_size, m_sample_rate, m_num_channels);
     none_stage->initialize();
     m_effect_modules["none"] = std::make_shared<AudioEffectModule>(
         "none",
@@ -68,35 +68,35 @@ void AudioTrack::initialize_modules() {
     );
 
     // Voice modules
-    auto sine_stage = new AudioGeneratorRenderStage(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sine_generator_render_stage.glsl");
+    auto sine_stage = new AudioGeneratorRenderStage("sine", m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sine_generator_render_stage.glsl");
     sine_stage->initialize();
     m_voice_modules["sine"] = std::make_shared<AudioVoiceModule>(
         "sine",
         sine_stage
     );
 
-    auto saw_stage = new AudioGeneratorRenderStage(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sawtooth_generator_render_stage.glsl");
+    auto saw_stage = new AudioGeneratorRenderStage("saw", m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sawtooth_generator_render_stage.glsl");
     saw_stage->initialize();
     m_voice_modules["saw"] = std::make_shared<AudioVoiceModule>(
         "saw",
         saw_stage
     );
 
-    auto square_stage = new AudioGeneratorRenderStage(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_square_generator_render_stage.glsl");
+    auto square_stage = new AudioGeneratorRenderStage("square", m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_square_generator_render_stage.glsl");
     square_stage->initialize();
     m_voice_modules["square"] = std::make_shared<AudioVoiceModule>(
         "square",
         square_stage
     );
 
-    auto triangle_stage = new AudioGeneratorRenderStage(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_triangle_generator_render_stage.glsl");
+    auto triangle_stage = new AudioGeneratorRenderStage("triangle", m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_triangle_generator_render_stage.glsl");
     triangle_stage->initialize();
     m_voice_modules["triangle"] = std::make_shared<AudioVoiceModule>(
         "triangle",
         triangle_stage
     );
 
-    auto file_stage = new AudioFileGeneratorRenderStage(m_buffer_size, m_sample_rate, m_num_channels, "media/test.wav");
+    auto file_stage = new AudioFileGeneratorRenderStage("file", m_buffer_size, m_sample_rate, m_num_channels, "media/test.wav");
     file_stage->initialize();
     m_voice_modules["file"] = std::make_shared<AudioVoiceModule>(
         "file",

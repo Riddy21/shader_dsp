@@ -12,7 +12,7 @@ AudioControl<T>* AudioControlRegistry::get_control(const std::vector<std::string
 }
 
 template <typename T>
-std::unique_ptr<AudioControl<T>> AudioControlRegistry::deregister_control(const std::vector<std::string>& control_path) {
+std::shared_ptr<AudioControl<T>> AudioControlRegistry::deregister_control(const std::vector<std::string>& control_path) {
     if (control_path.empty()) return nullptr;
     
     // Split path into category path and control name
@@ -24,7 +24,7 @@ std::unique_ptr<AudioControl<T>> AudioControlRegistry::deregister_control(const 
         [](AudioControlBase& c) { return dynamic_cast<AudioControl<T>*>(&c) != nullptr; }
     );
     if (!base_ptr) return nullptr;
-    return std::unique_ptr<AudioControl<T>>(static_cast<AudioControl<T>*>(base_ptr.release()));
+    return std::static_pointer_cast<AudioControl<T>>(base_ptr);
 }
 
 // (No explicit template declarations here.)

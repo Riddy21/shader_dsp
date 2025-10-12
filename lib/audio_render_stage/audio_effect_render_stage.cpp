@@ -47,12 +47,11 @@ AudioGainEffectRenderStage::AudioGainEffectRenderStage(const std::string & stage
     }
 
     m_controls.clear();
-    auto gain_control = new AudioControl<std::vector<float>>(
+    auto gain_control = std::make_shared<AudioControl<std::vector<float>>>(
         "gain",
         std::vector<float>(num_channels, 1.0f),
         [this](const std::vector<float>& gains) { this->set_channel_gains(gains); }
     );
-    AudioControlRegistry::instance().register_control({this->name, "effects", "gain"}, gain_control);
     m_controls.push_back(gain_control);
 }
 
@@ -161,29 +160,26 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage
     }
 
     m_controls.clear();
-    //auto num_echos_control = new AudioControl<int>(
-    //    "num_echos",
-    //    5,
-    //    [feedback_parameter](const int& v) { feedback_parameter->set_value(v); }
-    //);
-    //AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "num_echos", num_echos_control);
-    //m_controls.push_back(num_echos_control);
+    auto num_echos_control = std::make_shared<AudioControl<int>>(
+        "num_echos",
+        5,
+        [feedback_parameter](const int& v) { feedback_parameter->set_value(v); }
+    );
+    m_controls.push_back(num_echos_control);
 
-    //auto delay_control = new AudioControl<float>(
-    //    "delay",
-    //    0.1f,
-    //    [delay_parameter](const float& v) { delay_parameter->set_value(v); }
-    //);
-    //AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "delay", delay_control);
-    //m_controls.push_back(delay_control);
+    auto delay_control = std::make_shared<AudioControl<float>>(
+        "delay",
+        0.1f,
+        [delay_parameter](const float& v) { delay_parameter->set_value(v); }
+    );
+    m_controls.push_back(delay_control);
 
-    //auto decay_control = new AudioControl<float>(
-    //    "decay",
-    //    0.4f,
-    //    [decay_parameter](const float& v) { decay_parameter->set_value(v); }
-    //);
-    //AudioControlRegistry::instance().register_control(std::vector<std::string>{"effects", this->name}, "decay", decay_control);
-    //m_controls.push_back(decay_control);
+    auto decay_control = std::make_shared<AudioControl<float>>(
+        "decay",
+        0.4f,
+        [decay_parameter](const float& v) { decay_parameter->set_value(v); }
+    );
+    m_controls.push_back(decay_control);
 }
 
 void AudioEchoEffectRenderStage::render(unsigned int time) {
@@ -269,36 +265,32 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     }
 
     m_controls.clear();
-    auto low_pass_control = new AudioControl<float>(
+    auto low_pass_control = std::make_shared<AudioControl<float>>(
         "low_pass",
         m_low_pass,
         [this](const float& v) { this->set_low_pass(v); }
     );
-    AudioControlRegistry::instance().register_control({this->name, "effects", "low_pass"}, low_pass_control);
     m_controls.push_back(low_pass_control);
 
-    auto high_pass_control = new AudioControl<float>(
+    auto high_pass_control = std::make_shared<AudioControl<float>>(
         "high_pass",
         m_high_pass,
         [this](const float& v) { this->set_high_pass(v); }
     );
-    AudioControlRegistry::instance().register_control({this->name, "effects", "high_pass"}, high_pass_control);
     m_controls.push_back(high_pass_control);
 
-    auto filter_follower_control = new AudioControl<float>(
+    auto filter_follower_control = std::make_shared<AudioControl<float>>(
         "filter_follower",
         m_filter_follower,
         [this](const float& v) { this->set_filter_follower(v); }
     );
-    AudioControlRegistry::instance().register_control({this->name, "effects", "filter_follower"}, filter_follower_control);
     m_controls.push_back(filter_follower_control);
 
-    auto resonance_control = new AudioControl<float>(
+    auto resonance_control = std::make_shared<AudioControl<float>>(
         "resonance",
         m_resonance,
         [this](const float& v) { this->set_resonance(v); }
     );
-    AudioControlRegistry::instance().register_control({this->name, "effects", "resonance"}, resonance_control);
     m_controls.push_back(resonance_control);
 
     update_b_coefficients();

@@ -79,20 +79,25 @@ std::vector<std::string> AudioControlRegistry::list_all_controls() {
     return all_controls;
 }
 
-void AudioControlRegistry::register_control(const std::vector<std::string>& control_path, AudioControlBase* control) {
+void AudioControlRegistry::register_control(const std::vector<std::string>& control_path, std::shared_ptr<AudioControlBase> control) {
     if (control_path.empty()) {
         throw std::runtime_error("Control path cannot be empty");
     }
     
     // Split path into category path and control name
-    std::vector<std::string> category_path(control_path.begin(), control_path.end() - 1);
-    std::string control_name = control_path.back();
+    std::vector<std::string> category_path(control_path.begin(), control_path.end());
+    std::string control_name = control->name();
     
     CategoryNode* node = navigate_to_node(category_path, true);
     if (node->controls.find(control_name) != node->controls.end()) {
-        throw std::runtime_error("Control already registered at path: " + control_name);
+        std::string path = {};
+        for (const auto& part : category_path) {
+            path += part + "/";
+        }
+        path += control_name;
+        throw std::runtime_error("Control already registered at path: " + path);
     }
-    node->controls[control_name] = std::unique_ptr<AudioControlBase>(control);
+    node->controls[control_name] = control;
 }
 
 AudioControlRegistry::AudioControlRegistry() = default;
@@ -119,6 +124,7 @@ AudioControlRegistry::CategoryNode* AudioControlRegistry::navigate_to_node(const
 
 // Non-template helper implementations used by template wrappers in the .tpp
 
+// TODO: Make control paths queueable and overridable so that only the latest path is used
 bool AudioControlRegistry::set_control_any(const std::vector<std::string>& control_path, const std::any& value) {
     if (control_path.empty()) return false;
     
@@ -129,7 +135,7 @@ bool AudioControlRegistry::set_control_any(const std::vector<std::string>& contr
     CategoryNode* node = navigate_to_node(category_path, false);
     if (!node) return false;
     
-    AudioControlBase* target_control = nullptr;
+    std::shared_ptr<AudioControlBase> target_control = nullptr;
     
     // Control alias resolution takes precedence
     auto alias_it = node->control_aliases.find(control_name);
@@ -139,7 +145,7 @@ bool AudioControlRegistry::set_control_any(const std::vector<std::string>& contr
         if (!ref_node) return false;
         auto control_it = ref_node->controls.find(ref_name);
         if (control_it != ref_node->controls.end()) {
-            target_control = control_it->second.get();
+            target_control = control_it->second;
         } else {
             return false;
         }
@@ -151,7 +157,7 @@ bool AudioControlRegistry::set_control_any(const std::vector<std::string>& contr
             if (!ref_node) return false;
             auto control_it = ref_node->controls.find(control_name);
             if (control_it != ref_node->controls.end()) {
-                target_control = control_it->second.get();
+                target_control = control_it->second;
             } else {
                 return false;
             }
@@ -159,7 +165,7 @@ bool AudioControlRegistry::set_control_any(const std::vector<std::string>& contr
             // Direct control
             auto it = node->controls.find(control_name);
             if (it == node->controls.end()) return false;
-            target_control = it->second.get();
+            target_control = it->second;
         }
     }
     
@@ -214,7 +220,7 @@ AudioControlBase* AudioControlRegistry::get_control_untyped(const std::vector<st
     return it->second.get();
 }
 
-std::unique_ptr<AudioControlBase> AudioControlRegistry::deregister_control_if(
+std::shared_ptr<AudioControlBase> AudioControlRegistry::deregister_control_if(
     const std::vector<std::string>& category_path,
     const std::string& name,
     const std::function<bool(AudioControlBase&)>& predicate) {
@@ -232,7 +238,7 @@ std::unique_ptr<AudioControlBase> AudioControlRegistry::deregister_control_if(
     auto it = node->controls.find(name);
     if (it == node->controls.end()) return nullptr;
     if (!predicate(*it->second)) return nullptr;
-    std::unique_ptr<AudioControlBase> base_ptr = std::move(it->second);
+    std::shared_ptr<AudioControlBase> base_ptr = std::move(it->second);
     node->controls.erase(it);
     return base_ptr;
 }
@@ -324,3 +330,14 @@ bool AudioControlRegistry::unlink_control_untyped(const std::vector<std::string>
     }
     return removed;
 }
+
+bool AudioControlRegistry::deregister_control(const std::vector<std::string>& control_path) {
+    if (control_path.empty()) return false;
+    
+    std::vector<std::string> category_path(control_path.begin(), control_path.end() - 1);
+    std::string name = control_path.back();
+    
+    auto ptr = deregister_control_if(category_path, name, [](AudioControlBase&){ return true; });
+    return ptr != nullptr;
+}
+

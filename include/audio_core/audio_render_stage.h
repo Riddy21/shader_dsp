@@ -144,7 +144,7 @@ public:
         return m_initialized;
     }
 
-    std::vector<AudioControlBase *> & get_controls() {
+    std::vector<std::shared_ptr<AudioControlBase>>& get_controls() {
         return m_controls;
     }
 
@@ -221,7 +221,7 @@ protected:
     std::unordered_set<AudioRenderStage *> m_connected_stream_render_stages;
 
     // Controls for this render stage
-    std::vector<AudioControlBase *> m_controls;
+    std::vector<std::shared_ptr<AudioControlBase>> m_controls;
 
 private:
 

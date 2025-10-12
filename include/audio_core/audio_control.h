@@ -71,11 +71,13 @@ public:
     static AudioControlRegistry& instance();
 
     // Control operations using full paths (last element is control name, rest is category path)
-    void register_control(const std::vector<std::string>& control_path, AudioControlBase* control);
+    void register_control(const std::vector<std::string>& control_path, std::shared_ptr<AudioControlBase> control);
     
     // Typed deregistration that transfers ownership with correct type
     template <typename T>
-    std::unique_ptr<AudioControl<T>> deregister_control(const std::vector<std::string>& control_path);
+    std::shared_ptr<AudioControl<T>> deregister_control(const std::vector<std::string>& control_path);
+
+    bool deregister_control(const std::vector<std::string>& control_path);
 
     template <typename T>
     bool set_control(const std::vector<std::string>& control_path, const T& value);
@@ -92,7 +94,7 @@ public:
 private:
     struct CategoryNode {
         std::unordered_map<std::string, std::unique_ptr<CategoryNode>> children;
-        std::unordered_map<std::string, std::unique_ptr<AudioControlBase>> controls;
+        std::unordered_map<std::string, std::shared_ptr<AudioControlBase>> controls;
         // Category-level symbolic links: treat a name as an alias to another CategoryNode
         std::unordered_map<std::string, CategoryNode*> category_references;
         // Control-level aliases: map a name to a specific control at some target node
@@ -111,7 +113,7 @@ private:
     AudioControlBase* get_control_untyped(const std::vector<std::string>& control_path);
     bool link_control_untyped(const std::vector<std::string>& reference_control_path, const std::vector<std::string>& target_control_path);
     bool unlink_control_untyped(const std::vector<std::string>& reference_control_path);
-    std::unique_ptr<AudioControlBase> deregister_control_if(
+    std::shared_ptr<AudioControlBase> deregister_control_if(
         const std::vector<std::string>& category_path,
         const std::string& name,
         const std::function<bool(AudioControlBase&)>& predicate);

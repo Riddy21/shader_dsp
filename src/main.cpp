@@ -31,24 +31,21 @@ const std::unordered_map<char, float> KEY_TONE_MAPPING = {
 void setup_keyboard(AudioSynthesizer& synthesizer, EventLoop& event_loop) {
     auto & event_handler = EventHandler::get_instance();
 
-    auto & control_registry = AudioControlRegistry::instance();
-    for (const auto& control : control_registry.list_controls()) {
-        std::cout << "Control: " << control << std::endl;
-    }
-    auto * play_note_control = control_registry.get_control<std::pair<float, float>>("voices", "play_note");
-    auto * stop_note_control = control_registry.get_control<float>("voices", "stop_note");
-
     for (const auto& [key, tone] : KEY_TONE_MAPPING) {
         event_handler.register_entry(new KeyboardEventHandlerEntry(
             SDL_KEYDOWN, key,
-            [tone, key, play_note_control](const SDL_Event&) {
+            [tone, key](const SDL_Event&) {
+                auto & control_registry = AudioControlRegistry::instance();
+                auto * play_note_control = control_registry.get_control<std::pair<float, float>>({"current", "voice", "play_note"});
                 play_note_control->set_value(std::any(std::pair<float, float>{tone, 0.2f}));
                 return true;
             }
         ));
         event_handler.register_entry(new KeyboardEventHandlerEntry(
             SDL_KEYUP, key,
-            [tone, key, stop_note_control](const SDL_Event&) {
+            [tone, key](const SDL_Event&) {
+                auto & control_registry = AudioControlRegistry::instance();
+                auto * stop_note_control = control_registry.get_control<float>({"current", "voice", "stop_note"});
                 stop_note_control->set_value(std::any(tone));
                 return true;
             }
