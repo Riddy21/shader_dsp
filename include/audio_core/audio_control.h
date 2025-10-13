@@ -13,6 +13,9 @@
 // TODO: Add hierarchy for controls and names, so that controls can be searched and grouped
 // TODO: Add ability to select from menu in controls
 
+// Forward declarations
+class AudioControlRegistry;
+
 // Base control type: holds a setter and a value
 class AudioControlBase {
 public:
@@ -65,6 +68,25 @@ private:
 };
 
 // TODO: Should add a way to recall the control object as well
+
+// Update ControlHandle to use double shared_ptr
+class ControlHandle {
+public:
+    friend class AudioControlRegistry;
+    ControlHandle() {}
+    ControlHandle(std::shared_ptr<AudioControlBase> control)
+        : m_control(control) {}
+
+    AudioControlBase* get() const { return m_control.get(); }
+
+    AudioControlBase* operator->() const { return get(); }
+    AudioControlBase& operator*() const { return *get(); }
+    explicit operator bool() const { return m_control != nullptr; }
+
+private:
+    std::shared_ptr<AudioControlBase> m_control;
+};
+
 // Global registry for controls
 class AudioControlRegistry {
 public:
@@ -82,23 +104,17 @@ public:
     template <typename T>
     bool set_control(const std::vector<std::string>& control_path, const T& value);
 
-    void link_control(const std::vector<std::string>& reference_control_path, const std::vector<std::string>& target_control_path);
-    bool unlink_control(const std::vector<std::string>& reference_control_path);
-
-    template <typename T>
-    AudioControl<T>* get_control(const std::vector<std::string>& control_path);
+    // Change return type of get_control
+    ControlHandle & get_control(const std::vector<std::string>& control_path);
 
     std::vector<std::string> list_controls(const std::optional<std::vector<std::string>>& category_path = std::nullopt);
     std::vector<std::string> list_all_controls();
 
 private:
+    // Update CategoryNode to store shared_ptr<ControlHandle>
     struct CategoryNode {
-        std::unordered_map<std::string, std::unique_ptr<CategoryNode>> children;
-        std::unordered_map<std::string, std::shared_ptr<AudioControlBase>> controls;
-        // Category-level symbolic links: treat a name as an alias to another CategoryNode
-        std::unordered_map<std::string, CategoryNode*> category_references;
-        // Control-level aliases: map a name to a specific control at some target node
-        std::unordered_map<std::string, std::pair<CategoryNode*, std::string>> control_aliases;
+        std::unordered_map<std::string, CategoryNode> children;
+        std::unordered_map<std::string, ControlHandle> controls;
     };
     CategoryNode m_root;
     static const std::string& default_category();
@@ -110,9 +126,7 @@ private:
 
     // Non-template helpers implemented in the .cpp so template wrappers can stay minimal
     bool set_control_any(const std::vector<std::string>& control_path, const std::any& value);
-    AudioControlBase* get_control_untyped(const std::vector<std::string>& control_path);
-    bool link_control_untyped(const std::vector<std::string>& reference_control_path, const std::vector<std::string>& target_control_path);
-    bool unlink_control_untyped(const std::vector<std::string>& reference_control_path);
+
     std::shared_ptr<AudioControlBase> deregister_control_if(
         const std::vector<std::string>& category_path,
         const std::string& name,

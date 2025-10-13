@@ -6,9 +6,9 @@
 
 TEST_CASE("AudioControlBase and AudioControl functionality", "[AudioControl]") {
     float test_value = 0.0f;
-    auto* control = new AudioControl<float>("test_control", 1.0f, [&](const float& v) { test_value = v; });
+    auto* control = new AudioControl<float>("test", 1.0f, [&](const float& v) { test_value = v; });
 
-    REQUIRE(control->name() == "test_control");
+    REQUIRE(control->name() == "test");
     REQUIRE(control->value() == 1.0f);
 
     control->set(2.5f);
@@ -17,17 +17,17 @@ TEST_CASE("AudioControlBase and AudioControl functionality", "[AudioControl]") {
 
     // Test polymorphic access via base pointer
     AudioControlBase* base_ptr = control;
-    REQUIRE(base_ptr->name() == "test_control");
+    REQUIRE(base_ptr->name() == "test");
 
     // Register control in the registry using path-based API
-    AudioControlRegistry::instance().register_control({"test_control"}, control);
+    AudioControlRegistry::instance().register_control({"control"}, std::shared_ptr<AudioControlBase>(control));
 
     // Retrieve control from registry and check pointer equality
-    auto* reg_control = AudioControlRegistry::instance().get_control<float>({"test_control"});
-    REQUIRE(reg_control == control);
+    auto & reg_control = AudioControlRegistry::instance().get_control({"control", "test"});
+    REQUIRE(reg_control.get() == control);
 
     // Set value via registry and check propagation
-    bool set_result = AudioControlRegistry::instance().set_control<float>({"test_control"}, 7.5f);
+    bool set_result = AudioControlRegistry::instance().set_control<float>({"control", "test"}, 7.5f);
     REQUIRE(set_result);
     REQUIRE(control->value() == 7.5f);
     REQUIRE(test_value == 7.5f);
@@ -36,7 +36,7 @@ TEST_CASE("AudioControlBase and AudioControl functionality", "[AudioControl]") {
     auto controls = AudioControlRegistry::instance().list_controls();
     bool found = false;
     for (const auto& name : controls) {
-        if (name == "test_control") {
+        if (name == "control/test") {
             found = true;
             break;
         }
@@ -94,21 +94,21 @@ TEST_CASE("AudioControlRegistry with multiple controls", "[AudioControl]") {
     auto* vector_ctrl = new AudioControl<std::vector<float>>("test_vector", {1.0f, 2.0f}, [&](const std::vector<float>& v) { vector_val = v; });
 
     // Register all controls using path-based API
-    AudioControlRegistry::instance().register_control({"test_int"}, int_ctrl);
-    AudioControlRegistry::instance().register_control({"test_float"}, float_ctrl);
-    AudioControlRegistry::instance().register_control({"test_string"}, string_ctrl);
-    AudioControlRegistry::instance().register_control({"test_vector"}, vector_ctrl);
+    AudioControlRegistry::instance().register_control({"test_int"}, std::shared_ptr<AudioControlBase>(int_ctrl));
+    AudioControlRegistry::instance().register_control({"test_float"}, std::shared_ptr<AudioControlBase>(float_ctrl));
+    AudioControlRegistry::instance().register_control({"test_string"}, std::shared_ptr<AudioControlBase>(string_ctrl));
+    AudioControlRegistry::instance().register_control({"test_vector"}, std::shared_ptr<AudioControlBase>(vector_ctrl));
 
     // Test retrieval
-    auto* retrieved_int = AudioControlRegistry::instance().get_control<int>({"test_int"});
-    auto* retrieved_float = AudioControlRegistry::instance().get_control<float>({"test_float"});
-    auto* retrieved_string = AudioControlRegistry::instance().get_control<std::string>({"test_string"});
-    auto* retrieved_vector = AudioControlRegistry::instance().get_control<std::vector<float>>({"test_vector"});
+    auto & retrieved_int = AudioControlRegistry::instance().get_control({"test_int"});
+    auto & retrieved_float = AudioControlRegistry::instance().get_control({"test_float"});
+    auto & retrieved_string = AudioControlRegistry::instance().get_control({"test_string"});
+    auto & retrieved_vector = AudioControlRegistry::instance().get_control({"test_vector"});
 
-    REQUIRE(retrieved_int == int_ctrl);
-    REQUIRE(retrieved_float == float_ctrl);
-    REQUIRE(retrieved_string == string_ctrl);
-    REQUIRE(retrieved_vector == vector_ctrl);
+    REQUIRE(retrieved_int.get() == int_ctrl);
+    REQUIRE(retrieved_float.get() == float_ctrl);
+    REQUIRE(retrieved_string.get() == string_ctrl);
+    REQUIRE(retrieved_vector.get() == vector_ctrl);
 
     // Test setting values through registry
     REQUIRE(AudioControlRegistry::instance().set_control<int>({"test_int"}, 20));
@@ -140,8 +140,8 @@ TEST_CASE("AudioControlRegistry with multiple controls", "[AudioControl]") {
 
 TEST_CASE("AudioControl error handling", "[AudioControl]") {
     // Test non-existent control
-    auto* non_existent = AudioControlRegistry::instance().get_control<float>({"non_existent"});
-    REQUIRE(non_existent == nullptr);
+    auto & non_existent = AudioControlRegistry::instance().get_control({"non_existent"});
+    REQUIRE(static_cast<bool>(non_existent) == false);
 
     bool set_result = AudioControlRegistry::instance().set_control<float>({"non_existent"}, 1.0f);
     REQUIRE(set_result == false);
@@ -166,14 +166,14 @@ TEST_CASE("AudioControlRegistry supports categories with same control names", "[
     auto* synth_play = new AudioControl<float>("play_note", 0.0f, [&](const float& v) { synth_freq = v; });
 
     // Register under different categories using path-based API
-    AudioControlRegistry::instance().register_control({"piano", "play_note"}, piano_play);
-    AudioControlRegistry::instance().register_control({"synth", "play_note"}, synth_play);
+    AudioControlRegistry::instance().register_control({"piano", "play_note"}, std::shared_ptr<AudioControlBase>(piano_play));
+    AudioControlRegistry::instance().register_control({"synth", "play_note"}, std::shared_ptr<AudioControlBase>(synth_play));
 
     // Verify retrieval by path
-    auto* piano_get = AudioControlRegistry::instance().get_control<float>({"piano", "play_note"});
-    auto* synth_get = AudioControlRegistry::instance().get_control<float>({"synth", "play_note"});
-    REQUIRE(piano_get == piano_play);
-    REQUIRE(synth_get == synth_play);
+    auto & piano_get = AudioControlRegistry::instance().get_control({"piano", "play_note"});
+    auto & synth_get = AudioControlRegistry::instance().get_control({"synth", "play_note"});
+    REQUIRE(piano_get.get() == piano_play);
+    REQUIRE(synth_get.get() == synth_play);
 
     // Verify setting by path updates the correct target only
     REQUIRE(AudioControlRegistry::instance().set_control<float>({"piano", "play_note"}, 440.0f));
@@ -216,14 +216,14 @@ TEST_CASE("AudioControlRegistry supports hierarchical categories", "[AudioContro
     auto* pad_play = new AudioControl<float>("play_note", 0.0f, [&](const float& v) { pad_freq = v; });
 
     // Register under nested category paths using path-based API
-    AudioControlRegistry::instance().register_control({"synth", "lead", "play_note"}, lead_play);
-    AudioControlRegistry::instance().register_control({"synth", "pad", "play_note"}, pad_play);
+    AudioControlRegistry::instance().register_control({"synth", "lead", "play_note"}, std::shared_ptr<AudioControlBase>(lead_play));
+    AudioControlRegistry::instance().register_control({"synth", "pad", "play_note"}, std::shared_ptr<AudioControlBase>(pad_play));
 
     // Retrieve by path
-    auto* lead_get = AudioControlRegistry::instance().get_control<float>({"synth", "lead", "play_note"});
-    auto* pad_get  = AudioControlRegistry::instance().get_control<float>({"synth", "pad", "play_note"});
-    REQUIRE(lead_get == lead_play);
-    REQUIRE(pad_get  == pad_play);
+    auto & lead_get = AudioControlRegistry::instance().get_control({"synth", "lead", "play_note"});
+    auto & pad_get  = AudioControlRegistry::instance().get_control({"synth", "pad", "play_note"});
+    REQUIRE(lead_get.get() == lead_play);
+    REQUIRE(pad_get.get()  == pad_play);
 
     // Set by path
     REQUIRE(AudioControlRegistry::instance().set_control<float>({"synth", "lead", "play_note"}, 880.0f));
@@ -261,11 +261,11 @@ TEST_CASE("AudioControlRegistry can deregister and transfer ownership", "[AudioC
     auto* ctrl = new AudioControl<int>("param", 1, [&](const int&){ call_count++; });
 
     // Register under nested path using path-based API
-    AudioControlRegistry::instance().register_control({"fx", "reverb", "param"}, ctrl);
+    AudioControlRegistry::instance().register_control({"fx", "reverb", "param"}, std::shared_ptr<AudioControlBase>(ctrl));
 
     // Ensure it exists
-    auto* found = AudioControlRegistry::instance().get_control<int>({"fx", "reverb", "param"});
-    REQUIRE(found == ctrl);
+    auto & found = AudioControlRegistry::instance().get_control({"fx", "reverb", "param"});
+    REQUIRE(found.get() == ctrl);
 
     // Deregister transfers ownership (typed) using path-based API
     auto ptr = AudioControlRegistry::instance().deregister_control<int>({"fx", "reverb", "param"});
@@ -273,8 +273,8 @@ TEST_CASE("AudioControlRegistry can deregister and transfer ownership", "[AudioC
     REQUIRE(ptr.get() == ctrl);
 
     // No longer retrievable
-    auto* not_found = AudioControlRegistry::instance().get_control<int>({"fx", "reverb", "param"});
-    REQUIRE(not_found == nullptr);
+    auto & not_found = AudioControlRegistry::instance().get_control({"fx", "reverb", "param"});
+    REQUIRE(static_cast<bool>(not_found) == false);
 
     // Manipulate after transfer (outside registry) still works
     ptr->set(42);
@@ -314,8 +314,8 @@ TEST_CASE("AudioControl with member function simulation", "[AudioControl]") {
     REQUIRE(test_obj.name == "test_name");
 
     // Test through registry using path-based API
-    AudioControlRegistry::instance().register_control({"member_value"}, value_control);
-    AudioControlRegistry::instance().register_control({"member_name"}, name_control);
+    AudioControlRegistry::instance().register_control({"member_value"}, std::shared_ptr<AudioControlBase>(value_control));
+    AudioControlRegistry::instance().register_control({"member_name"}, std::shared_ptr<AudioControlBase>(name_control));
 
     AudioControlRegistry::instance().set_control<int>({"member_value"}, 100);
     AudioControlRegistry::instance().set_control<std::string>({"member_name"}, "registry_name");
@@ -324,101 +324,24 @@ TEST_CASE("AudioControl with member function simulation", "[AudioControl]") {
     REQUIRE(test_obj.name == "registry_name");
 }
 
-TEST_CASE("AudioControlRegistry control references", "[AudioControl]") {
-    float target_value = 0.0f;
-    auto* target_control = new AudioControl<float>("target", 1.0f, [&](const float& v) { target_value = v; });
-    
-    // Register the target control
-    AudioControlRegistry::instance().register_control({"category", "target"}, target_control);
-    
-    // Create a reference to the target control
-    AudioControlRegistry::instance().link_control({"reference"}, {"category", "target"});
-    
-    // Test that the reference works
-    auto* ref_control = AudioControlRegistry::instance().get_control<float>({"reference"});
-    REQUIRE(ref_control == target_control);
-    
-    // Test setting through reference
-    REQUIRE(AudioControlRegistry::instance().set_control<float>({"reference"}, 5.0f));
-    REQUIRE(target_value == 5.0f);
-    REQUIRE(target_control->value() == 5.0f);
-    
-    // Test unlinking
-    REQUIRE(AudioControlRegistry::instance().unlink_control({"reference"}));
-    auto* unlinked_ref = AudioControlRegistry::instance().get_control<float>({"reference"});
-    REQUIRE(unlinked_ref == nullptr);
-}
+TEST_CASE("AudioControlRegistry get_control linkage works", "[AudioControl]") {
+    auto & registry = AudioControlRegistry::instance();
 
-TEST_CASE("AudioControlRegistry supports category alias links and mid-path control aliasing", "[AudioControl]") {
-    // Arrange nested categories with controls
-    float lead_val = 0.0f;
-    float pad_val = 0.0f;
-    auto* lead_ctrl = new AudioControl<float>("cutoff", 0.0f, [&](const float& v) { lead_val = v; });
-    auto* pad_ctrl  = new AudioControl<float>("cutoff", 0.0f, [&](const float& v) { pad_val = v; });
-
-    AudioControlRegistry::instance().register_control({"synth", "lead", "cutoff"}, lead_ctrl);
-    AudioControlRegistry::instance().register_control({"synth", "pad",  "cutoff"}, pad_ctrl);
-
-    // Create a category alias at root pointing to synth/lead
-    // Accessing {"lead_alias", "cutoff"} should resolve to {"synth","lead","cutoff"}
-    REQUIRE_NOTHROW(AudioControlRegistry::instance().link_control({"lead_alias"}, {"synth", "lead"}));
-
-    // Verify retrieval through category alias
-    auto* alias_ctrl = AudioControlRegistry::instance().get_control<float>({"lead_alias", "cutoff"});
-    REQUIRE(alias_ctrl == lead_ctrl);
-
-    // Set via alias path
-    REQUIRE(AudioControlRegistry::instance().set_control<float>({"lead_alias", "cutoff"}, 123.0f));
-    REQUIRE(lead_val == 123.0f);
-    REQUIRE(pad_val == 0.0f);
-
-    // Create a control alias at root that points directly to a specific control under synth/pad
-    REQUIRE_NOTHROW(AudioControlRegistry::instance().link_control({"pad_cutoff_link"}, {"synth", "pad", "cutoff"}));
-
-    // Retrieving by the alias name as a control should return the pad control
-    auto* pad_alias_ctrl = AudioControlRegistry::instance().get_control<float>({"pad_cutoff_link"});
-    REQUIRE(pad_alias_ctrl == pad_ctrl);
-
-    // Setting through the alias should update pad only
-    REQUIRE(AudioControlRegistry::instance().set_control<float>({"pad_cutoff_link"}, 77.0f));
-    REQUIRE(pad_val == 77.0f);
-    REQUIRE(lead_val == 123.0f);
-
-    // Unlink control alias
-    REQUIRE(AudioControlRegistry::instance().unlink_control({"pad_cutoff_link"}));
-    auto* pad_alias_after_unlink = AudioControlRegistry::instance().get_control<float>({"pad_cutoff_link"});
-    REQUIRE(pad_alias_after_unlink == nullptr);
-
-    // Unlink category alias
-    REQUIRE(AudioControlRegistry::instance().unlink_control({"lead_alias"}));
-    auto* lead_alias_after_unlink = AudioControlRegistry::instance().get_control<float>({"lead_alias", "cutoff"});
-    REQUIRE(lead_alias_after_unlink == nullptr);
-}
-
-TEST_CASE("AudioControlRegistry list_all_controls traverses hierarchy without following links", "[AudioControl]") {
     auto* ctrl1 = new AudioControl<int>("ctrl1", 0, [](const int&){});
     auto* ctrl2 = new AudioControl<int>("ctrl2", 0, [](const int&){});
-    auto* ctrl3 = new AudioControl<int>("ctrl3", 0, [](const int&){});
 
-    AudioControlRegistry::instance().register_control({"cat1", "ctrl1"}, ctrl1);
-    AudioControlRegistry::instance().register_control({"cat1", "subcat", "ctrl2"}, ctrl2);
-    AudioControlRegistry::instance().register_control({"cat2", "ctrl3"}, ctrl3);
+    registry.register_control({"cat1", "ctrl1"}, std::shared_ptr<AudioControlBase>(ctrl1));
 
-    AudioControlRegistry::instance().link_control({"alias"}, {"cat1"});
-    AudioControlRegistry::instance().link_control({"alias_ctrl"}, {"cat1", "ctrl1"});
+    auto & handle = registry.get_control({"cat1", "ctrl1"});
 
-    auto all = AudioControlRegistry::instance().list_all_controls();
+    handle->set_value(10);
 
-    std::vector<std::string> expected = {"cat1/ctrl1", "cat1/subcat/ctrl2", "cat2/ctrl3"};
-    REQUIRE(all.size() == 3);
-    std::sort(all.begin(), all.end());
-    std::sort(expected.begin(), expected.end());
-    REQUIRE(all == expected);
+    REQUIRE(ctrl1->value() == 10);
 
-    auto ptr1 = AudioControlRegistry::instance().deregister_control<int>({"cat1", "ctrl1"});
-    auto ptr2 = AudioControlRegistry::instance().deregister_control<int>({"cat1", "subcat", "ctrl2"});
-    auto ptr3 = AudioControlRegistry::instance().deregister_control<int>({"cat2", "ctrl3"});
+    registry.register_control({"cat1", "ctrl1"}, std::shared_ptr<AudioControlBase>(ctrl2));
 
-    AudioControlRegistry::instance().unlink_control({"alias"});
-    AudioControlRegistry::instance().unlink_control({"alias_ctrl"});
+    handle->set_value(20);
+
+    REQUIRE(ctrl2->value() == 20);
+    REQUIRE(ctrl1->value() == 10);
 }

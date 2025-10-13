@@ -7,11 +7,6 @@ bool AudioControlRegistry::set_control(const std::vector<std::string>& control_p
 }
 
 template <typename T>
-AudioControl<T>* AudioControlRegistry::get_control(const std::vector<std::string>& control_path) {
-    return dynamic_cast<AudioControl<T>*>(get_control_untyped(control_path));
-}
-
-template <typename T>
 std::shared_ptr<AudioControl<T>> AudioControlRegistry::deregister_control(const std::vector<std::string>& control_path) {
     if (control_path.empty()) return nullptr;
     

@@ -27,6 +27,7 @@ void AudioModuleManager::add_module(std::shared_ptr<AudioModule> module) {
     for (auto & control : module->m_controls) {
         std::vector<std::string> path = m_control_path;
         path.push_back(module->type());
+        path.push_back(control->name());
         control_registry.register_control(path, control);
     }
 }
@@ -66,18 +67,11 @@ std::shared_ptr<AudioModule> AudioModuleManager::replace_module(const std::strin
 
     // Remove the current controls from the registry
     auto & control_registry = AudioControlRegistry::instance();
-    for (auto & control : old_module->m_controls) {
-        std::vector<std::string> old_path = m_control_path;
-        old_path.push_back(old_module->type());
-        old_path.push_back(control->name());
-        control_registry.deregister_control(old_path);
-        printf("Deregistered control %s on old module %s\n", control->name().c_str(), old_module->name().c_str());
-    }
     for (auto & control : new_module->m_controls) {
         std::vector<std::string> new_path = m_control_path;
         new_path.push_back(new_module->type());
+        new_path.push_back(control->name());
         control_registry.register_control(new_path, control);
-        printf("Registered control %s on new module %s\n", control->name().c_str(), new_module->name().c_str());
     }
 
     return old_module;
