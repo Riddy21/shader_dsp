@@ -32,11 +32,6 @@ void setup_keyboard(AudioSynthesizer& synthesizer, EventLoop& event_loop) {
     auto & event_handler = EventHandler::get_instance();
     auto & control_registry = AudioControlRegistry::instance();
 
-    auto controls = control_registry.list_all_controls();
-    for (const auto& control : controls) {
-        printf("Control: %s\n", control.c_str());
-    }
-
     auto & play_note_control = control_registry.get_control({"current", "voice", "play_note"});
     auto & stop_note_control = control_registry.get_control({"current", "voice", "stop_note"});
 
