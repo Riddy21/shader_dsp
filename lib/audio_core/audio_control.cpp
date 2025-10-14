@@ -1,5 +1,7 @@
 #include "audio_core/audio_control.h"
 #include <stack>
+#include <typeinfo>
+#include <typeindex>
 
 // Global registry for controls
 AudioControlRegistry& AudioControlRegistry::instance() {
@@ -84,10 +86,13 @@ void AudioControlRegistry::register_control(const std::vector<std::string>& cont
     CategoryNode* node = navigate_to_node(category_path, true);
     auto it = node->controls.find(control_name);
     if (it != node->controls.end()) {
-        // Update existing handle's target to preserve references to the handle
-        it->second.m_control = control;
+        // Preserve previous control target so external references remain valid until unused
+        if (it->second.m_control) {
+            m_retired_controls.push_back(std::move(it->second.m_control));
+        }
+        it->second.m_control = std::move(control);
     } else {
-        node->controls.emplace(control_name, ControlHandle(control));
+        node->controls.emplace(control_name, ControlHandle(std::move(control)));
     }
 }
 
@@ -105,19 +110,6 @@ ControlHandle & AudioControlRegistry::get_control(const std::vector<std::string>
     auto it = node->controls.find(control_name);
     if (it == node->controls.end()) return s_null_handle;
     return it->second;
-}
-
-// Update set_control_any to use get_control and underlying base pointer
-bool AudioControlRegistry::set_control_any(const std::vector<std::string>& control_path, const std::any& value) {
-    auto & handle = get_control(control_path);
-    if (!handle) return false;
-    
-    try {
-        handle->set_value(value);
-        return true;
-    } catch (...) {
-        return false;
-    }
 }
 
 // Update deregister_control_if for by-value ControlHandle
@@ -139,14 +131,13 @@ std::shared_ptr<AudioControlBase> AudioControlRegistry::deregister_control_if(
     return base_ptr;
 }
 
-bool AudioControlRegistry::deregister_control(const std::vector<std::string>& control_path) {
-    if (control_path.empty()) return false;
+std::shared_ptr<AudioControlBase> AudioControlRegistry::deregister_control(const std::vector<std::string>& control_path) {
+    if (control_path.empty()) return nullptr;
     
     std::vector<std::string> category_path(control_path.begin(), control_path.end() - 1);
     std::string name = control_path.back();
     
-    auto ptr = deregister_control_if(category_path, name, [](AudioControlBase&){ return true; });
-    return ptr != nullptr;
+    return deregister_control_if(category_path, name, [](AudioControlBase&){ return true; });
 }
 
 // Fix navigate_to_node for map<CategoryNode>
@@ -165,4 +156,3 @@ AudioControlRegistry::CategoryNode* AudioControlRegistry::navigate_to_node(const
 }
 
 AudioControlRegistry::AudioControlRegistry() = default;
-

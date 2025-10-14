@@ -9,10 +9,10 @@ TEST_CASE("AudioControlBase and AudioControl functionality", "[AudioControl]") {
     auto* control = new AudioControl<float>("test", 1.0f, [&](const float& v) { test_value = v; });
 
     REQUIRE(control->name() == "test");
-    REQUIRE(control->value() == 1.0f);
+    REQUIRE(control->get<float>() == 1.0f);
 
-    control->set(2.5f);
-    REQUIRE(control->value() == 2.5f);
+    static_cast<AudioControlBase*>(control)->set<float>(2.5f);
+    REQUIRE(control->get<float>() == 2.5f);
     REQUIRE(test_value == 2.5f);
 
     // Test polymorphic access via base pointer
@@ -20,20 +20,21 @@ TEST_CASE("AudioControlBase and AudioControl functionality", "[AudioControl]") {
     REQUIRE(base_ptr->name() == "test");
 
     // Register control in the registry using path-based API
-    AudioControlRegistry::instance().register_control({"control"}, std::shared_ptr<AudioControlBase>(control));
+    AudioControlRegistry::instance().register_control({"control", "test"}, std::shared_ptr<AudioControlBase>(control));
 
     // Retrieve control from registry and check pointer equality
     auto & reg_control = AudioControlRegistry::instance().get_control({"control", "test"});
     REQUIRE(reg_control.get() == control);
 
     // Set value via registry and check propagation
-    bool set_result = AudioControlRegistry::instance().set_control<float>({"control", "test"}, 7.5f);
-    REQUIRE(set_result);
-    REQUIRE(control->value() == 7.5f);
+    auto & handle0 = AudioControlRegistry::instance().get_control({"control", "test"});
+    REQUIRE(static_cast<bool>(handle0));
+    handle0->set<float>(7.5f);
+    REQUIRE(control->get<float>() == 7.5f);
     REQUIRE(test_value == 7.5f);
 
     // List controls and check presence
-    auto controls = AudioControlRegistry::instance().list_controls();
+    auto controls = AudioControlRegistry::instance().list_all_controls();
     bool found = false;
     for (const auto& name : controls) {
         if (name == "control/test") {
@@ -50,11 +51,11 @@ TEST_CASE("AudioControl constructor without initial value does not invoke setter
     // Constructor should not call setter
     REQUIRE(call_count == 0);
     // Value should be default-initialized (0 for int)
-    REQUIRE(control->value() == 0);
+    REQUIRE(control->get<int>() == 0);
     // Now setting should invoke setter
-    control->set(5);
+    static_cast<AudioControlBase*>(control)->set<int>(5);
     REQUIRE(call_count == 1);
-    REQUIRE(control->value() == 5);
+    REQUIRE(control->get<int>() == 5);
 }
 
 TEST_CASE("AudioControl with different types", "[AudioControl]") {
@@ -62,9 +63,9 @@ TEST_CASE("AudioControl with different types", "[AudioControl]") {
     int int_value = 0;
     auto* int_control = new AudioControl<int>("int_control", 42, [&](const int& v) { int_value = v; });
     
-    REQUIRE(int_control->value() == 42);
-    int_control->set(100);
-    REQUIRE(int_control->value() == 100);
+    REQUIRE(int_control->get<int>() == 42);
+    static_cast<AudioControlBase*>(int_control)->set<int>(100);
+    REQUIRE(int_control->get<int>() == 100);
     REQUIRE(int_value == 100);
 
     // Test vector control
@@ -75,9 +76,9 @@ TEST_CASE("AudioControl with different types", "[AudioControl]") {
         [&](const std::vector<float>& v) { vector_value = v; }
     );
     
-    REQUIRE(vector_control->value() == std::vector<float>{1.0f, 2.0f});
-    vector_control->set({3.0f, 4.0f, 5.0f});
-    REQUIRE(vector_control->value() == std::vector<float>{3.0f, 4.0f, 5.0f});
+    REQUIRE(vector_control->get<std::vector<float>>() == std::vector<float>{1.0f, 2.0f});
+    static_cast<AudioControlBase*>(vector_control)->set<std::vector<float>>({3.0f, 4.0f, 5.0f});
+    REQUIRE(vector_control->get<std::vector<float>>() == std::vector<float>{3.0f, 4.0f, 5.0f});
     REQUIRE(vector_value == std::vector<float>{3.0f, 4.0f, 5.0f});
 }
 
@@ -110,11 +111,11 @@ TEST_CASE("AudioControlRegistry with multiple controls", "[AudioControl]") {
     REQUIRE(retrieved_string.get() == string_ctrl);
     REQUIRE(retrieved_vector.get() == vector_ctrl);
 
-    // Test setting values through registry
-    REQUIRE(AudioControlRegistry::instance().set_control<int>({"test_int"}, 20));
-    REQUIRE(AudioControlRegistry::instance().set_control<float>({"test_float"}, 2.71f));
-    REQUIRE(AudioControlRegistry::instance().set_control<std::string>({"test_string"}, "world"));
-    REQUIRE(AudioControlRegistry::instance().set_control<std::vector<float>>({"test_vector"}, {3.0f, 4.0f}));
+    // Test setting values through registry via handle
+    AudioControlRegistry::instance().get_control({"test_int"})->set<int>(20);
+    AudioControlRegistry::instance().get_control({"test_float"})->set<float>(2.71f);
+    AudioControlRegistry::instance().get_control({"test_string"})->set<std::string>("world");
+    AudioControlRegistry::instance().get_control({"test_vector"})->set<std::vector<float>>({3.0f, 4.0f});
 
     REQUIRE(int_val == 20);
     REQUIRE(float_val == 2.71f);
@@ -143,18 +144,18 @@ TEST_CASE("AudioControl error handling", "[AudioControl]") {
     auto & non_existent = AudioControlRegistry::instance().get_control({"non_existent"});
     REQUIRE(static_cast<bool>(non_existent) == false);
 
-    bool set_result = AudioControlRegistry::instance().set_control<float>({"non_existent"}, 1.0f);
-    REQUIRE(set_result == false);
+    auto & missing_handle = AudioControlRegistry::instance().get_control({"non_existent"});
+    REQUIRE(static_cast<bool>(missing_handle) == false);
 
     // Test std::any casting with wrong type
     auto* control = new AudioControl<float>("type_test", 1.0f, [](const float&) {});
     
     // This should work
-    control->set_value(std::any(2.0f));
-    REQUIRE(control->value() == 2.0f);
+    static_cast<AudioControlBase*>(control)->set<float>(2.0f);
+    REQUIRE(control->get<float>() == 2.0f);
 
     // This should throw
-    REQUIRE_THROWS_AS(control->set_value(std::any(42)), std::bad_any_cast);
+    REQUIRE_THROWS_AS(static_cast<AudioControlBase*>(control)->set<int>(42), std::bad_cast);
 }
 
 TEST_CASE("AudioControlRegistry supports categories with same control names", "[AudioControl]") {
@@ -176,11 +177,11 @@ TEST_CASE("AudioControlRegistry supports categories with same control names", "[
     REQUIRE(synth_get.get() == synth_play);
 
     // Verify setting by path updates the correct target only
-    REQUIRE(AudioControlRegistry::instance().set_control<float>({"piano", "play_note"}, 440.0f));
+    AudioControlRegistry::instance().get_control({"piano", "play_note"})->set<float>(440.0f);
     REQUIRE(piano_freq == 440.0f);
     REQUIRE(synth_freq == 0.0f);
 
-    REQUIRE(AudioControlRegistry::instance().set_control<float>({"synth", "play_note"}, 220.0f));
+    AudioControlRegistry::instance().get_control({"synth", "play_note"})->set<float>(220.0f);
     REQUIRE(piano_freq == 440.0f);
     REQUIRE(synth_freq == 220.0f);
 
@@ -226,11 +227,11 @@ TEST_CASE("AudioControlRegistry supports hierarchical categories", "[AudioContro
     REQUIRE(pad_get.get()  == pad_play);
 
     // Set by path
-    REQUIRE(AudioControlRegistry::instance().set_control<float>({"synth", "lead", "play_note"}, 880.0f));
+    AudioControlRegistry::instance().get_control({"synth", "lead", "play_note"})->set<float>(880.0f);
     REQUIRE(lead_freq == 880.0f);
     REQUIRE(pad_freq == 0.0f);
 
-    REQUIRE(AudioControlRegistry::instance().set_control<float>({"synth", "pad", "play_note"}, 110.0f));
+    AudioControlRegistry::instance().get_control({"synth", "pad", "play_note"})->set<float>(110.0f);
     REQUIRE(lead_freq == 880.0f);
     REQUIRE(pad_freq == 110.0f);
 
@@ -268,9 +269,9 @@ TEST_CASE("AudioControlRegistry can deregister and transfer ownership", "[AudioC
     REQUIRE(found.get() == ctrl);
 
     // Deregister transfers ownership (typed) using path-based API
-    auto ptr = AudioControlRegistry::instance().deregister_control<int>({"fx", "reverb", "param"});
+    auto ptr = AudioControlRegistry::instance().deregister_control({"fx", "reverb", "param"});
     REQUIRE(ptr != nullptr);
-    REQUIRE(ptr.get() == ctrl);
+    REQUIRE(ptr->get<int>() == 1);
 
     // No longer retrievable
     auto & not_found = AudioControlRegistry::instance().get_control({"fx", "reverb", "param"});
@@ -307,18 +308,19 @@ TEST_CASE("AudioControl with member function simulation", "[AudioControl]") {
     );
 
     // Test the controls
-    value_control->set(42);
+    static_cast<AudioControlBase*>(value_control)->set<int>(42);
     REQUIRE(test_obj.value == 42);
 
-    name_control->set("test_name");
+    static_cast<AudioControlBase*>(name_control)->set<std::string>("test_name");
     REQUIRE(test_obj.name == "test_name");
 
     // Test through registry using path-based API
     AudioControlRegistry::instance().register_control({"member_value"}, std::shared_ptr<AudioControlBase>(value_control));
     AudioControlRegistry::instance().register_control({"member_name"}, std::shared_ptr<AudioControlBase>(name_control));
 
-    AudioControlRegistry::instance().set_control<int>({"member_value"}, 100);
-    AudioControlRegistry::instance().set_control<std::string>({"member_name"}, "registry_name");
+    AudioControlRegistry::instance().get_control({"member_value"})->set<int>(100);
+    AudioControlRegistry::instance().get_control({"member_name"})->set<std::string>("registry_name");
+
 
     REQUIRE(test_obj.value == 100);
     REQUIRE(test_obj.name == "registry_name");
@@ -334,14 +336,38 @@ TEST_CASE("AudioControlRegistry get_control linkage works", "[AudioControl]") {
 
     auto & handle = registry.get_control({"cat1", "ctrl1"});
 
-    handle->set_value(10);
+    handle->set<int>(10);
 
-    REQUIRE(ctrl1->value() == 10);
+    REQUIRE(ctrl1->get<int>() == 10);
 
     registry.register_control({"cat1", "ctrl1"}, std::shared_ptr<AudioControlBase>(ctrl2));
 
-    handle->set_value(20);
+    handle->set<int>(20);
 
-    REQUIRE(ctrl2->value() == 20);
-    REQUIRE(ctrl1->value() == 10);
+    REQUIRE(ctrl2->get<int>() == 20);
+    REQUIRE(ctrl1->get<int>() == 10);
+    REQUIRE(handle->get<int>() == 20);
+}
+
+TEST_CASE("AudioSelectionControl functionality", "[AudioSelectionControl]") {
+    std::vector<std::string> items = {"item1", "item2", "item3"};
+    std::string selected_item = "item2";
+
+    auto* control = new AudioSelectionControl<std::string>("selection", items, selected_item, [&](const std::string& v) { selected_item = v; });
+
+    REQUIRE(control->name() == "selection");
+    REQUIRE(control->items() == items);
+    REQUIRE(control->get<std::string>() == selected_item);
+
+    // Register in the registry
+    AudioControlRegistry::instance().register_control({"selection"}, std::shared_ptr<AudioControlBase>(control));
+
+    // Retrieve from the registry
+    auto & retrieved = AudioControlRegistry::instance().get_control({"selection"});
+
+    // Check pointer equality
+    REQUIRE(retrieved.get() == control);
+
+    // Get values from the registry
+    // TODO: Find way to do this easily
 }
