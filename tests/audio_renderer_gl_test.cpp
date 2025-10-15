@@ -8,7 +8,6 @@
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
-#include "audio_core/audio_control.h"
 
 #include <iostream>
 #include <vector>
@@ -85,11 +84,6 @@ TEST_CASE("AudioRenderer - Echo Effect Audio Output Test",
     
     // Add render graph to the audio renderer
     REQUIRE(audio_renderer.add_render_graph(render_graph));
-
-    // Configure echo effect parameters using AudioControlRegistry
-    REQUIRE(AudioControlRegistry::instance().set_control<float>({"delay"}, ECHO_DELAY));
-    REQUIRE(AudioControlRegistry::instance().set_control<float>({"decay"}, ECHO_DECAY));
-    REQUIRE(AudioControlRegistry::instance().set_control<int>({"num_echos"}, NUM_ECHOS));
 
     SECTION("Echo Effect Audio Playback with AudioRenderer") {
         std::cout << "\n=== AudioRenderer Echo Effect Audio Playback Test ===" << std::endl;
