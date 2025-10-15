@@ -39,14 +39,14 @@ void setup_keyboard(AudioSynthesizer& synthesizer, EventLoop& event_loop) {
         event_handler.register_entry(new KeyboardEventHandlerEntry(
             SDL_KEYDOWN, key,
             [tone, key, &play_note_control](const SDL_Event&) {
-                play_note_control->set_value(std::pair<float, float>{tone, 0.2f});
+                play_note_control->set<std::pair<float, float>>({tone, 0.2f});
                 return true;
             }
         ));
         event_handler.register_entry(new KeyboardEventHandlerEntry(
             SDL_KEYUP, key,
             [tone, key, &stop_note_control](const SDL_Event&) {
-                stop_note_control->set_value(tone);
+                stop_note_control->set<float>(tone);
                 return true;
             }
         ));

@@ -8,24 +8,24 @@
 MenuView::MenuView()
     : GraphicsView()
 {
-    auto & synthesizer = AudioSynthesizer::get_instance();
-
-    auto & track = synthesizer.get_track(0);
+    auto & registry = AudioControlRegistry::instance();
+    auto & effect_control = registry.get_control({"current", "menu_effect"});
+    auto & voice_control = registry.get_control({"current", "menu_voice"});
 
     auto menu = new MenuSelectionComponent(
         -1.0f, 1.0f, 1.0f, 2.0f,
-        track.get_effect_names(),
-        [&track, this](std::string title) {
-            track.change_effect(title);
+        effect_control->items<std::string>(),
+        [&effect_control](std::string title) {
+            effect_control->set<std::string>(title);
         }
     );
     add_component(menu);
 
     auto menu2 = new MenuSelectionComponent(
         0.0f, 1.0f, 1.0f, 2.0f,
-        track.get_generator_names(),
-        [&track](std::string title) {
-            track.change_voice(title);
+        voice_control->items<std::string>(),
+        [&voice_control](std::string title) {
+            voice_control->set<std::string>(title);
         }
     );
     add_component(menu2);

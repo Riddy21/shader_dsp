@@ -141,7 +141,6 @@ private:
     }
 
     void get_impl(const std::type_info& type, void * value) const override {
-
         if (type == typeid(ValueType)) {
             *static_cast<ValueType*>(value) = m_value;
         } else {

@@ -6,6 +6,7 @@
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "audio_render_stage/audio_file_generator_render_stage.h"
 #include "audio_synthesizer/audio_module.h"
+#include "audio_core/audio_control.h"
 
 AudioTrack::AudioTrack(AudioRenderGraph * render_graph, AudioRenderStage * root_stage,
                        const unsigned int buffer_size,
@@ -37,6 +38,22 @@ AudioTrack::AudioTrack(AudioRenderGraph * render_graph, AudioRenderStage * root_
 
 void AudioTrack::initialize_modules() {
     m_audio_renderer->activate_render_context();
+
+    std::vector<std::string> effect_names = {"gain", "echo", "frequency_filter", "none"};
+    std::vector<std::string> voice_names = {"sine", "saw", "square", "triangle", "file"};
+
+    // Make selection controls for effect and voice
+    auto effect_control = new AudioSelectionControl<std::string>("effect", effect_names, "none", [this](const std::string& effect_name) {
+        this->change_effect(effect_name);
+    });
+    auto voice_control = new AudioSelectionControl<std::string>("voice", voice_names, "sine", [this](const std::string& voice_name) {
+        this->change_voice(voice_name);
+    });
+    
+    // Register controls
+    AudioControlRegistry::instance().register_control({"current", "menu_effect"}, std::shared_ptr<AudioControlBase>(effect_control));
+    AudioControlRegistry::instance().register_control({"current", "menu_voice"}, std::shared_ptr<AudioControlBase>(voice_control));
+
     // TODO: Change this to be data driven
     // Effect modules
     auto gain_stage = new AudioGainEffectRenderStage("gain", m_buffer_size, m_sample_rate, m_num_channels);
