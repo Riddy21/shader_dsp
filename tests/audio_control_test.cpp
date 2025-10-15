@@ -369,5 +369,14 @@ TEST_CASE("AudioSelectionControl functionality", "[AudioSelectionControl]") {
     REQUIRE(retrieved.get() == control);
 
     // Get values from the registry
-    // TODO: Find way to do this easily
+    REQUIRE(retrieved->get<std::string>() == selected_item);
+    REQUIRE(retrieved->items<std::string>() == items);
+
+    // Set value via registry and check propagation
+    retrieved->set<std::string>("item3");
+    REQUIRE(control->get<std::string>() == "item3");
+    REQUIRE(selected_item == "item3");
+
+    // Check for selecting wrong item
+    REQUIRE_THROWS_AS(retrieved->set<std::string>("item4"), std::invalid_argument);
 }

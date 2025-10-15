@@ -25,6 +25,7 @@ class AudioControlBase {
 private:
     virtual void get_impl(const std::type_info& type, void * value) const = 0;
     virtual void set_impl(const std::type_info& type, const void * value) = 0;
+    virtual void items_impl(const std::type_info& type, void * items) const = 0;
 
 public:
     virtual ~AudioControlBase() = default;
@@ -41,6 +42,13 @@ public:
         T value;
         get_impl(typeid(T), &value);
         return value;
+    }
+
+    template <typename T>
+    std::vector<T> items() const {
+        std::vector<T> items;
+        items_impl(typeid(T), &items);
+        return items;
     }
 };
 
@@ -76,6 +84,14 @@ private:
     void get_impl(const std::type_info& type, void * value) const override {
         if (type == typeid(ValueType)) {
             *static_cast<ValueType*>(value) = m_value;
+        } else {
+            throw std::bad_cast();
+        }
+    }
+
+    void items_impl(const std::type_info& type, void * items) const override {
+        if (type == typeid(ValueType)) {
+            *static_cast<std::vector<ValueType>*>(items) = {};
         } else {
             throw std::bad_cast();
         }
@@ -128,6 +144,14 @@ private:
 
         if (type == typeid(ValueType)) {
             *static_cast<ValueType*>(value) = m_value;
+        } else {
+            throw std::bad_cast();
+        }
+    }
+
+    void items_impl(const std::type_info& type, void * items) const override {
+        if (type == typeid(ValueType)) {
+            *static_cast<std::vector<ValueType>*>(items) = m_items;
         } else {
             throw std::bad_cast();
         }
