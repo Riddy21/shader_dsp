@@ -19,16 +19,23 @@ AudioGainEffectRenderStage::AudioGainEffectRenderStage(const unsigned int frames
                                                const unsigned int num_channels,
                                                const std::string & fragment_shader_path,
                                                const std::vector<std::string> & frag_shader_imports)
-    : AudioEffectRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+    : AudioGainEffectRenderStage("GainEffect-" + std::to_string(generate_id()),
+                                 frames_per_buffer, sample_rate, num_channels,
+                                 fragment_shader_path, frag_shader_imports) {}
 
-    // Create gains array parameter - one gain per channel, max 8 channels
+AudioGainEffectRenderStage::AudioGainEffectRenderStage(const std::string & stage_name,
+                                               const unsigned int frames_per_buffer,
+                                               const unsigned int sample_rate,
+                                               const unsigned int num_channels,
+                                               const std::string & fragment_shader_path,
+                                               const std::vector<std::string> & frag_shader_imports)
+    : AudioEffectRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+
     constexpr size_t MAX_CHANNELS = 8;
     auto gains_parameter =
         new AudioFloatArrayParameter("gains",
                                      AudioParameter::ConnectionType::INPUT,
                                      MAX_CHANNELS);
-    
-    // Initialize gains array - set all channels to 1.0f (unity gain)
     float* gains = new float[MAX_CHANNELS];
     for (size_t i = 0; i < MAX_CHANNELS; i++) {
         gains[i] = 1.0f;
@@ -39,22 +46,12 @@ AudioGainEffectRenderStage::AudioGainEffectRenderStage(const unsigned int frames
         std::cerr << "Failed to add gains_parameter" << std::endl;
     }
 
-    // Register controls - for now, create a single gain control that sets all channels to the same value
-    // TODO: In the future, this could be expanded to have per-channel controls
     m_controls.clear();
-    auto gain_control = new AudioControl<float>(
+    auto gain_control = std::make_shared<AudioControl<std::vector<float>>>(
         "gain",
-        1.0f,
-        [gains_parameter](const float& v) { 
-            // Set all channels to the same gain value
-            float* gains = new float[MAX_CHANNELS];
-            for (size_t i = 0; i < MAX_CHANNELS; i++) {
-                gains[i] = v;
-            }
-            gains_parameter->set_value(gains);
-        }
+        std::vector<float>(num_channels, 1.0f),
+        [this](const std::vector<float>& gains) { this->set_channel_gains(gains); }
     );
-    AudioControlRegistry::instance().register_control<float>("gain", gain_control);
     m_controls.push_back(gain_control);
 }
 
@@ -98,6 +95,8 @@ void AudioGainEffectRenderStage::set_channel_gains(const std::vector<float>& cha
     }
     
     gains_param->set_value(full_gains);
+
+    delete[] full_gains;
 }
 
 const std::vector<std::string> AudioEchoEffectRenderStage::default_frag_shader_imports = {
@@ -110,9 +109,18 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
                                                const unsigned int num_channels,
                                                const std::string & fragment_shader_path,
                                                const std::vector<std::string> & frag_shader_imports)
-    : AudioEffectRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+    : AudioEchoEffectRenderStage("EchoEffect-" + std::to_string(generate_id()),
+                                 frames_per_buffer, sample_rate, num_channels,
+                                 fragment_shader_path, frag_shader_imports) {}
 
-    // Add new parameter objects to the parameter list
+AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage_name,
+                                               const unsigned int frames_per_buffer,
+                                               const unsigned int sample_rate,
+                                               const unsigned int num_channels,
+                                               const std::string & fragment_shader_path,
+                                               const std::vector<std::string> & frag_shader_imports)
+    : AudioEffectRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+
     auto feedback_parameter =
         new AudioIntParameter("num_echos",
                                 AudioParameter::ConnectionType::INPUT);
@@ -135,10 +143,7 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
                                 m_active_texture_count++,
                                 0, GL_NEAREST);
 
-    // Set the echo buffer to the size of the audio data and set to 0
     m_echo_buffer.resize(frames_per_buffer * num_channels * M_MAX_ECHO_BUFFER_SIZE, 0.0f);
-
-    // Set to 0 to start
     echo_audio_texture->set_value(m_echo_buffer.data());
 
     if (!this->add_parameter(feedback_parameter)) {
@@ -154,30 +159,26 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const unsigned int frames
         std::cerr << "Failed to add echo_audio_texture" << std::endl;
     }
 
-    // Register controls
     m_controls.clear();
-    auto num_echos_control = new AudioControl<int>(
+    auto num_echos_control = std::make_shared<AudioControl<int>>(
         "num_echos",
         5,
         [feedback_parameter](const int& v) { feedback_parameter->set_value(v); }
     );
-    AudioControlRegistry::instance().register_control<int>("num_echos", num_echos_control);
-    m_controls.push_back(reinterpret_cast<AudioControl<float>*>(num_echos_control)); // Store as float* for uniformity
+    m_controls.push_back(num_echos_control);
 
-    auto delay_control = new AudioControl<float>(
+    auto delay_control = std::make_shared<AudioControl<float>>(
         "delay",
         0.1f,
         [delay_parameter](const float& v) { delay_parameter->set_value(v); }
     );
-    AudioControlRegistry::instance().register_control<float>("delay", delay_control);
     m_controls.push_back(delay_control);
 
-    auto decay_control = new AudioControl<float>(
+    auto decay_control = std::make_shared<AudioControl<float>>(
         "decay",
         0.4f,
         [decay_parameter](const float& v) { decay_parameter->set_value(v); }
     );
-    AudioControlRegistry::instance().register_control<float>("decay", decay_control);
     m_controls.push_back(decay_control);
 }
 
@@ -222,7 +223,17 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
                                                const unsigned int num_channels,
                                                const std::string & fragment_shader_path,
                                                const std::vector<std::string> & frag_shader_imports)
-    : AudioEffectRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
+    : AudioFrequencyFilterEffectRenderStage("FrequencyFilterEffect-" + std::to_string(generate_id()),
+                                            frames_per_buffer, sample_rate, num_channels,
+                                            fragment_shader_path, frag_shader_imports) {}
+
+AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(const std::string & stage_name,
+                                               const unsigned int frames_per_buffer,
+                                               const unsigned int sample_rate,
+                                               const unsigned int num_channels,
+                                               const std::string & fragment_shader_path,
+                                               const std::vector<std::string> & frag_shader_imports)
+    : AudioEffectRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
       NYQUIST(sample_rate / 2.0f),
       m_low_pass(1.0f),
       m_high_pass(230.0f),
@@ -231,16 +242,15 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
 
     m_audio_history = std::make_unique<AudioRenderStageHistory>(MAX_TEXTURE_SIZE, frames_per_buffer, sample_rate, num_channels);
 
-    // Valid range is 1 - buffer_size * num_channels
     auto num_taps_parameter =
         new AudioIntParameter("num_taps",
                                 AudioParameter::ConnectionType::INPUT);
-    num_taps_parameter->set_value(frames_per_buffer - 1); // Strange restriction, this cannot be larger than the buffer size
+    num_taps_parameter->set_value(frames_per_buffer - 1);
 
     auto b_coeff_texture =
         new AudioTexture2DParameter("b_coeff_texture",
                                 AudioParameter::ConnectionType::INPUT,
-                                MAX_TEXTURE_SIZE, 1, // Due to restriction of the shader only can be as big as the buffer size
+                                MAX_TEXTURE_SIZE, 1,
                                 m_active_texture_count++,
                                 0, GL_NEAREST);
     
@@ -254,39 +264,33 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
         std::cerr << "Failed to add audio_history_texture" << std::endl;
     }
 
-
-    // Register controls
     m_controls.clear();
-    auto low_pass_control = new AudioControl<float>(
+    auto low_pass_control = std::make_shared<AudioControl<float>>(
         "low_pass",
         m_low_pass,
         [this](const float& v) { this->set_low_pass(v); }
     );
-    AudioControlRegistry::instance().register_control<float>("low_pass", low_pass_control);
     m_controls.push_back(low_pass_control);
 
-    auto high_pass_control = new AudioControl<float>(
+    auto high_pass_control = std::make_shared<AudioControl<float>>(
         "high_pass",
         m_high_pass,
         [this](const float& v) { this->set_high_pass(v); }
     );
-    AudioControlRegistry::instance().register_control<float>("high_pass", high_pass_control);
     m_controls.push_back(high_pass_control);
 
-    auto filter_follower_control = new AudioControl<float>(
+    auto filter_follower_control = std::make_shared<AudioControl<float>>(
         "filter_follower",
         m_filter_follower,
         [this](const float& v) { this->set_filter_follower(v); }
     );
-    AudioControlRegistry::instance().register_control<float>("filter_follower", filter_follower_control);
     m_controls.push_back(filter_follower_control);
 
-    auto resonance_control = new AudioControl<float>(
+    auto resonance_control = std::make_shared<AudioControl<float>>(
         "resonance",
         m_resonance,
         [this](const float& v) { this->set_resonance(v); }
     );
-    AudioControlRegistry::instance().register_control<float>("resonance", resonance_control);
     m_controls.push_back(resonance_control);
 
     update_b_coefficients();
@@ -427,7 +431,7 @@ const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin
 void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
-    if (m_filter_follower != 0.0f) {
+    if (m_b_coefficients_dirty) {
         float current_amplitude = std::accumulate(data, data + frames_per_buffer * num_channels, 0.0f, [](float sum, float value) {
             return sum + std::fabs(value);
         }) / (frames_per_buffer * num_channels);
@@ -445,11 +449,13 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
 }
 
 void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float current_amplitude) {
+    // Current amplitude is used to follow the filter and adjust the cutoff frequency
     float low_pass = m_low_pass + m_filter_follower * current_amplitude;
     float high_pass = m_high_pass + m_filter_follower * current_amplitude;
     auto b_coeff = calculate_firwin_b_coefficients(low_pass/NYQUIST, high_pass/NYQUIST, *(int *)this->find_parameter("num_taps")->get_value(), m_resonance);
     b_coeff.resize(MAX_TEXTURE_SIZE, 0.0);
     this->find_parameter("b_coeff_texture")->set_value(b_coeff.data());
+    m_b_coefficients_dirty = false;
 }
 
 bool AudioFrequencyFilterEffectRenderStage::disconnect_render_stage(AudioRenderStage * render_stage) {

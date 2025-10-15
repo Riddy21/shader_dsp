@@ -96,7 +96,7 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
     record_stage.record(0);
 
     // Play note
-    generator.play_note(TEST_FREQUENCY, TEST_GAIN);
+    generator.play_note({TEST_FREQUENCY, TEST_GAIN});
 
     // Prepare audio output
     AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
@@ -166,10 +166,10 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
         }
 
         // Push to audio output
-        while (!audio_output.is_ready()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-        audio_output.push(output_data);
+        //while (!audio_output.is_ready()) {
+        //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        //}
+        //audio_output.push(output_data);
     }
 
     // Stop playback

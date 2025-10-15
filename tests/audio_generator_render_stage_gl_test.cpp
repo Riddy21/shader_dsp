@@ -174,7 +174,7 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Sine Wave Generation", "[audio_g
     REQUIRE(final_render_stage.bind());
 
     // Play a note
-    sine_generator.play_note(TEST_FREQUENCY, TEST_GAIN);
+    sine_generator.play_note({TEST_FREQUENCY, TEST_GAIN});
 
     // Render multiple frames to test continuity
     std::vector<float> left_channel_samples;
@@ -437,7 +437,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Content Accuracy Test", "[au
         REQUIRE(final_render_stage.bind());
 
         // Play at normal speed
-        file_generator.play_note(MIDDLE_C, TEST_GAIN);
+        file_generator.play_note({MIDDLE_C, TEST_GAIN});
 
         // Render frames and collect samples
         std::vector<float> rendered_samples;
@@ -547,7 +547,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Content Accuracy Test", "[au
             REQUIRE(final_render_stage.bind());
 
             // Play at specified speed
-            file_generator.play_note(MIDDLE_C * speed, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C * speed, TEST_GAIN});
 
             // Render frames and collect samples
             std::vector<float> rendered_samples;
@@ -813,7 +813,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Speed Change Artifacts and C
             REQUIRE(final_render_stage.bind());
 
             // Play at specified speed
-            file_generator.play_note(MIDDLE_C * speed, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C * speed, TEST_GAIN});
 
             // Render frames and collect samples
             std::vector<float> rendered_samples;
@@ -1004,7 +1004,7 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[aud
         REQUIRE(audio_output.start());
 
         // Play a note
-        sine_generator.play_note(TEST_FREQUENCY, TEST_GAIN);
+        sine_generator.play_note({TEST_FREQUENCY, TEST_GAIN});
         
         // Single loop: render once, save to recording, and play in real-time
         for (int frame = 0; frame < NUM_FRAMES; frame++) {
@@ -1030,16 +1030,16 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[aud
             }
 
             // Wait for audio output to be ready
-            while (!audio_output.is_ready()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
+            //while (!audio_output.is_ready()) {
+            //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            //}
             
-            // Push the interpolated audio data to the output for real-time playback
-            audio_output.push(final_output_data);
+            //// Push the interpolated audio data to the output for real-time playback
+            //audio_output.push(final_output_data);
         }
 
         // Let it settle for a moment
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        //std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
         // Clean up real-time audio
         audio_output.stop();
@@ -1053,16 +1053,16 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[aud
         // Play back the recorded audio in chunks
         for (size_t offset = 0; offset < recorded_audio.size(); offset += BUFFER_SIZE * NUM_CHANNELS) {
             // Wait for audio output to be ready
-            while (!audio_output.is_ready()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
+            //while (!audio_output.is_ready()) {
+            //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            //}
             
-            // Push the chunk of recorded audio data
-            audio_output.push(&recorded_audio[offset]);
+            //// Push the chunk of recorded audio data
+            //audio_output.push(&recorded_audio[offset]);
         }
         
         // Let it settle for a moment
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        //std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
         // Clean up playback audio
         audio_output.stop();
@@ -1140,7 +1140,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             REQUIRE(audio_output.start());
 
             // Play at normal speed
-            file_generator.play_note(MIDDLE_C, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C, TEST_GAIN});
             
             // Render and play audio data
             for (int frame = 0; frame < NUM_FRAMES; frame++) {
@@ -1157,16 +1157,16 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
                 REQUIRE(output_data != nullptr);
 
                 // Wait for audio output to be ready
-                while (!audio_output.is_ready()) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                }
+                //while (!audio_output.is_ready()) {
+                //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                //}
                 
-                // Push the audio data to the output for real-time playback
-                audio_output.push(output_data);
+                //// Push the audio data to the output for real-time playback
+                //audio_output.push(output_data);
             }
 
             // Let it settle for a moment
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
             // Clean up
             audio_output.stop();
@@ -1180,7 +1180,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             REQUIRE(audio_output.start());
 
             // Play at half speed
-            file_generator.play_note(MIDDLE_C * 0.5f, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C * 0.5f, TEST_GAIN});
             
             // Render and play audio data
             for (int frame = 0; frame < NUM_FRAMES; frame++) {
@@ -1197,16 +1197,16 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
                 REQUIRE(output_data != nullptr);
 
                 // Wait for audio output to be ready
-                while (!audio_output.is_ready()) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                }
+                //while (!audio_output.is_ready()) {
+                //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                //}
                 
-                // Push the audio data to the output for real-time playback
-                audio_output.push(output_data);
+                //// Push the audio data to the output for real-time playback
+                //audio_output.push(output_data);
             }
 
             // Let it settle for a moment
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
             // Clean up
             audio_output.stop();
@@ -1220,7 +1220,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             REQUIRE(audio_output.start());
 
             // Play at double speed
-            file_generator.play_note(MIDDLE_C * 2.0f, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C * 2.0f, TEST_GAIN});
             
             // Render and play audio data
             for (int frame = 0; frame < NUM_FRAMES; frame++) {
@@ -1237,16 +1237,16 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
                 REQUIRE(output_data != nullptr);
 
                 // Wait for audio output to be ready
-                while (!audio_output.is_ready()) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                }
+                //while (!audio_output.is_ready()) {
+                //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                //}
                 
-                // Push the audio data to the output for real-time playback
-                audio_output.push(output_data);
+                //// Push the audio data to the output for real-time playback
+                //audio_output.push(output_data);
             }
 
             // Let it settle for a moment
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
             // Clean up
             audio_output.stop();
@@ -1264,7 +1264,7 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             REQUIRE(audio_output.start());
 
             // Play at normal speed
-            file_generator.play_note(MIDDLE_C, TEST_GAIN);
+            file_generator.play_note({MIDDLE_C, TEST_GAIN});
             
             // Render, record, and play audio data simultaneously
             for (int frame = 0; frame < NUM_FRAMES; frame++) {
@@ -1286,16 +1286,16 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
                 }
 
                 // Wait for audio output to be ready
-                while (!audio_output.is_ready()) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                }
+                //while (!audio_output.is_ready()) {
+                //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                //}
                 
-                // Push the audio data to the output for real-time playback
-                audio_output.push(output_data);
+                //// Push the audio data to the output for real-time playback
+                //audio_output.push(output_data);
             }
 
             // Let it settle for a moment
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
             // Clean up real-time audio
             audio_output.stop();
@@ -1309,16 +1309,16 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             // Play back the recorded audio in chunks
             for (size_t offset = 0; offset < recorded_audio.size(); offset += BUFFER_SIZE * NUM_CHANNELS) {
                 // Wait for audio output to be ready
-                while (!audio_output.is_ready()) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                }
+                //while (!audio_output.is_ready()) {
+                //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                //}
                 
-                // Push the chunk of recorded audio data
-                audio_output.push(&recorded_audio[offset]);
+                //// Push the chunk of recorded audio data
+                //audio_output.push(&recorded_audio[offset]);
             }
             
             // Let it settle for a moment
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
             // Clean up playback audio
             audio_output.stop();

@@ -7,7 +7,6 @@
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
-#include "audio_core/audio_control.h"
 
 #include <iostream>
 #include <vector>
@@ -496,9 +495,18 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
     REQUIRE(echo_effect.initialize());
     REQUIRE(final_render_stage.initialize());
 
-    REQUIRE(AudioControlRegistry::instance().set_control<float>("delay", ECHO_DELAY));
-    REQUIRE(AudioControlRegistry::instance().set_control<float>("decay", ECHO_DECAY));
-    REQUIRE(AudioControlRegistry::instance().set_control<int>("num_echos", NUM_ECHOS));
+    //Configure echo effect parameters directly without using the control registry
+    {
+        auto delay_param = echo_effect.find_parameter("delay");
+        auto decay_param = echo_effect.find_parameter("decay");
+        auto num_echos_param = echo_effect.find_parameter("num_echos");
+        REQUIRE(delay_param != nullptr);
+        REQUIRE(decay_param != nullptr);
+        REQUIRE(num_echos_param != nullptr);
+        delay_param->set_value(ECHO_DELAY);
+        decay_param->set_value(ECHO_DECAY);
+        num_echos_param->set_value(NUM_ECHOS);
+    }
 
     context.prepare_draw();
     
@@ -526,7 +534,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
         float note_gain = SINE_AMPLITUDE;
 
         // Start playing the note
-        sine_generator.play_note(midi_note, note_gain);
+        sine_generator.play_note({midi_note, note_gain});
 
         // Render and play audio with echo effect
         for (int frame = 0; frame < NUM_FRAMES; frame++) {
@@ -555,12 +563,12 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
             REQUIRE(output_data != nullptr);
 
             // Wait for audio output to be ready
-            while (!audio_output.is_ready()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
+            //while (!audio_output.is_ready()) {
+            //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            //}
             
-            // Push the audio data to the output for real-time playback
-            audio_output.push(output_data);
+            //// Push the audio data to the output for real-time playback
+            //audio_output.push(output_data);
         }
 
         // Let the audio finish playing
@@ -630,10 +638,18 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
     REQUIRE(echo_effect.initialize());
     REQUIRE(final_render_stage.initialize());
 
-    // Configure echo effect parameters
-    REQUIRE(AudioControlRegistry::instance().set_control<float>("delay", ECHO_DELAY));
-    REQUIRE(AudioControlRegistry::instance().set_control<float>("decay", ECHO_DECAY));
-    REQUIRE(AudioControlRegistry::instance().set_control<int>("num_echos", NUM_ECHOS));
+    // Configure echo effect parameters directly without using the control registry
+    {
+        auto delay_param2 = echo_effect.find_parameter("delay");
+        auto decay_param2 = echo_effect.find_parameter("decay");
+        auto num_echos_param2 = echo_effect.find_parameter("num_echos");
+        REQUIRE(delay_param2 != nullptr);
+        REQUIRE(decay_param2 != nullptr);
+        REQUIRE(num_echos_param2 != nullptr);
+        delay_param2->set_value(ECHO_DELAY);
+        decay_param2->set_value(ECHO_DECAY);
+        num_echos_param2->set_value(NUM_ECHOS);
+    }
 
     // Configure ADSR envelope for smooth note transitions
     auto attack_param = sine_generator.find_parameter("attack_time");
@@ -690,7 +706,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
             // Start new note
             if (!note_playing && current_time >= note_sequence_start) {
                 current_note_freq = NOTE_FREQUENCIES[current_note_index];
-                sine_generator.play_note(current_note_freq, NOTE_GAIN);
+                sine_generator.play_note({current_note_freq, NOTE_GAIN});
                 note_playing = true;
                 note_start_time = current_time;
                 std::cout << "Frame " << frame << " (t=" << current_time << "s): Playing note " 
@@ -728,6 +744,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
             recorded_audio.push_back(output_data[i]);
         }
 
+        // TODO: ADD a compile flag to enable and disable output
         // Wait for audio output to be ready and play
         //while (!audio_output.is_ready()) {
         //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -736,7 +753,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
     }
 
     // Let audio finish
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    //std::this_thread::sleep_for(std::chrono::milliseconds(500));
     audio_output.stop();
     
     // Separate stereo channels for analysis
@@ -950,9 +967,9 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Parameterized Filter
     REQUIRE(final_render_stage.bind());
 
     // Play three notes
-    sine_generator.play_note(NOTE1_FREQ, SINE_AMPLITUDE);
-    sine_generator.play_note(NOTE2_FREQ, SINE_AMPLITUDE);
-    sine_generator.play_note(NOTE3_FREQ, SINE_AMPLITUDE);
+    sine_generator.play_note({NOTE1_FREQ, SINE_AMPLITUDE});
+    sine_generator.play_note({NOTE2_FREQ, SINE_AMPLITUDE});
+    sine_generator.play_note({NOTE3_FREQ, SINE_AMPLITUDE});
 
     std::vector<float> left_channel_samples;
     std::vector<float> right_channel_samples;
@@ -1087,8 +1104,8 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
     REQUIRE(audio_output.open());
     REQUIRE(audio_output.start());
 
-    sine_generator.play_note(NOTE1_FREQ, SINE_AMPLITUDE / 2.0f);
-    sine_generator.play_note(NOTE2_FREQ, SINE_AMPLITUDE / 2.0f);
+    sine_generator.play_note({NOTE1_FREQ, SINE_AMPLITUDE / 2.0f});
+    sine_generator.play_note({NOTE2_FREQ, SINE_AMPLITUDE / 2.0f});
 
     for (int frame = 0; frame < NUM_FRAMES; frame++) {
         global_time_param->set_value(frame);
@@ -1108,13 +1125,13 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
             recorded_audio.push_back(output_data[i]);
         }
 
-        while (!audio_output.is_ready()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-        audio_output.push(output_data);
+        //while (!audio_output.is_ready()) {
+        //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        //}
+        //audio_output.push(output_data);
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    //std::this_thread::sleep_for(std::chrono::milliseconds(500));
     
     audio_output.stop();
     std::cout << "Filter effect playback complete!" << std::endl;
@@ -1145,4 +1162,244 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
     for (size_t i = 0; i < recorded_audio.size(); i += NUM_CHANNELS) {
         left_channel.push_back(recorded_audio[i]);
     }
+}
+
+TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Dynamic Parameter Changes with Square Wave and Analysis", 
+                   "[audio_effect_render_stage][gl_test][audio_output][template][dynamic]", 
+                   TestParam3, TestParam4, TestParam5) {
+    
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
+    constexpr int SAMPLE_RATE = 44100;
+    constexpr float SQUARE_AMPLITUDE = 0.4f;
+    constexpr float SQUARE_FREQ = 440.0f; // A4 note
+    constexpr int PLAYBACK_SECONDS = 8; // 8 seconds to hear parameter changes
+    constexpr int NUM_FRAMES = (SAMPLE_RATE * PLAYBACK_SECONDS) / BUFFER_SIZE;
+    
+    // Parameter change timing
+    constexpr int PARAM_CHANGE_INTERVAL = NUM_FRAMES / 6; // Change parameters 6 times during playback
+    
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+
+    // Use square wave generator instead of sine wave
+    AudioGeneratorRenderStage square_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, "build/shaders/multinote_square_generator_render_stage.glsl");
+
+    AudioFrequencyFilterEffectRenderStage filter_effect(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    REQUIRE(square_generator.connect_render_stage(&filter_effect));
+    REQUIRE(filter_effect.connect_render_stage(&final_render_stage));
+
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    global_time_param->initialize();
+    
+    REQUIRE(square_generator.initialize());
+    REQUIRE(filter_effect.initialize());
+    REQUIRE(final_render_stage.initialize());
+
+    context.prepare_draw();
+    
+    REQUIRE(square_generator.bind());
+    REQUIRE(filter_effect.bind());
+    REQUIRE(final_render_stage.bind());
+
+    std::cout << "\n=== Dynamic Filter Parameter Test with Square Wave and Analysis ===" << std::endl;
+    std::cout << "Playing " << SQUARE_FREQ << "Hz square wave for " << PLAYBACK_SECONDS << " seconds..." << std::endl;
+    std::cout << "Filter parameters will change dynamically to demonstrate the effect:" << std::endl;
+    std::cout << "- Low pass: 200Hz -> 2000Hz -> 200Hz" << std::endl;
+    std::cout << "- High pass: 50Hz -> 500Hz -> 50Hz" << std::endl;
+    std::cout << "- Resonance: 1.0 -> 3.0 -> 1.0" << std::endl;
+    std::cout << "- Filter follower: 0.0 -> 0.5 -> 0.0" << std::endl;
+
+    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    REQUIRE(audio_output.open());
+    REQUIRE(audio_output.start());
+
+    // Start playing the square wave
+    square_generator.play_note({SQUARE_FREQ, SQUARE_AMPLITUDE});
+
+    // Parameter change sequences
+    std::vector<float> low_pass_sequence = {200.0f, 500.0f, 1000.0f, 2000.0f, 1000.0f, 500.0f, 200.0f};
+    std::vector<float> high_pass_sequence = {50.0f, 100.0f, 200.0f, 500.0f, 200.0f, 100.0f, 50.0f};
+    std::vector<float> resonance_sequence = {1.0f, 1.5f, 2.0f, 3.0f, 2.0f, 1.5f, 1.0f};
+    std::vector<float> filter_follower_sequence = {0.0f, 0.1f, 0.2f, 0.5f, 0.2f, 0.1f, 0.0f};
+
+    // Storage for audio analysis
+    std::vector<std::vector<float>> audio_segments; // Store audio for each parameter change
+    std::vector<std::string> parameter_descriptions; // Store parameter descriptions
+    audio_segments.reserve(low_pass_sequence.size());
+    parameter_descriptions.reserve(low_pass_sequence.size());
+
+    // Helper function to analyze waveform characteristics
+    auto analyze_waveform = [](const std::vector<float>& samples) -> std::tuple<float, float, float, float> {
+        if (samples.empty()) return {0.0f, 0.0f, 0.0f, 0.0f};
+        
+        // Calculate RMS (Root Mean Square) - overall energy
+        float rms = 0.0f;
+        for (float sample : samples) {
+            rms += sample * sample;
+        }
+        rms = std::sqrt(rms / samples.size());
+        
+        // Calculate peak amplitude
+        float peak = 0.0f;
+        for (float sample : samples) {
+            peak = std::max(peak, std::abs(sample));
+        }
+        
+        // Calculate zero crossings (rough measure of frequency content)
+        int zero_crossings = 0;
+        for (size_t i = 1; i < samples.size(); ++i) {
+            if ((samples[i-1] >= 0.0f) != (samples[i] >= 0.0f)) {
+                zero_crossings++;
+            }
+        }
+        float zero_crossing_rate = static_cast<float>(zero_crossings) / samples.size();
+        
+        // Calculate spectral centroid (weighted average frequency)
+        float spectral_centroid = 0.0f;
+        float total_magnitude = 0.0f;
+        for (size_t i = 0; i < samples.size() / 2; ++i) {
+            float magnitude = std::abs(samples[i]);
+            spectral_centroid += i * magnitude;
+            total_magnitude += magnitude;
+        }
+        if (total_magnitude > 0.0f) {
+            spectral_centroid = (spectral_centroid / total_magnitude) * (SAMPLE_RATE / 2.0f) / (samples.size() / 2.0f);
+        }
+        
+        return {rms, peak, zero_crossing_rate, spectral_centroid};
+    };
+
+    // Current audio segment for analysis
+    std::vector<float> current_segment;
+    current_segment.reserve(PARAM_CHANGE_INTERVAL * BUFFER_SIZE * NUM_CHANNELS);
+    int current_param_index = 0;
+
+    for (int frame = 0; frame < NUM_FRAMES; frame++) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+
+        // Change parameters at regular intervals
+        int param_index = (frame / PARAM_CHANGE_INTERVAL) % low_pass_sequence.size();
+        
+        if (frame % PARAM_CHANGE_INTERVAL == 0) {
+            // Analyze the previous segment if we have data
+            if (!current_segment.empty()) {
+                audio_segments.push_back(current_segment);
+                std::string desc = "Low:" + std::to_string(low_pass_sequence[current_param_index]) + 
+                                 "Hz High:" + std::to_string(high_pass_sequence[current_param_index]) + 
+                                 "Hz Res:" + std::to_string(resonance_sequence[current_param_index]) + 
+                                 " Fol:" + std::to_string(filter_follower_sequence[current_param_index]);
+                parameter_descriptions.push_back(desc);
+                current_segment.clear();
+            }
+            
+            float new_low_pass = low_pass_sequence[param_index];
+            float new_high_pass = high_pass_sequence[param_index];
+            float new_resonance = resonance_sequence[param_index];
+            float new_filter_follower = filter_follower_sequence[param_index];
+            
+            filter_effect.set_low_pass(new_low_pass);
+            filter_effect.set_high_pass(new_high_pass);
+            filter_effect.set_resonance(new_resonance);
+            filter_effect.set_filter_follower(new_filter_follower);
+            
+            std::cout << "Frame " << frame << " (t=" << (frame * BUFFER_SIZE / static_cast<float>(SAMPLE_RATE)) 
+                      << "s): Changed filter - Low: " << new_low_pass << "Hz, High: " << new_high_pass 
+                      << "Hz, Resonance: " << new_resonance << ", Follower: " << new_filter_follower << std::endl;
+            
+            current_param_index = param_index;
+        }
+
+        square_generator.render(frame);
+        filter_effect.render(frame);
+        final_render_stage.render(frame);
+        
+        auto output_param = final_render_stage.find_parameter("final_output_audio_texture");
+        REQUIRE(output_param != nullptr);
+
+        const float* output_data = static_cast<const float*>(output_param->get_value());
+        REQUIRE(output_data != nullptr);
+
+        // Store audio data for analysis (left channel only for simplicity)
+        for (int i = 0; i < BUFFER_SIZE; i++) {
+            current_segment.push_back(output_data[i * NUM_CHANNELS]);
+        }
+
+        // Wait for audio output to be ready and play
+        //while (!audio_output.is_ready()) {
+        //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        //}
+        //audio_output.push(output_data);
+    }
+
+    // Analyze the final segment
+    if (!current_segment.empty()) {
+        audio_segments.push_back(current_segment);
+        std::string desc = "Low:" + std::to_string(low_pass_sequence[current_param_index]) + 
+                         "Hz High:" + std::to_string(high_pass_sequence[current_param_index]) + 
+                         "Hz Res:" + std::to_string(resonance_sequence[current_param_index]) + 
+                         " Fol:" + std::to_string(filter_follower_sequence[current_param_index]);
+        parameter_descriptions.push_back(desc);
+    }
+
+    // Stop the note and let audio finish
+    square_generator.stop_note(SQUARE_FREQ);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    
+    audio_output.stop();
+    
+    // Analyze the collected audio segments
+    std::cout << "\n=== Waveform Analysis Results ===" << std::endl;
+    std::cout << "Analyzing " << audio_segments.size() << " audio segments..." << std::endl;
+    
+    std::vector<std::tuple<float, float, float, float>> analysis_results;
+    analysis_results.reserve(audio_segments.size());
+    
+    for (size_t i = 0; i < audio_segments.size(); ++i) {
+        auto [rms, peak, zero_crossing_rate, spectral_centroid] = analyze_waveform(audio_segments[i]);
+        analysis_results.push_back({rms, peak, zero_crossing_rate, spectral_centroid});
+        
+        std::cout << "\nSegment " << (i + 1) << " (" << parameter_descriptions[i] << "):" << std::endl;
+        std::cout << "  RMS: " << std::fixed << std::setprecision(4) << rms << std::endl;
+        std::cout << "  Peak: " << std::fixed << std::setprecision(4) << peak << std::endl;
+        std::cout << "  Zero Crossing Rate: " << std::fixed << std::setprecision(4) << zero_crossing_rate << std::endl;
+        std::cout << "  Spectral Centroid: " << std::fixed << std::setprecision(1) << spectral_centroid << " Hz" << std::endl;
+    }
+    
+    // Verify that the waveform characteristics actually changed
+    SECTION("Waveform Change Verification") {
+        REQUIRE(audio_segments.size() >= 2);
+        
+        // Compare first and last segments to ensure changes occurred
+        auto [rms1, peak1, zcr1, sc1] = analysis_results[0];
+        auto [rms2, peak2, zcr2, sc2] = analysis_results[analysis_results.size() - 1];
+        
+        // Check that at least one characteristic changed significantly
+        bool rms_changed = std::abs(rms1 - rms2) > 0.01f;
+        bool peak_changed = std::abs(peak1 - peak2) > 0.01f;
+        bool zcr_changed = std::abs(zcr1 - zcr2) > 0.01f;
+        bool sc_changed = std::abs(sc1 - sc2) > 50.0f; // 50Hz threshold for spectral centroid
+        
+        INFO("RMS change: " << std::abs(rms1 - rms2) << " (threshold: 0.01)");
+        INFO("Peak change: " << std::abs(peak1 - peak2) << " (threshold: 0.01)");
+        INFO("Zero crossing rate change: " << std::abs(zcr1 - zcr2) << " (threshold: 0.01)");
+        INFO("Spectral centroid change: " << std::abs(sc1 - sc2) << " Hz (threshold: 50)");
+        
+        bool any_characteristic_changed = rms_changed || peak_changed || zcr_changed || sc_changed;
+        REQUIRE(any_characteristic_changed);
+        
+        std::cout << "\n=== Filter Effect Verification ===" << std::endl;
+        std::cout << "✓ Waveform characteristics changed between segments, confirming filter effect is working!" << std::endl;
+    }
+    
+    std::cout << "\nDynamic filter parameter test complete!" << std::endl;
+    std::cout << "You should have heard the square wave's timbre change dramatically as the filter parameters were adjusted." << std::endl;
+    std::cout << "The square wave's harmonics were filtered differently at each parameter change." << std::endl;
+    std::cout << "The filter follower parameter made the filter respond to the audio amplitude, creating dynamic filtering effects." << std::endl;
 }

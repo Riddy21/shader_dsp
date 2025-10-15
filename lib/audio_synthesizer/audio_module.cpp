@@ -3,6 +3,11 @@
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "audio_render_stage/audio_file_generator_render_stage.h"
 
+AudioModuleManager::AudioModuleManager(AudioRenderGraph & render_graph, const unsigned int graph_root, AudioRenderer & audio_renderer)
+    : m_render_graph(render_graph), m_graph_root(graph_root), m_audio_renderer(audio_renderer) {
+}
+
+
 void AudioModuleManager::add_module(std::shared_ptr<AudioModule> module) {
     if (module == nullptr) {
         throw std::invalid_argument("Cannot add a null module");
@@ -15,6 +20,15 @@ void AudioModuleManager::add_module(std::shared_ptr<AudioModule> module) {
     // Add the render stage to the render graph at the root
     for (auto & render_stage : module->m_render_stages) {
         m_render_graph.insert_render_stage_infront(m_graph_root, render_stage);
+    }
+
+    // Add the controls to the control registry
+    auto & control_registry = AudioControlRegistry::instance();
+    for (auto & control : module->m_controls) {
+        std::vector<std::string> path = m_control_path;
+        path.push_back(module->type());
+        path.push_back(control->name());
+        control_registry.register_control(path, control);
     }
 }
 
@@ -51,6 +65,15 @@ std::shared_ptr<AudioModule> AudioModuleManager::replace_module(const std::strin
     m_module_index.erase(old_module_name);
     m_module_index[new_module->name()] = index;
 
+    // Remove the current controls from the registry
+    auto & control_registry = AudioControlRegistry::instance();
+    for (auto & control : new_module->m_controls) {
+        std::vector<std::string> new_path = m_control_path;
+        new_path.push_back(new_module->type());
+        new_path.push_back(control->name());
+        control_registry.register_control(new_path, control);
+    }
+
     return old_module;
 }
 
@@ -62,27 +85,23 @@ std::vector<std::string> AudioModuleManager::get_module_names() const {
     return names;
 }
 
-std::vector<AudioControlBase *> AudioModuleManager::get_all_controls() const {
-    std::vector<AudioControlBase *> all_controls;
-    for (const auto & module : m_modules) {
-        all_controls.insert(all_controls.end(), module->m_controls.begin(), module->m_controls.end());
-    }
-    return all_controls;
-}
-
 AudioModule::AudioModule(const std::string& name,
+                         const std::string& type,
                          const unsigned int buffer_size, 
                          const unsigned int sample_rate, 
                          const unsigned int num_channels)
     : m_name(name),
+      m_type(type),
       m_buffer_size(buffer_size), 
       m_sample_rate(sample_rate), 
       m_num_channels(num_channels)
 {}
 
 AudioModule::AudioModule(const std::string& name,
+                         const std::string& type,
                          const std::vector<std::shared_ptr<AudioRenderStage>>& render_stages)
     : m_name(name),
+      m_type(type),
       m_buffer_size(render_stages.empty() ? 0 : render_stages.front()->frames_per_buffer),
       m_sample_rate(render_stages.empty() ? 0 : render_stages.front()->sample_rate),
       m_num_channels(render_stages.empty() ? 0 : render_stages.front()->num_channels),
@@ -92,16 +111,15 @@ AudioModule::AudioModule(const std::string& name,
         throw std::invalid_argument("Render stages cannot be empty");
     }
     for (const auto & stage : render_stages) {
-        std::cout << "Stage GID: " << stage->gid << " Name: " << typeid(*stage).name() << std::endl;
+        std::cout << "Stage GID: " << stage->gid << " Name: " << stage->get_name() << std::endl;
         if (stage->frames_per_buffer != this->m_buffer_size ||
             stage->sample_rate != this->m_sample_rate ||
             stage->num_channels != this->m_num_channels) {
             throw std::invalid_argument("All render stages must have the same buffer size, sample rate, and number of channels");
         }
     }
-    m_controls.clear();
-    for (const auto & stage : m_render_stages) {
-        for (auto & control : stage->get_controls()) {
+    for (const auto & stage : render_stages) {
+        for (const auto & control : stage->get_controls()) {
             m_controls.push_back(control);
         }
     }
@@ -109,24 +127,15 @@ AudioModule::AudioModule(const std::string& name,
 
 AudioEffectModule::AudioEffectModule(const std::string& name,
                                      const std::vector<std::shared_ptr<AudioEffectRenderStage>>& render_stages)
-    : AudioModule(name, std::vector<std::shared_ptr<AudioRenderStage>>(render_stages.begin(), render_stages.end()))
+    : AudioModule(name, "effect", std::vector<std::shared_ptr<AudioRenderStage>>(render_stages.begin(), render_stages.end()))
 {}
 AudioEffectModule::AudioEffectModule(const std::string& name,
                                      const std::vector<AudioEffectRenderStage*>& render_stages)
-    : AudioModule(name, std::vector<std::shared_ptr<AudioRenderStage>>(render_stages.begin(), render_stages.end()))
+    : AudioModule(name, "effect", std::vector<std::shared_ptr<AudioRenderStage>>(render_stages.begin(), render_stages.end()))
 {}
 
 AudioVoiceModule::AudioVoiceModule(const std::string& name, 
                                    AudioGeneratorRenderStage * generator_render_stages)
-    : AudioModule(name, (AudioRenderStage * )generator_render_stages),
+    : AudioModule(name, "voice", (AudioRenderStage *)generator_render_stages),
       m_generator_render_stage(generator_render_stages)
-{
-}
-
-
-void AudioVoiceModule::play_note(float tone, float gain) {
-    m_generator_render_stage->play_note(tone, gain);
-}
-void AudioVoiceModule::stop_note(float tone) {
-    m_generator_render_stage->stop_note(tone);
-}
+{}

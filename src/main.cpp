@@ -30,19 +30,23 @@ const std::unordered_map<char, float> KEY_TONE_MAPPING = {
 
 void setup_keyboard(AudioSynthesizer& synthesizer, EventLoop& event_loop) {
     auto & event_handler = EventHandler::get_instance();
+    auto & control_registry = AudioControlRegistry::instance();
+
+    auto & play_note_control = control_registry.get_control({"current", "voice", "play_note"});
+    auto & stop_note_control = control_registry.get_control({"current", "voice", "stop_note"});
 
     for (const auto& [key, tone] : KEY_TONE_MAPPING) {
         event_handler.register_entry(new KeyboardEventHandlerEntry(
             SDL_KEYDOWN, key,
-            [&synthesizer, tone, key](const SDL_Event&) {
-                synthesizer.get_track(0).play_note(tone, 0.2f);
+            [tone, key, &play_note_control](const SDL_Event&) {
+                play_note_control->set<std::pair<float, float>>({tone, 0.2f});
                 return true;
             }
         ));
         event_handler.register_entry(new KeyboardEventHandlerEntry(
             SDL_KEYUP, key,
-            [&synthesizer, tone, key](const SDL_Event&) {
-                synthesizer.get_track(0).stop_note(tone);
+            [tone, key, &stop_note_control](const SDL_Event&) {
+                stop_note_control->set<float>(tone);
                 return true;
             }
         ));

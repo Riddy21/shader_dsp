@@ -133,9 +133,8 @@ RUN chmod +x /usr/local/bin/test_audio.sh
 COPY scripts/performance_optimize.sh /usr/local/bin/performance_optimize.sh
 RUN chmod +x /usr/local/bin/performance_optimize.sh
 
-# Copy Cursor sync/link script
-COPY scripts/link_cursor_server.sh /usr/local/bin/link_cursor_server.sh
-RUN chmod +x /usr/local/bin/link_cursor_server.sh
+# Cursor plugins/config directory will be mounted at runtime
+VOLUME ["/root/.cursor_server"]
 
 # Copy GDB scripts and set up GDB configuration
 COPY gdb_scripts/ /usr/local/share/gdb_scripts/

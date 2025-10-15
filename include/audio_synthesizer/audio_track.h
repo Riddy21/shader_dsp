@@ -18,10 +18,6 @@ public:
                const unsigned int num_channels);
     ~AudioTrack();
 
-    // TODO: Move these to the voice track stage
-    void play_note(const float tone, const float gain);
-    void stop_note(const float tone);
-
     void change_effect(const std::string & effect_name);
     void change_voice(const std::string & voice_name);
 

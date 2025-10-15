@@ -214,7 +214,7 @@ TEMPLATE_TEST_CASE("ADSR Envelope Shape and Smoothness", "[gl][adsr][envelope][t
     const int num_render_cycles = sample_rate/buffer_size * 5;  // Collect 5s of data
 
     // Play a note
-    generator.play_note(440.0f, 1.0f);
+    generator.play_note({440.0f, 1.0f});
 
     // Add global_time parameter as a buffer parameter
     auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
@@ -346,7 +346,7 @@ TEMPLATE_TEST_CASE("ADSR stops during Attack", "[gl][adsr][envelope][attack][tem
         data.reserve(static_cast<size_t>(total_cycles) * static_cast<size_t>(buffer_size));
 
         // Start fresh note per scenario
-        generator.play_note(440.0f, 1.0f);
+        generator.play_note({440.0f, 1.0f});
 
         for (int cycle = 0; cycle < total_cycles; ++cycle) {
             if (cycle == stop_cycle) {
@@ -461,7 +461,7 @@ TEMPLATE_TEST_CASE("ADSR stops during Decay", "[gl][adsr][envelope][decay][templ
         data.reserve(static_cast<size_t>(total_cycles) * static_cast<size_t>(buffer_size));
 
         // Start fresh note per scenario
-        generator.play_note(440.0f, 1.0f);
+        generator.play_note({440.0f, 1.0f});
 
         for (int cycle = 0; cycle < total_cycles; ++cycle) {
             if (cycle == stop_cycle) {
@@ -591,7 +591,7 @@ TEMPLATE_TEST_CASE("ADSR multiple consecutive presses (edge count via bit array)
     for (int cycle = 0; cycle < total_cycles; ++cycle) {
         if (cycle == press1 || cycle == press2 || cycle == press3 ||
             cycle == press4 || cycle == press5 || cycle == press6) {
-            generator.play_note(440.0f, 1.0f);
+            generator.play_note({440.0f, 1.0f});
         }
         if (cycle == stop1 || cycle == stop2 || cycle == stop3 ||
             cycle == stop4 || cycle == stop5 || cycle == stop6) {

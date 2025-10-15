@@ -16,6 +16,16 @@ public:
         AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
     }
 
+    // Named constructor
+    AudioEffectRenderStage(const std::string & stage_name,
+                           const unsigned int frames_per_buffer,
+                           const unsigned int sample_rate,
+                           const unsigned int num_channels,
+                           const std::string& fragment_shader_path = "build/shaders/render_stage_frag.glsl",
+                           const std::vector<std::string> & frag_shader_imports = AudioRenderStage::default_frag_shader_imports) : 
+        AudioRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
+    }
+
     ~AudioEffectRenderStage() {};
 };
 
@@ -26,6 +36,14 @@ public:
                            const unsigned int num_channels,
                            const std::string& fragment_shader_path = "build/shaders/gain_effect_render_stage.glsl",
                            const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
+    // Named constructor
+    AudioGainEffectRenderStage(const std::string & stage_name,
+                            const unsigned int frames_per_buffer,
+                            const unsigned int sample_rate,
+                            const unsigned int num_channels,
+                            const std::string& fragment_shader_path = "build/shaders/gain_effect_render_stage.glsl",
+                            const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 
     static const std::vector<std::string> default_frag_shader_imports;
 
@@ -38,6 +56,14 @@ public:
 class AudioEchoEffectRenderStage : public AudioEffectRenderStage {
 public:
     AudioEchoEffectRenderStage(const unsigned int frames_per_buffer,
+                           const unsigned int sample_rate,
+                           const unsigned int num_channels,
+                           const std::string& fragment_shader_path = "build/shaders/echo_effect_render_stage.glsl",
+                           const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
+    // Named constructor
+    AudioEchoEffectRenderStage(const std::string & stage_name,
+                           const unsigned int frames_per_buffer,
                            const unsigned int sample_rate,
                            const unsigned int num_channels,
                            const std::string& fragment_shader_path = "build/shaders/echo_effect_render_stage.glsl",
@@ -65,12 +91,20 @@ public:
                            const std::string& fragment_shader_path = "build/shaders/frequency_filter_effect_render_stage.glsl",
                            const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 
+    // Named constructor
+    AudioFrequencyFilterEffectRenderStage(const std::string & stage_name,
+                           const unsigned int frames_per_buffer,
+                           const unsigned int sample_rate,
+                           const unsigned int num_channels,
+                           const std::string& fragment_shader_path = "build/shaders/frequency_filter_effect_render_stage.glsl",
+                           const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
     static const std::vector<std::string> default_frag_shader_imports;
 
-    void set_low_pass(const float low_pass) { m_low_pass = low_pass; update_b_coefficients(); };
-    void set_high_pass(const float high_pass) { m_high_pass = high_pass; update_b_coefficients(); };
+    void set_low_pass(const float low_pass) { m_low_pass = low_pass; m_b_coefficients_dirty = true; };
+    void set_high_pass(const float high_pass) { m_high_pass = high_pass; m_b_coefficients_dirty = true; };
     void set_filter_follower(const float filter_follower) { m_filter_follower = filter_follower; };
-    void set_resonance(const float resonance) { m_resonance = resonance; update_b_coefficients(); };
+    void set_resonance(const float resonance) { m_resonance = resonance; m_b_coefficients_dirty = true; };
 
     const float get_low_pass() { return m_low_pass; };
     const float get_high_pass() { return m_high_pass; };
@@ -91,6 +125,8 @@ private:
     float m_filter_follower;
     float m_resonance;
     const float NYQUIST;
+
+    bool m_b_coefficients_dirty = true;
 };
 
 #endif // AUDIO_EFFECT_RENDER_STAGE_H

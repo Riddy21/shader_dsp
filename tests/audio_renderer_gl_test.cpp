@@ -8,7 +8,6 @@
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
-#include "audio_core/audio_control.h"
 
 #include <iostream>
 #include <vector>
@@ -34,7 +33,7 @@
 
 TEST_CASE("AudioRenderer - Echo Effect Audio Output Test", 
                    "[audio_renderer][gl_test][audio_output]") {
-    SKIP_TEST("Skipping test because renderer currently is a singleton and cannot be tested with multiple instances");
+    SKIP("Skipping test because renderer currently is a singleton and cannot be tested with multiple instances");
     
     // Get test parameters for this template instantiation
     constexpr int BUFFER_SIZE = 256;
@@ -86,11 +85,6 @@ TEST_CASE("AudioRenderer - Echo Effect Audio Output Test",
     // Add render graph to the audio renderer
     REQUIRE(audio_renderer.add_render_graph(render_graph));
 
-    // Configure echo effect parameters using AudioControlRegistry
-    REQUIRE(AudioControlRegistry::instance().set_control<float>("delay", ECHO_DELAY));
-    REQUIRE(AudioControlRegistry::instance().set_control<float>("decay", ECHO_DECAY));
-    REQUIRE(AudioControlRegistry::instance().set_control<int>("num_echos", NUM_ECHOS));
-
     SECTION("Echo Effect Audio Playback with AudioRenderer") {
         std::cout << "\n=== AudioRenderer Echo Effect Audio Playback Test ===" << std::endl;
         std::cout << "Playing " << SINE_FREQUENCY << "Hz sine wave with echo effect for " 
@@ -116,7 +110,7 @@ TEST_CASE("AudioRenderer - Echo Effect Audio Output Test",
         float note_gain = SINE_AMPLITUDE;
 
         // Start playing the note
-        sine_generator->play_note(midi_note, note_gain);
+        sine_generator->play_note({midi_note, note_gain});
 
         // Render and play audio with echo effect using the AudioRenderer
         for (int frame = 0; frame < NUM_FRAMES; frame++) {
@@ -153,4 +147,12 @@ TEST_CASE("AudioRenderer - Echo Effect Audio Output Test",
     
     // Note: We don't delete the renderer as it's a singleton
     // The renderer will be cleaned up when the test framework shuts down
+}
+
+TEST_CASE("AudioRenderer - Empty Audio Output Test", 
+                   "[audio_renderer][gl_test][audio_output]") {
+    // Get test parameters for this template instantiation
+    constexpr int BUFFER_SIZE = 256;
+    constexpr int NUM_CHANNELS = 2;
+    constexpr int SAMPLE_RATE = 44100;
 }

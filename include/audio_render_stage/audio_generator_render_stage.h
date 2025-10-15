@@ -35,8 +35,25 @@ public:
                               const std::string& fragment_shader_path,
                               const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 
+    // Named constructor
+    AudioSingleShaderGeneratorRenderStage(const std::string & stage_name,
+                              const unsigned int frames_per_buffer,
+                              const unsigned int sample_rate,
+                              const unsigned int num_channels,
+                              const std::string& fragment_shader_path,
+                              const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
     // Constructor that takes fragment shader source as string
     AudioSingleShaderGeneratorRenderStage(const unsigned int frames_per_buffer,
+                              const unsigned int sample_rate,
+                              const unsigned int num_channels,
+                              const std::string& fragment_shader_source,
+                              bool use_shader_string,
+                              const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
+    // String-based named constructor
+    AudioSingleShaderGeneratorRenderStage(const std::string & stage_name,
+                              const unsigned int frames_per_buffer,
                               const unsigned int sample_rate,
                               const unsigned int num_channels,
                               const std::string& fragment_shader_source,
@@ -77,8 +94,25 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
                                   const std::string& fragment_shader_path,
                                   const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
 
+        // Named constructor
+        AudioGeneratorRenderStage(const std::string & stage_name,
+                                  const unsigned int frames_per_buffer,
+                                  const unsigned int sample_rate,
+                                  const unsigned int num_channels,
+                                  const std::string& fragment_shader_path,
+                                  const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
         // Constructor that takes fragment shader source as string
         AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
+                                  const unsigned int sample_rate,
+                                  const unsigned int num_channels,
+                                  const std::string& fragment_shader_source,
+                                  bool use_shader_string,
+                                  const std::vector<std::string> & frag_shader_imports = default_frag_shader_imports);
+
+        // String-based named constructor
+        AudioGeneratorRenderStage(const std::string & stage_name,
+                                  const unsigned int frames_per_buffer,
                                   const unsigned int sample_rate,
                                   const unsigned int num_channels,
                                   const std::string& fragment_shader_source,
@@ -90,7 +124,7 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
          */
         ~AudioGeneratorRenderStage() override {}
 
-        void play_note(const float tone, const float gain);
+        void play_note(const std::pair<float, float>& note); // note is a pair of tone and gain
         void stop_note(const float tone);
 
         bool connect_render_stage(AudioRenderStage * next_stage) override;
@@ -106,7 +140,6 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
             std::vector<float> m_gains;
 
             NoteState(unsigned int max_notes);
-
             void set_parameters(AudioGeneratorRenderStage* owner);
             void copy_from(const NoteState& other);
             unsigned int add_note(int play_position, int stop_position, float tone, float gain, unsigned int max_notes);

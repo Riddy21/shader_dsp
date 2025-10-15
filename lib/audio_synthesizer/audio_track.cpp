@@ -6,6 +6,7 @@
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "audio_render_stage/audio_file_generator_render_stage.h"
 #include "audio_synthesizer/audio_module.h"
+#include "audio_core/audio_control.h"
 
 AudioTrack::AudioTrack(AudioRenderGraph * render_graph, AudioRenderStage * root_stage,
                        const unsigned int buffer_size,
@@ -37,30 +38,46 @@ AudioTrack::AudioTrack(AudioRenderGraph * render_graph, AudioRenderStage * root_
 
 void AudioTrack::initialize_modules() {
     m_audio_renderer->activate_render_context();
+
+    std::vector<std::string> effect_names = {"gain", "echo", "frequency_filter", "none"};
+    std::vector<std::string> voice_names = {"sine", "saw", "square", "triangle", "file"};
+
+    // Make selection controls for effect and voice
+    auto effect_control = new AudioSelectionControl<std::string>("effect", effect_names, "none", [this](const std::string& effect_name) {
+        this->change_effect(effect_name);
+    });
+    auto voice_control = new AudioSelectionControl<std::string>("voice", voice_names, "sine", [this](const std::string& voice_name) {
+        this->change_voice(voice_name);
+    });
+    
+    // Register controls
+    AudioControlRegistry::instance().register_control({"current", "menu_effect"}, std::shared_ptr<AudioControlBase>(effect_control));
+    AudioControlRegistry::instance().register_control({"current", "menu_voice"}, std::shared_ptr<AudioControlBase>(voice_control));
+
     // TODO: Change this to be data driven
     // Effect modules
-    auto gain_stage = new AudioGainEffectRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    auto gain_stage = new AudioGainEffectRenderStage("gain", m_buffer_size, m_sample_rate, m_num_channels);
     gain_stage->initialize(); // FIXME: Initilize should be removed once moved to construction is initialization
     m_effect_modules["gain"] = std::make_shared<AudioEffectModule>(
         "gain",
         std::vector<AudioEffectRenderStage*>{gain_stage}
     );
 
-    auto echo_stage = new AudioEchoEffectRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    auto echo_stage = new AudioEchoEffectRenderStage("echo", m_buffer_size, m_sample_rate, m_num_channels);
     echo_stage->initialize();
     m_effect_modules["echo"] = std::make_shared<AudioEffectModule>(
         "echo",
         std::vector<AudioEffectRenderStage*>{echo_stage}
     );
 
-    auto frequency_filter_stage = new AudioFrequencyFilterEffectRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    auto frequency_filter_stage = new AudioFrequencyFilterEffectRenderStage("frequency_filter", m_buffer_size, m_sample_rate, m_num_channels);
     frequency_filter_stage->initialize();
     m_effect_modules["frequency_filter"] = std::make_shared<AudioEffectModule>(
         "frequency_filter",
         std::vector<AudioEffectRenderStage*>{frequency_filter_stage}
     );
 
-    auto none_stage = new AudioEffectRenderStage(m_buffer_size, m_sample_rate, m_num_channels);
+    auto none_stage = new AudioEffectRenderStage("none", m_buffer_size, m_sample_rate, m_num_channels);
     none_stage->initialize();
     m_effect_modules["none"] = std::make_shared<AudioEffectModule>(
         "none",
@@ -68,35 +85,35 @@ void AudioTrack::initialize_modules() {
     );
 
     // Voice modules
-    auto sine_stage = new AudioGeneratorRenderStage(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sine_generator_render_stage.glsl");
+    auto sine_stage = new AudioGeneratorRenderStage("sine", m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sine_generator_render_stage.glsl");
     sine_stage->initialize();
     m_voice_modules["sine"] = std::make_shared<AudioVoiceModule>(
         "sine",
         sine_stage
     );
 
-    auto saw_stage = new AudioGeneratorRenderStage(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sawtooth_generator_render_stage.glsl");
+    auto saw_stage = new AudioGeneratorRenderStage("saw", m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_sawtooth_generator_render_stage.glsl");
     saw_stage->initialize();
     m_voice_modules["saw"] = std::make_shared<AudioVoiceModule>(
         "saw",
         saw_stage
     );
 
-    auto square_stage = new AudioGeneratorRenderStage(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_square_generator_render_stage.glsl");
+    auto square_stage = new AudioGeneratorRenderStage("square", m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_square_generator_render_stage.glsl");
     square_stage->initialize();
     m_voice_modules["square"] = std::make_shared<AudioVoiceModule>(
         "square",
         square_stage
     );
 
-    auto triangle_stage = new AudioGeneratorRenderStage(m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_triangle_generator_render_stage.glsl");
+    auto triangle_stage = new AudioGeneratorRenderStage("triangle", m_buffer_size, m_sample_rate, m_num_channels, "build/shaders/multinote_triangle_generator_render_stage.glsl");
     triangle_stage->initialize();
     m_voice_modules["triangle"] = std::make_shared<AudioVoiceModule>(
         "triangle",
         triangle_stage
     );
 
-    auto file_stage = new AudioFileGeneratorRenderStage(m_buffer_size, m_sample_rate, m_num_channels, "media/test.wav");
+    auto file_stage = new AudioFileGeneratorRenderStage("file", m_buffer_size, m_sample_rate, m_num_channels, "media/test.wav");
     file_stage->initialize();
     m_voice_modules["file"] = std::make_shared<AudioVoiceModule>(
         "file",
@@ -104,14 +121,6 @@ void AudioTrack::initialize_modules() {
     );
 
     m_audio_renderer->unactivate_render_context();
-}
-
-void AudioTrack::play_note(const float tone, const float gain) {
-    m_current_voice->play_note(tone, gain);
-}
-
-void AudioTrack::stop_note(const float tone) {
-    m_current_voice->stop_note(tone);
 }
 
 void AudioTrack::change_effect(const std::string & effect_name) {
@@ -125,6 +134,8 @@ void AudioTrack::change_effect(const std::string & effect_name) {
     } else {
         std::cerr << "Effect not found: " << effect_name << std::endl;
     }
+
+    // FIXME: Register as current effect
 
     m_audio_renderer->unactivate_render_context();
 }
@@ -140,6 +151,8 @@ void AudioTrack::change_voice(const std::string & voice_name) {
     } else {
         std::cerr << "Voice not found: " << voice_name << std::endl;
     }
+
+    // FIXME: Register as current voice
 
     m_audio_renderer->unactivate_render_context();
 }

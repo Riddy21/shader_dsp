@@ -75,7 +75,7 @@ TEMPLATE_TEST_CASE("AudioRenderGraph sine chain: generator -> final (init/bind v
     // Play a note and render a few frames, verifying output becomes non-zero
     const float TONE = 440.0f;
     const float GAIN = 0.3f;
-    generator->play_note(TONE, GAIN);
+    generator->play_note({TONE, GAIN});
 
     bool produced_signal = false;
     // Global time buffer param used by shaders
@@ -1726,7 +1726,7 @@ TEMPLATE_TEST_CASE("AudioRenderGraph sine generator with echo and filter effects
     // Play a note and render frames, verifying output becomes non-zero
     const float TONE = 440.0f;  // A4 note
     const float GAIN = 0.4f;    // Moderate gain
-    sine_generator->play_note(TONE, GAIN);
+    sine_generator->play_note({TONE, GAIN});
 
     // Create audio output for real-time playback
     AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);

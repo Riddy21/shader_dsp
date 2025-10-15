@@ -22,83 +22,30 @@ AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(con
                                                      const unsigned int num_channels,
                                                      const std::string & fragment_shader_path,
                                                      const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports) {
-
-    auto play_position_parameter =
-        new AudioIntParameter("play_position",
-                              AudioParameter::ConnectionType::INPUT);
-    play_position_parameter->set_value(0);
-
-    auto stop_position_parameter =
-        new AudioIntParameter("stop_position",
-                              AudioParameter::ConnectionType::INPUT);
-    stop_position_parameter->set_value(-1);
-
-    auto play_parameter =
-        new AudioBoolParameter("play",
-                              AudioParameter::ConnectionType::INPUT);
-    play_parameter->set_value(false);
-
-    auto tone_parameter =
-        new AudioFloatParameter("tone",
-                              AudioParameter::ConnectionType::INPUT);
-    tone_parameter->set_value(MIDDLE_C);
-
-    auto gain_parameter =
-        new AudioFloatParameter("gain",
-                              AudioParameter::ConnectionType::INPUT);
-    gain_parameter->set_value(1.0f);
-
-    if (!this->add_parameter(play_parameter)) {
-        std::cerr << "Failed to add play_parameter" << std::endl;
-    }
-    if (!this->add_parameter(tone_parameter)) {
-        std::cerr << "Failed to add tone_parameter" << std::endl;
-    }
-    if (!this->add_parameter(gain_parameter)) {
-        std::cerr << "Failed to add gain_parameter" << std::endl;
-    }
-    if (!this->add_parameter(play_position_parameter)) {
-        std::cerr << "Failed to add play_position_parameter" << std::endl;
-    }
-    if (!this->add_parameter(stop_position_parameter)) {
-        std::cerr << "Failed to add stop_position_parameter" << std::endl;
-    }
-
-    // TODO: Envelope Parameters, Consider moving to a separate class
-    auto attack_time_parameter =
-        new AudioFloatParameter("attack_time",
-                              AudioParameter::ConnectionType::INPUT);
-    attack_time_parameter->set_value(0.1f);
-
-    auto decay_time_parameter =
-        new AudioFloatParameter("decay_time",
-                              AudioParameter::ConnectionType::INPUT);
-    decay_time_parameter->set_value(1.0f);
-
-    auto sustain_level_parameter =
-        new AudioFloatParameter("sustain_level",
-                              AudioParameter::ConnectionType::INPUT);
-    sustain_level_parameter->set_value(1.0f);
-
-    auto release_time_parameter =
-        new AudioFloatParameter("release_time",
-                              AudioParameter::ConnectionType::INPUT);
-    release_time_parameter->set_value(0.4f);
-
-    if (!this->add_parameter(attack_time_parameter)) {
-        std::cerr << "Failed to add attack_time_parameter" << std::endl;
-    }
-    if (!this->add_parameter(decay_time_parameter)) {
-        std::cerr << "Failed to add decay_time_parameter" << std::endl;
-    }
-    if (!this->add_parameter(sustain_level_parameter)) {
-        std::cerr << "Failed to add sustain_level_parameter" << std::endl;
-    }
-    if (!this->add_parameter(release_time_parameter)) {
-        std::cerr << "Failed to add release_time_parameter" << std::endl;
-    }
+    : AudioSingleShaderGeneratorRenderStage(
+        frames_per_buffer,
+        sample_rate,
+        num_channels,
+        AudioRenderStage::get_shader_source(fragment_shader_path),
+        true,
+        frag_shader_imports) {
 }
+
+// Named ctor delegating to string-loading path
+AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(const std::string & stage_name,
+                                                     const unsigned int frames_per_buffer,
+                                                     const unsigned int sample_rate,
+                                                     const unsigned int num_channels,
+                                                     const std::string & fragment_shader_path,
+                                                     const std::vector<std::string> & frag_shader_imports)
+    : AudioSingleShaderGeneratorRenderStage(
+        stage_name,
+        frames_per_buffer,
+        sample_rate,
+        num_channels,
+        AudioRenderStage::get_shader_source(fragment_shader_path),
+        true,
+        frag_shader_imports) {}
 
 // String-based constructor for AudioSingleShaderGeneratorRenderStage
 AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(const unsigned int frames_per_buffer,
@@ -107,7 +54,19 @@ AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(con
                                                      const std::string & fragment_shader_source,
                                                      bool use_shader_string,
                                                      const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_source, use_shader_string, frag_shader_imports) {
+    : AudioSingleShaderGeneratorRenderStage("SingleShaderGenerator-" + std::to_string(generate_id()),
+                                            frames_per_buffer, sample_rate, num_channels,
+                                            fragment_shader_source, use_shader_string, frag_shader_imports) {}
+
+// String-based named constructor
+AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(const std::string & stage_name,
+                                                     const unsigned int frames_per_buffer,
+                                                     const unsigned int sample_rate,
+                                                     const unsigned int num_channels,
+                                                     const std::string & fragment_shader_source,
+                                                     bool use_shader_string,
+                                                     const std::vector<std::string> & frag_shader_imports)
+    : AudioRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_source, use_shader_string, frag_shader_imports) {
 
     auto play_position_parameter =
         new AudioIntParameter("play_position",
@@ -197,102 +156,30 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                                                      const unsigned int num_channels,
                                                      const std::string & fragment_shader_path,
                                                      const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_path, frag_shader_imports),
-      m_note_state(MAX_NOTES_PLAYED_AT_ONCE) // initialize NoteState
-{
-
-    auto play_position_parameter =
-        new AudioIntArrayParameter("play_positions",
-                              AudioParameter::ConnectionType::INPUT,
-                              MAX_NOTES_PLAYED_AT_ONCE);
-
-    auto stop_position_parameter =
-        new AudioIntArrayParameter("stop_positions",
-                              AudioParameter::ConnectionType::INPUT,
-                              MAX_NOTES_PLAYED_AT_ONCE);
-
-    auto tone_parameter =
-        new AudioFloatArrayParameter("tones",
-                              AudioParameter::ConnectionType::INPUT,
-                              MAX_NOTES_PLAYED_AT_ONCE);
-    
-    auto gain_parameter =
-        new AudioFloatArrayParameter("gains",
-                              AudioParameter::ConnectionType::INPUT,
-                              MAX_NOTES_PLAYED_AT_ONCE);
-
-    auto active_notes_parameter =
-        new AudioIntParameter("active_notes",
-                              AudioParameter::ConnectionType::INPUT);
-                        
-    // Set to 0s
-    int* play_positions = new int[MAX_NOTES_PLAYED_AT_ONCE]();
-    int* stop_positions = new int[MAX_NOTES_PLAYED_AT_ONCE]();
-    float* tones = new float[MAX_NOTES_PLAYED_AT_ONCE]();
-    float* gains = new float[MAX_NOTES_PLAYED_AT_ONCE]();
-
-    play_position_parameter->set_value(play_positions);
-    stop_position_parameter->set_value(stop_positions);
-    tone_parameter->set_value(tones);
-    gain_parameter->set_value(gains);
-    active_notes_parameter->set_value(0);
-
-    // Clean up allocated arrays
-    delete[] play_positions;
-    delete[] stop_positions;
-    delete[] tones;
-    delete[] gains;
-
-    // Add the parameters
-    if (!this->add_parameter(play_position_parameter)) {
-        std::cerr << "Failed to add play_position_parameter" << std::endl;
-    }
-    if (!this->add_parameter(stop_position_parameter)) {
-        std::cerr << "Failed to add stop_position_parameter" << std::endl;
-    }
-    if (!this->add_parameter(tone_parameter)) {
-        std::cerr << "Failed to add tone_parameter" << std::endl;
-    }
-    if (!this->add_parameter(gain_parameter)) {
-        std::cerr << "Failed to add gain_parameter" << std::endl;
-    }
-    if (!this->add_parameter(active_notes_parameter)) {
-        std::cerr << "Failed to add active_notes_parameter" << std::endl;
-    }
-
-    auto attack_time_parameter =
-        new AudioFloatParameter("attack_time",
-                              AudioParameter::ConnectionType::INPUT);
-    attack_time_parameter->set_value(0.1f);
-
-    auto decay_time_parameter =
-        new AudioFloatParameter("decay_time",
-                              AudioParameter::ConnectionType::INPUT);
-    decay_time_parameter->set_value(1.0f);
-
-    auto sustain_level_parameter =
-        new AudioFloatParameter("sustain_level",
-                              AudioParameter::ConnectionType::INPUT);
-    sustain_level_parameter->set_value(1.0f);
-
-    auto release_time_parameter =
-        new AudioFloatParameter("release_time",
-                              AudioParameter::ConnectionType::INPUT);
-    release_time_parameter->set_value(0.4f);
-
-    if (!this->add_parameter(attack_time_parameter)) {
-        std::cerr << "Failed to add attack_time_parameter" << std::endl;
-    }
-    if (!this->add_parameter(decay_time_parameter)) {
-        std::cerr << "Failed to add decay_time_parameter" << std::endl;
-    }
-    if (!this->add_parameter(sustain_level_parameter)) {
-        std::cerr << "Failed to add sustain_level_parameter" << std::endl;
-    }
-    if (!this->add_parameter(release_time_parameter)) {
-        std::cerr << "Failed to add release_time_parameter" << std::endl;
-    }
+    : AudioGeneratorRenderStage(
+        frames_per_buffer,
+        sample_rate,
+        num_channels,
+        AudioRenderStage::get_shader_source(fragment_shader_path),
+        true,
+        frag_shader_imports) {
 }
+
+// Named ctor delegating
+AudioGeneratorRenderStage::AudioGeneratorRenderStage(const std::string & stage_name,
+                                                     const unsigned int frames_per_buffer,
+                                                     const unsigned int sample_rate,
+                                                     const unsigned int num_channels,
+                                                     const std::string & fragment_shader_path,
+                                                     const std::vector<std::string> & frag_shader_imports)
+    : AudioGeneratorRenderStage(
+        stage_name,
+        frames_per_buffer,
+        sample_rate,
+        num_channels,
+        AudioRenderStage::get_shader_source(fragment_shader_path),
+        true,
+        frag_shader_imports) {}
 
 // String-based constructor for AudioGeneratorRenderStage
 AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_per_buffer,
@@ -301,7 +188,19 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
                                                      const std::string & fragment_shader_source,
                                                      bool use_shader_string,
                                                      const std::vector<std::string> & frag_shader_imports)
-    : AudioRenderStage(frames_per_buffer, sample_rate, num_channels, fragment_shader_source, use_shader_string, frag_shader_imports),
+    : AudioGeneratorRenderStage("Generator-" + std::to_string(generate_id()),
+                                frames_per_buffer, sample_rate, num_channels,
+                                fragment_shader_source, use_shader_string, frag_shader_imports) {}
+
+// String-based named ctor
+AudioGeneratorRenderStage::AudioGeneratorRenderStage(const std::string & stage_name,
+                                                     const unsigned int frames_per_buffer,
+                                                     const unsigned int sample_rate,
+                                                     const unsigned int num_channels,
+                                                     const std::string & fragment_shader_source,
+                                                     bool use_shader_string,
+                                                     const std::vector<std::string> & frag_shader_imports)
+    : AudioRenderStage(stage_name, frames_per_buffer, sample_rate, num_channels, fragment_shader_source, use_shader_string, frag_shader_imports),
       m_note_state(MAX_NOTES_PLAYED_AT_ONCE) // initialize NoteState
 {
 
@@ -396,10 +295,36 @@ AudioGeneratorRenderStage::AudioGeneratorRenderStage(const unsigned int frames_p
     if (!this->add_parameter(release_time_parameter)) {
         std::cerr << "Failed to add release_time_parameter" << std::endl;
     }
+
+    // Register controls
+    m_controls.clear();
+
+    auto attack_time_control = std::make_shared<AudioControl<float>>("attack_time", *(float*)attack_time_parameter->get_value(), [attack_time_parameter](const float& v) { attack_time_parameter->set_value(v); });
+    m_controls.push_back(attack_time_control);
+
+    auto decay_time_control = std::make_shared<AudioControl<float>>("decay_time", *(float*)decay_time_parameter->get_value(), [decay_time_parameter](const float& v) { decay_time_parameter->set_value(v); });
+    m_controls.push_back(decay_time_control);
+
+    auto sustain_level_control = std::make_shared<AudioControl<float>>("sustain_level", *(float*)sustain_level_parameter->get_value(), [sustain_level_parameter](const float& v) { sustain_level_parameter->set_value(v); });
+    m_controls.push_back(sustain_level_control);
+
+    auto release_time_control = std::make_shared<AudioControl<float>>("release_time", *(float*)release_time_parameter->get_value(), [release_time_parameter](const float& v) { release_time_parameter->set_value(v); });
+    m_controls.push_back(release_time_control);
+
+    // Play notes parameter
+    auto play_note_control = std::make_shared<AudioControl<std::pair<float, float>>>("play_note", [this](const std::pair<float, float>& v) { play_note(v); });
+    m_controls.push_back(play_note_control);
+
+    auto stop_note_control = std::make_shared<AudioControl<float>>("stop_note", [this](const float& v) { stop_note(v); });
+    m_controls.push_back(stop_note_control);
 }
 
-void AudioGeneratorRenderStage::play_note(const float tone, const float gain)
+void AudioGeneratorRenderStage::play_note(const std::pair<float, float>& note)
 {
+    printf("Generator %s playing note %f with gain %f\n", get_name().c_str(), note.first, note.second);
+    float tone = note.first;
+    float gain = note.second;
+
     unsigned int time;
     if (m_time == 0) time = m_time;
     else time = m_time + 1;
