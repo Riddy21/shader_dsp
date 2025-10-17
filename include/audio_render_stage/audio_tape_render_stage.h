@@ -3,6 +3,7 @@
 #define AUDIO_TAPE_RENDER_STAGE_H
 
 #include "audio_core/audio_render_stage.h"
+#include "audio_render_stage/audio_render_stage_history.h"
 
 typedef std::vector<float> Tape;
 class AudioRecordRenderStage : public AudioRenderStage {

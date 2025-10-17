@@ -73,3 +73,18 @@ void AudioRenderStageHistory::clear_history_buffer() {
         std::fill(m_history_buffer[i].begin(), m_history_buffer[i].end(), 0.0f);
     }
 }
+
+AudioTape::AudioTape(const unsigned int frames_per_buffer,
+                     const unsigned int sample_rate,
+                     const unsigned int num_channels,
+                     const std::optional<unsigned int> tape_size) :
+    m_frames_per_buffer(frames_per_buffer),
+    m_sample_rate(sample_rate),
+    m_num_channels(num_channels) {
+    if (tape_size.has_value()) {
+        m_data.resize(tape_size.value());
+        m_fixed_size = true;
+    } else {
+        m_fixed_size = false;
+    }
+}
