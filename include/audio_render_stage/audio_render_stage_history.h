@@ -4,6 +4,8 @@
 
 #include <iostream>
 #include <vector>
+#include <optional>
+#include <memory>
 
 #include "audio_parameter/audio_texture2d_parameter.h"
 
@@ -40,6 +42,9 @@ private:
     const unsigned int m_frames_per_buffer;
     const unsigned int m_texture_rows;
 };
+
+// Forward declare for use in weak_ptr before full definition
+class AudioTape;
 
 class AudioRenderStageHistory2 {
 public:
@@ -90,25 +95,35 @@ public:
               const std::optional<unsigned int> tape_size = std::nullopt);
 
     // Will record the audio data in one frames per buffer chunks
-    void record(const float * audio_stream_data, std::optional<const unsigned int> samples_offset = std::nullopt);
-    void record(const float * audio_stream_data, std::optional<const float> seconds_offset = std::nullopt);
+    // THe audio stream data should be frames per buffer * num channels long, in channel major order
+    void record(const float * audio_stream_data, std::optional<unsigned int> samples_offset = std::nullopt);
+    void record(const float * audio_stream_data, std::optional<float> seconds_offset = std::nullopt);
+
     // Will return the size of one frame in samples
-    const std::vector<float> playback(std::optional<const unsigned int> samples_offset = std::nullopt) const;
-    const std::vector<float> playback(std::optional<const float> seconds_offset = std::nullopt) const;
+    // The returned data will be frames per buffer * num channels long, in channel major order
+    const std::vector<float> playback(std::optional<unsigned int> samples_offset = std::nullopt) const;
+    const std::vector<float> playback(std::optional<float> seconds_offset = std::nullopt) const;
 
     void clear();
-    const unsigned int size() const { return m_data.size(); }
-    const float size_in_seconds() const { return static_cast<float>(m_data.size()) / static_cast<float>(m_sample_rate * m_frames_per_buffer); }
+    // Number of samples stored per channel
+    const unsigned int size() const { return m_data.empty() ? 0u : static_cast<unsigned int>(m_data[0].size()); }
+    // Seconds of audio available per channel
+    const float size_in_seconds() const { return static_cast<float>(size()) / static_cast<float>(m_sample_rate); }
 
 private:
-    using ChannelData = std::vector<float>;
-    std::vector<ChannelData> m_data;
+    using ChannelData = std::vector<float>; // contiguous per-channel time-series
+    std::vector<ChannelData> m_data; // size = m_num_channels, each vector length = samples over time
 
     const unsigned int m_frames_per_buffer;
     const unsigned int m_sample_rate;
     const unsigned int m_num_channels;
 
+    // Current position of the tape in samples
+    unsigned int m_current_record_position = 0;
+    // Current playback position of the tape in samples
+    unsigned int m_current_playback_position = 0;
+
     bool m_fixed_size;
-}
+};
 
 #endif // AUDIO_RENDER_STAGE_HISTORY_H
