@@ -51,7 +51,7 @@ public:
     AudioRenderStageHistory2(const unsigned int frames_per_buffer,
                              const unsigned int sample_rate,
                              const unsigned int num_channels,
-                             const std::optional<unsigned int> texture_size = std::nullopt); // Texture size cannot be smaller than the frames per buffer
+                             const float history_buffer_size_seconds = 2.0f); // History buffer size in seconds of data stored in texture
 
     AudioTexture2DParameter * create_audio_history_texture(GLuint m_active_texture_count);
     AudioParameter * get_audio_history_texture() { return m_audio_history_texture; }
@@ -61,15 +61,26 @@ public:
 
     void set_tape_position(const unsigned int tape_position); 
     void set_tape_position(const float seconds_offset);
-    const unsigned int get_tape_position();
-    const float get_tape_position_in_seconds();
+    const unsigned int get_tape_position() const;
+    const float get_tape_position_in_seconds() const;
 
     void set_tape_speed(const float speed);
-    const float get_tape_speed();
+    const float get_tape_speed() const;
+    
+    // Get window size in seconds
+    const float get_window_size_seconds() const { return m_window_size_seconds; }
+    // Get window size in samples
+    const unsigned int get_window_size_samples() const { return m_window_size_samples; }
 
-    void update_audio_history_texture(); // Increamentally upda the time and everything, when paused it will stop updating
+    // TODO: Implement incrementally updating the texture with tape playback data
+    // When paused (speed = 0) it will stop updating position
+    void update_audio_history_texture();
 
     std::string get_audio_history_texture_name() { return m_audio_history_texture_name; }
+    
+    // Get all uniform parameters needed for the render stage
+    // Returns a vector with: [tape_position, tape_speed, tape_window_size_seconds]
+    std::vector<AudioParameter*> get_uniform_parameters();
 
 private:
     AudioParameter * m_audio_history_texture;
@@ -82,6 +93,16 @@ private:
     const unsigned int m_frames_per_buffer;
     const unsigned int m_sample_rate;
     const unsigned int m_num_channels;
+
+    // Texture configuration
+    unsigned int m_texture_width;  // Always MAX_TEXTURE_SIZE
+    unsigned int m_texture_rows;   // Number of rows needed (per channel)
+    float m_window_size_seconds;   // Window size in seconds
+    unsigned int m_window_size_samples; // Window size in samples
+    
+    // Current playback state
+    unsigned int m_current_tape_position_samples;
+    float m_current_tape_speed;
 
     const std::string m_audio_history_texture_name = "audio_history_texture";
 };

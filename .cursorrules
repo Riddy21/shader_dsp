@@ -1,0 +1,48 @@
+# Cursor Configuration for AudioSynthesizer Project
+
+## Build System
+This project uses **SCons** as the build system (not Make).
+
+### Building Tests
+To build and run a specific test:
+```bash
+scons --test=test_name --gdb -j15
+```
+
+Example:
+```bash
+scons --test=audio_render_stage_history_gl_test --gdb -j15
+```
+
+### Building All Tests
+```bash
+scons --all-tests --gdb -j15
+```
+
+### Building Main Executable
+```bash
+scons --gdb -j15
+```
+
+### Build Flags
+- `--gdb`: Build with debug flags (-g -O0) - **USE BY DEFAULT** for easier debugging
+- `-j15`: Build with 15 parallel jobs - **USE BY DEFAULT** for faster builds
+
+### Other SCons Options
+- `--test-case="Test Case Name"`: Run a specific test case within a test
+- `--section="Section Name"`: Run a specific section within a test case
+- `--verbose`: Run tests with verbose output
+- `--playground=example_name`: Build playground examples
+- `--docs`: Build documentation using Doxygen
+
+## Project Structure
+- `include/`: Header files
+- `lib/`: Implementation files (.cpp)
+- `tests/`: Test files
+- `shaders/`: GLSL shader files
+- `SConstruct`: SCons build configuration file
+- `build/`: Build output directory
+
+## Test Framework
+Tests use Catch2 framework with `-fno-access-control` flag to allow access to private members via `#define private public` pattern.
+

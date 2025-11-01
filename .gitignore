@@ -8,6 +8,7 @@ build/
 
 #VS Code files to ignore
 .vscode/
+.cursor/
 
 # Vim swap files
 .*.swp

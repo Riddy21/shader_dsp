@@ -1,6 +1,10 @@
 #include "audio_render_stage/audio_render_stage_history.h"
+#include "audio_parameter/audio_uniform_parameter.h"
 #include <algorithm>
 #include <optional>
+#include <cmath>
+#include <stdexcept>
+#include <string>
 
 AudioRenderStageHistory::AudioRenderStageHistory(const unsigned int history_size,
                                                  const unsigned int frames_per_buffer,
@@ -267,4 +271,177 @@ const std::vector<float> AudioTape::playback(std::optional<unsigned int> num_fra
     } else {
         return this->playback(num_frames, std::optional<unsigned int>{}, interleaved);
     }
+}
+
+void AudioTape::clear() {
+    for (auto &ch : m_data) {
+        ch.clear();
+    }
+    m_current_record_position = 0;
+    m_current_playback_position = 0;
+}
+
+// AudioRenderStageHistory2 implementation
+AudioRenderStageHistory2::AudioRenderStageHistory2(const unsigned int frames_per_buffer,
+                                                   const unsigned int sample_rate,
+                                                   const unsigned int num_channels,
+                                                   const float history_buffer_size_seconds)
+    : m_frames_per_buffer(frames_per_buffer),
+      m_sample_rate(sample_rate),
+      m_num_channels(num_channels),
+      m_audio_history_texture(nullptr),
+      m_tape_position(nullptr),
+      m_tape_window_size_seconds(nullptr),
+      m_tape_speed(nullptr),
+      m_current_tape_position_samples(0),
+      m_current_tape_speed(1.0f) {
+    
+    // Convert seconds to samples
+    float buffer_size_seconds = history_buffer_size_seconds;
+    float min_buffer_seconds = static_cast<float>(frames_per_buffer) / static_cast<float>(sample_rate);
+    if (buffer_size_seconds < min_buffer_seconds) {
+        buffer_size_seconds = min_buffer_seconds;
+    }
+    unsigned int total_samples = static_cast<unsigned int>(buffer_size_seconds * static_cast<float>(sample_rate));
+    
+    // Calculate number of rows needed per channel
+    unsigned int rows_per_channel = (total_samples + MAX_TEXTURE_SIZE - 1) / MAX_TEXTURE_SIZE;
+    
+    // Calculate texture height (num_channels * rows_per_channel)
+    unsigned int texture_height = m_num_channels * rows_per_channel;
+    
+    // Round up texture height to match width (make it square)
+    // Round up to nearest multiple of num_channels that is >= texture_height and <= MAX_TEXTURE_SIZE
+    if (texture_height > MAX_TEXTURE_SIZE) {
+        throw std::invalid_argument(
+            "History buffer size too large: requires texture height " + std::to_string(texture_height) + 
+            " which exceeds MAX_TEXTURE_SIZE " + std::to_string(MAX_TEXTURE_SIZE)
+        );
+    }
+    
+    // Round up texture_height to make texture square (height = width = MAX_TEXTURE_SIZE)
+    // But ensure it's still a multiple of num_channels
+    unsigned int final_height = MAX_TEXTURE_SIZE;
+    // Ensure final_height is a multiple of num_channels
+    if (final_height % m_num_channels != 0) {
+        final_height = final_height - (final_height % m_num_channels);
+    }
+    
+    // Recalculate rows_per_channel based on final height
+    unsigned int final_rows_per_channel = final_height / m_num_channels;
+    
+    // Calculate texture dimensions
+    // Width is always MAX_TEXTURE_SIZE
+    m_texture_width = MAX_TEXTURE_SIZE;
+    // Height is rounded up to make square (or as close as possible)
+    m_texture_rows = final_rows_per_channel;
+    
+    // Calculate actual window size in samples based on the adjusted texture size
+    unsigned int actual_samples = m_texture_rows * MAX_TEXTURE_SIZE;
+    m_window_size_seconds = static_cast<float>(actual_samples) / static_cast<float>(sample_rate);
+    m_window_size_samples = actual_samples;
+}
+
+AudioTexture2DParameter * AudioRenderStageHistory2::create_audio_history_texture(GLuint active_texture_count) {
+    // Create the texture parameter
+    auto audio_history_texture = new AudioTexture2DParameter(m_audio_history_texture_name,
+                            AudioParameter::ConnectionType::INPUT,
+                            MAX_TEXTURE_SIZE, m_num_channels * m_texture_rows,
+                            active_texture_count,
+                            0, GL_NEAREST);
+    
+    // Initialize with zeros
+    const unsigned int total_size = MAX_TEXTURE_SIZE * m_num_channels * m_texture_rows;
+    float* temp_buffer = new float[total_size];
+    std::fill(temp_buffer, temp_buffer + total_size, 0.0f);
+    audio_history_texture->set_value(temp_buffer);
+    delete[] temp_buffer;
+    
+    m_audio_history_texture = audio_history_texture;
+    
+    // Create uniform parameters for tape control
+    m_tape_position = new AudioIntParameter("tape_position", AudioParameter::ConnectionType::INPUT);
+    static_cast<AudioIntParameter*>(m_tape_position)->set_value(0);
+    
+    m_tape_speed = new AudioFloatParameter("tape_speed", AudioParameter::ConnectionType::INPUT);
+    static_cast<AudioFloatParameter*>(m_tape_speed)->set_value(1.0f);
+    
+    m_tape_window_size_seconds = new AudioFloatParameter("tape_window_size_seconds", AudioParameter::ConnectionType::INPUT);
+    static_cast<AudioFloatParameter*>(m_tape_window_size_seconds)->set_value(m_window_size_seconds);
+    
+    return audio_history_texture;
+}
+
+void AudioRenderStageHistory2::set_tape_position(const unsigned int tape_position) {
+    m_current_tape_position_samples = tape_position;
+    if (m_tape_position) {
+        static_cast<AudioIntParameter*>(m_tape_position)->set_value(static_cast<int>(tape_position));
+    }
+}
+
+void AudioRenderStageHistory2::set_tape_position(const float seconds_offset) {
+    unsigned int samples_offset = static_cast<unsigned int>(seconds_offset * m_sample_rate);
+    set_tape_position(samples_offset);
+}
+
+const unsigned int AudioRenderStageHistory2::get_tape_position() const {
+    return m_current_tape_position_samples;
+}
+
+const float AudioRenderStageHistory2::get_tape_position_in_seconds() const {
+    return static_cast<float>(m_current_tape_position_samples) / static_cast<float>(m_sample_rate);
+}
+
+void AudioRenderStageHistory2::set_tape_speed(const float speed) {
+    m_current_tape_speed = speed;
+    if (m_tape_speed) {
+        static_cast<AudioFloatParameter*>(m_tape_speed)->set_value(speed);
+    }
+}
+
+const float AudioRenderStageHistory2::get_tape_speed() const {
+    return m_current_tape_speed;
+}
+
+std::vector<AudioParameter*> AudioRenderStageHistory2::get_uniform_parameters() {
+    std::vector<AudioParameter*> params;
+    if (m_tape_position) {
+        params.push_back(m_tape_position);
+    }
+    if (m_tape_speed) {
+        params.push_back(m_tape_speed);
+    }
+    if (m_tape_window_size_seconds) {
+        params.push_back(m_tape_window_size_seconds);
+    }
+    return params;
+}
+
+void AudioRenderStageHistory2::update_audio_history_texture() {
+    // TODO: Implement tape playback to texture update
+    // Steps needed:
+    // 1. Check if texture is created
+    // 2. Check if tape is assigned (lock weak_ptr)
+    // 3. Calculate read window based on current position and window size
+    // 4. Read audio data from tape using playback()
+    // 5. Convert from channel-major order to texture format (matching AudioRenderStageHistory format)
+    // 6. Update texture with converted data
+    // 7. Advance tape position based on playback speed (if speed != 0)
+    // 8. Update uniform parameters with new position
+    
+    if (!m_audio_history_texture) {
+        return; // Texture not created yet
+    }
+    
+    // TODO: Implement tape playback logic here
+    // For now, fill with zeros if no tape assigned
+    auto tape = m_tape.lock();
+    if (!tape) {
+        const unsigned int total_size = MAX_TEXTURE_SIZE * m_num_channels * m_texture_rows;
+        std::vector<float> zero_data(total_size, 0.0f);
+        static_cast<AudioTexture2DParameter*>(m_audio_history_texture)->set_value(zero_data.data());
+        return;
+    }
+    
+    // TODO: Implement the rest of the playback logic
 }
