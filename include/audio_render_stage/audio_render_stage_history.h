@@ -101,8 +101,12 @@ public:
 
     // Will return the size of one frame in samples
     // The returned data will be frames per buffer * num channels long, in channel major order
-    const std::vector<float> playback(std::optional<unsigned int> samples_offset = std::nullopt) const;
-    const std::vector<float> playback(std::optional<float> seconds_offset = std::nullopt) const;
+    const std::vector<float> playback(std::optional<unsigned int> num_frames = std::nullopt,
+                                      std::optional<unsigned int> samples_offset = std::nullopt,
+                                      const bool interleaved = false) const;
+    const std::vector<float> playback(std::optional<unsigned int> num_frames,
+                                      std::optional<float> seconds_offset = std::nullopt,
+                                      const bool interleaved = false) const;
 
     void clear();
     // Number of samples stored per channel

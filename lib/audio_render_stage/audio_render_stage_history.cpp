@@ -194,3 +194,77 @@ void AudioTape::record(const float * audio_stream_data, std::optional<float> sec
         this->record(audio_stream_data, std::optional<unsigned int>{});
     }
 }
+
+const std::vector<float> AudioTape::playback(std::optional<unsigned int> num_frames, std::optional<unsigned int> samples_offset, const bool interleaved) const {
+    // Set the sample offset to the current playback position if not set
+    if (!samples_offset.has_value()) {
+        samples_offset = m_current_playback_position;
+    }
+
+    // Prepare output buffer in channel-major order: [ch0 frames][ch1 frames]...
+    std::vector<float> output;
+    const unsigned int frames_to_read = num_frames.has_value() ? num_frames.value() : m_frames_per_buffer;
+    if (frames_to_read == 0 || m_num_channels == 0) {
+        return output;
+    }
+    output.assign(static_cast<std::size_t>(frames_to_read) * m_num_channels, 0.0f);
+
+    const unsigned int start_global = samples_offset.value();
+
+    // For fixed-size tape, compute the current visible window [window_start, window_end)
+    const bool is_fixed = m_fixed_size;
+    unsigned int window_start = 0;
+    unsigned int window_end_exclusive = 0;
+    unsigned int capacity = 0;
+    if (is_fixed) {
+        capacity = static_cast<unsigned int>(m_data.empty() ? 0 : m_data[0].size());
+        if (capacity == 0) {
+            return output; // nothing available
+        }
+        window_start = (m_current_record_position > capacity)
+                           ? (m_current_record_position - capacity)
+                           : 0u;
+        window_end_exclusive = window_start + capacity;
+    }
+
+    for (unsigned int ch = 0; ch < m_num_channels; ++ch) {
+        const auto &channel_data = m_data[ch];
+        const unsigned int channel_size = static_cast<unsigned int>(channel_data.size());
+
+        for (unsigned int i = 0; i < frames_to_read; ++i) {
+            const unsigned int global_index = start_global + i;
+
+            float sample_value = 0.0f;
+            if (!is_fixed) {
+                // Dynamic-size: direct index if within bounds
+                if (global_index < channel_size) {
+                    sample_value = channel_data[global_index];
+                }
+            } else {
+                // Fixed-size sliding window
+                if (global_index >= window_start && global_index < window_end_exclusive) {
+                    const unsigned int local_index = global_index - window_start;
+                    sample_value = channel_data[local_index];
+                }
+            }
+
+            if (interleaved) {
+                output[static_cast<std::size_t>(i) * m_num_channels + ch] = sample_value;
+            } else {
+                output[static_cast<std::size_t>(ch) * frames_to_read + i] = sample_value;
+            }
+        }
+    }
+
+    return output;
+}
+
+const std::vector<float> AudioTape::playback(std::optional<unsigned int> num_frames, std::optional<float> seconds_offset, const bool interleaved) const {
+    // Convert seconds offset to samples offset
+    if (seconds_offset.has_value()) {
+        unsigned int samples_offset = static_cast<unsigned int>(seconds_offset.value() * m_sample_rate);
+        return this->playback(num_frames, std::optional<unsigned int>{samples_offset}, interleaved);
+    } else {
+        return this->playback(num_frames, std::optional<unsigned int>{}, interleaved);
+    }
+}
