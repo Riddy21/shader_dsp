@@ -117,8 +117,9 @@ public:
 
     // Will record the audio data in one frames per buffer chunks
     // THe audio stream data should be frames per buffer * num channels long, in channel major order
-    void record(const float * audio_stream_data, std::optional<unsigned int> samples_offset = std::nullopt);
-    void record(const float * audio_stream_data, std::optional<float> seconds_offset = std::nullopt);
+    void record(const float * audio_stream_data);
+    void record(const float * audio_stream_data, std::optional<unsigned int> samples_offset);
+    void record(const float * audio_stream_data, std::optional<float> seconds_offset);
 
     // Will return the size of one frame in samples
     // The returned data will be frames per buffer * num channels long, in channel major order

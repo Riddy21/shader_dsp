@@ -99,6 +99,11 @@ AudioTape::AudioTape(const unsigned int frames_per_buffer,
     }
 }
 
+void AudioTape::record(const float * audio_stream_data) {
+    // Call the samples_offset version with no offset (uses current position)
+    record(audio_stream_data, std::optional<unsigned int>{});
+}
+
 void AudioTape::record(const float * audio_stream_data, std::optional<unsigned int> samples_offset) {
     // Append to end of the tape if no offset is provided
     if (!samples_offset.has_value()) {
