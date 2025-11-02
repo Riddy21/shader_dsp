@@ -21,7 +21,7 @@ TEST_CASE("AudioTape record - dynamic growth and zero fill", "[audio_tape][recor
         10.f, 20.f, 30.f, 40.f
     };
 
-    tape.record(frame1.data(), std::optional<unsigned int>{});
+    tape.record(frame1.data());
 
     REQUIRE(tape.m_data.size() == num_channels);
     REQUIRE(tape.m_data[0].size() == frames_per_buffer);
@@ -41,7 +41,7 @@ TEST_CASE("AudioTape record - dynamic growth and zero fill", "[audio_tape][recor
     };
 
     const unsigned int gap_offset = 8; // leaves a 4-sample zero gap between writes (indices 4..7)
-    tape.record(frame2.data(), std::optional<unsigned int>{gap_offset});
+    tape.record(frame2.data(), gap_offset);
 
     REQUIRE(tape.m_data[0].size() == gap_offset + frames_per_buffer);
     REQUIRE(tape.m_data[1].size() == gap_offset + frames_per_buffer);
@@ -76,7 +76,7 @@ TEST_CASE("AudioTape record - fixed size window shifts and drops oldest", "[audi
     };
 
     const unsigned int write_offset = 6; // write_end = 10, causes shift by 2 for capacity=8
-    tape.record(frame.data(), std::optional<unsigned int>{write_offset});
+    tape.record(frame.data(), write_offset);
 
     // Capacity remains fixed
     REQUIRE(tape.m_data[0].size() == capacity);
@@ -110,10 +110,10 @@ TEST_CASE("AudioTape playback - dynamic growth returns channel-major and zeros o
         // ch1
         10.f, 20.f, 30.f, 40.f
     };
-    tape.record(frame1.data(), std::optional<unsigned int>{});
+    tape.record(frame1.data());
 
     SECTION("Exact playback at start returns recorded samples in channel-major order") {
-        auto out = tape.playback(frames_per_buffer, std::optional<unsigned int>{0});
+        auto out = tape.playback(frames_per_buffer, 0u);
         REQUIRE(out.size() == frames_per_buffer * num_channels);
         for (unsigned int i = 0; i < frames_per_buffer; ++i) {
             REQUIRE(out[i + 0 * frames_per_buffer] == Catch::Approx(frame1[i + 0 * frames_per_buffer]));
@@ -123,7 +123,7 @@ TEST_CASE("AudioTape playback - dynamic growth returns channel-major and zeros o
 
     SECTION("Playback partially beyond end pads with zeros") {
         // Start at sample 2, request 4 => expect [2,3,0,0] per channel
-        auto out = tape.playback(frames_per_buffer, std::optional<unsigned int>{2});
+        auto out = tape.playback(frames_per_buffer, 2u);
 
         REQUIRE(out[0] == Catch::Approx(3.f));
         REQUIRE(out[1] == Catch::Approx(4.f));
@@ -137,14 +137,14 @@ TEST_CASE("AudioTape playback - dynamic growth returns channel-major and zeros o
     }
 
     SECTION("Playback fully beyond end returns zeros") {
-        auto out = tape.playback(frames_per_buffer, std::optional<unsigned int>{10});
+        auto out = tape.playback(frames_per_buffer, 10u);
         for (float v : out) {
             REQUIRE(v == Catch::Approx(0.f));
         }
     }
 
     SECTION("Interleaved playback at start returns frame-interleaved samples") {
-        auto out = tape.playback(frames_per_buffer, std::optional<unsigned int>{0}, true /*interleaved*/);
+        auto out = tape.playback(frames_per_buffer, 0u, true /*interleaved*/);
         REQUIRE(out.size() == frames_per_buffer * num_channels);
         // Expect: [ch0[0], ch1[0], ch0[1], ch1[1], ...]
         REQUIRE(out[0] == Catch::Approx(1.f));
@@ -174,10 +174,10 @@ TEST_CASE("AudioTape playback - fixed-size window respects sliding window", "[au
     };
 
     const unsigned int write_offset = 6; // causes window shift; written at global 6..9
-    tape.record(frame.data(), std::optional<unsigned int>{write_offset});
+    tape.record(frame.data(), write_offset);
 
     SECTION("Playback at written region returns data") {
-        auto out = tape.playback(frames_per_buffer, std::optional<unsigned int>{write_offset});
+        auto out = tape.playback(frames_per_buffer, write_offset, false);
         for (unsigned int i = 0; i < frames_per_buffer; ++i) {
             REQUIRE(out[i] == Catch::Approx(frame[i + 0 * frames_per_buffer]));
             REQUIRE(out[frames_per_buffer + i] == Catch::Approx(frame[i + 1 * frames_per_buffer]));
@@ -185,7 +185,7 @@ TEST_CASE("AudioTape playback - fixed-size window respects sliding window", "[au
     }
 
     SECTION("Playback before current window returns zeros") {
-        auto out = tape.playback(frames_per_buffer, std::optional<unsigned int>{0});
+        auto out = tape.playback(frames_per_buffer, 0u, false);
         for (float v : out) {
             REQUIRE(v == Catch::Approx(0.f));
         }
@@ -193,7 +193,7 @@ TEST_CASE("AudioTape playback - fixed-size window respects sliding window", "[au
 
     SECTION("Playback at unwritten indices within window returns zeros") {
         // Within window [2,10), indices 2..3 and 8..9 were never written; expect zeros
-        auto out_head = tape.playback(2, std::optional<unsigned int>{2});
+        auto out_head = tape.playback(2u, 2u, false);
         REQUIRE(out_head.size() == 2 * num_channels);
         for (float v : out_head) {
             REQUIRE(v == Catch::Approx(0.f));
@@ -201,7 +201,7 @@ TEST_CASE("AudioTape playback - fixed-size window respects sliding window", "[au
     }
 
     SECTION("Interleaved playback at written region returns frame-interleaved samples") {
-        auto out = tape.playback(frames_per_buffer, std::optional<unsigned int>{write_offset}, true /*interleaved*/);
+        auto out = tape.playback(frames_per_buffer, write_offset, true /*interleaved*/);
         REQUIRE(out.size() == frames_per_buffer * num_channels);
         // Expect sequence: (5,50,6,60,7,70,8,80)
         REQUIRE(out[0] == Catch::Approx(5.f));
@@ -237,10 +237,10 @@ TEMPLATE_TEST_CASE("AudioTape playback - parameterized channels and seconds vs s
             frame[ch * BUFFER_SIZE + i] = static_cast<float>((ch + 1) * 100 + (i + 1));
         }
     }
-    tape.record(frame.data(), std::optional<unsigned int>{});
+    tape.record(frame.data());
 
     SECTION("Samples offset=1 returns shifted data and zero tail (channel-major)") {
-        auto out = tape.playback(std::nullopt, std::optional<unsigned int>{1}, false);
+        auto out = tape.playback(BUFFER_SIZE, 1u, false);
         REQUIRE(out.size() == NUM_CHANNELS * BUFFER_SIZE);
         for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
             // expected: values at indices 1..3, then 0
@@ -252,7 +252,7 @@ TEMPLATE_TEST_CASE("AudioTape playback - parameterized channels and seconds vs s
     }
 
     SECTION("Samples offset=1 returns interleaved sequence when requested") {
-        auto out = tape.playback(std::nullopt, std::optional<unsigned int>{1}, true);
+        auto out = tape.playback(BUFFER_SIZE, 1u, true);
         REQUIRE(out.size() == NUM_CHANNELS * BUFFER_SIZE);
         // Verify first two frames worth of interleaved samples
         // frame 0 at offset 1 -> index 1 per channel
@@ -266,7 +266,7 @@ TEMPLATE_TEST_CASE("AudioTape playback - parameterized channels and seconds vs s
     }
 
     SECTION("Seconds offset=0.5s (==2 samples) returns shifted data and zero tail") {
-        auto out = tape.playback(std::nullopt, std::optional<float>{0.5f}, false);
+        auto out = tape.playback(0.5f, false);
         REQUIRE(out.size() == NUM_CHANNELS * BUFFER_SIZE);
         for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
             // expected: indices 2..3 then 0,0
@@ -277,5 +277,4 @@ TEMPLATE_TEST_CASE("AudioTape playback - parameterized channels and seconds vs s
         }
     }
 }
-
 

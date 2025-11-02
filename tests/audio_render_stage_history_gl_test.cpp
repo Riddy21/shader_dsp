@@ -230,13 +230,13 @@ public:
 	                   	"build/shaders/frag_shader_settings.glsl",
 	                   	"build/shaders/tape_history_settings.glsl"})
 	{
-		// Create tape history and its texture parameter
+		// Create tape history and all its textures/parameters
 		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
-		this->add_parameter(m_history2->create_audio_history_texture(++m_active_texture_count));
+		m_history2->create_parameters(m_active_texture_count);
 		
-		// Add uniform parameters
-		auto uniform_params = m_history2->get_uniform_parameters();
-		for (auto* param : uniform_params) {
+		// Add all parameters
+		auto params = m_history2->get_parameters();
+		for (auto* param : params) {
 			this->add_parameter(param);
 		}
 		
@@ -351,7 +351,7 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - auxiliary functions", "[audio_his
 	{
 		float test_speed = 1.5f;
 		stage.get_history().set_tape_speed(test_speed);
-		REQUIRE(stage.get_history().get_tape_speed() == Catch::Approx(test_speed).margin(0.001f));
+		REQUIRE(stage.get_history().get_tape_speed_ratio() == Catch::Approx(test_speed).margin(0.001f));
 		
 		// Set test_mode to 1 (speed)
 		auto test_mode_param = stage.find_parameter("test_mode");
@@ -436,13 +436,13 @@ public:
 	                   	"build/shaders/tape_history_settings.glsl"}),
 	  m_is_playing(false)
 	{
-		// Create tape history and its texture parameter
+		// Create tape history and all its textures/parameters
 		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
-		this->add_parameter(m_history2->create_audio_history_texture(++m_active_texture_count));
+		m_history2->create_parameters(m_active_texture_count);
 		
-		// Add uniform parameters
-		auto uniform_params = m_history2->get_uniform_parameters();
-		for (auto* param : uniform_params) {
+		// Add all parameters
+		auto params = m_history2->get_parameters();
+		for (auto* param : params) {
 			this->add_parameter(param);
 		}
 	}
@@ -556,7 +556,7 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - playback functionality", "[audio_
 		float test_speeds[] = {0.5f, 1.0f, 1.5f, 2.0f};
 		for (auto speed : test_speeds) {
 			playback_stage.get_history().set_tape_speed(speed);
-			REQUIRE(playback_stage.get_history().get_tape_speed() == Catch::Approx(speed).margin(0.001f));
+			REQUIRE(playback_stage.get_history().get_tape_speed_ratio() == Catch::Approx(speed).margin(0.001f));
 			
 			// Set position and verify it updates correctly
 			playback_stage.get_history().set_tape_position(0u);
@@ -571,7 +571,7 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - playback functionality", "[audio_
 			playback_stage.render(0);
 			
 			// Verify speed is set correctly
-			REQUIRE(playback_stage.get_history().get_tape_speed() == Catch::Approx(speed).margin(0.001f));
+			REQUIRE(playback_stage.get_history().get_tape_speed_ratio() == Catch::Approx(speed).margin(0.001f));
 			
 			playback_stage.stop();
 		}
@@ -738,7 +738,7 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 			
 			// Verify audio content
 			float rms = calculate_rms(recorded_output);
-			REQUIRE(rms >= 0.01f);
+		REQUIRE(rms >= 0.01f);
 			
 			// Verify frequency is present (may be shifted by speed)
 			float expected_freq = TEST_FREQUENCY * speed;
@@ -762,20 +762,19 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - texture dimensions", "[audio_hist
 	
 	AudioRenderStageHistory2 history(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, P.window_seconds);
 	
-	// Texture width should always be MAX_TEXTURE_SIZE
+	// Texture width should always be MAX_TEXTURE_SIZE (implicit in texture creation)
 	REQUIRE(history.m_texture_width == MAX_TEXTURE_SIZE);
 	
-	// Texture height should be MAX_TEXTURE_SIZE (square texture)
-	unsigned int texture_height = history.m_texture_rows * NUM_CHANNELS;
-	REQUIRE(texture_height == MAX_TEXTURE_SIZE);
+	// Texture height includes data rows and zero rows (multiplied by 2) for each channel
+	unsigned int texture_height = history.m_texture_height;
+	REQUIRE(texture_height == history.m_num_channels * history.m_texture_rows_per_channel * 2);
 	
-	// Texture height must be a multiple of num_channels
-	REQUIRE(texture_height % NUM_CHANNELS == 0);
+	// Texture height must be a multiple of num_channels * 2 (data + zero rows)
+	REQUIRE(texture_height % (NUM_CHANNELS * 2) == 0);
 	
-	// Verify window_size_seconds matches the adjusted texture size
-	unsigned int expected_samples = history.m_texture_rows * MAX_TEXTURE_SIZE;
-	float expected_window_seconds = static_cast<float>(expected_samples) / static_cast<float>(SAMPLE_RATE);
-	REQUIRE(history.m_window_size_seconds == Catch::Approx(expected_window_seconds).margin(0.001f));
+	// Verify window_size_samples matches the adjusted texture size
+	unsigned int expected_samples = history.m_texture_rows_per_channel * MAX_TEXTURE_SIZE;
+	REQUIRE(history.m_window_size_samples == expected_samples);
 }
 
 

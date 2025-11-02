@@ -1,7 +1,8 @@
 uniform sampler2D audio_history_texture;
 uniform int tape_position;
-uniform float tape_speed;
-uniform float tape_window_size_seconds;
+uniform int speed_in_samples_per_buffer;
+uniform int tape_window_size_samples;
+uniform int tape_window_offset_samples;
 
 // Get the size of the audio history texture in samples per channel
 int get_tape_history_size() {
@@ -46,17 +47,18 @@ float get_tape_position_seconds() {
 }
 
 // Get the tape speed multiplier (1.0 = normal speed, 2.0 = double speed, etc.)
+// Computed from samples per buffer: speed = samples_per_buffer / buffer_size
 float get_tape_speed() {
-    return tape_speed;
+    return float(speed_in_samples_per_buffer) / float(buffer_size);
 }
 
-// Get the window size in seconds (maximum amount of audio that can be played at once)
-float get_tape_window_size_seconds() {
-    return tape_window_size_seconds;
-}
-
-// Get the window size in samples
+// Get the window size in samples (maximum amount of audio that can be played at once)
 int get_tape_window_size_samples() {
-    return int(tape_window_size_seconds * float(sample_rate));
+    return tape_window_size_samples;
+}
+
+// Get the window size in seconds
+float get_tape_window_size_seconds() {
+    return float(tape_window_size_samples) / float(sample_rate);
 }
 
