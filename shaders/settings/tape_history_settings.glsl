@@ -10,16 +10,29 @@ int get_tape_history_size() {
 }
 
 // Get an audio sample from the tape history texture
-// index: sample index (0 to get_tape_history_size() - 1)
-// channel: channel index (0 to num_channels - 1)
+// TexCoord: texture coordinate (TexCoord.x = sample index, TexCoord.y = channel)
+// Uses tape_position and tape_speed internally to determine which sample to return
 // TODO: Implement reading from tape history texture
 // Need to discuss: How should the texture layout work? Should it match AudioRenderStageHistory format?
-// Should we account for the tape position offset when reading samples?
-float get_tape_history_sample(int index, int channel) {
+// Should we account for the tape position offset and speed when reading samples?
+vec4 get_tape_history_sample(vec2 TexCoord) {
     // TODO: Implement texture sample reading
-    // Need to convert sample index and channel to texture coordinates
+    // Extract sample index and channel from TexCoord
+    // int sample_index = int(TexCoord.x * float(buffer_size));
+    // int channel = int(TexCoord.y * float(num_channels));
+    // 
+    // Calculate the actual tape sample index based on:
+    // - Current tape position (get_tape_position_samples())
+    // - Current sample index in buffer
+    // - Tape speed (get_tape_speed())
+    // 
+    // Then convert sample index and channel to texture coordinates
     // Consider: texture format, row layout, channel interleaving
-    return 0.0;
+    
+    // Placeholder
+    vec4 data = texture(audio_history_texture, TexCoord);
+
+    return data;
 }
 
 // Get the current tape position in samples

@@ -15,12 +15,15 @@
 #include "tests/utils/audio_test_utils.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_output/audio_file_output.h"
+#include "graphics_core/graphics_display.h"
+#include "graphics_views/debug_view.h"
 #include <vector>
 #include <fstream>
 #include <algorithm>
 #include <thread>
 #include <chrono>
 #include <cmath>
+#include <iostream>
 
 struct TestParams { int buffer_size; int num_channels; const char* name; };
 using TestParam1 = std::integral_constant<int, 0>; // 256 x 2
@@ -407,19 +410,14 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - auxiliary functions", "[audio_his
 // Fragment shader for tape playback
 static const char* kTapePlaybackFragSource = R"(
 void main(){
-    vec4 stream_audio = texture(stream_audio_texture, TexCoord);
+    // Get the audio sample from tape history using TexCoord
+	vec4 stream_audio = texture(stream_audio_texture, TexCoord);
+    // The function will use tape_position and tape_speed internally
+    vec4 tape_sample = get_tape_history_sample(TexCoord);
     
-    // Sample the tape history texture to ensure it's recognized by the shader
-    ivec2 tex_size = textureSize(audio_history_texture, 0);
-    vec4 tex_sample = texture(audio_history_texture, vec2(0.5, 0.5));
-    
-    // Use tex_size to prevent optimization
-    float tex_factor = float(tex_size.x) * 0.0000001;
-    
-    // For now, just pass through stream audio (tape playback will be implemented later)
-    // When tape playback is implemented, read from audio_history_texture based on tape position
-    output_audio_texture = stream_audio + vec4(tex_factor, 0.0, 0.0, 0.0);
-    debug_audio_texture = stream_audio;
+    // Output the tape playback sample
+    output_audio_texture = tape_sample + stream_audio;
+    debug_audio_texture = output_audio_texture;
 }
 )";
 
@@ -709,6 +707,7 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 				REQUIRE(output_data != nullptr);
 				
 				// Store for verification
+				// Output data is in channel-major format: ch0[0...BUFFER_SIZE-1], ch1[BUFFER_SIZE...2*BUFFER_SIZE-1], etc.
 				for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
 					recorded_output.push_back(output_data[i]);
 				}
