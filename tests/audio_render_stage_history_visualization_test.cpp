@@ -102,10 +102,10 @@ TEST_CASE("Visualize AudioRenderStageHistory2 texture", "[audio_history2][visual
 void main() {
     // Sample the tape history texture using the tape_history_settings functions
     // For visualization, we'll sample at the current TexCoord
-    vec4 color = texture(audio_history_texture, TexCoord);
+    vec4 tape_history = get_tape_history_samples(TexCoord);
     vec4 stream_audio = texture(stream_audio_texture, TexCoord);
 
-    output_audio_texture = color;
+    output_audio_texture = tape_history;
     debug_audio_texture = stream_audio;
 }
 )";

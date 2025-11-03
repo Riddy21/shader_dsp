@@ -413,7 +413,7 @@ void main(){
     // Get the audio sample from tape history using TexCoord
 	vec4 stream_audio = texture(stream_audio_texture, TexCoord);
     // The function will use tape_position and tape_speed internally
-    vec4 tape_sample = get_tape_history_sample(TexCoord);
+    vec4 tape_sample = get_tape_history_samples(TexCoord);
     
     // Output the tape playback sample
     output_audio_texture = tape_sample + stream_audio;
@@ -455,10 +455,8 @@ public:
 
 protected:
 	void render(const unsigned int time) override {
-		if (m_is_playing) {
-			// Update the history texture with tape playback data
-			m_history2->update_audio_history_texture();
-		}
+		m_history2->update_audio_history_texture();
+
 		AudioRenderStage::render(time);
 	}
 
@@ -625,9 +623,9 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 	constexpr int SAMPLE_RATE = 44100;
 	constexpr float TEST_FREQUENCY = 440.0f;
 	constexpr float TEST_AMPLITUDE = 0.3f;
-	constexpr int RECORD_DURATION_SECONDS = 1;
+	constexpr int RECORD_DURATION_SECONDS = 10;
 	constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
-	constexpr int PLAYBACK_DURATION_SECONDS = 2;
+	constexpr int PLAYBACK_DURATION_SECONDS = 5;
 	constexpr int NUM_PLAYBACK_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * PLAYBACK_DURATION_SECONDS;
 	
 	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
@@ -640,7 +638,7 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 	
 	// Create tape and mock playback stage
 	auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-	MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 2.0f);
+	MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 1.0f);
 	playback_stage.get_history().set_tape(tape);
 	
 	// Create final render stage
@@ -723,10 +721,10 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 				// Stop playback if we've reached the end of the tape
 				if (playback_stage.get_history().get_tape_position() >= tape->size()) {
 					playback_stage.stop();
+					printf("Playback complete with speed %f\n", speed);
 					break;
 				}
 			}
-			
 			// Stop playback
 			playback_stage.stop();
 			

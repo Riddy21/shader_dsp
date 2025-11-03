@@ -10,30 +10,39 @@ int get_tape_history_size() {
     return audio_size.x * audio_size.y / num_channels;
 }
 
-// Get an audio sample from the tape history texture
-// TexCoord: texture coordinate (TexCoord.x = sample index, TexCoord.y = channel)
-// Uses tape_position and tape_speed internally to determine which sample to return
-// TODO: Implement reading from tape history texture
-// Need to discuss: How should the texture layout work? Should it match AudioRenderStageHistory format?
-// Should we account for the tape position offset and speed when reading samples?
-vec4 get_tape_history_sample(vec2 TexCoord) {
-    // TODO: Implement texture sample reading
-    // Extract sample index and channel from TexCoord
-    // int sample_index = int(TexCoord.x * float(buffer_size));
-    // int channel = int(TexCoord.y * float(num_channels));
-    // 
-    // Calculate the actual tape sample index based on:
-    // - Current tape position (get_tape_position_samples())
-    // - Current sample index in buffer
-    // - Tape speed (get_tape_speed())
-    // 
-    // Then convert sample index and channel to texture coordinates
-    // Consider: texture format, row layout, channel interleaving
-    
-    // Placeholder
-    vec4 data = texture(audio_history_texture, TexCoord);
+// Get the audio section corresponding to the tape section in the tape history from the tape position (in samples)
+// Returns the audio sample (vec4) from the audio_history_texture at the current tape position
+// TexCoord: texture coordinates from the current shader (channel is encoded in TexCoord.y)
+vec4 get_tape_history_samples(vec2 TexCoord) {
+ // Get texture dimensions to calculate position bar
+    ivec2 audio_size = textureSize(audio_history_texture, 0);
 
-    return data;
+    // Get tex coord as int
+    ivec2 tex_coord = ivec2(TexCoord.x * float(audio_size.x), TexCoord.y * float(audio_size.y));
+    
+    // Get channel as int
+    int channel = int(TexCoord.y * float(num_channels));
+
+    // Calculate the position of the current position in the audio output texture
+    int window_offset = int(TexCoord.x * float(speed_in_samples_per_buffer));
+    int position_in_window = tape_position - tape_window_offset_samples + window_offset;
+
+    // Calculate the position of the current position in the audio output texture
+    int audio_width = audio_size.x;
+    int audio_height = audio_size.y / num_channels / 2; // 2 because we need to store both the audio data and the zeros
+
+    // Calculate the x and y position of the current position in the audio output texture
+    int x_position = position_in_window % audio_width;
+    int y_row_position = position_in_window / audio_width;
+
+    // Calculate y_position for each channel and check if we're on the correct one
+    // Only highlight channel 0 to avoid duplicate lines
+    int y_position = ( y_row_position * num_channels + channel ) * 2;
+
+    // Convert the x y into texture coordinates
+    vec2 texture_coord = vec2(float(x_position) / float(audio_size.x), float(y_position) / float(audio_size.y));
+    
+    return texture(audio_history_texture, texture_coord);
 }
 
 // Get the current tape position in samples
