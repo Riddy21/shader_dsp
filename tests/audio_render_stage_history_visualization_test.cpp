@@ -56,11 +56,14 @@ public:
         
         m_time = time;
         
-        // Temporarily save and override the framebuffer to render to screen
+        // First render to the stage framebuffer to capture audio output
+        AudioRenderStage::render(time);
+        
+        // Then render to screen for visualization
         GLint original_fbo = m_framebuffer;
         m_framebuffer = 0; // Screen framebuffer
         
-        // Call parent render - it will now render to screen (framebuffer 0)
+        // Call parent render again - it will now render to screen (framebuffer 0)
         AudioRenderStage::render(time);
         
         // Restore original framebuffer
@@ -88,8 +91,8 @@ TEST_CASE("Visualize AudioRenderStageHistory2 texture", "[audio_history2][visual
     REQUIRE(SDL_Init(SDL_INIT_VIDEO) == 0);
     
     // Create visible window using the test framework
-    constexpr int WINDOW_WIDTH = 1280;
-    constexpr int WINDOW_HEIGHT = 720;
+    constexpr int WINDOW_WIDTH = 1000;
+    constexpr int WINDOW_HEIGHT = 700;
     SDLWindow window(WINDOW_WIDTH, WINDOW_HEIGHT, "History Texture Visualization", true);
     REQUIRE(window.get_window() != nullptr);
     
@@ -100,12 +103,38 @@ TEST_CASE("Visualize AudioRenderStageHistory2 texture", "[audio_history2][visual
     // Create visualization shader source
     const std::string visualization_shader_source = R"(
 void main() {
-    // Sample the tape history texture using the tape_history_settings functions
-    // For visualization, we'll sample at the current TexCoord
-    vec4 tape_history = get_tape_history_samples(TexCoord);
+    vec4 color = texture(audio_history_texture, TexCoord);
     vec4 stream_audio = texture(stream_audio_texture, TexCoord);
 
-    output_audio_texture = tape_history;
+     // Get texture dimensions to calculate position bar
+    ivec2 audio_size = textureSize(audio_history_texture, 0);
+
+    // Get tex coord as int
+    ivec2 tex_coord = ivec2(TexCoord.x * float(audio_size.x), TexCoord.y * float(audio_size.y));
+    
+    // Get channel as int
+    int channel = int(TexCoord.y * float(num_channels));
+
+    // Calculate the position of the current position in the audio output texture
+    int window_offset = int(TexCoord.x * float(speed_in_samples_per_buffer));
+    int position_in_window = tape_position - tape_window_offset_samples + window_offset;
+
+    // Calculate the position of the current position in the audio output texture
+    int audio_width = audio_size.x;
+    int audio_height = audio_size.y / num_channels / 2; // 2 because we need to store both the audio data and the zeros
+
+    // Calculate the x and y position of the current position in the audio output texture
+    int x_position = position_in_window % audio_width;
+    int y_row_position = position_in_window / audio_width;
+
+    // Calculate y_position for each channel and check if we're on the correct one
+    // Only highlight channel 0 to avoid duplicate lines
+    int y_position = ( y_row_position * num_channels + channel ) * 2;
+
+    // Convert the x y into texture coordinates
+    vec2 texture_coord = vec2(float(x_position) / float(audio_size.x), float(y_position) / float(audio_size.y));
+
+    output_audio_texture = texture(audio_history_texture, texture_coord);
     debug_audio_texture = stream_audio;
 }
 )";
@@ -181,8 +210,13 @@ void main() {
     
     std::cout << "Starting visualization loop..." << std::endl;
     
-    // Run for enough frames to see all updates (5 seconds * 60fps = 300 frames, but need more to see all updates)
-    for (int frame = 0; frame < 600; ++frame) { // ~10 seconds at 60fps to see all updates
+    // Calculate how many frames we need to play through all the tape data
+    // At 1.0x speed, we need tape_size_samples / FRAMES_PER_BUFFER frames
+    unsigned int frames_to_play = (tape_size_samples + FRAMES_PER_BUFFER - 1) / FRAMES_PER_BUFFER;
+    unsigned int total_frames = std::max(600u, frames_to_play + 10); // Play through tape + some extra
+    
+    // Run for enough frames to see all updates
+    for (unsigned int frame = 0; frame < total_frames; ++frame) {
         glClear(GL_COLOR_BUFFER_BIT);
         
         // Render to screen (overridden render method renders to framebuffer 0)
@@ -195,20 +229,11 @@ void main() {
         
         window.swap_buffers();
         
-        // Process events to keep window responsive
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                goto cleanup;
-            }
-        }
-        
-        SDL_Delay(16); // ~60fps
+        SDL_Delay(10000); // ~60fps
     }
     
     vis_stage.cleanup();
     
-cleanup:
     SDL_Quit();
     
     // Test passes if we got here without crashing

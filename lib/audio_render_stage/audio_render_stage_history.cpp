@@ -535,6 +535,7 @@ void AudioRenderStageHistory2::set_window_offset_samples(const unsigned int wind
     }
 }
 
+// TODO: Change this to use mtime
 void AudioRenderStageHistory2::update_audio_history_texture() {
     // Steps needed:
     // 1. Check if texture is created
@@ -567,6 +568,7 @@ void AudioRenderStageHistory2::update_audio_history_texture() {
     int speed_samples = get_tape_speed_samples_per_buffer();
     auto current_position = get_tape_position(); // Reuse variable declared above
 
+    // TODO: This needs work, not too sure yet
     // Handle negative speed: clamp to 0 minimum
     if (speed_samples < 0 && static_cast<unsigned int>(-speed_samples) > current_position) {
         set_tape_position(0u);
@@ -575,8 +577,6 @@ void AudioRenderStageHistory2::update_audio_history_texture() {
         set_tape_position(tape->size());
         return;
     }
-    
-    printf("Current position: %u\n", current_position);
 
     // Check if the audio history texture needs to be updated
     if (is_audio_texture_data_outdated()) {
@@ -597,9 +597,8 @@ void AudioRenderStageHistory2::update_audio_history_texture() {
         // Update the window offset samples to the current tape position
         set_window_offset_samples(window_offset_samples);
         printf("Updated window offset samples to %u\n", window_offset_samples);
+        
     }
-
-    set_tape_position(current_position + speed_samples);
 }
 
 bool AudioRenderStageHistory2::is_audio_texture_data_outdated() {

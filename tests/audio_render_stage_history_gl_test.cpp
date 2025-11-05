@@ -24,6 +24,10 @@
 #include <chrono>
 #include <cmath>
 #include <iostream>
+#include <string>
+#include <iomanip>
+#include <map>
+#include <sstream>
 
 struct TestParams { int buffer_size; int num_channels; const char* name; };
 using TestParam1 = std::integral_constant<int, 0>; // 256 x 2
@@ -31,6 +35,32 @@ using TestParam2 = std::integral_constant<int, 1>; // 512 x 2
 
 constexpr TestParams get_test_params(int i) {
 	constexpr TestParams P[] = { {256,2,"256x2"}, {512,2,"512x2"} };
+	return P[i];
+}
+
+struct PlaybackTestParams { 
+	int buffer_size; 
+	int num_channels; 
+	float speed; 
+	const char* name; 
+};
+
+using PlaybackTestParam1 = std::integral_constant<int, 0>; // 256x2, 0.5x
+using PlaybackTestParam2 = std::integral_constant<int, 1>; // 256x2, 1.0x
+using PlaybackTestParam3 = std::integral_constant<int, 2>; // 256x2, 1.5x
+using PlaybackTestParam4 = std::integral_constant<int, 3>; // 512x2, 0.5x
+using PlaybackTestParam5 = std::integral_constant<int, 4>; // 512x2, 1.0x
+using PlaybackTestParam6 = std::integral_constant<int, 5>; // 512x2, 1.5x
+
+constexpr PlaybackTestParams get_playback_test_params(int i) {
+	constexpr PlaybackTestParams P[] = { 
+		{256, 2, 0.5f, "256x2_0.5x"},
+		{256, 2, 1.0f, "256x2_1.0x"},
+		{256, 2, 1.5f, "256x2_1.5x"},
+		{512, 2, 0.5f, "512x2_0.5x"},
+		{512, 2, 1.0f, "512x2_1.0x"},
+		{512, 2, 1.5f, "512x2_1.5x"}
+	};
 	return P[i];
 }
 
@@ -455,9 +485,15 @@ public:
 
 protected:
 	void render(const unsigned int time) override {
+
 		m_history2->update_audio_history_texture();
+		printf("Current tape_position: %u\n", m_history2->get_tape_position());
+		printf("Current window_offset_samples: %u\n", m_history2->get_window_offset_samples());
+		printf("Current window_size_samples: %u\n", m_history2->get_window_size_samples());
+		printf("Current tape_speed_samples_per_buffer: %d\n", m_history2->get_tape_speed_samples_per_buffer());
 
 		AudioRenderStage::render(time);
+		m_history2->set_tape_position(m_history2->get_tape_position() + m_history2->get_tape_speed_samples_per_buffer());
 	}
 
 private:
@@ -501,7 +537,14 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - playback functionality", "[audio_
 		float phase = 0.0f;
 		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
 			auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, TEST_AMPLITUDE, SAMPLE_RATE, BUFFER_SIZE, NUM_CHANNELS, phase);
-			tape->record(sine_buffer.data());
+			// Convert interleaved to channel-major format
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i * NUM_CHANNELS + ch];
+				}
+			}
+			tape->record(channel_major_buffer.data());
 			phase += BUFFER_SIZE;
 		}
 		
@@ -546,7 +589,14 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - playback functionality", "[audio_
 		float phase = 0.0f;
 		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
 			auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, TEST_AMPLITUDE, SAMPLE_RATE, BUFFER_SIZE, NUM_CHANNELS, phase);
-			tape->record(sine_buffer.data());
+			// Convert interleaved to channel-major format
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i * NUM_CHANNELS + ch];
+				}
+			}
+			tape->record(channel_major_buffer.data());
 			phase += BUFFER_SIZE;
 		}
 		
@@ -580,7 +630,14 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - playback functionality", "[audio_
 		float phase = 0.0f;
 		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
 			auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, TEST_AMPLITUDE, SAMPLE_RATE, BUFFER_SIZE, NUM_CHANNELS, phase);
-			tape->record(sine_buffer.data());
+			// Convert interleaved to channel-major format
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i * NUM_CHANNELS + ch];
+				}
+			}
+			tape->record(channel_major_buffer.data());
 			phase += BUFFER_SIZE;
 		}
 		
@@ -616,18 +673,22 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - playback functionality", "[audio_
 }
 
 TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio output", "[audio_history2][playback][audio_output][gl_test][template]",
-			   TestParam1) {
-	constexpr auto P = get_test_params(TestType::value);
+			   PlaybackTestParam1, PlaybackTestParam2, PlaybackTestParam3, 
+			   PlaybackTestParam4, PlaybackTestParam5, PlaybackTestParam6) {
+	constexpr auto P = get_playback_test_params(TestType::value);
 	constexpr int BUFFER_SIZE = P.buffer_size;
 	constexpr int NUM_CHANNELS = P.num_channels;
+	constexpr float PLAYBACK_SPEED = P.speed;
 	constexpr int SAMPLE_RATE = 44100;
 	constexpr float TEST_FREQUENCY = 440.0f;
-	constexpr float TEST_AMPLITUDE = 0.3f;
-	constexpr int RECORD_DURATION_SECONDS = 10;
+	constexpr float TEST_AMPLITUDE_LEFT = 0.3f;
+	constexpr float TEST_AMPLITUDE_RIGHT = 0.15f; // Right channel has half the amplitude
+	constexpr int RECORD_DURATION_SECONDS = 2;
 	constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
-	constexpr int PLAYBACK_DURATION_SECONDS = 5;
+	constexpr int PLAYBACK_DURATION_SECONDS = 1;
 	constexpr int NUM_PLAYBACK_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * PLAYBACK_DURATION_SECONDS;
-	
+	constexpr float WINDOW_SIZE_SECONDS = 0.5f;
+
 	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
 	GLContext context;
 	
@@ -638,7 +699,7 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 	
 	// Create tape and mock playback stage
 	auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-	MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 1.0f);
+	MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
 	playback_stage.get_history().set_tape(tape);
 	
 	// Create final render stage
@@ -654,98 +715,237 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 	context.prepare_draw();
 	REQUIRE(playback_stage.bind());
 	REQUIRE(final_stage.bind());
+
 	
 	SECTION("Record sine wave and playback at different speeds with audio output") {
+		// Collect input sine wave data (non-interleaved, separate left/right channels)
+		std::vector<float> input_samples_left;
+		std::vector<float> input_samples_right;
+		input_samples_left.reserve(SAMPLE_RATE * RECORD_DURATION_SECONDS);
+		if (NUM_CHANNELS > 1) {
+			input_samples_right.reserve(SAMPLE_RATE * RECORD_DURATION_SECONDS);
+		}
+		
 		// Record sine wave to tape
 		float phase = 0.0f;
 		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
-			auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, TEST_AMPLITUDE, SAMPLE_RATE, BUFFER_SIZE, NUM_CHANNELS, phase);
-			tape->record(sine_buffer.data());
+			// Generate sine wave - we'll scale channels differently after generation
+			auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, 1.0f, SAMPLE_RATE, BUFFER_SIZE, NUM_CHANNELS, phase);
+			
+			// Convert interleaved buffer to channel-major format for record()
+			// record() expects: [ch0_frame0, ch0_frame1, ..., ch0_frameN, ch1_frame0, ch1_frame1, ..., ch1_frameN]
+			// Apply different amplitudes to each channel
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				float channel_amplitude = (ch == 0) ? TEST_AMPLITUDE_LEFT : TEST_AMPLITUDE_RIGHT;
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i * NUM_CHANNELS + ch] * channel_amplitude;
+				}
+			}
+			
+			// Collect input samples (de-interleave from channel-major format)
+			for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+				input_samples_left.push_back(channel_major_buffer[0 * BUFFER_SIZE + i]);
+				if (NUM_CHANNELS > 1) {
+					input_samples_right.push_back(channel_major_buffer[1 * BUFFER_SIZE + i]);
+				}
+			}
+			
+			tape->record(channel_major_buffer.data());
 			phase += BUFFER_SIZE;
 		}
 		
 		REQUIRE(tape->size() > 0);
+		
+		// DEBUG: Extract and write tape data to CSV before playback
+		// Extract tape data (channel-major format)
+		std::vector<float> tape_left_channel;
+		std::vector<float> tape_right_channel;
+		unsigned int tape_size = tape->size();
+		unsigned int samples_to_extract = std::min(tape_size, static_cast<unsigned int>(SAMPLE_RATE * 1)); // Extract first 1 second
+		
+		// Extract data from tape using playback (returns channel-major format)
+		for (unsigned int offset = 0; offset < samples_to_extract; offset += BUFFER_SIZE) {
+			unsigned int frames_to_get = std::min(static_cast<unsigned int>(BUFFER_SIZE), static_cast<unsigned int>(samples_to_extract - offset));
+			auto tape_data = tape->playback(frames_to_get, offset, false); // false = not interleaved (channel-major)
+			
+			// tape_data is in channel-major: [ch0_sample0, ch0_sample1, ..., ch0_sampleN, ch1_sample0, ch1_sample1, ..., ch1_sampleN]
+			unsigned int samples_per_channel = tape_data.size() / NUM_CHANNELS;
+			for (unsigned int i = 0; i < samples_per_channel; ++i) {
+				tape_left_channel.push_back(tape_data[i + 0 * samples_per_channel]);
+				if (NUM_CHANNELS > 1) {
+					tape_right_channel.push_back(tape_data[i + 1 * samples_per_channel]);
+				}
+			}
+		}
+		
+		// Also record what was actually recorded (for comparison)
+		// Re-generate the sine wave input to compare with different amplitudes per channel
+		std::vector<float> recorded_input_left;
+		std::vector<float> recorded_input_right;
+		float input_phase = 0.0f;
+		for (unsigned int i = 0; i < samples_to_extract; ++i) {
+			float sine_value = std::sin(2.0f * M_PI * TEST_FREQUENCY * (i + input_phase) / SAMPLE_RATE);
+			recorded_input_left.push_back(sine_value * TEST_AMPLITUDE_LEFT);
+			if (NUM_CHANNELS > 1) {
+				recorded_input_right.push_back(sine_value * TEST_AMPLITUDE_RIGHT);
+			}
+		}
 		
 		// Setup audio output
 		AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
 		REQUIRE(audio_output.open());
 		REQUIRE(audio_output.start());
 		
-		// Test playback at different speeds
-		float playback_speeds[] = {0.5f, 1.0f, 1.5f};
-		
-		for (auto speed : playback_speeds) {
-			// Configure playback
-			playback_stage.get_history().set_tape_speed(speed);
-			playback_stage.get_history().set_tape_position(0u);
-			playback_stage.play();
-			
-			// Render and play audio
-			std::vector<float> recorded_output;
-			recorded_output.reserve(BUFFER_SIZE * NUM_PLAYBACK_FRAMES * NUM_CHANNELS);
-			
-			unsigned int frame_count = 0;
-			const unsigned int max_frames = NUM_PLAYBACK_FRAMES;
-			
-			for (int frame = 0; frame < max_frames; ++frame) {
-				global_time->set_value(frame);
-				global_time->render();
-				
-				// Render playback stage (updates tape history texture)
-				playback_stage.render(frame);
-				
-				// Render final stage
-				final_stage.render(frame);
-				
-				// Get output from final stage
-				auto output_param = final_stage.find_parameter("final_output_audio_texture");
-				REQUIRE(output_param != nullptr);
-				
-				const float* output_data = static_cast<const float*>(output_param->get_value());
-				REQUIRE(output_data != nullptr);
-				
-				// Store for verification
-				// Output data is in channel-major format: ch0[0...BUFFER_SIZE-1], ch1[BUFFER_SIZE...2*BUFFER_SIZE-1], etc.
-				for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
-					recorded_output.push_back(output_data[i]);
-				}
-				
-				// Push to audio output
-				while (!audio_output.is_ready()) {
-					std::this_thread::sleep_for(std::chrono::milliseconds(1));
-				}
-				audio_output.push(output_data);
-				
-				frame_count++;
-				
-				// Stop playback if we've reached the end of the tape
-				if (playback_stage.get_history().get_tape_position() >= tape->size()) {
-					playback_stage.stop();
-					printf("Playback complete with speed %f\n", speed);
-					break;
-				}
-			}
-			// Stop playback
-			playback_stage.stop();
-			
-			// Wait for audio to finish playing
-			std::this_thread::sleep_for(std::chrono::milliseconds(500));
-			
-			// Verify we got some audio data
-			REQUIRE(recorded_output.size() > 0);
-			
-			// Verify audio content
-			float rms = calculate_rms(recorded_output);
-		REQUIRE(rms >= 0.01f);
-			
-			// Verify frequency is present (may be shifted by speed)
-			float expected_freq = TEST_FREQUENCY * speed;
-			bool freq_detected = detect_frequency(recorded_output, expected_freq, SAMPLE_RATE, 0.3f);
-			// Frequency detection might not work perfectly at all speeds, so just verify we have audio
-			REQUIRE(rms > 0.01f);
+		// Initialize output sample vectors for this speed
+		std::vector<float> output_samples_left;
+		std::vector<float> output_samples_right;
+		output_samples_left.reserve(SAMPLE_RATE * PLAYBACK_DURATION_SECONDS);
+		if (NUM_CHANNELS > 1) {
+			output_samples_right.reserve(SAMPLE_RATE * PLAYBACK_DURATION_SECONDS);
 		}
 		
+		// Configure playback at the parameterized speed
+		playback_stage.get_history().set_tape_speed(PLAYBACK_SPEED);
+		playback_stage.get_history().set_tape_position(0u);
+		playback_stage.play();
+
+		// Check the speed setting
+		int speed_samples_per_buffer = *static_cast<const int*>(playback_stage.get_history().m_tape_speed->get_value());
+		REQUIRE(static_cast<float>(speed_samples_per_buffer) == Catch::Approx(PLAYBACK_SPEED * BUFFER_SIZE).margin(0.001f));
+		
+		// Render and play audio
+		std::vector<float> recorded_output;
+		recorded_output.reserve(BUFFER_SIZE * NUM_PLAYBACK_FRAMES * NUM_CHANNELS);
+		
+		unsigned int frame_count = 0;
+		const unsigned int max_frames = NUM_PLAYBACK_FRAMES;
+		
+		for (int frame = 0; frame < max_frames; ++frame) {
+			global_time->set_value(frame);
+			global_time->render();
+			
+			// Render playback stage (updates tape history texture)
+			playback_stage.render(frame);
+			
+			// Render final stage
+			final_stage.render(frame);
+			
+			// Get output from final stage
+			auto output_param = final_stage.find_parameter("final_output_audio_texture");
+			REQUIRE(output_param != nullptr);
+			
+			const float* output_data = static_cast<const float*>(output_param->get_value());
+			REQUIRE(output_data != nullptr);
+			
+			// Store for verification
+			// Output data is interleaved: [frame0_ch0, frame0_ch1, frame1_ch0, frame1_ch1, ...]
+			// De-interleave to separate left/right channels for CSV export
+			for (int i = 0; i < BUFFER_SIZE; ++i) {
+				output_samples_left.push_back(output_data[i * NUM_CHANNELS + 0]);
+				if (NUM_CHANNELS > 1) {
+					output_samples_right.push_back(output_data[i * NUM_CHANNELS + 1]);
+				}
+				// Also store in recorded_output for verification (interleaved)
+				for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+					recorded_output.push_back(output_data[i * NUM_CHANNELS + ch]);
+				}
+			}
+			
+			// Push to audio output (output_data is interleaved format)
+			while (!audio_output.is_ready()) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+			audio_output.push(output_data);
+			
+			frame_count++;
+			
+			// Stop playback if we've reached the end of the tape
+			if (playback_stage.get_history().get_tape_position() >= tape->size()) {
+				playback_stage.stop();
+				printf("Playback complete with speed %f\n", PLAYBACK_SPEED);
+				break;
+			}
+		}
+		// Stop playback
+		playback_stage.stop();
+		
+		// Wait for audio to finish playing
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		
+		// Verify we got some audio data
+		REQUIRE(recorded_output.size() > 0);
+		
+		// Verify audio content
+		float rms = calculate_rms(recorded_output);
+		REQUIRE(rms >= 0.01f);
+		
+		// Verify frequency is present (may be shifted by speed)
+		float expected_freq = TEST_FREQUENCY * PLAYBACK_SPEED;
+		bool freq_detected = detect_frequency(recorded_output, expected_freq, SAMPLE_RATE, 0.3f);
+		// Frequency detection might not work perfectly at all speeds, so just verify we have audio
+		REQUIRE(rms > 0.01f);
+		
 		audio_output.close();
+		
+		SECTION("Write input sine wave to CSV") {
+			std::ofstream csv_file("input_sine_wave.csv");
+			REQUIRE(csv_file.is_open());
+			
+			// Write header
+			csv_file << "sample_index,time_seconds";
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				csv_file << ",channel_" << ch;
+			}
+			csv_file << std::endl;
+			
+			// Write data (non-interleaved: left channel, then right channel)
+			unsigned int num_samples = input_samples_left.size();
+			for (unsigned int i = 0; i < num_samples; ++i) {
+				double time_seconds = static_cast<double>(i) / SAMPLE_RATE;
+				csv_file << i << "," << std::fixed << std::setprecision(9) << time_seconds;
+				csv_file << "," << input_samples_left[i];
+				if (NUM_CHANNELS > 1) {
+					csv_file << "," << input_samples_right[i];
+				}
+				csv_file << std::endl;
+			}
+			
+			csv_file.close();
+			std::cout << "Wrote input sine wave to input_sine_wave.csv (" << num_samples << " samples)" << std::endl;
+		}
+		
+		SECTION("Write output audio to CSV") {
+			// Create filename with speed (e.g., "output_audio_speed_0.500000.csv")
+			std::ostringstream filename_stream;
+			filename_stream << "output_audio_speed_" << std::fixed << std::setprecision(6) << PLAYBACK_SPEED << ".csv";
+			std::string filename = filename_stream.str();
+			
+			std::ofstream csv_file(filename);
+			REQUIRE(csv_file.is_open());
+			
+			// Write header
+			csv_file << "sample_index,time_seconds";
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				csv_file << ",channel_" << ch;
+			}
+			csv_file << std::endl;
+			
+			// Write data (non-interleaved: left channel, then right channel)
+			unsigned int num_samples = output_samples_left.size();
+			for (unsigned int i = 0; i < num_samples; ++i) {
+				double time_seconds = static_cast<double>(i) / SAMPLE_RATE;
+				csv_file << i << "," << std::fixed << std::setprecision(9) << time_seconds;
+				csv_file << "," << output_samples_left[i];
+				if (NUM_CHANNELS > 1) {
+					csv_file << "," << output_samples_right[i];
+				}
+				csv_file << std::endl;
+			}
+			
+			csv_file.close();
+			std::cout << "Wrote output audio to " << filename << " (" << num_samples << " samples, speed=" << PLAYBACK_SPEED << "x)" << std::endl;
+		}
 	}
 	
 	delete global_time;
