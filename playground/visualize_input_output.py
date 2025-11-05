@@ -72,7 +72,12 @@ def read_audio_csv(csv_path: Path):
 
 
 def extract_speed_from_filename(filename: str):
-    """Extract speed value from filename like 'output_audio_speed_0.500000.csv'"""
+    """Extract speed value from filename like 'output_audio_speed_0.500000.csv' or 'output_audio_speed_1.000000_channels_3.csv'"""
+    # Try new format first: output_audio_speed_1.000000_channels_3.csv
+    match = re.search(r'speed_([\d.]+)_channels_\d+\.csv', filename)
+    if match:
+        return float(match.group(1))
+    # Try old format: output_audio_speed_0.500000.csv
     match = re.search(r'speed_([\d.]+)\.csv', filename)
     if match:
         return float(match.group(1))
@@ -93,7 +98,7 @@ def main():
         "--output-csv-pattern",
         type=str,
         default="output_audio_speed_*.csv",
-        help="Glob pattern for output CSV files (default: output_audio_speed_*.csv)"
+        help="Glob pattern for output CSV files (default: output_audio_speed_*.csv). Also supports format with _channels_N suffix."
     )
     parser.add_argument(
         "--start",
@@ -218,7 +223,9 @@ def main():
         
         # Create figure with subplots: 3 rows (Input, Output, Difference) x N columns (one per channel)
         num_channels = len(available_channels)
-        fig, axes = plt.subplots(3, num_channels, figsize=(6 * num_channels, 10), sharex=True)
+        # Adjust figure size based on number of channels for better visibility
+        fig_width = max(5, min(6 * num_channels, 24))  # Cap at 24 inches for very wide displays
+        fig, axes = plt.subplots(3, num_channels, figsize=(fig_width, 10), sharex=True)
         
         # Handle single channel case (axes becomes 1D instead of 2D)
         if num_channels == 1:

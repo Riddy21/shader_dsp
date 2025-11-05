@@ -60,11 +60,11 @@ void AudioFinalRenderStage::render(unsigned int time) {
     AudioRenderStage::render(time);
 
     // display to screen
-    glClear(GL_COLOR_BUFFER_BIT);
-    glUseProgram(m_shader_program->get_program());
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
-    glUseProgram(0);
+    //glClear(GL_COLOR_BUFFER_BIT);
+    //glUseProgram(m_shader_program->get_program());
+    //glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    //glDrawArrays(GL_TRIANGLES, 0, 6);
+    //glUseProgram(0);
 
     auto output_audio_texture_param = this->find_parameter("final_output_audio_texture");
     if (output_audio_texture_param) {

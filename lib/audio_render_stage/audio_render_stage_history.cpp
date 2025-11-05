@@ -408,7 +408,7 @@ void AudioRenderStageHistory2::create_parameters(GLuint& active_texture_count) {
                             AudioParameter::ConnectionType::INPUT,
                             m_texture_width, m_texture_height,
                             active_texture_count,
-                            0, GL_NEAREST);
+                            0, GL_LINEAR);
     
     // Initialize with zeros
     const unsigned int total_size = m_texture_width * m_texture_height;
