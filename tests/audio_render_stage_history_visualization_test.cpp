@@ -1,5 +1,6 @@
 #include "catch2/catch_all.hpp"
 #include "framework/test_gl.h"
+#include "framework/test_main.h"
 #include "test_sdl_manager.h"
 
 #define private public
@@ -157,7 +158,7 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - visualization test", "[audio_hist
 	constexpr int SAMPLE_RATE = 44100;
 	constexpr float TEST_FREQUENCY = 440.0f;
 	constexpr float BASE_AMPLITUDE = 0.2f; // Base amplitude, increases by 0.2 per channel
-	constexpr int RECORD_DURATION_SECONDS = 4;
+	constexpr int RECORD_DURATION_SECONDS = 8;
 	constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
 	constexpr int PLAYBACK_DURATION_SECONDS = 2;
 	constexpr int NUM_PLAYBACK_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * PLAYBACK_DURATION_SECONDS;
@@ -251,10 +252,13 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - visualization test", "[audio_hist
 		
 		REQUIRE(tape->size() > 0);
 		
-		// Setup audio output
-		AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-		REQUIRE(audio_output.open());
-		REQUIRE(audio_output.start());
+		// Setup audio output (only if enabled)
+		AudioPlayerOutput* audio_output = nullptr;
+		if (is_audio_output_enabled()) {
+			audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+			REQUIRE(audio_output->open());
+			REQUIRE(audio_output->start());
+		}
 		
 		// Initialize output sample vectors for this speed (per channel)
 		std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
@@ -310,13 +314,13 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - visualization test", "[audio_hist
 				output_samples_per_channel[channel].push_back(output_data[i]);
 			}
 
-		    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-			
 			// Push to audio output (output_data is interleaved format)
-			while (!audio_output.is_ready()) {
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			if (audio_output) {
+				while (!audio_output->is_ready()) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+				audio_output->push(output_data);
 			}
-			audio_output.push(output_data);
 			
 			frame_count++;
 			
@@ -330,68 +334,74 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - visualization test", "[audio_hist
 		// Stop playback
 		playback_stage.stop();
 		
-		// Wait for audio to finish playing
-		std::this_thread::sleep_for(std::chrono::milliseconds(500));
-		
-		audio_output.close();
-		
-		SECTION("Write input sine wave to CSV") {
-			std::ofstream csv_file("input_sine_wave.csv");
-			REQUIRE(csv_file.is_open());
-			
-			// Write header
-			csv_file << "sample_index,time_seconds";
-			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
-				csv_file << ",channel_" << ch;
-			}
-			csv_file << std::endl;
-			
-			// Write data (all channels)
-			unsigned int num_samples = input_samples_per_channel[0].size();
-			for (unsigned int i = 0; i < num_samples; ++i) {
-				double time_seconds = static_cast<double>(i) / SAMPLE_RATE;
-				csv_file << i << "," << std::fixed << std::setprecision(9) << time_seconds;
-				for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
-					csv_file << "," << input_samples_per_channel[ch][i];
-				}
-				csv_file << std::endl;
-			}
-			
-			csv_file.close();
-			std::cout << "Wrote input sine wave to input_sine_wave.csv (" << num_samples << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
+		// Wait for audio to finish playing and close audio output
+		if (audio_output) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			audio_output->close();
+			delete audio_output;
 		}
 		
-		SECTION("Write output audio to CSV") {
-			// Create filename with speed and channels (e.g., "output_audio_speed_1.000000_channels_3.csv")
-			std::ostringstream filename_stream;
-			filename_stream << "output_audio_speed_" << std::fixed << std::setprecision(6) << PLAYBACK_SPEED 
-			               << "_channels_" << NUM_CHANNELS << ".csv";
-			std::string filename = filename_stream.str();
-			
-			std::ofstream csv_file(filename);
-			REQUIRE(csv_file.is_open());
-			
-			// Write header
-			csv_file << "sample_index,time_seconds";
-			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
-				csv_file << ",channel_" << ch;
-			}
-			csv_file << std::endl;
-			
-			// Write data (all channels)
-			unsigned int num_samples = output_samples_per_channel[0].size();
-			for (unsigned int i = 0; i < num_samples; ++i) {
-				double time_seconds = static_cast<double>(i) / SAMPLE_RATE;
-				csv_file << i << "," << std::fixed << std::setprecision(9) << time_seconds;
+		if (is_csv_output_enabled()) {
+			SECTION("Write input sine wave to CSV") {
+				std::ofstream csv_file("input_sine_wave.csv");
+				REQUIRE(csv_file.is_open());
+				
+				// Write header
+				csv_file << "sample_index,time_seconds";
 				for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
-					csv_file << "," << output_samples_per_channel[ch][i];
+					csv_file << ",channel_" << ch;
 				}
 				csv_file << std::endl;
+				
+				// Write data (all channels)
+				unsigned int num_samples = input_samples_per_channel[0].size();
+				for (unsigned int i = 0; i < num_samples; ++i) {
+					double time_seconds = static_cast<double>(i) / SAMPLE_RATE;
+					csv_file << i << "," << std::fixed << std::setprecision(9) << time_seconds;
+					for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+						csv_file << "," << input_samples_per_channel[ch][i];
+					}
+					csv_file << std::endl;
+				}
+				
+				csv_file.close();
+				std::cout << "Wrote input sine wave to input_sine_wave.csv (" << num_samples << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
 			}
-			
-			csv_file.close();
-			std::cout << "Wrote output audio to " << filename << " (" << num_samples << " samples, " 
-			          << NUM_CHANNELS << " channels, speed=" << PLAYBACK_SPEED << "x)" << std::endl;
+		}
+		
+		if (is_csv_output_enabled()) {
+			SECTION("Write output audio to CSV") {
+				// Create filename with speed and channels (e.g., "output_audio_speed_1.000000_channels_3.csv")
+				std::ostringstream filename_stream;
+				filename_stream << "output_audio_speed_" << std::fixed << std::setprecision(6) << PLAYBACK_SPEED 
+				               << "_channels_" << NUM_CHANNELS << ".csv";
+				std::string filename = filename_stream.str();
+				
+				std::ofstream csv_file(filename);
+				REQUIRE(csv_file.is_open());
+				
+				// Write header
+				csv_file << "sample_index,time_seconds";
+				for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+					csv_file << ",channel_" << ch;
+				}
+				csv_file << std::endl;
+				
+				// Write data (all channels)
+				unsigned int num_samples = output_samples_per_channel[0].size();
+				for (unsigned int i = 0; i < num_samples; ++i) {
+					double time_seconds = static_cast<double>(i) / SAMPLE_RATE;
+					csv_file << i << "," << std::fixed << std::setprecision(9) << time_seconds;
+					for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+						csv_file << "," << output_samples_per_channel[ch][i];
+					}
+					csv_file << std::endl;
+				}
+				
+				csv_file.close();
+				std::cout << "Wrote output audio to " << filename << " (" << num_samples << " samples, " 
+				          << NUM_CHANNELS << " channels, speed=" << PLAYBACK_SPEED << "x)" << std::endl;
+			}
 		}
 	}
 	

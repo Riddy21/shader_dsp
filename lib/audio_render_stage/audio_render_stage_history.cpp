@@ -580,6 +580,7 @@ void AudioRenderStageHistory2::update_audio_history_texture() {
 
     // Check if the audio history texture needs to be updated
     if (is_audio_texture_data_outdated()) {
+        // FIXME: Positive offset samples are not working correctly for +ve speeds
         auto window_offset_samples = get_window_offset_samples_for_tape_data();
 
         // Get the piece of tape data directly in texture format
@@ -638,7 +639,7 @@ const unsigned int AudioRenderStageHistory2::get_window_offset_samples_for_tape_
 
     float speed_ratio = get_tape_speed_ratio();
     if (speed_ratio > 0.0f) {
-        return tape_position;
+        return tape_position - 1;
     } else if (speed_ratio < 0.0f) {
         return tape_position - get_window_size_samples();
     }
