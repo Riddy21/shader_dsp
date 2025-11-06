@@ -114,6 +114,9 @@ private:
     unsigned int m_window_size_samples;
 
     const std::string m_audio_history_texture_name = "audio_history_texture";
+    
+    // Track last time value for delta-based updates
+    unsigned int m_last_time = 0;
 
     void set_window_offset_samples(const unsigned int window_offset_samples);
 

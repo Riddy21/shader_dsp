@@ -535,7 +535,6 @@ void AudioRenderStageHistory2::set_window_offset_samples(const unsigned int wind
     }
 }
 
-// TODO: Change this to use mtime
 void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
     // Steps needed:
     // 1. Check if texture is created
@@ -546,6 +545,39 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
     // 6. Update texture with converted data
     // 7. Advance tape position based on playback speed (if speed != 0)
     // 8. Update uniform parameters with new position
+
+    // Calculate time delta - use signed int to support backwards time movement
+    int time_delta;
+    if (m_last_time == 0) {
+        // First frame: default increment to 1 buffer period
+        time_delta = 1;
+    } else {
+        // Calculate signed delta to support backwards time movement
+        // Handle potential wraparound: if time < m_last_time, assume large backwards jump
+        // For normal backwards movement, we'll get a negative delta
+        if (time < m_last_time) {
+            // Check if this is wraparound (time went from large to small) or backwards movement
+            // If the difference is very large (> half of unsigned int max), assume wraparound
+            unsigned int diff = m_last_time - time;
+            if (diff > (std::numeric_limits<unsigned int>::max() / 2)) {
+                // Likely wraparound - treat as backwards movement with reasonable delta
+                // Use a small negative delta to avoid huge jumps
+                time_delta = -1;
+            } else {
+                // Normal backwards movement
+                time_delta = -static_cast<int>(diff);
+            }
+        } else {
+            time_delta = static_cast<int>(time - m_last_time);
+        }
+        
+        if (time_delta == 0) {
+            return; // Time hasn't changed, no update needed
+        }
+    }
+    
+    // Update last time for next call
+    m_last_time = time;
 
     // If the speed is 0, then don't update the texture
     if (get_tape_speed_ratio() == 0.0f) {
@@ -565,24 +597,29 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
     // TODO: Add wraparound if wanted
 
     // Get current position and speed before any updates
-    int speed_samples = get_tape_speed_samples_per_buffer();
+    int speed_samples_per_buffer = get_tape_speed_samples_per_buffer();
     unsigned int current_position = get_tape_position();
+    
+    // Calculate how many samples to advance based on time delta
+    // time_delta represents number of buffer periods (time increments once per frames_per_buffer)
+    // So multiply by speed_samples_per_buffer to get total samples to advance
+    // time_delta can be negative for backwards time movement
+    int samples_to_advance = time_delta * speed_samples_per_buffer;
 
     // Check boundaries BEFORE updating texture to avoid updating at boundaries
     // Handle negative speed: clamp to 0 minimum
-    if (speed_samples < 0 && static_cast<unsigned int>(-speed_samples) > current_position) {
+    if (samples_to_advance < 0 && static_cast<unsigned int>(-samples_to_advance) > current_position) {
         set_tape_position(0u);
         return;
-    } else if (speed_samples > 0 && current_position + speed_samples >= tape->size()) {
+    } else if (samples_to_advance > 0 && current_position + static_cast<unsigned int>(samples_to_advance) >= tape->size()) {
         set_tape_position(tape->size());
         return;
     }
 
-    // Advance tape position based on tape speed (can be negative for reverse playback)
-    set_tape_position(current_position + speed_samples);
-
-    // Check if the audio history texture needs to be updated
-    if (is_audio_texture_data_outdated()) {
+    // Check if the audio history texture needs to be updated BEFORE advancing position
+    // Offset should be calculated from position before advancement
+    bool needs_update = is_audio_texture_data_outdated();
+    if (needs_update) {
         // FIXME: Positive offset samples are not working correctly for +ve speeds
         auto window_offset_samples = get_window_offset_samples_for_tape_data();
 
@@ -598,9 +635,14 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
             static_cast<AudioTexture2DParameter*>(m_audio_history_texture)->set_value(texture_data.data());
         }
 
-        // Update the window offset samples to the current tape position
+        // Update the window offset samples to the current tape position (before advancement)
         set_window_offset_samples(window_offset_samples);
     }
+
+    // Advance tape position based on tape speed and time delta (can be negative for reverse playback)
+    // This happens AFTER texture update to ensure offset is calculated from position before advancement
+    set_tape_position(current_position + samples_to_advance);
+
 }
 
 bool AudioRenderStageHistory2::is_audio_texture_data_outdated() {
