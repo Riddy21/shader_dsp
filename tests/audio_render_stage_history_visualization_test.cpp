@@ -42,11 +42,11 @@ using PlaybackTestParam6 = std::integral_constant<int, 5>; // 512x4, 1.0x
 constexpr PlaybackTestParams get_playback_test_params(int i) {
 	constexpr PlaybackTestParams P[] = { 
 		{256, 1, 1.0f, "256x1_1.0x"},
-		{256, 1, 0.5f, "256x1_0.5x"},
-		{256, 2, 1.0f, "256x2_1.0x"},
-		{256, 2, 0.5f, "256x2_0.5x"},
+		{256, 1, -0.5f, "256x1_0.5x"},
+		{256, 2, 1.6f, "256x2_1.0x"},
+		{256, 2, -0.3f, "256x2_0.5x"},
 		{512, 3, 1.0f, "512x3_1.0x"},
-		{512, 4, 1.0f, "512x4_1.0x"}
+		{512, 4, 1.5f, "512x4_1.0x"}
 	};
 	return P[i];
 }
@@ -59,34 +59,37 @@ static const char* kTapePlaybackFragSource = R"(
         // The function will use tape_position and tape_speed internally
         vec4 tape_sample = get_tape_history_samples(TexCoord);
 
-		// Get texture dimensions to calculate position bar
-        ivec2 audio_size = textureSize(audio_history_texture, 0);
+  // Get texture dimensions to calculate position bar
+    ivec2 audio_size = textureSize(audio_history_texture, 0);
+	
+		ivec2 int_coord = ivec2(TexCoord.x * float(audio_size.x), TexCoord.y * float(audio_size.y));
 
-        // Get channel as int
-        int channel = int(TexCoord.y * float(num_channels));
 
-        // Calculate the position of the current position in the audio output texture
-        int window_offset = int(TexCoord.x * float(speed_in_samples_per_buffer));
-        int position_in_window = tape_position - tape_window_offset_samples + window_offset;
+    // Get channel as int
+    int channel = int(TexCoord.y * float(num_channels));
 
-        // Calculate the position of the current position in the audio output texture
-        int audio_width = audio_size.x;
-        int audio_height = audio_size.y / num_channels / 2; // 2 because we need to store both the audio data and the zeros
+    // Calculate the position of the current position in the audio output texture
+    int window_offset = int(TexCoord.x * float(speed_in_samples_per_buffer));
+    int position_in_window = tape_position - tape_window_offset_samples + window_offset;
 
-        // Calculate the x and y position of the current position in the audio output texture
-        int x_position = position_in_window % audio_width;
-        int y_row_position = position_in_window / audio_width;
+    // Calculate the position of the current position in the audio output texture
+    int audio_width = audio_size.x;
+    int audio_height = audio_size.y / num_channels / 2; // 2 because we need to store both the audio data and the zeros
 
-        // Calculate y_position for each channel and check if we're on the correct one
-        // Only highlight channel 0 to avoid duplicate lines
-        int y_position = ( y_row_position * num_channels + channel) * 2;
+    // Calculate the x and y position of the current position in the audio output texture
+    int x_position = position_in_window % audio_width;
+    int y_row_position = position_in_window / audio_width;
 
-        // Convert the x y into texture coordinates
-        vec2 texture_coord = vec2(float(x_position) / float(audio_size.x), float(y_position) / float(audio_size.y));
+    // Calculate y_position for each channel and check if we're on the correct one
+    // Only highlight channel 0 to avoid duplicate lines
+    int y_position = ( y_row_position * num_channels + channel) * 2;
 
-        // Output the tape playback sample
-        output_audio_texture = texture(audio_history_texture, TexCoord);
-        debug_audio_texture = stream_audio + tape_sample;
+    // Convert the x y into texture coordinates
+    vec2 texture_coord = vec2(float(x_position) / float(audio_size.x), (float(y_position) + 0.5) / float(audio_size.y)); // Offset for max data
+    
+        // Output the tape playback sample + stream audio (matching GL test for consistency)
+        output_audio_texture = texture(audio_history_texture, TexCoord) + color;
+        debug_audio_texture = output_audio_texture + stream_audio + tape_sample;
     }
     )";
     
@@ -154,9 +157,9 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - visualization test", "[audio_hist
 	constexpr int SAMPLE_RATE = 44100;
 	constexpr float TEST_FREQUENCY = 440.0f;
 	constexpr float BASE_AMPLITUDE = 0.2f; // Base amplitude, increases by 0.2 per channel
-	constexpr int RECORD_DURATION_SECONDS = 2;
+	constexpr int RECORD_DURATION_SECONDS = 4;
 	constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
-	constexpr int PLAYBACK_DURATION_SECONDS = 1;
+	constexpr int PLAYBACK_DURATION_SECONDS = 2;
 	constexpr int NUM_PLAYBACK_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * PLAYBACK_DURATION_SECONDS;
 	constexpr float WINDOW_SIZE_SECONDS = 0.5f;
 	constexpr int VISUALIZATION_WIDTH = 1024;
@@ -181,39 +184,35 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - visualization test", "[audio_hist
 	MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
 	playback_stage.get_history().set_tape(tape);
 
-	AudioGeneratorRenderStage generator_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, "build/shaders/multinote_sine_generator_render_stage.glsl");
-
-	    // Remove the envelope for clean sine wave
-		auto attack_param = generator_stage.find_parameter("attack_time");
-		attack_param->set_value(0.0f);
-		auto decay_param = generator_stage.find_parameter("decay_time");
-		decay_param->set_value(0.0f);
-		auto sustain_param = generator_stage.find_parameter("sustain_level");
-		sustain_param->set_value(1.0f);
-		auto release_param = generator_stage.find_parameter("release_time");
-		release_param->set_value(0.0f);
+	//AudioGeneratorRenderStage generator_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, "build/shaders/multinote_sine_generator_render_stage.glsl");
 
 	// Create final render stage
 	AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
 	
 	// Connect playback stage to final stage
-	REQUIRE(generator_stage.connect_render_stage(&playback_stage));
+	//REQUIRE(generator_stage.connect_render_stage(&playback_stage));
 	REQUIRE(playback_stage.connect_render_stage(&final_stage));
 	
 	// Initialize stages
-	REQUIRE(generator_stage.initialize());
+	//REQUIRE(generator_stage.initialize());
 	REQUIRE(playback_stage.initialize());
 	REQUIRE(final_stage.initialize());
 	
-	// Set viewport to match window size
-	glViewport(0, 0, VISUALIZATION_WIDTH, VISUALIZATION_HEIGHT);
-	
 	context.prepare_draw();
-	REQUIRE(generator_stage.bind());
+	// Note: Don't set viewport here - stages handle their own framebuffer viewports
+	// The window viewport should only be used for screen rendering, not audio processing
+	//REQUIRE(generator_stage.bind());
 	REQUIRE(playback_stage.bind());
 	REQUIRE(final_stage.bind());
 
-	generator_stage.play_note({TEST_FREQUENCY, BASE_AMPLITUDE});
+	//generator_stage.play_note({TEST_FREQUENCY, BASE_AMPLITUDE});
+	
+	// Clear stream_audio_texture to ensure it's zero when no previous stage is connected
+	// This matches the GL test where no generator stage feeds into playback_stage
+	auto stream_param = playback_stage.find_parameter("stream_audio_texture");
+	if (stream_param) {
+		stream_param->clear_value();
+	}
 	
 	SECTION("Record sine wave and playback at different speeds with audio output") {
 		// Collect input sine wave data per channel
@@ -265,12 +264,12 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - visualization test", "[audio_hist
 		
 		// Configure playback at the parameterized speed
 		playback_stage.get_history().set_tape_speed(PLAYBACK_SPEED);
-		playback_stage.get_history().set_tape_position(0u);
+		playback_stage.get_history().set_tape_position(tape->size() / 2);
 		playback_stage.play();
 
 		// Check the speed setting
 		int speed_samples_per_buffer = *static_cast<const int*>(playback_stage.get_history().m_tape_speed->get_value());
-		REQUIRE(static_cast<float>(speed_samples_per_buffer) == Catch::Approx(PLAYBACK_SPEED * BUFFER_SIZE).margin(0.001f));
+		REQUIRE(static_cast<float>(speed_samples_per_buffer) == Catch::Approx(PLAYBACK_SPEED * BUFFER_SIZE).margin(1.00f));
 		
 		// Render and play audio
 		std::vector<float> recorded_output;
@@ -283,12 +282,9 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - visualization test", "[audio_hist
 			global_time->set_value(frame);
 			global_time->render();
 
-			// Ensure VAO is bound for screen rendering
-			context.prepare_draw();
-			
 			// Render generator stage (generates sine wave)
-			generator_stage.render(frame);
-			
+			//generator_stage.render(frame);
+
 			// Render playback stage (updates tape history texture)
 			playback_stage.render(frame);
 			
@@ -312,6 +308,8 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - visualization test", "[audio_hist
 				auto channel = i % NUM_CHANNELS;
 				output_samples_per_channel[channel].push_back(output_data[i]);
 			}
+
+		    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 			
 			// Push to audio output (output_data is interleaved format)
 			while (!audio_output.is_ready()) {
@@ -397,10 +395,5 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - visualization test", "[audio_hist
 	}
 	
 	delete global_time;
-
-}
-
-TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - placeholder", "[audio_history2][visualization][gl_test][template]",
-			   PlaybackTestParam1, PlaybackTestParam2, PlaybackTestParam3, PlaybackTestParam4, PlaybackTestParam5, PlaybackTestParam6) {
 
 }

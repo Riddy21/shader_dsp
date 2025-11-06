@@ -2,6 +2,7 @@
 
 #include "catch2/catch_all.hpp"
 #include "framework/test_gl.h"
+#include "framework/csv_test_output.h"
 
 #define private public
 #include "audio_render_stage/audio_render_stage_history.h"
@@ -114,11 +115,6 @@ protected:
 	void render(const unsigned int time) override {
 
 		m_history2->update_audio_history_texture();
-		printf("Current tape_position: %u\n", m_history2->get_tape_position());
-		printf("Current window_offset_samples: %u\n", m_history2->get_window_offset_samples());
-		printf("Current window_size_samples: %u\n", m_history2->get_window_size_samples());
-		printf("Current tape_speed_samples_per_buffer: %d\n", m_history2->get_tape_speed_samples_per_buffer());
-
 		AudioRenderStage::render(time);
 		m_history2->set_tape_position(m_history2->get_tape_position() + m_history2->get_tape_speed_samples_per_buffer());
 	}
@@ -132,6 +128,7 @@ private:
 
 TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio output", "[audio_history2][playback][audio_output][gl_test][template]",
 			   PlaybackTestParam1, PlaybackTestParam2, PlaybackTestParam3, PlaybackTestParam4, PlaybackTestParam5, PlaybackTestParam6) {
+
 	constexpr auto P = get_playback_test_params(TestType::value);
 	constexpr int BUFFER_SIZE = P.buffer_size;
 	constexpr int NUM_CHANNELS = P.num_channels;
@@ -241,7 +238,7 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 		for (int frame = 0; frame < max_frames; ++frame) {
 			global_time->set_value(frame);
 			global_time->render();
-			
+
 			// Render playback stage (updates tape history texture)
 			playback_stage.render(frame);
 			
@@ -319,30 +316,206 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 			               << "_channels_" << NUM_CHANNELS << ".csv";
 			std::string filename = filename_stream.str();
 			
-			std::ofstream csv_file(filename);
-			REQUIRE(csv_file.is_open());
+			// Use CSV framework utility for consistent format
+			CSVTestOutput csv_writer(filename, SAMPLE_RATE);
+			REQUIRE(csv_writer.is_open());
+			csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+			csv_writer.close();
 			
-			// Write header
-			csv_file << "sample_index,time_seconds";
-			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
-				csv_file << ",channel_" << ch;
-			}
-			csv_file << std::endl;
-			
-			// Write data (all channels)
-			unsigned int num_samples = output_samples_per_channel[0].size();
-			for (unsigned int i = 0; i < num_samples; ++i) {
-				double time_seconds = static_cast<double>(i) / SAMPLE_RATE;
-				csv_file << i << "," << std::fixed << std::setprecision(9) << time_seconds;
-				for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
-					csv_file << "," << output_samples_per_channel[ch][i];
-				}
-				csv_file << std::endl;
-			}
-			
-			csv_file.close();
-			std::cout << "Wrote output audio to " << filename << " (" << num_samples << " samples, " 
+			std::cout << "Wrote output audio to " << filename << " (" << output_samples_per_channel[0].size() << " samples, " 
 			          << NUM_CHANNELS << " channels, speed=" << PLAYBACK_SPEED << "x)" << std::endl;
+		}
+	}
+
+	delete global_time;
+}
+
+TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - mock tape playback stage buffer output with continuity check", "[audio_history2][playback][buffer_output][continuity][gl_test][template]",
+			   PlaybackTestParam1, PlaybackTestParam2, PlaybackTestParam3, PlaybackTestParam4, PlaybackTestParam5, PlaybackTestParam6) {
+
+	constexpr auto P = get_playback_test_params(TestType::value);
+	constexpr int BUFFER_SIZE = P.buffer_size;
+	constexpr int NUM_CHANNELS = P.num_channels;
+	constexpr float PLAYBACK_SPEED = P.speed;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr float TEST_FREQUENCY = 440.0f;
+	constexpr float BASE_AMPLITUDE = 0.2f; // Base amplitude, increases by 0.2 per channel
+	constexpr int RECORD_DURATION_SECONDS = 4;
+	constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
+	constexpr int PLAYBACK_DURATION_SECONDS = 2;
+	constexpr int NUM_PLAYBACK_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * PLAYBACK_DURATION_SECONDS;
+	constexpr float WINDOW_SIZE_SECONDS = 0.5f;
+
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Create tape and mock playback stage
+	auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
+	playback_stage.get_history().set_tape(tape);
+	
+	// Initialize playback stage (no final render stage needed)
+	REQUIRE(playback_stage.initialize());
+	
+	context.prepare_draw();
+	REQUIRE(playback_stage.bind());
+	
+	SECTION("Record sine wave and playback at different speeds with buffer output and continuity check") {
+		// Record sine wave to tape - generate per channel with increasing amplitudes
+		std::vector<float> phases(NUM_CHANNELS, 0.0f);
+		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
+			// Generate sine wave per channel with different amplitudes
+			// Channel 0: 0.2, Channel 1: 0.4, Channel 2: 0.6, Channel 3: 0.8, etc.
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				float channel_amplitude = BASE_AMPLITUDE * (ch + 1);
+				// Generate sine wave for this specific channel
+				auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, channel_amplitude, SAMPLE_RATE, BUFFER_SIZE, 1, phases[ch]);
+				// Copy to channel-major buffer (sine_buffer is interleaved but has only 1 channel)
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
+				}
+				phases[ch] += BUFFER_SIZE;
+			}
+			
+			tape->record(channel_major_buffer.data());
+		}
+		
+		REQUIRE(tape->size() > 0);
+		
+		// Initialize output sample vectors for this speed (per channel)
+		std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			output_samples_per_channel[ch].reserve(SAMPLE_RATE * PLAYBACK_DURATION_SECONDS);
+		}
+		
+		// Configure playback at the parameterized speed
+		playback_stage.get_history().set_tape_speed(PLAYBACK_SPEED);
+		auto middle_position = tape->size() / 2;
+		playback_stage.get_history().set_tape_position(middle_position);
+		playback_stage.play();
+
+		// Check the speed setting
+		int speed_samples_per_buffer = *static_cast<const int*>(playback_stage.get_history().m_tape_speed->get_value());
+		REQUIRE(static_cast<float>(speed_samples_per_buffer) == Catch::Approx(PLAYBACK_SPEED * BUFFER_SIZE).margin(1.00f));
+		
+		// Render and capture output to buffer (no final render stage)
+		unsigned int frame_count = 0;
+		const unsigned int max_frames = NUM_PLAYBACK_FRAMES;
+		
+		for (int frame = 0; frame < max_frames; ++frame) {
+			global_time->set_value(frame);
+			global_time->render();
+			
+			// Render playback stage (updates tape history texture)
+			playback_stage.render(frame);
+			
+			// Get output directly from playback stage (not from final render stage)
+			auto output_param = playback_stage.find_parameter("output_audio_texture");
+			REQUIRE(output_param != nullptr);
+			
+			const float* output_data = static_cast<const float*>(output_param->get_value());
+			REQUIRE(output_data != nullptr);
+			
+			// Store for verification
+			// Output data is interleaved: [frame0_ch0, frame0_ch1, frame1_ch0, frame1_ch1, ...]
+			// De-interleave to separate channels
+			for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+				auto channel = i % NUM_CHANNELS;
+				output_samples_per_channel[channel].push_back(output_data[i]);
+			}
+			
+			frame_count++;
+			
+			// Stop playback if we've reached the end of the tape
+			if (playback_stage.get_history().get_tape_position() >= tape->size()) {
+				playback_stage.stop();
+				break;
+			}
+		}
+		// Stop playback
+		playback_stage.stop();
+		
+		SECTION("Continuity and Discontinuity Check") {
+			// Check for sample-to-sample discontinuities per channel
+			// Similar to audio_tape_render_stage_gl_test.cpp and audio_effect_render_stage_gl_test.cpp
+			constexpr float DISCONTINUITY_THRESHOLD = 0.1f; // Conservative threshold for multi-tone content
+			
+			for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				const auto& samples = output_samples_per_channel[ch];
+				std::vector<size_t> discontinuity_indices;
+				std::vector<float> discontinuity_magnitudes;
+				
+				// Calculate sample-to-sample differences to detect discontinuities
+				for (size_t i = 1; i < samples.size(); ++i) {
+					float sample_diff = std::abs(samples[i] - samples[i - 1]);
+					if (sample_diff > DISCONTINUITY_THRESHOLD) {
+						discontinuity_indices.push_back(i);
+						discontinuity_magnitudes.push_back(sample_diff);
+					}
+				}
+				
+				INFO("Channel " << ch << " analysis:");
+				INFO("  Total samples: " << samples.size());
+				INFO("  Discontinuity threshold: " << DISCONTINUITY_THRESHOLD);
+				INFO("  Found " << discontinuity_indices.size() << " discontinuities");
+				
+				if (!discontinuity_indices.empty()) {
+					INFO("  First 5 discontinuity magnitudes:");
+					for (size_t i = 0; i < std::min(discontinuity_indices.size(), size_t(5)); ++i) {
+						INFO("    Sample " << discontinuity_indices[i] << ": " << discontinuity_magnitudes[i]);
+					}
+				}
+				
+				// Verify continuity - no discontinuities should occur
+				REQUIRE(discontinuity_indices.size() == 0);
+			}
+		}
+		
+		SECTION("Amplitude and Signal Characteristics") {
+			// Verify that output has reasonable amplitude characteristics
+			for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				const auto& samples = output_samples_per_channel[ch];
+				
+				// Check that we have samples
+				REQUIRE(samples.size() > 0);
+				
+				// Check amplitude range (should be reasonable)
+				float max_amplitude = 0.0f;
+				for (float sample : samples) {
+					max_amplitude = std::max(max_amplitude, std::abs(sample));
+				}
+				
+				INFO("Channel " << ch << " max amplitude: " << max_amplitude);
+				// Max amplitude should be reasonable (not clipped, not zero)
+				REQUIRE(max_amplitude > 0.01f); // Should have some signal
+				REQUIRE(max_amplitude < 2.0f);   // Should not be excessively loud
+			}
+		}
+		
+		SECTION("Export to CSV") {
+			// Create CSV filename with test parameters
+			std::ostringstream csv_filename_stream;
+			csv_filename_stream << "playback_history_buffer_speed_" << std::fixed << std::setprecision(6) << PLAYBACK_SPEED 
+			                   << "_channels_" << NUM_CHANNELS << ".csv";
+			std::string csv_filename = csv_filename_stream.str();
+			
+			// Write output data to CSV using framework utility
+			CSVTestOutput csv_writer(csv_filename, SAMPLE_RATE);
+			REQUIRE(csv_writer.is_open());
+			csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+			csv_writer.close();
+			
+			INFO("CSV file written to: " << csv_filename);
+			INFO("To analyze discontinuities, run:");
+			INFO("  cd playground && python3 analyze_discontinuities.py ../" << csv_filename << " --detect-only");
+			INFO("Or view all samples:");
+			INFO("  cd playground && python3 analyze_discontinuities.py ../" << csv_filename);
 		}
 	}
 

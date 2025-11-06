@@ -158,6 +158,12 @@ def build_tests(env, specific_test=None, test_case=None, section=None, verbose=F
     test_files = Glob(os.path.join(TEST_DIR, '*_test.cpp'), strings=True)
     framework_test_files = Glob(os.path.join(TEST_FRAMEWORK_DIR, '*_test.cpp'), strings=True) if os.path.exists(TEST_FRAMEWORK_DIR) else []
     
+    # Add framework utility .cpp files (not test files) - needed for CSV output etc.
+    framework_utils = []
+    if os.path.exists(TEST_FRAMEWORK_DIR):
+        all_framework_cpp = Glob(os.path.join(TEST_FRAMEWORK_DIR, '*.cpp'), strings=True)
+        framework_utils = [src for src in all_framework_cpp if os.path.basename(src) != 'test_main.cpp' and not src.endswith('_test.cpp')]
+    
     # Add the test files from the framework directory
     all_test_files = test_files + framework_test_files
     
@@ -181,7 +187,7 @@ def build_tests(env, specific_test=None, test_case=None, section=None, verbose=F
         
         if specific_test_file:
             print(f"Building and running specific test: {specific_test}")
-            test_objects = create_objects(env, [main_test_src, specific_test_file] + LIB_SOURCES, BUILD_DIR, 'tests')
+            test_objects = create_objects(env, [main_test_src, specific_test_file] + framework_utils + LIB_SOURCES, BUILD_DIR, 'tests')
             test_executable = env.Program(target=os.path.join(BUILD_DIR, 'tests', specific_test), source=test_objects)
             
             # Create a temp directory for XDG_RUNTIME_DIR
@@ -224,7 +230,7 @@ def build_tests(env, specific_test=None, test_case=None, section=None, verbose=F
             print(f"  - {os.path.basename(test_file)}")
         
         # Build the all-in-one test executable for filtering
-        test_objects = create_objects(test_env, [main_test_src] + test_files_without_main + LIB_SOURCES, BUILD_DIR, 'tests')
+        test_objects = create_objects(test_env, [main_test_src] + test_files_without_main + framework_utils + LIB_SOURCES, BUILD_DIR, 'tests')
         all_tests_executable = test_env.Program(target=os.path.join(BUILD_DIR, 'tests', 'all_tests'), source=test_objects)
         
         # Create a command to run all tests with filters
@@ -267,7 +273,7 @@ def build_tests(env, specific_test=None, test_case=None, section=None, verbose=F
         print(f"  - {test_name}")
         
         # Build individual test executable
-        test_objects = create_objects(test_env, [main_test_src, test_file] + LIB_SOURCES, BUILD_DIR, 'tests')
+        test_objects = create_objects(test_env, [main_test_src, test_file] + framework_utils + LIB_SOURCES, BUILD_DIR, 'tests')
         test_executable = test_env.Program(target=os.path.join(BUILD_DIR, 'tests', test_name), source=test_objects)
         
         # Create a temp directory for XDG_RUNTIME_DIR

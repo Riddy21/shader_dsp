@@ -22,7 +22,7 @@ vec4 get_tape_history_samples(vec2 TexCoord) {
 
     // Calculate the position of the current position in the audio output texture
     int window_offset = int(TexCoord.x * float(speed_in_samples_per_buffer));
-    int position_in_window = tape_position - tape_window_offset_samples + window_offset;
+    int position_in_window = tape_position - tape_window_offset_samples + window_offset - 1;
 
     // Calculate the position of the current position in the audio output texture
     int audio_width = audio_size.x;

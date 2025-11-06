@@ -596,8 +596,6 @@ void AudioRenderStageHistory2::update_audio_history_texture() {
 
         // Update the window offset samples to the current tape position
         set_window_offset_samples(window_offset_samples);
-        printf("Updated window offset samples to %u\n", window_offset_samples);
-        
     }
 }
 
@@ -608,10 +606,31 @@ bool AudioRenderStageHistory2::is_audio_texture_data_outdated() {
     int samples_per_buffer = get_tape_speed_samples_per_buffer();
     unsigned int frame_size_samples = static_cast<unsigned int>(std::abs(samples_per_buffer));
 
-    unsigned int texture_start_position = get_window_offset_samples() + frame_size_samples;
-    unsigned int texture_end_position = texture_start_position + get_window_size_samples() - frame_size_samples;
-
-    return tape_position < texture_start_position || tape_position >= texture_end_position;
+    unsigned int window_offset = get_window_offset_samples();
+    unsigned int window_size = get_window_size_samples();
+    
+    // Calculate valid range: we need margin at both ends to ensure smooth playback
+    // The valid range excludes frame_size_samples from each end to provide safety margin
+    // This prevents accessing samples outside the window during rendering
+    unsigned int valid_start = window_offset + frame_size_samples;
+    unsigned int valid_end = window_offset + window_size - frame_size_samples;
+    
+    // Check if we're outside the valid range OR approaching the boundary
+    // Update preemptively when within 2 buffer sizes of the boundary to ensure continuity
+    // This prevents discontinuities when the window updates mid-render
+    unsigned int safety_margin = frame_size_samples * 2;
+    
+    // For forward playback: check if we're approaching the end or have passed start
+    if (samples_per_buffer >= 0) {
+        bool past_start = tape_position < valid_start;
+        bool near_end = tape_position >= (valid_end > safety_margin ? valid_end - safety_margin : 0);
+        return past_start || near_end;
+    } else {
+        // For reverse playback: check if we're approaching the start or have passed end
+        bool past_end = tape_position >= valid_end;
+        bool near_start = tape_position < (valid_start + safety_margin);
+        return past_end || near_start;
+    }
 }
 
 const unsigned int AudioRenderStageHistory2::get_window_offset_samples_for_tape_data() const {
