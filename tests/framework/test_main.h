@@ -3,8 +3,6 @@
 #define TEST_MAIN_H
 
 #include "catch2/catch_all.hpp"
-#include "tests/framework/test_access.h"
-#include "tests/framework/test_mock.h"
 #include <cstdlib>
 #include <string>
 #include <algorithm>
@@ -13,8 +11,8 @@
 #define TEST_CASE_WITH_MOCKS(name, tags) \
     TEST_CASE(name, tags) { \
         struct MockResetter { \
-            MockResetter() { Mock::reset(); } \
-            ~MockResetter() { Mock::reset(); } \
+            MockResetter() { } \
+            ~MockResetter() { } \
         } mockResetter;
 
 /**

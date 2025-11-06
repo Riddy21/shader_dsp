@@ -90,7 +90,7 @@ public:
 
     // TODO: Implement incrementally updating the texture with tape playback data
     // When paused (speed = 0) it will stop updating position
-    void update_audio_history_texture();
+    void update_audio_history_texture(const unsigned int time);
 
     std::string get_audio_history_texture_name() { return m_audio_history_texture_name; }
     

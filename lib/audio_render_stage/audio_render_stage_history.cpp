@@ -536,7 +536,7 @@ void AudioRenderStageHistory2::set_window_offset_samples(const unsigned int wind
 }
 
 // TODO: Change this to use mtime
-void AudioRenderStageHistory2::update_audio_history_texture() {
+void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
     // Steps needed:
     // 1. Check if texture is created
     // 2. Check if tape is assigned (lock weak_ptr)
@@ -564,11 +564,11 @@ void AudioRenderStageHistory2::update_audio_history_texture() {
     // FIXME: If we swap the tape need to update the tape position and audio data in the texture
     // TODO: Add wraparound if wanted
 
-    // Increment tape position based on tape speed (can be negative for reverse playback)
+    // Get current position and speed before any updates
     int speed_samples = get_tape_speed_samples_per_buffer();
-    auto current_position = get_tape_position(); // Reuse variable declared above
+    unsigned int current_position = get_tape_position();
 
-    // TODO: This needs work, not too sure yet
+    // Check boundaries BEFORE updating texture to avoid updating at boundaries
     // Handle negative speed: clamp to 0 minimum
     if (speed_samples < 0 && static_cast<unsigned int>(-speed_samples) > current_position) {
         set_tape_position(0u);
@@ -577,6 +577,9 @@ void AudioRenderStageHistory2::update_audio_history_texture() {
         set_tape_position(tape->size());
         return;
     }
+
+    // Advance tape position based on tape speed (can be negative for reverse playback)
+    set_tape_position(current_position + speed_samples);
 
     // Check if the audio history texture needs to be updated
     if (is_audio_texture_data_outdated()) {
@@ -639,9 +642,18 @@ const unsigned int AudioRenderStageHistory2::get_window_offset_samples_for_tape_
 
     float speed_ratio = get_tape_speed_ratio();
     if (speed_ratio > 0.0f) {
+        // For positive speed, offset is position - 1, but clamp to 0 minimum to avoid underflow
+        if (tape_position == 0) {
+            return 0;
+        }
         return tape_position - 1;
     } else if (speed_ratio < 0.0f) {
-        return tape_position - get_window_size_samples();
+        unsigned int window_size = get_window_size_samples();
+        // For negative speed, offset is position - window_size, but clamp to 0 minimum
+        if (tape_position < window_size) {
+            return 0;
+        }
+        return tape_position - window_size;
     }
     return 0;
 

@@ -115,9 +115,8 @@ public:
 protected:
 	void render(const unsigned int time) override {
 
-		m_history2->update_audio_history_texture();
+		m_history2->update_audio_history_texture(time);
 		AudioRenderStage::render(time);
-		m_history2->set_tape_position(m_history2->get_tape_position() + m_history2->get_tape_speed_samples_per_buffer());
 	}
 
 private:
