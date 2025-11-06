@@ -88,6 +88,13 @@ public:
     // Get window offset in seconds (calculated from samples parameter)
     const float get_window_offset_seconds() const;
 
+    // Tape control functions
+    void stop_tape(); // Manually stop the tape
+    void start_tape(); // Manually start the tape (resume from current position)
+    bool is_tape_stopped() const; // Check if tape is stopped
+    bool is_tape_at_beginning() const; // Check if tape is at the beginning
+    bool is_tape_at_end() const; // Check if tape is at the end
+
     // TODO: Implement incrementally updating the texture with tape playback data
     // When paused (speed = 0) it will stop updating position
     void update_audio_history_texture(const unsigned int time);
@@ -100,6 +107,7 @@ private:
     AudioParameter * m_tape_window_size_samples; // Will communicate the window size in samples to the tape, so thats the maximum amount of samples that can be played at once
     AudioParameter * m_tape_speed; // Will communicate the speed of the tape to the tape, so thats the speed of the tape
     AudioParameter * m_tape_window_offset_samples; // Will communicate the current offset of the audio history texture in the window (in samples) from the start of the window
+    AudioParameter * m_tape_stopped; // Flag indicating if tape is stopped (1 = stopped, 0 = playing)
 
     std::weak_ptr<AudioTape> m_tape; // Weak reference to tape
 
@@ -122,6 +130,13 @@ private:
 
     bool is_audio_texture_data_outdated();
     const unsigned int get_window_offset_samples_for_tape_data() const;
+    
+    // Helper functions for update_audio_history_texture
+    int calculate_time_delta(const unsigned int time);
+    int calculate_backwards_time_delta(const unsigned int time);
+    bool should_clamp_position(int samples_to_advance, unsigned int current_position, unsigned int tape_size);
+    void clamp_position(int samples_to_advance, unsigned int current_position, unsigned int tape_size);
+    void update_texture_if_needed(std::shared_ptr<AudioTape> tape);
 };
 
 class AudioTape {

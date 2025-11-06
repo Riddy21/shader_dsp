@@ -384,7 +384,8 @@ AudioRenderStageHistory2::AudioRenderStageHistory2(const unsigned int frames_per
       m_tape_position(nullptr),
       m_tape_window_size_samples(nullptr),
       m_tape_speed(nullptr),
-      m_tape_window_offset_samples(nullptr) {
+      m_tape_window_offset_samples(nullptr),
+      m_tape_stopped(nullptr) {
     
     // Convert seconds to samples
     float buffer_size_seconds = history_buffer_size_seconds;
@@ -435,6 +436,10 @@ void AudioRenderStageHistory2::create_parameters(GLuint& active_texture_count) {
     // Set to large value to ensure texture updates on first frame
     static_cast<AudioIntParameter*>(m_tape_window_offset_samples)->set_value(1000000000);
     
+    // Create tape stopped flag parameter (1 = stopped, 0 = playing)
+    m_tape_stopped = new AudioIntParameter("tape_stopped", AudioParameter::ConnectionType::INPUT);
+    static_cast<AudioIntParameter*>(m_tape_stopped)->set_value(0); // Start as playing
+    
     // Increment active_texture_count for the texture we just created
     active_texture_count++;
 }
@@ -446,6 +451,7 @@ std::vector<AudioParameter*> AudioRenderStageHistory2::get_parameters() const {
     if (m_tape_speed) params.push_back(m_tape_speed);
     if (m_tape_window_size_samples) params.push_back(m_tape_window_size_samples);
     if (m_tape_window_offset_samples) params.push_back(m_tape_window_offset_samples);
+    if (m_tape_stopped) params.push_back(m_tape_stopped);
     return params;
 }
 
@@ -535,114 +541,177 @@ void AudioRenderStageHistory2::set_window_offset_samples(const unsigned int wind
     }
 }
 
-void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
-    // Steps needed:
-    // 1. Check if texture is created
-    // 2. Check if tape is assigned (lock weak_ptr)
-    // 3. Calculate read window based on current position and window size
-    // 4. Read audio data from tape using playback()
-    // 5. Convert from channel-major order to texture format (matching AudioRenderStageHistory format)
-    // 6. Update texture with converted data
-    // 7. Advance tape position based on playback speed (if speed != 0)
-    // 8. Update uniform parameters with new position
+void AudioRenderStageHistory2::stop_tape() {
+    if (m_tape_stopped) {
+        static_cast<AudioIntParameter*>(m_tape_stopped)->set_value(1);
+    }
+    // Set speed to 0 to stop playback
+    set_tape_speed(0.0f);
+}
 
-    // Calculate time delta - use signed int to support backwards time movement
-    int time_delta;
-    if (m_last_time == 0) {
-        // First frame: default increment to 1 buffer period
-        time_delta = 1;
-    } else {
-        // Calculate signed delta to support backwards time movement
-        // Handle potential wraparound: if time < m_last_time, assume large backwards jump
-        // For normal backwards movement, we'll get a negative delta
-        if (time < m_last_time) {
-            // Check if this is wraparound (time went from large to small) or backwards movement
-            // If the difference is very large (> half of unsigned int max), assume wraparound
-            unsigned int diff = m_last_time - time;
-            if (diff > (std::numeric_limits<unsigned int>::max() / 2)) {
-                // Likely wraparound - treat as backwards movement with reasonable delta
-                // Use a small negative delta to avoid huge jumps
-                time_delta = -1;
-            } else {
-                // Normal backwards movement
-                time_delta = -static_cast<int>(diff);
-            }
-        } else {
-            time_delta = static_cast<int>(time - m_last_time);
-        }
-        
-        if (time_delta == 0) {
-            return; // Time hasn't changed, no update needed
-        }
+void AudioRenderStageHistory2::start_tape() {
+    if (m_tape_stopped) {
+        static_cast<AudioIntParameter*>(m_tape_stopped)->set_value(0);
+    }
+    // Speed should be set separately by user, we just clear the stopped flag
+}
+
+bool AudioRenderStageHistory2::is_tape_stopped() const {
+    if (m_tape_stopped) {
+        return *static_cast<const int*>(m_tape_stopped->get_value()) != 0;
+    }
+    return false;
+}
+
+bool AudioRenderStageHistory2::is_tape_at_beginning() const {
+    return get_tape_position() == 0u;
+}
+
+bool AudioRenderStageHistory2::is_tape_at_end() const {
+    auto tape = m_tape.lock();
+    if (!tape) {
+        return false;
+    }
+    return get_tape_position() >= tape->size();
+}
+
+void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
+    // Early returns for invalid states
+    int time_delta = calculate_time_delta(time);
+    if (time_delta == 0) {
+        return; // Time hasn't changed, no update needed
     }
     
-    // Update last time for next call
-    m_last_time = time;
-
-    // If the speed is 0, then don't update the texture
-    if (get_tape_speed_ratio() == 0.0f) {
+    // Check if tape is stopped - if so, don't update
+    if (is_tape_stopped()) {
         return;
+    }
+    
+    if (get_tape_speed_ratio() == 0.0f) {
+        return; // Speed is 0, don't update
     }
     
     if (!m_audio_history_texture) {
         return; // Texture not created yet
     }
-
+    
     auto tape = m_tape.lock();
     if (!tape) {
         return; // Tape not assigned
     }
     
-    // FIXME: If we swap the tape need to update the tape position and audio data in the texture
-    // TODO: Add wraparound if wanted
-
-    // Get current position and speed before any updates
-    int speed_samples_per_buffer = get_tape_speed_samples_per_buffer();
-    unsigned int current_position = get_tape_position();
+    // Get current state
+    const unsigned int current_position = get_tape_position();
+    const int speed_samples_per_buffer = get_tape_speed_samples_per_buffer();
+    const int samples_to_advance = time_delta * speed_samples_per_buffer;
     
-    // Calculate how many samples to advance based on time delta
-    // time_delta represents number of buffer periods (time increments once per frames_per_buffer)
-    // So multiply by speed_samples_per_buffer to get total samples to advance
-    // time_delta can be negative for backwards time movement
-    int samples_to_advance = time_delta * speed_samples_per_buffer;
+    // Check boundaries and clamp if necessary - also stop tape at boundaries
+    if (should_clamp_position(samples_to_advance, current_position, tape->size())) {
+        clamp_position(samples_to_advance, current_position, tape->size());
+        // Stop tape when reaching boundaries (trying to go past start or end)
+        stop_tape();
+        return;
+    }
+    
+    // Update texture if needed (before advancing position)
+    update_texture_if_needed(tape);
+    
+    // Advance position based on time delta and speed
+    const unsigned int new_position = current_position + samples_to_advance;
+    set_tape_position(new_position);
+    
+    // Check if we've reached the end or beginning after advancing
+    // Only stop if we're trying to go past the boundary (not if we're already at it)
+    // For forward movement: stop if we've reached or exceeded the end
+    // For backward movement: stop if we've reached the beginning (0)
+    if (samples_to_advance > 0 && new_position >= tape->size()) {
+        stop_tape();
+    } else if (samples_to_advance < 0 && new_position == 0u && current_position > 0u) {
+        // Only stop if we were moving backwards and reached 0 (not if we were already at 0)
+        stop_tape();
+    }
+}
 
-    // Check boundaries BEFORE updating texture to avoid updating at boundaries
-    // Handle negative speed: clamp to 0 minimum
+int AudioRenderStageHistory2::calculate_time_delta(const unsigned int time) {
+    // First frame: default increment to 1 buffer period
+    if (m_last_time == 0) {
+        m_last_time = time;
+        return 1;
+    }
+    
+    // Calculate signed delta to support backwards time movement
+    int time_delta;
+    if (time < m_last_time) {
+        time_delta = calculate_backwards_time_delta(time);
+    } else {
+        time_delta = static_cast<int>(time - m_last_time);
+    }
+    
+    m_last_time = time;
+    return time_delta;
+}
+
+int AudioRenderStageHistory2::calculate_backwards_time_delta(const unsigned int time) {
+    const unsigned int diff = m_last_time - time;
+    
+    // Check if this is wraparound (very large difference) or normal backwards movement
+    // If difference > half of unsigned int max, assume wraparound
+    const unsigned int wraparound_threshold = std::numeric_limits<unsigned int>::max() / 2;
+    
+    if (diff > wraparound_threshold) {
+        // Likely wraparound - use small negative delta to avoid huge jumps
+        return -1;
+    } else {
+        // Normal backwards movement
+        return -static_cast<int>(diff);
+    }
+}
+
+bool AudioRenderStageHistory2::should_clamp_position(int samples_to_advance, 
+                                                      unsigned int current_position, 
+                                                      unsigned int tape_size) {
+    // Moving backwards beyond start
     if (samples_to_advance < 0 && static_cast<unsigned int>(-samples_to_advance) > current_position) {
+        return true;
+    }
+    
+    // Moving forwards beyond end
+    if (samples_to_advance > 0 && current_position + static_cast<unsigned int>(samples_to_advance) >= tape_size) {
+        return true;
+    }
+    
+    return false;
+}
+
+void AudioRenderStageHistory2::clamp_position(int samples_to_advance, 
+                                               unsigned int current_position, 
+                                               unsigned int tape_size) {
+    if (samples_to_advance < 0) {
         set_tape_position(0u);
-        return;
-    } else if (samples_to_advance > 0 && current_position + static_cast<unsigned int>(samples_to_advance) >= tape->size()) {
-        set_tape_position(tape->size());
+    } else {
+        set_tape_position(tape_size);
+    }
+}
+
+void AudioRenderStageHistory2::update_texture_if_needed(std::shared_ptr<AudioTape> tape) {
+    if (!is_audio_texture_data_outdated()) {
         return;
     }
-
-    // Check if the audio history texture needs to be updated BEFORE advancing position
-    // Offset should be calculated from position before advancement
-    bool needs_update = is_audio_texture_data_outdated();
-    if (needs_update) {
-        // FIXME: Positive offset samples are not working correctly for +ve speeds
-        auto window_offset_samples = get_window_offset_samples_for_tape_data();
-
-        // Get the piece of tape data directly in texture format
-        std::vector<float> texture_data = tape->playback_for_render_stage_history(
-            get_window_size_samples(),
-            window_offset_samples,
-            m_texture_width,
-            m_texture_rows_per_channel);
-
-        // Update the texture directly with the formatted data
-        if (m_audio_history_texture) {
-            static_cast<AudioTexture2DParameter*>(m_audio_history_texture)->set_value(texture_data.data());
-        }
-
-        // Update the window offset samples to the current tape position (before advancement)
-        set_window_offset_samples(window_offset_samples);
-    }
-
-    // Advance tape position based on tape speed and time delta (can be negative for reverse playback)
-    // This happens AFTER texture update to ensure offset is calculated from position before advancement
-    set_tape_position(current_position + samples_to_advance);
-
+    
+    const unsigned int window_offset_samples = get_window_offset_samples_for_tape_data();
+    
+    // Get tape data in texture format
+    std::vector<float> texture_data = tape->playback_for_render_stage_history(
+        get_window_size_samples(),
+        window_offset_samples,
+        m_texture_width,
+        m_texture_rows_per_channel);
+    
+    // Update texture
+    static_cast<AudioTexture2DParameter*>(m_audio_history_texture)->set_value(texture_data.data());
+    
+    // Update window offset parameter
+    set_window_offset_samples(window_offset_samples);
 }
 
 bool AudioRenderStageHistory2::is_audio_texture_data_outdated() {

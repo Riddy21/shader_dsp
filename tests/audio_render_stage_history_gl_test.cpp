@@ -558,10 +558,368 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - mock tape playback stage buffer o
 	delete global_time;
 }
 
-// Test playback at different positions
+TEST_CASE("AudioRenderStageHistory2 - tape stop functionality", "[audio_history2][tape_stop][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr float TEST_FREQUENCY = 440.0f;
+	constexpr float AMPLITUDE = 0.5f;
+	constexpr int RECORD_DURATION_SECONDS = 2;
+	constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
+	constexpr float WINDOW_SIZE_SECONDS = 0.5f;
 
-// Test playback with different sized tapes
-
-// Test discontinuities with different window sizes
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
 	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Create tape and mock playback stage
+	auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
+	playback_stage.get_history().set_tape(tape);
+	
+	// Create final render stage
+	AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	
+	// Connect playback stage to final stage
+	REQUIRE(playback_stage.connect_render_stage(&final_stage));
+	
+	// Initialize stages
+	REQUIRE(playback_stage.initialize());
+	REQUIRE(final_stage.initialize());
+	
+	context.prepare_draw();
+	REQUIRE(playback_stage.bind());
+	REQUIRE(final_stage.bind());
+	
+	// Record sine wave to tape
+	std::vector<float> phases(NUM_CHANNELS, 0.0f);
+	for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
+		std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, AMPLITUDE, SAMPLE_RATE, BUFFER_SIZE, 1, phases[ch]);
+			for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+				channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
+			}
+			phases[ch] += BUFFER_SIZE;
+		}
+		tape->record(channel_major_buffer.data());
+	}
+	
+	REQUIRE(tape->size() > 0);
+	
+	SECTION("Tape stops automatically at end during forward playback") {
+		// Start playback near the end
+		playback_stage.get_history().set_tape_speed(1.0f);
+		unsigned int tape_size = tape->size();
+		unsigned int start_position = tape_size - (static_cast<unsigned int>(BUFFER_SIZE) * 5); // Start 5 buffers before end
+		playback_stage.get_history().set_tape_position(start_position);
+		playback_stage.play();
+		
+		REQUIRE(playback_stage.get_history().is_tape_stopped() == false);
+		REQUIRE(playback_stage.get_history().is_tape_at_end() == false);
+		
+		// Render frames until tape reaches end
+		unsigned int frame = 0;
+		bool reached_end = false;
+		for (int i = 0; i < 20; ++i) { // Enough frames to reach end
+			global_time->set_value(frame);
+			global_time->render();
+			
+			playback_stage.render(frame);
+			final_stage.render(frame);
+			
+			// Check if tape has stopped
+			if (playback_stage.get_history().is_tape_stopped()) {
+				reached_end = true;
+				REQUIRE(playback_stage.get_history().is_tape_at_end() == true);
+				REQUIRE(playback_stage.get_history().get_tape_position() >= tape_size);
+				break;
+			}
+			
+			frame++;
+		}
+		
+		REQUIRE(reached_end == true);
+		REQUIRE(playback_stage.get_history().is_tape_stopped() == true);
+	}
+	
+	SECTION("Tape stops automatically at beginning during backward playback") {
+		// Start playback near the beginning
+		playback_stage.get_history().set_tape_speed(-1.0f);
+		unsigned int start_position = static_cast<unsigned int>(BUFFER_SIZE * 2); // Start 5 buffers from beginning
+		playback_stage.get_history().set_tape_position(start_position);
+		playback_stage.get_history().start_tape(); // Ensure tape is not stopped
+		playback_stage.play();
+		
+		REQUIRE(playback_stage.get_history().is_tape_stopped() == false);
+		REQUIRE(playback_stage.get_history().is_tape_at_beginning() == false);
+		
+		// Render frames until tape reaches beginning
+		unsigned int frame = 0;
+		bool reached_beginning = false;
+		for (int i = 0; i < 20; ++i) { // Enough frames to reach beginning
+			global_time->set_value(frame);
+			global_time->render();
+			
+			playback_stage.render(frame);
+			final_stage.render(frame);
+			
+			// Check if tape has stopped
+			if (playback_stage.get_history().is_tape_stopped()) {
+				reached_beginning = true;
+				REQUIRE(playback_stage.get_history().is_tape_at_beginning() == true);
+				REQUIRE(playback_stage.get_history().get_tape_position() == 0u);
+				break;
+			}
+			
+			frame++;
+		}
+		
+		REQUIRE(reached_beginning == true);
+		REQUIRE(playback_stage.get_history().is_tape_stopped() == true);
+	}
+	
+	SECTION("Manual stop and start functionality") {
+		playback_stage.get_history().set_tape_speed(1.0f);
+		playback_stage.get_history().set_tape_position(tape->size() / 2);
+		playback_stage.get_history().start_tape();
+		playback_stage.play();
+		
+		REQUIRE(playback_stage.get_history().is_tape_stopped() == false);
+		
+		// Render a few frames
+		for (int i = 0; i < 5; ++i) {
+			global_time->set_value(i);
+			global_time->render();
+			playback_stage.render(i);
+			final_stage.render(i);
+		}
+		
+		unsigned int position_before_stop = playback_stage.get_history().get_tape_position();
+		
+		// Manually stop the tape
+		playback_stage.get_history().stop_tape();
+		REQUIRE(playback_stage.get_history().is_tape_stopped() == true);
+		REQUIRE(playback_stage.get_history().get_tape_speed_ratio() == 0.0f);
+		
+		// Render more frames - position should not change
+		for (int i = 5; i < 10; ++i) {
+			global_time->set_value(i);
+			global_time->render();
+			playback_stage.render(i);
+			final_stage.render(i);
+		}
+		
+		unsigned int position_after_stop = playback_stage.get_history().get_tape_position();
+		REQUIRE(position_after_stop == position_before_stop);
+		
+		// Start the tape again and set speed
+		playback_stage.get_history().start_tape();
+		playback_stage.get_history().set_tape_speed(1.0f);
+		REQUIRE(playback_stage.get_history().is_tape_stopped() == false);
+		
+		// Render more frames - position should advance
+		unsigned int position_before_start = playback_stage.get_history().get_tape_position();
+		for (int i = 10; i < 15; ++i) {
+			global_time->set_value(i);
+			global_time->render();
+			playback_stage.render(i);
+			final_stage.render(i);
+		}
+		
+		unsigned int position_after_start = playback_stage.get_history().get_tape_position();
+		REQUIRE(position_after_start > position_before_start);
+	}
+	
+	SECTION("Shader outputs zeros when tape is stopped") {
+		playback_stage.get_history().set_tape_speed(1.0f);
+		playback_stage.get_history().set_tape_position(tape->size() / 2);
+		playback_stage.get_history().start_tape();
+		playback_stage.play();
+		
+		// Render a few frames to get some audio output
+		for (int i = 0; i < 3; ++i) {
+			global_time->set_value(i);
+			global_time->render();
+			playback_stage.render(i);
+			final_stage.render(i);
+		}
+		
+		// Get output before stopping
+		auto output_param_before = final_stage.find_parameter("final_output_audio_texture");
+		REQUIRE(output_param_before != nullptr);
+		const float* output_before = static_cast<const float*>(output_param_before->get_value());
+		REQUIRE(output_before != nullptr);
+		
+		// Check that we have some non-zero samples before stopping
+		bool has_non_zero_before = false;
+		for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+			if (std::abs(output_before[i]) > 0.001f) {
+				has_non_zero_before = true;
+				break;
+			}
+		}
+		REQUIRE(has_non_zero_before == true);
+		
+		// Stop the tape
+		playback_stage.get_history().stop_tape();
+		REQUIRE(playback_stage.get_history().is_tape_stopped() == true);
+		
+		// Render frames after stopping
+		for (int i = 3; i < 6; ++i) {
+			global_time->set_value(i);
+			global_time->render();
+			playback_stage.render(i);
+			final_stage.render(i);
+		}
+		
+		// Get output after stopping
+		auto output_param_after = final_stage.find_parameter("final_output_audio_texture");
+		REQUIRE(output_param_after != nullptr);
+		const float* output_after = static_cast<const float*>(output_param_after->get_value());
+		REQUIRE(output_after != nullptr);
+		
+		// Check that all samples are zero (or very close to zero)
+		bool all_zero = true;
+		for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+			if (std::abs(output_after[i]) > 0.001f) {
+				all_zero = false;
+				INFO("Non-zero sample found at index " << i << ": " << output_after[i]);
+				break;
+			}
+		}
+		REQUIRE(all_zero == true);
+	}
+	
+	SECTION("Tape state flags are correct") {
+		// Test at beginning
+		playback_stage.get_history().set_tape_position(0u);
+		REQUIRE(playback_stage.get_history().is_tape_at_beginning() == true);
+		REQUIRE(playback_stage.get_history().is_tape_at_end() == false);
+		
+		// Test in middle
+		playback_stage.get_history().set_tape_position(tape->size() / 2);
+		REQUIRE(playback_stage.get_history().is_tape_at_beginning() == false);
+		REQUIRE(playback_stage.get_history().is_tape_at_end() == false);
+		
+		// Test at end
+		playback_stage.get_history().set_tape_position(tape->size());
+		REQUIRE(playback_stage.get_history().is_tape_at_beginning() == false);
+		REQUIRE(playback_stage.get_history().is_tape_at_end() == true);
+		
+		// Test beyond end
+		playback_stage.get_history().set_tape_position(tape->size() + 1000);
+		REQUIRE(playback_stage.get_history().is_tape_at_end() == true);
+	}
+	
+	SECTION("Tape stops at end and outputs zeros") {
+		playback_stage.get_history().set_tape_speed(1.0f);
+		unsigned int tape_size = tape->size();
+		// Start very close to end
+		unsigned int start_position = tape_size - static_cast<unsigned int>(BUFFER_SIZE);
+		playback_stage.get_history().set_tape_position(start_position);
+		playback_stage.get_history().start_tape();
+		playback_stage.play();
+		
+		// Render until tape stops
+		unsigned int frame = 0;
+		for (int i = 0; i < 10; ++i) {
+			global_time->set_value(frame);
+			global_time->render();
+			
+			playback_stage.render(frame);
+			final_stage.render(frame);
+			
+			if (playback_stage.get_history().is_tape_stopped()) {
+				break;
+			}
+			frame++;
+		}
+		
+		REQUIRE(playback_stage.get_history().is_tape_stopped() == true);
+		REQUIRE(playback_stage.get_history().is_tape_at_end() == true);
+		
+		// Render a few more frames after stopping
+		for (int i = 0; i < 3; ++i) {
+			global_time->set_value(frame);
+			global_time->render();
+			playback_stage.render(frame);
+			final_stage.render(frame);
+			frame++;
+		}
+		
+		// Check that output is zeros
+		auto output_param = final_stage.find_parameter("final_output_audio_texture");
+		REQUIRE(output_param != nullptr);
+		const float* output_data = static_cast<const float*>(output_param->get_value());
+		REQUIRE(output_data != nullptr);
+		
+		bool all_zero = true;
+		for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+			if (std::abs(output_data[i]) > 0.001f) {
+				all_zero = false;
+				INFO("Non-zero sample found at index " << i << ": " << output_data[i]);
+				break;
+			}
+		}
+		REQUIRE(all_zero == true);
+	}
+	
+	SECTION("Tape stops at beginning and outputs zeros") {
+		playback_stage.get_history().set_tape_speed(-1.0f);
+		// Start close to beginning
+		unsigned int start_position = static_cast<unsigned int>(BUFFER_SIZE * 2);
+		playback_stage.get_history().set_tape_position(start_position);
+		playback_stage.get_history().start_tape();
+		playback_stage.play();
+		
+		// Render until tape stops
+		unsigned int frame = 0;
+		for (int i = 0; i < 10; ++i) {
+			global_time->set_value(frame);
+			global_time->render();
+			
+			playback_stage.render(frame);
+			final_stage.render(frame);
+			
+			if (playback_stage.get_history().is_tape_stopped()) {
+				break;
+			}
+			frame++;
+		}
+		
+		REQUIRE(playback_stage.get_history().is_tape_stopped() == true);
+		REQUIRE(playback_stage.get_history().is_tape_at_beginning() == true);
+		
+		// Render a few more frames after stopping
+		for (int i = 0; i < 3; ++i) {
+			global_time->set_value(frame);
+			global_time->render();
+			playback_stage.render(frame);
+			final_stage.render(frame);
+			frame++;
+		}
+		
+		// Check that output is zeros
+		auto output_param = final_stage.find_parameter("final_output_audio_texture");
+		REQUIRE(output_param != nullptr);
+		const float* output_data = static_cast<const float*>(output_param->get_value());
+		REQUIRE(output_data != nullptr);
+		
+		bool all_zero = true;
+		for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+			if (std::abs(output_data[i]) > 0.001f) {
+				all_zero = false;
+				INFO("Non-zero sample found at index " << i << ": " << output_data[i]);
+				break;
+			}
+		}
+		REQUIRE(all_zero == true);
+	}
 
+	delete global_time;
+}

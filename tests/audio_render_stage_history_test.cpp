@@ -968,6 +968,9 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
     }
     
     SECTION("Backwards time - wraparound handling") {
+        // Set a large initial position so backwards movement doesn't hit boundary
+        history.set_tape_position(100000u);
+        
         // First call at time = 100
         history.update_audio_history_texture(100);
         unsigned int position_after_first = history.get_tape_position();
@@ -979,13 +982,27 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
         unsigned int position_after_backwards = history.get_tape_position();
         
         // With backwards time support, position should move backwards
-        // Delta = -50, so position moves backwards by 50 * speed_samples
+        // Delta = -50 (or -1 if wraparound detected), so position moves backwards
         int speed_samples = history.get_tape_speed_samples_per_buffer();
-        unsigned int expected_position = position_after_first - (50 * speed_samples);
         
-        // But if this would go below 0, it gets clamped
-        if (50 * speed_samples > position_after_first) {
+        // Check if wraparound was detected (difference > half max)
+        // 100 - 50 = 50, which is not > half max, so delta should be -50
+        unsigned int samples_to_move_back = 50 * static_cast<unsigned int>(speed_samples);
+        
+        // Calculate expected position, accounting for unsigned wrap-around
+        unsigned int expected_position;
+        bool should_hit_boundary = samples_to_move_back > position_after_first;
+        
+        if (should_hit_boundary) {
+            // Would go below 0, so clamp to 0 and tape stops
             expected_position = 0u;
+            // Tape should be stopped when clamped to 0
+            REQUIRE(history.is_tape_stopped() == true);
+        } else {
+            // Normal backwards movement
+            expected_position = position_after_first - samples_to_move_back;
+            // Tape should not be stopped if we didn't hit boundary
+            REQUIRE(history.is_tape_stopped() == false);
         }
         
         REQUIRE(position_after_backwards == expected_position);
@@ -994,6 +1011,11 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
         REQUIRE(history.m_last_time == 50);
         
         // Next call with forward time should work normally
+        // But first we need to start the tape again since it was stopped at boundary
+        if (should_hit_boundary) {
+            history.start_tape();
+            history.set_tape_speed(1.0f); // Restore speed
+        }
         history.update_audio_history_texture(51);
         unsigned int position_after_forward = history.get_tape_position();
         

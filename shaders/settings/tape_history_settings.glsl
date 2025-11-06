@@ -3,6 +3,7 @@ uniform int tape_position;
 uniform int speed_in_samples_per_buffer;
 uniform int tape_window_size_samples;
 uniform int tape_window_offset_samples;
+uniform int tape_stopped; // 1 = stopped, 0 = playing
 
 // Get the size of the audio history texture in samples per channel
 int get_tape_history_size() {
@@ -14,6 +15,11 @@ int get_tape_history_size() {
 // Returns the audio sample (vec4) from the audio_history_texture at the current tape position
 // TexCoord: texture coordinates from the current shader (channel is encoded in TexCoord.y)
 vec4 get_tape_history_samples(vec2 TexCoord) {
+    // If tape is stopped, return zeros
+    if (tape_stopped != 0) {
+        return vec4(0.0);
+    }
+    
     // Get texture dimensions to calculate position bar
     ivec2 audio_size = textureSize(audio_history_texture, 0);
 
