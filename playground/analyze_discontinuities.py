@@ -18,7 +18,7 @@ except ImportError:
     MATPLOTLIB_AVAILABLE = False
     print("Warning: matplotlib not available. Graphical features disabled.")
 
-def print_all_samples(csv_file, channel='both', max_samples=None):
+def print_all_samples(csv_file, channel='all', max_samples=None):
     """Print every single audio sample value."""
     if not os.path.exists(csv_file):
         print(f"Error: CSV file '{csv_file}' not found.")
@@ -31,20 +31,45 @@ def print_all_samples(csv_file, channel='both', max_samples=None):
     print()
     
     # Determine which channels to print
-    # Handle both old format (channel_0, channel_1) and new format (left_channel, right_channel)
+    # Support multi-channel by auto-detecting channel_0, channel_1, channel_2, etc.
     channels_to_print = []
-    if channel in ['both', 'left', 'l']:
+    
+    if channel == 'all' or channel == 'multi':
+        # Auto-detect all channels (channel_0, channel_1, channel_2, ...)
+        ch_idx = 0
+        while f'channel_{ch_idx}' in df.columns:
+            channels_to_print.append((f'channel_{ch_idx}', f'Ch{ch_idx}'))
+            ch_idx += 1
+        
+        # Fallback to legacy formats if no channel_N columns found
+        if not channels_to_print:
+            if 'left_channel' in df.columns:
+                channels_to_print.append(('left_channel', 'L'))
+            if 'right_channel' in df.columns:
+                channels_to_print.append(('right_channel', 'R'))
+            if 'amplitude' in df.columns and not channels_to_print:
+                channels_to_print.append(('amplitude', 'Amp'))
+    elif channel in ['both', 'left', 'l']:
         if 'left_channel' in df.columns:
             channels_to_print.append(('left_channel', 'L'))
         elif 'channel_0' in df.columns:
-            channels_to_print.append(('channel_0', 'L'))
+            channels_to_print.append(('channel_0', 'Ch0'))
         elif 'amplitude' in df.columns:
-            channels_to_print.append(('amplitude', 'L'))
-    if channel in ['both', 'right', 'r']:
+            channels_to_print.append(('amplitude', 'Amp'))
+    elif channel in ['both', 'right', 'r']:
         if 'right_channel' in df.columns:
             channels_to_print.append(('right_channel', 'R'))
         elif 'channel_1' in df.columns:
-            channels_to_print.append(('channel_1', 'R'))
+            channels_to_print.append(('channel_1', 'Ch1'))
+    else:
+        # Try to parse channel number (e.g., 'channel_2' or '2')
+        try:
+            ch_num = int(channel)
+            ch_col = f'channel_{ch_num}'
+            if ch_col in df.columns:
+                channels_to_print.append((ch_col, f'Ch{ch_num}'))
+        except ValueError:
+            pass
     
     # Limit number of samples if specified
     total_samples = len(df)
@@ -55,20 +80,20 @@ def print_all_samples(csv_file, channel='both', max_samples=None):
         print(f"Printing all {total_samples} samples")
     
     print()
-    print("=" * 80)
+    print("=" * 100)
     print("RAW AUDIO SAMPLE VALUES")
-    print("=" * 80)
-    print("Format: Frame | Time(s) | Left_Channel | Right_Channel | Difference")
-    print("=" * 80)
+    print("=" * 100)
     
-    # Print header
+    # Build header dynamically for multi-channel
+    header_parts = [f"{'Frame':>6}", f"{'Time(s)':>8}"]
+    for _, label in channels_to_print:
+        header_parts.append(f"{label:>12}")
     if len(channels_to_print) == 2:
-        print(f"{'Frame':>6} | {'Time(s)':>8} | {'Left':>12} | {'Right':>12} | {'Diff':>12}")
-    else:
-        channel_name = channels_to_print[0][1]
-        print(f"{'Frame':>6} | {'Time(s)':>8} | {channel_name:>12}")
+        header_parts.append(f"{'Diff':>12}")
+    header_line = " | ".join(header_parts)
     
-    print("-" * 80)
+    print(header_line)
+    print("-" * len(header_line))
     
     # Check for frame or sample_index column (handle both formats)
     frame_col = 'frame' if 'frame' in df.columns else 'sample_index'
@@ -82,22 +107,24 @@ def print_all_samples(csv_file, channel='both', max_samples=None):
         frame = int(row[frame_col])
         time_sec = row['time_seconds'] if 'time_seconds' in df.columns else frame / 44100.0  # Use time_seconds if available
         
-        if len(channels_to_print) == 2:
-            left_col, left_label = channels_to_print[0]
-            right_col, right_label = channels_to_print[1]
-            left_val = row[left_col]
-            right_val = row[right_col]
-            diff = abs(left_val - right_val)
-            print(f"{frame:>6} | {time_sec:>8.6f} | {left_val:>12.8f} | {right_val:>12.8f} | {diff:>12.8f}")
-        else:
-            channel_col, channel_label = channels_to_print[0]
+        row_parts = [f"{frame:>6}", f"{time_sec:>8.6f}"]
+        values = []
+        for channel_col, _ in channels_to_print:
             val = row[channel_col]
-            print(f"{frame:>6} | {time_sec:>8.6f} | {val:>12.8f}")
+            values.append(val)
+            row_parts.append(f"{val:>12.8f}")
+        
+        # Add difference for 2-channel case
+        if len(channels_to_print) == 2:
+            diff = abs(values[0] - values[1])
+            row_parts.append(f"{diff:>12.8f}")
+        
+        print(" | ".join(row_parts))
     
-    print("=" * 80)
+    print("=" * len(header_line))
     print(f"Printed {len(df)} samples")
 
-def detect_large_jumps(csv_file, threshold=0.1, channel='both'):
+def detect_large_jumps(csv_file, threshold=0.1, channel='all'):
     """Detect and highlight large jumps in the audio signal."""
     if not os.path.exists(csv_file):
         print(f"Error: CSV file '{csv_file}' not found.")
@@ -109,20 +136,45 @@ def detect_large_jumps(csv_file, threshold=0.1, channel='both'):
     print()
     
     # Determine which channels to analyze
-    # Handle both old format (channel_0, channel_1) and new format (left_channel, right_channel)
+    # Support multi-channel by auto-detecting channel_0, channel_1, channel_2, etc.
     channels_to_analyze = []
-    if channel in ['both', 'left', 'l']:
+    
+    if channel == 'all' or channel == 'multi':
+        # Auto-detect all channels (channel_0, channel_1, channel_2, ...)
+        ch_idx = 0
+        while f'channel_{ch_idx}' in df.columns:
+            channels_to_analyze.append((f'channel_{ch_idx}', f'Channel {ch_idx}'))
+            ch_idx += 1
+        
+        # Fallback to legacy formats if no channel_N columns found
+        if not channels_to_analyze:
+            if 'left_channel' in df.columns:
+                channels_to_analyze.append(('left_channel', 'Left'))
+            if 'right_channel' in df.columns:
+                channels_to_analyze.append(('right_channel', 'Right'))
+            if 'amplitude' in df.columns and not channels_to_analyze:
+                channels_to_analyze.append(('amplitude', 'Amplitude'))
+    elif channel in ['both', 'left', 'l']:
         if 'left_channel' in df.columns:
             channels_to_analyze.append(('left_channel', 'Left'))
         elif 'channel_0' in df.columns:
-            channels_to_analyze.append(('channel_0', 'Left'))
+            channels_to_analyze.append(('channel_0', 'Channel 0'))
         elif 'amplitude' in df.columns:
-            channels_to_analyze.append(('amplitude', 'Left'))
-    if channel in ['both', 'right', 'r']:
+            channels_to_analyze.append(('amplitude', 'Amplitude'))
+    elif channel in ['both', 'right', 'r']:
         if 'right_channel' in df.columns:
             channels_to_analyze.append(('right_channel', 'Right'))
         elif 'channel_1' in df.columns:
-            channels_to_analyze.append(('channel_1', 'Right'))
+            channels_to_analyze.append(('channel_1', 'Channel 1'))
+    else:
+        # Try to parse channel number (e.g., 'channel_2' or '2')
+        try:
+            ch_num = int(channel)
+            ch_col = f'channel_{ch_num}'
+            if ch_col in df.columns:
+                channels_to_analyze.append((ch_col, f'Channel {ch_num}'))
+        except ValueError:
+            pass
     
     print("=" * 100)
     print("DISCONTINUITY DETECTION")
@@ -154,7 +206,7 @@ def detect_large_jumps(csv_file, threshold=0.1, channel='both'):
     
     return discontinuity_count, channels_to_analyze, df
 
-def visualize_discontinuities(csv_file, threshold=0.1, channel='both', save_path=None):
+def visualize_discontinuities(csv_file, threshold=0.1, channel='all', save_path=None):
     """Create graphical visualization of discontinuities."""
     if not MATPLOTLIB_AVAILABLE:
         print("Error: matplotlib is required for graphical visualization.")
@@ -167,20 +219,45 @@ def visualize_discontinuities(csv_file, threshold=0.1, channel='both', save_path
     
     df = pd.read_csv(csv_file)
     
-    # Determine which channels to analyze
+    # Determine which channels to analyze (same logic as detect_large_jumps)
     channels_to_analyze = []
-    if channel in ['both', 'left', 'l']:
+    
+    if channel == 'all' or channel == 'multi':
+        # Auto-detect all channels (channel_0, channel_1, channel_2, ...)
+        ch_idx = 0
+        while f'channel_{ch_idx}' in df.columns:
+            channels_to_analyze.append((f'channel_{ch_idx}', f'Channel {ch_idx}'))
+            ch_idx += 1
+        
+        # Fallback to legacy formats if no channel_N columns found
+        if not channels_to_analyze:
+            if 'left_channel' in df.columns:
+                channels_to_analyze.append(('left_channel', 'Left'))
+            if 'right_channel' in df.columns:
+                channels_to_analyze.append(('right_channel', 'Right'))
+            if 'amplitude' in df.columns and not channels_to_analyze:
+                channels_to_analyze.append(('amplitude', 'Amplitude'))
+    elif channel in ['both', 'left', 'l']:
         if 'left_channel' in df.columns:
             channels_to_analyze.append(('left_channel', 'Left'))
         elif 'channel_0' in df.columns:
-            channels_to_analyze.append(('channel_0', 'Left'))
+            channels_to_analyze.append(('channel_0', 'Channel 0'))
         elif 'amplitude' in df.columns:
-            channels_to_analyze.append(('amplitude', 'Left'))
-    if channel in ['both', 'right', 'r']:
+            channels_to_analyze.append(('amplitude', 'Amplitude'))
+    elif channel in ['both', 'right', 'r']:
         if 'right_channel' in df.columns:
             channels_to_analyze.append(('right_channel', 'Right'))
         elif 'channel_1' in df.columns:
-            channels_to_analyze.append(('channel_1', 'Right'))
+            channels_to_analyze.append(('channel_1', 'Channel 1'))
+    else:
+        # Try to parse channel number (e.g., 'channel_2' or '2')
+        try:
+            ch_num = int(channel)
+            ch_col = f'channel_{ch_num}'
+            if ch_col in df.columns:
+                channels_to_analyze.append((ch_col, f'Channel {ch_num}'))
+        except ValueError:
+            pass
     
     if not channels_to_analyze:
         print("Error: No valid channels found for visualization.")
@@ -291,12 +368,12 @@ def visualize_discontinuities(csv_file, threshold=0.1, channel='both', save_path
 def main():
     parser = argparse.ArgumentParser(description='Analyze audio discontinuities by printing all sample values')
     parser.add_argument('csv_file', help='Path to the CSV file containing audio data')
-    parser.add_argument('--channel', choices=['left', 'right', 'both', 'l', 'r'], default='both',
-                       help='Which channel to analyze (default: both)')
+    parser.add_argument('--channel', type=str, default='all',
+                       help='Which channel(s) to analyze: "all" (auto-detect all), "left"/"l", "right"/"r", "both", or channel number like "0", "1", "2", etc. (default: all)')
     parser.add_argument('--max-samples', type=int, 
                        help='Maximum number of samples to print (default: all)')
-    parser.add_argument('--threshold', type=float, default=0.1,
-                       help='Threshold for discontinuity detection (default: 0.1)')
+    parser.add_argument('--threshold', type=float, default=0.2,
+                       help='Threshold for discontinuity detection (default: 0.2)')
     parser.add_argument('--detect-only', action='store_true',
                        help='Only detect discontinuities, do not print all samples')
     parser.add_argument('--plot', action='store_true',

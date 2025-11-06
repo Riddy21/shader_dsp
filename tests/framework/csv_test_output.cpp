@@ -50,6 +50,14 @@ void CSVTestOutput::write_channels(const std::vector<std::vector<float>>& sample
     unsigned int num_channels = samples_per_channel.size();
     unsigned int num_samples = samples_per_channel[0].size();
     
+    // Verify all channels have the same number of samples
+    for (unsigned int ch = 1; ch < num_channels; ++ch) {
+        if (samples_per_channel[ch].size() != num_samples) {
+            std::cerr << "Warning: Channel " << ch << " has " << samples_per_channel[ch].size() 
+                      << " samples, expected " << num_samples << ". Padding with zeros." << std::endl;
+        }
+    }
+    
     // Write header - use format compatible with analyze_discontinuities.py
     // For stereo: frame,time_seconds,left_channel,right_channel
     // For mono: frame,time_seconds,amplitude

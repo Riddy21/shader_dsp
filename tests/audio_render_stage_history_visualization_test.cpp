@@ -88,7 +88,7 @@ static const char* kTapePlaybackFragSource = R"(
     vec2 texture_coord = vec2(float(x_position) / float(audio_size.x), (float(y_position) + 0.5) / float(audio_size.y)); // Offset for max data
     
         // Output the tape playback sample + stream audio (matching GL test for consistency)
-        output_audio_texture = texture(audio_history_texture, TexCoord) + color;
+        output_audio_texture = texture(audio_history_texture, TexCoord);
         debug_audio_texture = output_audio_texture + stream_audio + tape_sample;
     }
     )";
@@ -302,7 +302,8 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - visualization test", "[audio_hist
 			REQUIRE(output_data != nullptr);
 			
 			// Store for verification
-			// Output data is interleaved: [frame0_ch0, frame0_ch1, frame1_ch0, frame1_ch1, ...]
+			// NOTE: final_output_audio_texture from AudioFinalRenderStage IS interleaved
+			// Layout: [frame0_ch0, frame0_ch1, ..., frame0_chN, frame1_ch0, frame1_ch1, ..., frame1_chN, ...]
 			// De-interleave to separate channels for CSV export
 			for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
 				auto channel = i % NUM_CHANNELS;

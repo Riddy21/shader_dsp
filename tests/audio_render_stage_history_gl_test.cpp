@@ -253,7 +253,8 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 			REQUIRE(output_data != nullptr);
 			
 			// Store for verification
-			// Output data is interleaved: [frame0_ch0, frame0_ch1, frame1_ch0, frame1_ch1, ...]
+			// NOTE: final_output_audio_texture from AudioFinalRenderStage IS interleaved
+			// Layout: [frame0_ch0, frame0_ch1, ..., frame0_chN, frame1_ch0, frame1_ch1, ..., frame1_chN, ...]
 			// De-interleave to separate channels for CSV export
 			for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
 				auto channel = i % NUM_CHANNELS;
@@ -310,6 +311,9 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 		}
 		
 		SECTION("Write output audio to CSV") {
+			// Verify we have the correct number of channels before writing
+			REQUIRE(output_samples_per_channel.size() == NUM_CHANNELS);
+			
 			// Create filename with speed and channels (e.g., "output_audio_speed_1.000000_channels_3.csv")
 			std::ostringstream filename_stream;
 			filename_stream << "output_audio_speed_" << std::fixed << std::setprecision(6) << PLAYBACK_SPEED 
@@ -319,6 +323,12 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 			// Use CSV framework utility for consistent format
 			CSVTestOutput csv_writer(filename, SAMPLE_RATE);
 			REQUIRE(csv_writer.is_open());
+			
+			// Verify all channels have data before writing
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				REQUIRE(output_samples_per_channel[ch].size() > 0);
+			}
+			
 			csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
 			csv_writer.close();
 			
@@ -416,6 +426,9 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - mock tape playback stage buffer o
 			playback_stage.render(frame);
 			
 			// Get output directly from playback stage (not from final render stage)
+			// NOTE: When storing without final render stage, output_audio_texture is NOT interleaved.
+			// It's channel-major: texture is [width=frames_per_buffer, height=num_channels]
+			// Layout: [ch0_sample0, ch0_sample1, ..., ch0_sampleN, ch1_sample0, ch1_sample1, ..., ch1_sampleN, ...]
 			auto output_param = playback_stage.find_parameter("output_audio_texture");
 			REQUIRE(output_param != nullptr);
 			
@@ -423,11 +436,13 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - mock tape playback stage buffer o
 			REQUIRE(output_data != nullptr);
 			
 			// Store for verification
-			// Output data is interleaved: [frame0_ch0, frame0_ch1, frame1_ch0, frame1_ch1, ...]
-			// De-interleave to separate channels
-			for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
-				auto channel = i % NUM_CHANNELS;
-				output_samples_per_channel[channel].push_back(output_data[i]);
+			// Convert from channel-major to per-channel vectors
+			// Channel-major layout: [ch0_buffer, ch1_buffer, ch2_buffer, ...]
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				const float* channel_data = output_data + (ch * BUFFER_SIZE);
+				for (int i = 0; i < BUFFER_SIZE; ++i) {
+					output_samples_per_channel[ch].push_back(channel_data[i]);
+				}
 			}
 			
 			frame_count++;
@@ -499,11 +514,19 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - mock tape playback stage buffer o
 		}
 		
 		SECTION("Export to CSV") {
+			// Verify we have the correct number of channels before writing
+			REQUIRE(output_samples_per_channel.size() == NUM_CHANNELS);
+			
 			// Create CSV filename with test parameters
 			std::ostringstream csv_filename_stream;
 			csv_filename_stream << "playback_history_buffer_speed_" << std::fixed << std::setprecision(6) << PLAYBACK_SPEED 
 			                   << "_channels_" << NUM_CHANNELS << ".csv";
 			std::string csv_filename = csv_filename_stream.str();
+			
+			// Verify all channels have data before writing
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				REQUIRE(output_samples_per_channel[ch].size() > 0);
+			}
 			
 			// Write output data to CSV using framework utility
 			CSVTestOutput csv_writer(csv_filename, SAMPLE_RATE);
