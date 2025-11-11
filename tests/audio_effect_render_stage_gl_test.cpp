@@ -1,5 +1,6 @@
 #include "catch2/catch_all.hpp"
 #include "framework/test_gl.h"
+#include "framework/test_main.h"
 
 #include "audio_core/audio_render_stage.h"
 #include "audio_render_stage/audio_effect_render_stage.h"
@@ -524,10 +525,13 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
                   << ECHO_DECAY << " decay, " << NUM_ECHOS << " echoes" << std::endl;
         std::cout << "You should hear a " << SINE_FREQUENCY << "Hz tone for 1 second, followed by echoes." << std::endl;
 
-        // Create audio output for real-time playback
-        AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-        REQUIRE(audio_output.open());
-        REQUIRE(audio_output.start());
+        // Create audio output for real-time playback (only if enabled)
+        AudioPlayerOutput* audio_output = nullptr;
+        if (is_audio_output_enabled()) {
+            audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+            REQUIRE(audio_output->open());
+            REQUIRE(audio_output->start());
+        }
 
         // Convert frequency to MIDI note (A4 = 440Hz = MIDI note 69)
         float midi_note = SINE_FREQUENCY; // A4 note
@@ -571,12 +575,15 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
             //audio_output.push(output_data);
         }
 
-        // Let the audio finish playing
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        
-        // Clean up
-        audio_output.stop();
-        std::cout << "Echo effect playback complete!" << std::endl;
+        // Let the audio finish playing (only if enabled)
+        if (audio_output) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            // Clean up
+            audio_output->stop();
+            audio_output->close();
+            delete audio_output;
+            std::cout << "Echo effect playback complete!" << std::endl;
+        }
         std::cout << "Did you hear the original " << SINE_FREQUENCY << "Hz tone followed by echoes getting progressively quieter?" << std::endl;
     }
 }
@@ -679,10 +686,13 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
     std::vector<float> left_channel, right_channel;
     recorded_audio.reserve(TOTAL_FRAMES * BUFFER_SIZE * NUM_CHANNELS);
     
-    // Create audio output for real-time playback
-    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-    REQUIRE(audio_output.open());
-    REQUIRE(audio_output.start());
+    // Create audio output for real-time playback (only if enabled)
+    AudioPlayerOutput* audio_output = nullptr;
+    if (is_audio_output_enabled()) {
+        audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+        REQUIRE(audio_output->open());
+        REQUIRE(audio_output->start());
+    }
 
     // Timing variables
     float current_time = 0.0f;
@@ -752,9 +762,13 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
         //audio_output.push(output_data);
     }
 
-    // Let audio finish
-    //std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    audio_output.stop();
+    // Let audio finish (only if enabled)
+    if (audio_output) {
+        //std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        audio_output->stop();
+        audio_output->close();
+        delete audio_output;
+    }
     
     // Separate stereo channels for analysis
     for (size_t i = 0; i < recorded_audio.size(); i += NUM_CHANNELS) {
@@ -905,8 +919,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
     //    
     //}
 
-    audio_output.close();
-    
+    // Cleanup audio output was already handled in the test case above
     // Cleanup
     final_render_stage.unbind();
     echo_effect.unbind();
@@ -1100,9 +1113,13 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
               << PLAYBACK_SECONDS << " seconds..." << std::endl;
     std::cout << "You should hear only the " << NOTE1_FREQ << "Hz tone." << std::endl;
 
-    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-    REQUIRE(audio_output.open());
-    REQUIRE(audio_output.start());
+    // Setup audio output (only if enabled)
+    AudioPlayerOutput* audio_output = nullptr;
+    if (is_audio_output_enabled()) {
+        audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+        REQUIRE(audio_output->open());
+        REQUIRE(audio_output->start());
+    }
 
     sine_generator.play_note({NOTE1_FREQ, SINE_AMPLITUDE / 2.0f});
     sine_generator.play_note({NOTE2_FREQ, SINE_AMPLITUDE / 2.0f});
@@ -1131,10 +1148,14 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
         //audio_output.push(output_data);
     }
 
-    //std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    
-    audio_output.stop();
-    std::cout << "Filter effect playback complete!" << std::endl;
+    // Cleanup audio output (only if enabled)
+    if (audio_output) {
+        //std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        audio_output->stop();
+        audio_output->close();
+        delete audio_output;
+        std::cout << "Filter effect playback complete!" << std::endl;
+    }
 
 //    SECTION("Save Recorded Audio to CSV") {
 //        std::ofstream csv_file("./playground/filter_output.csv");
@@ -1215,9 +1236,13 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Dynamic Parameter Ch
     std::cout << "- Resonance: 1.0 -> 3.0 -> 1.0" << std::endl;
     std::cout << "- Filter follower: 0.0 -> 0.5 -> 0.0" << std::endl;
 
-    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-    REQUIRE(audio_output.open());
-    REQUIRE(audio_output.start());
+    // Setup audio output (only if enabled)
+    AudioPlayerOutput* audio_output = nullptr;
+    if (is_audio_output_enabled()) {
+        audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+        REQUIRE(audio_output->open());
+        REQUIRE(audio_output->start());
+    }
 
     // Start playing the square wave
     square_generator.play_note({SQUARE_FREQ, SQUARE_AMPLITUDE});
@@ -1350,9 +1375,14 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Dynamic Parameter Ch
 
     // Stop the note and let audio finish
     square_generator.stop_note(SQUARE_FREQ);
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     
-    audio_output.stop();
+    // Cleanup audio output (only if enabled)
+    if (audio_output) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        audio_output->stop();
+        audio_output->close();
+        delete audio_output;
+    }
     
     // Analyze the collected audio segments
     std::cout << "\n=== Waveform Analysis Results ===" << std::endl;

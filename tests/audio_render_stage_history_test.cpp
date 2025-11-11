@@ -1208,3 +1208,157 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
     }
 }
 
+TEST_CASE("AudioRenderStageHistory2 - tape loop functionality", "[audio_history2][tape_loop]") {
+    const unsigned int frames_per_buffer = 256;
+    const unsigned int sample_rate = 44100;
+    const unsigned int num_channels = 2;
+    const float history_buffer_size_seconds = 2.0f;
+    
+    AudioRenderStageHistory2 history(frames_per_buffer, sample_rate, num_channels, history_buffer_size_seconds);
+    GLuint active_texture_count = 0;
+    history.create_parameters(active_texture_count);
+    
+    // Create a tape with some data
+    auto tape = std::make_shared<AudioTape>(frames_per_buffer, sample_rate, num_channels);
+    history.set_tape(tape);
+    
+    // Record some data to the tape
+    // Each record() call adds frames_per_buffer samples
+    const unsigned int num_frames_to_record = 100u; // Record 100 frames
+    const unsigned int tape_size = num_frames_to_record * frames_per_buffer;
+    for (unsigned int i = 0; i < num_frames_to_record; ++i) {
+        std::vector<float> buffer(frames_per_buffer * num_channels, 0.1f);
+        tape->record(buffer.data());
+    }
+    
+    REQUIRE(tape->size() == tape_size);
+    
+    SECTION("Loop defaults to disabled") {
+        REQUIRE(history.is_tape_loop_enabled() == false);
+    }
+    
+    SECTION("Enable and disable loop") {
+        history.set_tape_loop(true);
+        REQUIRE(history.is_tape_loop_enabled() == true);
+        
+        history.set_tape_loop(false);
+        REQUIRE(history.is_tape_loop_enabled() == false);
+    }
+    
+    SECTION("Loop forward - wraps from end to start") {
+        history.set_tape_loop(true);
+        history.set_tape_speed(1.0f);
+        history.set_tape_position(tape_size - 100u); // Near the end
+        history.start_tape();
+        history.m_last_time = 0;
+        
+        // Advance enough to go past the end
+        int speed_samples = history.get_tape_speed_samples_per_buffer();
+        unsigned int frames_to_wrap = (100u / static_cast<unsigned int>(speed_samples)) + 1;
+        
+        // Call update multiple times to wrap around
+        for (unsigned int t = 1; t <= frames_to_wrap; ++t) {
+            history.update_audio_history_texture(t);
+        }
+        
+        unsigned int final_position = history.get_tape_position();
+        // Should have wrapped to somewhere near the start
+        REQUIRE(final_position < tape_size);
+        REQUIRE(history.is_tape_stopped() == false); // Should not stop when looping
+    }
+    
+    SECTION("Loop backward - wraps from start to end") {
+        history.set_tape_loop(true);
+        history.set_tape_speed(-1.0f);
+        history.set_tape_position(100u); // Near the start
+        history.start_tape();
+        history.m_last_time = 0;
+        
+        // Advance backwards enough to go past the start
+        int speed_samples = history.get_tape_speed_samples_per_buffer();
+        REQUIRE(speed_samples < 0);
+        unsigned int frames_to_wrap = (100u / static_cast<unsigned int>(-speed_samples)) + 1;
+        
+        // Call update multiple times to wrap around
+        for (unsigned int t = 1; t <= frames_to_wrap; ++t) {
+            history.update_audio_history_texture(t);
+        }
+        
+        unsigned int final_position = history.get_tape_position();
+        // Should have wrapped to somewhere near the end
+        REQUIRE(final_position < tape_size);
+        REQUIRE(history.is_tape_stopped() == false); // Should not stop when looping
+    }
+    
+    SECTION("No loop - stops at end") {
+        history.set_tape_loop(false);
+        history.set_tape_speed(1.0f);
+        history.set_tape_position(tape_size - 100u); // Near the end
+        history.start_tape();
+        history.m_last_time = 0;
+        
+        // Advance enough to go past the end
+        int speed_samples = history.get_tape_speed_samples_per_buffer();
+        unsigned int frames_to_end = (100u / static_cast<unsigned int>(speed_samples)) + 1;
+        
+        // Call update enough times to reach the end
+        for (unsigned int t = 1; t <= frames_to_end; ++t) {
+            history.update_audio_history_texture(t);
+            if (history.is_tape_stopped()) {
+                break;
+            }
+        }
+        
+        REQUIRE(history.is_tape_stopped() == true); // Should stop when not looping
+        unsigned int final_position = history.get_tape_position();
+        REQUIRE(final_position >= tape_size); // Should be clamped to end
+    }
+    
+    SECTION("No loop - stops at beginning") {
+        history.set_tape_loop(false);
+        history.set_tape_speed(-1.0f);
+        history.set_tape_position(100u); // Near the start
+        history.start_tape();
+        history.m_last_time = 0;
+        
+        // Advance backwards enough to go past the start
+        int speed_samples = history.get_tape_speed_samples_per_buffer();
+        REQUIRE(speed_samples < 0);
+        unsigned int frames_to_start = (100u / static_cast<unsigned int>(-speed_samples)) + 1;
+        
+        // Call update enough times to reach the start
+        for (unsigned int t = 1; t <= frames_to_start; ++t) {
+            history.update_audio_history_texture(t);
+            if (history.is_tape_stopped()) {
+                break;
+            }
+        }
+        
+        REQUIRE(history.is_tape_stopped() == true); // Should stop when not looping
+        unsigned int final_position = history.get_tape_position();
+        REQUIRE(final_position == 0u); // Should be clamped to start
+    }
+    
+    SECTION("Loop with multiple wraps") {
+        history.set_tape_loop(true);
+        history.set_tape_speed(1.0f);
+        history.set_tape_position(tape_size - 50u); // Near the end
+        history.start_tape();
+        history.m_last_time = 0;
+        
+        int speed_samples = history.get_tape_speed_samples_per_buffer();
+        // Advance enough to wrap multiple times
+        unsigned int frames_to_wrap_multiple = ((tape_size + 200u) / static_cast<unsigned int>(speed_samples)) + 1;
+        
+        // Call update multiple times to wrap around multiple times
+        for (unsigned int t = 1; t <= frames_to_wrap_multiple; ++t) {
+            history.update_audio_history_texture(t);
+        }
+        
+        unsigned int final_position = history.get_tape_position();
+        // Should still be within valid range
+        REQUIRE(final_position < tape_size);
+        REQUIRE(history.is_tape_stopped() == false); // Should not stop when looping
+    }
+}
+

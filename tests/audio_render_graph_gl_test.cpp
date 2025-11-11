@@ -1,5 +1,6 @@
 #include "catch2/catch_all.hpp"
 #include "framework/test_gl.h"
+#include "framework/test_main.h"
 
 #include <thread>
 #include <chrono>
@@ -83,9 +84,13 @@ TEMPLATE_TEST_CASE("AudioRenderGraph sine chain: generator -> final (init/bind v
     global_time_param->set_value(0);
     REQUIRE(global_time_param->initialize());
 
-    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-    REQUIRE(audio_output.open());
-    REQUIRE(audio_output.start());
+    // Setup audio output (only if enabled)
+    AudioPlayerOutput* audio_output = nullptr;
+    if (is_audio_output_enabled()) {
+        audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+        REQUIRE(audio_output->open());
+        REQUIRE(audio_output->start());
+    }
 
     for (int frame = 0; frame < NUM_FRAMES; ++frame) {
         graph->bind();
@@ -98,14 +103,19 @@ TEMPLATE_TEST_CASE("AudioRenderGraph sine chain: generator -> final (init/bind v
         const auto & data = final_stage->get_output_buffer_data();
         REQUIRE(data.size() == static_cast<size_t>(BUFFER_SIZE * NUM_CHANNELS));
 
-        while (!audio_output.is_ready()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        if (audio_output) {
+            while (!audio_output->is_ready()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            audio_output->push(data.data());
         }
-        audio_output.push(data.data());
     }
 
-    audio_output.stop();
-    audio_output.close();
+    if (audio_output) {
+        audio_output->stop();
+        audio_output->close();
+        delete audio_output;
+    }
     
 
     // Cleanup via graph ownership of stages
@@ -1728,10 +1738,13 @@ TEMPLATE_TEST_CASE("AudioRenderGraph sine generator with echo and filter effects
     const float GAIN = 0.4f;    // Moderate gain
     sine_generator->play_note({TONE, GAIN});
 
-    // Create audio output for real-time playback
-    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-    REQUIRE(audio_output.open());
-    REQUIRE(audio_output.start());
+    // Create audio output for real-time playback (only if enabled)
+    AudioPlayerOutput* audio_output = nullptr;
+    if (is_audio_output_enabled()) {
+        audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+        REQUIRE(audio_output->open());
+        REQUIRE(audio_output->start());
+    }
 
     // Vector to store captured output samples for analysis
     std::vector<float> captured_samples;
@@ -1767,13 +1780,21 @@ TEMPLATE_TEST_CASE("AudioRenderGraph sine generator with echo and filter effects
             }
         }
 
-        // Wait for audio output to be ready and push data
-        while (!audio_output.is_ready()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        // Wait for audio output to be ready and push data (only if enabled)
+        if (audio_output) {
+            while (!audio_output->is_ready()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            audio_output->push(data.data());
         }
-        audio_output.push(data.data());
     }
 
+    // Cleanup audio output (only if enabled)
+    if (audio_output) {
+        audio_output->stop();
+        audio_output->close();
+        delete audio_output;
+    }
 
     // Analyze the captured audio for smoothness and continuity
     SECTION("Audio Smoothness Analysis") {
@@ -1913,10 +1934,6 @@ TEMPLATE_TEST_CASE("AudioRenderGraph sine generator with echo and filter effects
         
         std::cout << "Audio smoothness analysis complete - signal appears smooth and continuous" << std::endl;
     }
-
-    // Cleanup
-    audio_output.stop();
-    audio_output.close();
     
     // Cleanup via graph ownership of stages
     delete graph;

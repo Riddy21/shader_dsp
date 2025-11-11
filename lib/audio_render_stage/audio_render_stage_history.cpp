@@ -385,7 +385,8 @@ AudioRenderStageHistory2::AudioRenderStageHistory2(const unsigned int frames_per
       m_tape_window_size_samples(nullptr),
       m_tape_speed(nullptr),
       m_tape_window_offset_samples(nullptr),
-      m_tape_stopped(nullptr) {
+      m_tape_stopped(nullptr),
+      m_tape_loop(nullptr) {
     
     // Convert seconds to samples
     float buffer_size_seconds = history_buffer_size_seconds;
@@ -440,6 +441,10 @@ void AudioRenderStageHistory2::create_parameters(GLuint& active_texture_count) {
     m_tape_stopped = new AudioIntParameter("tape_stopped", AudioParameter::ConnectionType::INPUT);
     static_cast<AudioIntParameter*>(m_tape_stopped)->set_value(0); // Start as playing
     
+    // Create tape loop flag parameter (1 = loop enabled, 0 = loop disabled, default = 0)
+    m_tape_loop = new AudioIntParameter("tape_loop", AudioParameter::ConnectionType::INPUT);
+    static_cast<AudioIntParameter*>(m_tape_loop)->set_value(0); // Default to no loop
+    
     // Increment active_texture_count for the texture we just created
     active_texture_count++;
 }
@@ -452,6 +457,7 @@ std::vector<AudioParameter*> AudioRenderStageHistory2::get_parameters() const {
     if (m_tape_window_size_samples) params.push_back(m_tape_window_size_samples);
     if (m_tape_window_offset_samples) params.push_back(m_tape_window_offset_samples);
     if (m_tape_stopped) params.push_back(m_tape_stopped);
+    if (m_tape_loop) params.push_back(m_tape_loop);
     return params;
 }
 
@@ -563,6 +569,19 @@ bool AudioRenderStageHistory2::is_tape_stopped() const {
     return false;
 }
 
+void AudioRenderStageHistory2::set_tape_loop(bool loop) {
+    if (m_tape_loop) {
+        static_cast<AudioIntParameter*>(m_tape_loop)->set_value(loop ? 1 : 0);
+    }
+}
+
+bool AudioRenderStageHistory2::is_tape_loop_enabled() const {
+    if (m_tape_loop) {
+        return *static_cast<const int*>(m_tape_loop->get_value()) != 0;
+    }
+    return false;
+}
+
 bool AudioRenderStageHistory2::is_tape_at_beginning() const {
     return get_tape_position() == 0u;
 }
@@ -605,30 +624,62 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
     const int speed_samples_per_buffer = get_tape_speed_samples_per_buffer();
     const int samples_to_advance = time_delta * speed_samples_per_buffer;
     
-    // Check boundaries and clamp if necessary - also stop tape at boundaries
-    if (should_clamp_position(samples_to_advance, current_position, tape->size())) {
-        clamp_position(samples_to_advance, current_position, tape->size());
-        // Stop tape when reaching boundaries (trying to go past start or end)
-        stop_tape();
-        return;
-    }
+    // Check if loop is enabled
+    const bool loop_enabled = is_tape_loop_enabled();
+    const unsigned int tape_size = tape->size();
     
-    // Update texture if needed (before advancing position)
-    update_texture_if_needed(tape);
-    
-    // Advance position based on time delta and speed
-    const unsigned int new_position = current_position + samples_to_advance;
-    set_tape_position(new_position);
-    
-    // Check if we've reached the end or beginning after advancing
-    // Only stop if we're trying to go past the boundary (not if we're already at it)
-    // For forward movement: stop if we've reached or exceeded the end
-    // For backward movement: stop if we've reached the beginning (0)
-    if (samples_to_advance > 0 && new_position >= tape->size()) {
-        stop_tape();
-    } else if (samples_to_advance < 0 && new_position == 0u && current_position > 0u) {
-        // Only stop if we were moving backwards and reached 0 (not if we were already at 0)
-        stop_tape();
+    // Handle boundaries: wrap around if looping, otherwise clamp and stop
+    if (should_clamp_position(samples_to_advance, current_position, tape_size)) {
+        if (loop_enabled && tape_size > 0) {
+            // Wrap around: calculate wrapped position
+            unsigned int wrapped_position;
+            if (samples_to_advance < 0) {
+                // Moving backwards past start: wrap to end
+                unsigned int overshoot = static_cast<unsigned int>(-samples_to_advance) - current_position;
+                wrapped_position = (tape_size > overshoot) ? (tape_size - overshoot) : 0u;
+            } else {
+                // Moving forwards past end: wrap to start
+                unsigned int overshoot = (current_position + static_cast<unsigned int>(samples_to_advance)) - tape_size;
+                wrapped_position = overshoot % tape_size;
+            }
+            set_tape_position(wrapped_position);
+            // Update texture after wrapping
+            update_texture_if_needed(tape);
+        } else {
+            // No loop: clamp and stop
+            clamp_position(samples_to_advance, current_position, tape_size);
+            stop_tape();
+            return;
+        }
+    } else {
+        // Update texture if needed (before advancing position)
+        update_texture_if_needed(tape);
+        
+        // Advance position based on time delta and speed
+        unsigned int new_position = current_position + samples_to_advance;
+        
+        // Handle wrapping if loop is enabled and we've crossed a boundary
+        if (loop_enabled) {
+            if (samples_to_advance > 0 && new_position >= tape_size) {
+                // Wrapped past end: wrap to start
+                new_position = new_position % tape_size;
+            } else if (samples_to_advance < 0 && new_position > tape_size) {
+                // Wrapped past start (unsigned wraparound): wrap to end
+                new_position = tape_size - (tape_size - new_position) % tape_size;
+            }
+        }
+        
+        set_tape_position(new_position);
+        
+        // Check if we've reached the end or beginning after advancing (only if not looping)
+        if (!loop_enabled) {
+            if (samples_to_advance > 0 && new_position >= tape_size) {
+                stop_tape();
+            } else if (samples_to_advance < 0 && new_position == 0u && current_position > 0u) {
+                // Only stop if we were moving backwards and reached 0 (not if we were already at 0)
+                stop_tape();
+            }
+        }
     }
 }
 

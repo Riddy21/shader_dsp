@@ -1,5 +1,6 @@
 #include "catch2/catch_all.hpp"
 #include "framework/test_gl.h"
+#include "framework/test_main.h"
 
 #include "audio_core/audio_render_stage.h"
 #include "audio_render_stage/audio_generator_render_stage.h"
@@ -986,8 +987,12 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[aud
     REQUIRE(sine_generator.bind());
     REQUIRE(final_render_stage.bind());
 
-    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-    REQUIRE(audio_output.open());
+    // Setup audio output (only if enabled)
+    AudioPlayerOutput* audio_output = nullptr;
+    if (is_audio_output_enabled()) {
+        audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+        REQUIRE(audio_output->open());
+    }
 
     SECTION("Combined real-time and pre-recorded audio output") {
         // Run audio for a few seconds to test
@@ -1000,8 +1005,10 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[aud
         std::vector<float> recorded_audio;
         recorded_audio.reserve(NUM_FRAMES * BUFFER_SIZE * NUM_CHANNELS);
 
-        // Create audio output directly
-        REQUIRE(audio_output.start());
+        // Create audio output directly (only if enabled)
+        if (audio_output) {
+            REQUIRE(audio_output->start());
+        }
 
         // Play a note
         sine_generator.play_note({TEST_FREQUENCY, TEST_GAIN});
@@ -1041,14 +1048,18 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[aud
         // Let it settle for a moment
         //std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
-        // Clean up real-time audio
-        audio_output.stop();
+        // Clean up real-time audio (only if enabled)
+        if (audio_output) {
+            audio_output->stop();
+        }
         
         // Now play back the recorded audio
         std::cout << "Playing back recorded audio..." << std::endl;
         
-        // Create new audio output for playback
-        REQUIRE(audio_output.start());
+        // Create new audio output for playback (only if enabled)
+        if (audio_output) {
+            REQUIRE(audio_output->start());
+        }
 
         // Play back the recorded audio in chunks
         for (size_t offset = 0; offset < recorded_audio.size(); offset += BUFFER_SIZE * NUM_CHANNELS) {
@@ -1064,8 +1075,10 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[aud
         // Let it settle for a moment
         //std::this_thread::sleep_for(std::chrono::milliseconds(500));
         
-        // Clean up playback audio
-        audio_output.stop();
+        // Clean up playback audio (only if enabled)
+        if (audio_output) {
+            audio_output->stop();
+        }
         
         std::cout << "Pre-recorded audio playback complete." << std::endl;
     }
@@ -1074,8 +1087,11 @@ TEMPLATE_TEST_CASE("AudioGeneratorRenderStage - Direct Audio Output Test", "[aud
     sine_generator.stop_note(TEST_FREQUENCY);
     std::cout << "Stopped note." << std::endl;
         
-
-    audio_output.close();
+    // Cleanup audio output (only if enabled)
+    if (audio_output) {
+        audio_output->close();
+        delete audio_output;
+    }
     final_render_stage.unbind();
     sine_generator.unbind();
     delete global_time_param;
@@ -1130,14 +1146,20 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
         REQUIRE(file_generator.bind());
         REQUIRE(final_render_stage.bind());
 
-        AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-        REQUIRE(audio_output.open());
+        // Setup audio output (only if enabled)
+        AudioPlayerOutput* audio_output = nullptr;
+        if (is_audio_output_enabled()) {
+            audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+            REQUIRE(audio_output->open());
+        }
 
         SECTION("Normal Speed Playback") {
             std::cout << "Playing test.wav at normal speed for 3 seconds..." << std::endl;
             
-            // Create audio output
-            REQUIRE(audio_output.start());
+            // Create audio output (only if enabled)
+            if (audio_output) {
+                REQUIRE(audio_output->start());
+            }
 
             // Play at normal speed
             file_generator.play_note({MIDDLE_C, TEST_GAIN});
@@ -1168,16 +1190,20 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             // Let it settle for a moment
             //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
-            // Clean up
-            audio_output.stop();
+            // Clean up (only if enabled)
+            if (audio_output) {
+                audio_output->stop();
+            }
             std::cout << "Normal speed playback complete." << std::endl;
         }
 
         SECTION("Half Speed Playback") {
             std::cout << "Playing test.wav at half speed for 3 seconds..." << std::endl;
             
-            // Create audio output
-            REQUIRE(audio_output.start());
+            // Create audio output (only if enabled)
+            if (audio_output) {
+                REQUIRE(audio_output->start());
+            }
 
             // Play at half speed
             file_generator.play_note({MIDDLE_C * 0.5f, TEST_GAIN});
@@ -1208,16 +1234,20 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             // Let it settle for a moment
             //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
-            // Clean up
-            audio_output.stop();
+            // Clean up (only if enabled)
+            if (audio_output) {
+                audio_output->stop();
+            }
             std::cout << "Half speed playback complete." << std::endl;
         }
 
         SECTION("Double Speed Playback") {
             std::cout << "Playing test.wav at double speed for 3 seconds..." << std::endl;
             
-            // Create audio output
-            REQUIRE(audio_output.start());
+            // Create audio output (only if enabled)
+            if (audio_output) {
+                REQUIRE(audio_output->start());
+            }
 
             // Play at double speed
             file_generator.play_note({MIDDLE_C * 2.0f, TEST_GAIN});
@@ -1248,8 +1278,10 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             // Let it settle for a moment
             //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
-            // Clean up
-            audio_output.stop();
+            // Clean up (only if enabled)
+            if (audio_output) {
+                audio_output->stop();
+            }
             std::cout << "Double speed playback complete." << std::endl;
         }
 
@@ -1260,8 +1292,10 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             std::vector<float> recorded_audio;
             recorded_audio.reserve(NUM_FRAMES * BUFFER_SIZE * NUM_CHANNELS);
 
-            // Create audio output
-            REQUIRE(audio_output.start());
+            // Create audio output (only if enabled)
+            if (audio_output) {
+                REQUIRE(audio_output->start());
+            }
 
             // Play at normal speed
             file_generator.play_note({MIDDLE_C, TEST_GAIN});
@@ -1297,14 +1331,18 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             // Let it settle for a moment
             //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
-            // Clean up real-time audio
-            audio_output.stop();
+            // Clean up real-time audio (only if enabled)
+            if (audio_output) {
+                audio_output->stop();
+            }
             
             // Now play back the recorded audio
             std::cout << "Playing back recorded audio..." << std::endl;
             
-            // Create new audio output for playback
-            REQUIRE(audio_output.start());
+            // Create new audio output for playback (only if enabled)
+            if (audio_output) {
+                REQUIRE(audio_output->start());
+            }
 
             // Play back the recorded audio in chunks
             for (size_t offset = 0; offset < recorded_audio.size(); offset += BUFFER_SIZE * NUM_CHANNELS) {
@@ -1320,8 +1358,10 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
             // Let it settle for a moment
             //std::this_thread::sleep_for(std::chrono::milliseconds(500));
             
-            // Clean up playback audio
-            audio_output.stop();
+            // Clean up playback audio (only if enabled)
+            if (audio_output) {
+                audio_output->stop();
+            }
             
             std::cout << "Pre-recorded audio playback complete." << std::endl;
         }
@@ -1330,7 +1370,11 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - Direct Audio Output Test", "
         file_generator.stop_note(MIDDLE_C);
         std::cout << "Stopped file playback." << std::endl;
 
-        audio_output.close();
+        // Cleanup audio output (only if enabled)
+        if (audio_output) {
+            audio_output->close();
+            delete audio_output;
+        }
         final_render_stage.unbind();
         file_generator.unbind();
         delete global_time_param;

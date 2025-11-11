@@ -1,5 +1,6 @@
 #include "catch2/catch_all.hpp"
 #include "framework/test_gl.h"
+#include "framework/test_main.h"
 
 #include "audio_render_stage/audio_tape_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
@@ -98,10 +99,13 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
     // Play note
     generator.play_note({TEST_FREQUENCY, TEST_GAIN});
 
-    // Prepare audio output
-    AudioPlayerOutput audio_output(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-    REQUIRE(audio_output.open());
-    REQUIRE(audio_output.start());
+    // Prepare audio output (only if enabled)
+    AudioPlayerOutput* audio_output = nullptr;
+    if (is_audio_output_enabled()) {
+        audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+        REQUIRE(audio_output->open());
+        REQUIRE(audio_output->start());
+    }
 
     std::vector<float> input_samples;
     input_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
@@ -165,20 +169,25 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
             output_samples.push_back(before_final_data[i]);
         }
 
-        // Push to audio output
-        //while (!audio_output.is_ready()) {
-        //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        //}
-        //audio_output.push(output_data);
+        // Push to audio output (only if enabled)
+        if (audio_output) {
+            while (!audio_output->is_ready()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            audio_output->push(output_data);
+        }
     }
 
     // Stop playback
     playback_stage.stop();
 
-    // Cleanup audio
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    audio_output.stop();
-    audio_output.close();
+    // Cleanup audio (only if enabled)
+    if (audio_output) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        audio_output->stop();
+        audio_output->close();
+        delete audio_output;
+    }
 
     //SECTION("Export CSV") {
     //    // Build a base filename that encodes the test parameter combination

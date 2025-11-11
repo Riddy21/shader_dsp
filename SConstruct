@@ -74,6 +74,18 @@ AddOption('--verbose',
           default=False,
           help='Run tests with verbose output to show INFO messages and detailed test information')
 
+AddOption('--enable-audio-output',
+          dest='enable_audio_output',
+          action='store_true',
+          default=False,
+          help='Enable audio output for tests (sets ENABLE_AUDIO_OUTPUT=1 environment variable)')
+
+AddOption('--enable-csv-output',
+          dest='enable_csv_output',
+          action='store_true',
+          default=False,
+          help='Enable CSV output for tests (sets ENABLE_CSV_OUTPUT=1 environment variable, saves CSVs to build/tests/csv_output/)')
+
 # Define compiler environment
 env = Environment(CXX='g++', CXXFLAGS='-std=c++20')
 
@@ -153,7 +165,7 @@ for src in SHADER_SOURCES:
 env.Depends(LIB_SOURCES, all_shaders)
 
 # Function to build and run tests
-def build_tests(env, specific_test=None, test_case=None, section=None, verbose=False):
+def build_tests(env, specific_test=None, test_case=None, section=None, verbose=False, enable_audio_output=False, enable_csv_output=False):
     # Get all test files from tests directory and framework subdirectory
     test_files = Glob(os.path.join(TEST_DIR, '*_test.cpp'), strings=True)
     framework_test_files = Glob(os.path.join(TEST_FRAMEWORK_DIR, '*_test.cpp'), strings=True) if os.path.exists(TEST_FRAMEWORK_DIR) else []
@@ -195,6 +207,12 @@ def build_tests(env, specific_test=None, test_case=None, section=None, verbose=F
             
             # Set up the command with XDG_RUNTIME_DIR
             test_command = f'mkdir -p {xdg_runtime_dir} && XDG_RUNTIME_DIR={xdg_runtime_dir} '
+            # Add ENABLE_AUDIO_OUTPUT if requested
+            if enable_audio_output:
+                test_command += 'ENABLE_AUDIO_OUTPUT=1 '
+            # Add ENABLE_CSV_OUTPUT if requested
+            if enable_csv_output:
+                test_command += 'ENABLE_CSV_OUTPUT=1 '
             test_command += 'xvfb-run -a ' + test_executable[0].abspath + ' -d yes'
             
             # Add verbose flags if specified
@@ -252,6 +270,12 @@ def build_tests(env, specific_test=None, test_case=None, section=None, verbose=F
         
         # Set up the command with XDG_RUNTIME_DIR for xvfb-run
         test_command = f'mkdir -p {xdg_runtime_dir} && XDG_RUNTIME_DIR={xdg_runtime_dir} '
+        # Add ENABLE_AUDIO_OUTPUT if requested
+        if enable_audio_output:
+            test_command += 'ENABLE_AUDIO_OUTPUT=1 '
+        # Add ENABLE_CSV_OUTPUT if requested
+        if enable_csv_output:
+            test_command += 'ENABLE_CSV_OUTPUT=1 '
         test_command += 'xvfb-run -a ' + all_tests_executable[0].abspath + test_filter + ' -d yes > ' + all_tests_executable[0].abspath + '.out 2>&1 && cat ' + all_tests_executable[0].abspath + '.out || (cat ' + all_tests_executable[0].abspath + '.out && false)'
         
         test_output = test_env.Command(
@@ -281,6 +305,12 @@ def build_tests(env, specific_test=None, test_case=None, section=None, verbose=F
         
         # Set up the command with XDG_RUNTIME_DIR
         test_command = f'mkdir -p {xdg_runtime_dir} && XDG_RUNTIME_DIR={xdg_runtime_dir} '
+        # Add ENABLE_AUDIO_OUTPUT if requested
+        if enable_audio_output:
+            test_command += 'ENABLE_AUDIO_OUTPUT=1 '
+        # Add ENABLE_CSV_OUTPUT if requested
+        if enable_csv_output:
+            test_command += 'ENABLE_CSV_OUTPUT=1 '
         test_command += 'xvfb-run -a ' + test_executable[0].abspath + ' -d yes'
         
         # Add verbose flags if specified
@@ -342,7 +372,7 @@ targets = []
 
 # Handle --all-tests option (build all tests)
 if GetOption('all_tests'):
-    test_targets = build_tests(test_env, verbose=GetOption('verbose'))
+    test_targets = build_tests(test_env, verbose=GetOption('verbose'), enable_audio_output=GetOption('enable_audio_output'), enable_csv_output=GetOption('enable_csv_output'))
     if test_targets:
         targets.append(test_targets)
 
@@ -351,13 +381,15 @@ test_name = GetOption('test')
 test_case = GetOption('test_case')
 section = GetOption('section')
 verbose = GetOption('verbose')
+enable_audio_output = GetOption('enable_audio_output')
+enable_csv_output = GetOption('enable_csv_output')
 if test_name:
-    test_targets = build_tests(test_env, test_name, test_case, section, verbose)
+    test_targets = build_tests(test_env, test_name, test_case, section, verbose, enable_audio_output, enable_csv_output)
     if test_targets:
         targets.append(test_targets)
 elif test_case or section:
     # If only --test-case or --section is specified, run all tests but filter by test case/section
-    test_targets = build_tests(test_env, None, test_case, section, verbose)
+    test_targets = build_tests(test_env, None, test_case, section, verbose, enable_audio_output, enable_csv_output)
     if test_targets:
         targets.append(test_targets)
 

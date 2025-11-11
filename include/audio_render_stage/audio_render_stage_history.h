@@ -94,6 +94,10 @@ public:
     bool is_tape_stopped() const; // Check if tape is stopped
     bool is_tape_at_beginning() const; // Check if tape is at the beginning
     bool is_tape_at_end() const; // Check if tape is at the end
+    
+    // Loop control functions
+    void set_tape_loop(bool loop); // Enable or disable tape looping (default: false)
+    bool is_tape_loop_enabled() const; // Check if tape looping is enabled
 
     // TODO: Implement incrementally updating the texture with tape playback data
     // When paused (speed = 0) it will stop updating position
@@ -108,6 +112,7 @@ private:
     AudioParameter * m_tape_speed; // Will communicate the speed of the tape to the tape, so thats the speed of the tape
     AudioParameter * m_tape_window_offset_samples; // Will communicate the current offset of the audio history texture in the window (in samples) from the start of the window
     AudioParameter * m_tape_stopped; // Flag indicating if tape is stopped (1 = stopped, 0 = playing)
+    AudioParameter * m_tape_loop; // Flag indicating if tape should loop (1 = loop enabled, 0 = loop disabled, default = 0)
 
     std::weak_ptr<AudioTape> m_tape; // Weak reference to tape
 
