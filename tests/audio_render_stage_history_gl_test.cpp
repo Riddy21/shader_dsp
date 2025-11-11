@@ -1430,14 +1430,443 @@ TEST_CASE("AudioRenderStageHistory2 - backward loop with continuity check", "[au
 		REQUIRE(playback_stage.get_history().is_tape_stopped() == false);
 	}
 	
+		if (is_csv_output_enabled()) {
+			SECTION("Export backward loop playback to CSV") {
+				std::string csv_output_dir = "build/tests/csv_output";
+				system(("mkdir -p " + csv_output_dir).c_str());
+				
+				std::ostringstream csv_filename_stream;
+				csv_filename_stream << csv_output_dir << "/backward_loop_playback_channels_" << NUM_CHANNELS << ".csv";
+				std::string csv_filename = csv_filename_stream.str();
+				
+				CSVTestOutput csv_writer(csv_filename, SAMPLE_RATE);
+				REQUIRE(csv_writer.is_open());
+				csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+				csv_writer.close();
+				
+				INFO("CSV file written to: " << csv_filename);
+			}
+		}
+
+	delete global_time;
+}
+
+TEST_CASE("AudioTape - load from WAV file and playback", "[audio_tape][wav_load][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr float WINDOW_SIZE_SECONDS = 2.0f;
+	
+	// Test with different WAV files from media directory
+	std::vector<std::string> wav_files = {
+		"media/sine.wav",
+		"media/test.wav"
+	};
+	
+	for (const auto& wav_file : wav_files) {
+		SECTION("Load and playback: " + wav_file) {
+			SDLWindow window(BUFFER_SIZE, 2); // Assume stereo for now
+			GLContext context;
+			
+			// Global time buffer
+			auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+			global_time->set_value(0);
+			REQUIRE(global_time->initialize());
+			
+			// Load WAV file into AudioTape
+			auto tape = AudioTape::load_from_wav_file(wav_file, BUFFER_SIZE, SAMPLE_RATE);
+			REQUIRE(tape != nullptr);
+			REQUIRE(tape->size() > 0);
+			
+			// Get the number of channels from the tape
+			const unsigned int num_channels = tape->num_channels();
+			INFO("Loaded tape with " << num_channels << " channels, " << tape->size() << " samples per channel");
+			
+			// Create mock playback stage
+			MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, num_channels, WINDOW_SIZE_SECONDS);
+			playback_stage.get_history().set_tape(tape);
+			
+			// Create final render stage
+			AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, num_channels);
+			
+			// Connect playback stage to final stage
+			REQUIRE(playback_stage.connect_render_stage(&final_stage));
+			
+			// Initialize stages
+			REQUIRE(playback_stage.initialize());
+			REQUIRE(final_stage.initialize());
+			
+			context.prepare_draw();
+			REQUIRE(playback_stage.bind());
+			REQUIRE(final_stage.bind());
+			
+			// Set playback speed and start position
+			playback_stage.get_history().set_tape_speed(1.0f);
+			playback_stage.get_history().set_tape_position(0u);
+			playback_stage.get_history().start_tape();
+			playback_stage.play();
+			
+			// Calculate how many frames to render (play back the entire tape)
+			const unsigned int tape_size_samples = tape->size();
+			const unsigned int frames_to_render = (tape_size_samples / BUFFER_SIZE) + 10; // Add some extra frames
+			
+			// Collect output samples
+			std::vector<std::vector<float>> output_samples_per_channel(num_channels);
+			for (unsigned int ch = 0; ch < num_channels; ++ch) {
+				output_samples_per_channel[ch].reserve(frames_to_render * BUFFER_SIZE);
+			}
+			
+			// Render frames
+			unsigned int frame = 0;
+			for (unsigned int i = 0; i < frames_to_render; ++i) {
+				global_time->set_value(frame);
+				global_time->render();
+				
+				playback_stage.render(frame);
+				final_stage.render(frame);
+				
+				// Extract output samples
+				auto* output_param = final_stage.find_parameter("output_audio_texture");
+				if (output_param) {
+					const float* output_data = static_cast<const float*>(output_param->get_value());
+					REQUIRE(output_data != nullptr);
+					
+					// Store for verification (de-interleave from interleaved format)
+					// Layout: [frame0_ch0, frame0_ch1, ..., frame0_chN, frame1_ch0, frame1_ch1, ..., frame1_chN, ...]
+					for (unsigned int j = 0; j < BUFFER_SIZE; ++j) {
+						for (unsigned int ch = 0; ch < num_channels; ++ch) {
+							output_samples_per_channel[ch].push_back(output_data[j * num_channels + ch]);
+						}
+					}
+				}
+				
+				// Stop if we've reached the end of the tape
+				if (playback_stage.get_history().is_tape_stopped() || 
+				    playback_stage.get_history().is_tape_at_end()) {
+					break;
+				}
+				
+				frame++;
+			}
+			
+			// Verify we got some output
+			REQUIRE(output_samples_per_channel[0].size() > 0);
+			
+			// Verify the output is not all zeros (should contain audio data)
+			bool has_non_zero_samples = false;
+			for (unsigned int ch = 0; ch < num_channels; ++ch) {
+				for (float sample : output_samples_per_channel[ch]) {
+					if (std::abs(sample) > 0.001f) {
+						has_non_zero_samples = true;
+						break;
+					}
+				}
+				if (has_non_zero_samples) break;
+			}
+			REQUIRE(has_non_zero_samples == true);
+			
+			// Verify tape position advanced
+			REQUIRE(playback_stage.get_history().get_tape_position() > 0);
+			
+			// Verify tape size matches expected
+			REQUIRE(tape->size() > 0);
+			REQUIRE(tape->size_in_seconds() > 0.0f);
+			
+			if (is_csv_output_enabled()) {
+				SECTION("Export WAV playback to CSV: " + wav_file) {
+					std::string csv_output_dir = "build/tests/csv_output";
+					system(("mkdir -p " + csv_output_dir).c_str());
+					
+					// Create filename from WAV filename
+					std::string csv_filename = csv_output_dir + "/wav_load_playback_" + 
+					                           wav_file.substr(wav_file.find_last_of("/") + 1) + ".csv";
+					
+					CSVTestOutput csv_writer(csv_filename, SAMPLE_RATE);
+					REQUIRE(csv_writer.is_open());
+					csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+					csv_writer.close();
+					
+					INFO("CSV file written to: " << csv_filename);
+				}
+			}
+			
+			delete global_time;
+		}
+	}
+}
+
+TEST_CASE("AudioTape - load from WAV file with different speeds", "[audio_tape][wav_load][speed][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr float WINDOW_SIZE_SECONDS = 2.0f;
+	const std::string wav_file = "media/test.wav";
+	
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Load WAV file into AudioTape
+	auto tape = AudioTape::load_from_wav_file(wav_file, BUFFER_SIZE, SAMPLE_RATE);
+	REQUIRE(tape != nullptr);
+	REQUIRE(tape->size() > 0);
+	
+	const unsigned int num_channels = tape->num_channels();
+	
+	// Test different playback speeds
+	std::vector<float> speeds = {1.0f, 0.5f, 2.0f, -1.0f};
+	
+	for (float speed : speeds) {
+		SECTION("Playback at speed " + std::to_string(speed) + "x") {
+			// Create mock playback stage
+			MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, num_channels, WINDOW_SIZE_SECONDS);
+			playback_stage.get_history().set_tape(tape);
+			
+			// Create final render stage
+			AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, num_channels);
+			
+			// Connect and initialize
+			REQUIRE(playback_stage.connect_render_stage(&final_stage));
+			REQUIRE(playback_stage.initialize());
+			REQUIRE(final_stage.initialize());
+			
+			context.prepare_draw();
+			REQUIRE(playback_stage.bind());
+			REQUIRE(final_stage.bind());
+			
+			// Set playback speed and start position
+			playback_stage.get_history().set_tape_speed(speed);
+			if (speed < 0.0f) {
+				// For reverse playback, start near the end
+				playback_stage.get_history().set_tape_position(tape->size() - BUFFER_SIZE * 10);
+			} else {
+				playback_stage.get_history().set_tape_position(0u);
+			}
+			playback_stage.get_history().start_tape();
+			playback_stage.play();
+			
+			// Render a few frames to verify playback works
+			unsigned int frame = 0;
+			for (unsigned int i = 0; i < 20; ++i) {
+				global_time->set_value(frame);
+				global_time->render();
+				
+				playback_stage.render(frame);
+				final_stage.render(frame);
+				
+				// Check that tape position is advancing (or moving backwards for negative speed)
+				if (i > 5) { // Give it a few frames to start
+					if (speed > 0.0f) {
+						REQUIRE(playback_stage.get_history().get_tape_position() > 0);
+					} else if (speed < 0.0f) {
+						// For reverse, position should decrease or wrap around
+						unsigned int pos = playback_stage.get_history().get_tape_position();
+						REQUIRE(pos <= tape->size());
+					}
+				}
+				
+				// Stop if we've reached a boundary
+				if (playback_stage.get_history().is_tape_stopped()) {
+					break;
+				}
+				
+				frame++;
+			}
+			
+			// Verify speed was set correctly
+			REQUIRE(std::abs(playback_stage.get_history().get_tape_speed_ratio() - speed) < 0.01f);
+		}
+	}
+	
+	delete global_time;
+}
+
+TEST_CASE("AudioTape - load from WAV file with continuous speed change forward to backward", "[audio_tape][wav_load][speed_change][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	// Use a smaller window (1.0 second) so it's less than the tape duration and window updates are audible
+	constexpr float WINDOW_SIZE_SECONDS = 1.0f;
+	const std::string wav_file = "media/test.wav";
+	constexpr int TOTAL_FRAMES = 200; // Number of frames to render
+	
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Load WAV file into AudioTape
+	auto tape = AudioTape::load_from_wav_file(wav_file, BUFFER_SIZE, SAMPLE_RATE);
+	REQUIRE(tape != nullptr);
+	REQUIRE(tape->size() > 0);
+	
+	const unsigned int num_channels = tape->num_channels();
+	const float tape_duration_seconds = tape->size_in_seconds();
+	
+	// Verify window is smaller than tape duration
+	REQUIRE(WINDOW_SIZE_SECONDS < tape_duration_seconds);
+	
+	// Create mock playback stage with smaller window
+	MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, num_channels, WINDOW_SIZE_SECONDS);
+	playback_stage.get_history().set_tape(tape);
+	
+	// Create final render stage
+	AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, num_channels);
+	
+	// Connect and initialize
+	REQUIRE(playback_stage.connect_render_stage(&final_stage));
+	REQUIRE(playback_stage.initialize());
+	REQUIRE(final_stage.initialize());
+	
+	context.prepare_draw();
+	REQUIRE(playback_stage.bind());
+	REQUIRE(final_stage.bind());
+	
+	// Set up audio output
+	AudioPlayerOutput* audio_output = nullptr;
+	if (is_audio_output_enabled()) {
+		audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, num_channels);
+		REQUIRE(audio_output->open());
+		REQUIRE(audio_output->start());
+	}
+	
+	// Start at middle of tape so window updates are audible as we play forward/backward
+	unsigned int start_position = tape->size() / 2;
+	playback_stage.get_history().set_tape_position(start_position);
+	playback_stage.get_history().start_tape();
+	playback_stage.play();
+	
+	INFO("Tape duration: " << tape_duration_seconds << " seconds");
+	INFO("Window size: " << WINDOW_SIZE_SECONDS << " seconds");
+	INFO("Starting position: " << start_position << " samples (" << (start_position / static_cast<float>(SAMPLE_RATE)) << " seconds)");
+	
+	// Collect output samples
+	std::vector<std::vector<float>> output_samples_per_channel(num_channels);
+	for (unsigned int ch = 0; ch < num_channels; ++ch) {
+		output_samples_per_channel[ch].reserve(TOTAL_FRAMES * BUFFER_SIZE);
+	}
+	
+	// Render frames with continuous speed change from forward to backward
+	unsigned int frame = 0;
+	for (unsigned int i = 0; i < TOTAL_FRAMES; ++i) {
+		global_time->set_value(frame);
+		global_time->render();
+		
+		// Calculate speed: starts at 1.0, goes to -1.0, then back to 1.0
+		// Creates a smooth transition: forward -> stop -> backward -> stop -> forward
+		float progress = static_cast<float>(i) / static_cast<float>(TOTAL_FRAMES);
+		float speed;
+		if (progress < 0.25f) {
+			// Forward: 1.0 to 0.0
+			speed = 1.0f - (progress / 0.25f);
+		} else if (progress < 0.5f) {
+			// Backward: 0.0 to -1.0
+			speed = -((progress - 0.25f) / 0.25f);
+		} else if (progress < 0.75f) {
+			// Backward: -1.0 to 0.0
+			speed = -1.0f + ((progress - 0.5f) / 0.25f);
+		} else {
+			// Forward: 0.0 to 1.0
+			speed = (progress - 0.75f) / 0.25f;
+		}
+		
+		playback_stage.get_history().set_tape_speed(speed);
+		
+		playback_stage.render(frame);
+		final_stage.render(frame);
+		
+		// Extract output samples
+		auto* output_param = final_stage.find_parameter("final_output_audio_texture");
+		if (output_param) {
+			const float* output_data = static_cast<const float*>(output_param->get_value());
+			REQUIRE(output_data != nullptr);
+			
+			// Store for verification (de-interleave from interleaved format)
+			// final_output_audio_texture is interleaved: [frame0_ch0, frame0_ch1, ..., frame0_chN, frame1_ch0, ...]
+			for (int i = 0; i < BUFFER_SIZE * num_channels; ++i) {
+				auto channel = i % num_channels;
+				output_samples_per_channel[channel].push_back(output_data[i]);
+			}
+			
+			// Push to audio output (output_data is interleaved format)
+			if (audio_output) {
+				while (!audio_output->is_ready()) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+				audio_output->push(output_data);
+			}
+		}
+		
+		// Stop if we've reached a boundary (unless looping)
+		if (playback_stage.get_history().is_tape_stopped() && speed != 0.0f) {
+			// If stopped and speed is not zero, restart
+			playback_stage.get_history().start_tape();
+		}
+		
+		frame++;
+	}
+	
+	// Clean up audio output
+	if (audio_output) {
+		audio_output->stop();
+		audio_output->close();
+		delete audio_output;
+	}
+	
+	// Verify we got output
+	REQUIRE(output_samples_per_channel[0].size() > 0);
+	
+	// Verify the output is not all zeros
+	bool has_non_zero_samples = false;
+	for (unsigned int ch = 0; ch < num_channels; ++ch) {
+		for (float sample : output_samples_per_channel[ch]) {
+			if (std::abs(sample) > 0.001f) {
+				has_non_zero_samples = true;
+				break;
+			}
+		}
+		if (has_non_zero_samples) break;
+	}
+	REQUIRE(has_non_zero_samples == true);
+	
+	SECTION("Continuity check with continuous speed changes") {
+		constexpr float DISCONTINUITY_THRESHOLD = 0.3f; // Higher threshold for speed transitions
+		
+		for (unsigned int ch = 0; ch < num_channels; ++ch) {
+			const auto& samples = output_samples_per_channel[ch];
+			std::vector<size_t> discontinuity_indices;
+			
+			// Calculate sample-to-sample differences to detect discontinuities
+			for (size_t i = 1; i < samples.size(); ++i) {
+				float sample_diff = std::abs(samples[i] - samples[i - 1]);
+				if (sample_diff > DISCONTINUITY_THRESHOLD) {
+					discontinuity_indices.push_back(i);
+				}
+			}
+			
+			INFO("Channel " << ch << " analysis:");
+			INFO("  Total samples: " << samples.size());
+			INFO("  Discontinuity threshold: " << DISCONTINUITY_THRESHOLD);
+			INFO("  Found " << discontinuity_indices.size() << " discontinuities");
+			
+			// Allow some discontinuities at speed transition points, but not too many
+			// Speed changes should be relatively smooth
+			REQUIRE(discontinuity_indices.size() < samples.size() / 100); // Less than 1% discontinuities
+		}
+	}
+	
 	if (is_csv_output_enabled()) {
-		SECTION("Export backward loop playback to CSV") {
+		SECTION("Export continuous speed change playback to CSV") {
 			std::string csv_output_dir = "build/tests/csv_output";
 			system(("mkdir -p " + csv_output_dir).c_str());
 			
-			std::ostringstream csv_filename_stream;
-			csv_filename_stream << csv_output_dir << "/backward_loop_playback_channels_" << NUM_CHANNELS << ".csv";
-			std::string csv_filename = csv_filename_stream.str();
+			std::string csv_filename = csv_output_dir + "/wav_load_continuous_speed_change.csv";
 			
 			CSVTestOutput csv_writer(csv_filename, SAMPLE_RATE);
 			REQUIRE(csv_writer.is_open());
@@ -1447,6 +1876,355 @@ TEST_CASE("AudioRenderStageHistory2 - backward loop with continuity check", "[au
 			INFO("CSV file written to: " << csv_filename);
 		}
 	}
+	
+	delete global_time;
+}
 
+TEST_CASE("AudioTape - load from WAV file with loop enabled", "[audio_tape][wav_load][loop][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	// Use a smaller window (1.0 second) so it's less than the tape duration and window updates are audible
+	constexpr float WINDOW_SIZE_SECONDS = 1.0f;
+	const std::string wav_file = "media/test.wav";
+	constexpr int TOTAL_FRAMES = 500; // Enough frames to loop multiple times
+	
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Load WAV file into AudioTape
+	auto tape = AudioTape::load_from_wav_file(wav_file, BUFFER_SIZE, SAMPLE_RATE);
+	REQUIRE(tape != nullptr);
+	REQUIRE(tape->size() > 0);
+	
+	const unsigned int num_channels = tape->num_channels();
+	const unsigned int tape_size_samples = tape->size();
+	const float tape_duration_seconds = tape->size_in_seconds();
+	
+	// Verify window is smaller than tape duration
+	REQUIRE(WINDOW_SIZE_SECONDS < tape_duration_seconds);
+	
+	// Create mock playback stage with smaller window
+	MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, num_channels, WINDOW_SIZE_SECONDS);
+	playback_stage.get_history().set_tape(tape);
+	
+	// Create final render stage
+	AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, num_channels);
+	
+	// Connect and initialize
+	REQUIRE(playback_stage.connect_render_stage(&final_stage));
+	REQUIRE(playback_stage.initialize());
+	REQUIRE(final_stage.initialize());
+	
+	context.prepare_draw();
+	REQUIRE(playback_stage.bind());
+	REQUIRE(final_stage.bind());
+	
+	// Set up audio output
+	AudioPlayerOutput* audio_output = nullptr;
+	if (is_audio_output_enabled()) {
+		audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, num_channels);
+		REQUIRE(audio_output->open());
+		REQUIRE(audio_output->start());
+	}
+	
+	// Enable loop
+	playback_stage.get_history().set_tape_loop(true);
+	REQUIRE(playback_stage.get_history().is_tape_loop_enabled() == true);
+	
+	// Set playback speed and start position in the middle of the tape
+	// This ensures window updates are audible as we loop
+	playback_stage.get_history().set_tape_speed(1.0f);
+	unsigned int start_position = tape_size_samples / 2;
+	playback_stage.get_history().set_tape_position(start_position);
+	playback_stage.get_history().start_tape();
+	playback_stage.play();
+	
+	INFO("Tape duration: " << tape_duration_seconds << " seconds");
+	INFO("Window size: " << WINDOW_SIZE_SECONDS << " seconds");
+	INFO("Starting position: " << start_position << " samples (" << (start_position / static_cast<float>(SAMPLE_RATE)) << " seconds)");
+	
+	// Collect output samples
+	std::vector<std::vector<float>> output_samples_per_channel(num_channels);
+	for (unsigned int ch = 0; ch < num_channels; ++ch) {
+		output_samples_per_channel[ch].reserve(TOTAL_FRAMES * BUFFER_SIZE);
+	}
+	
+	// Track loop count
+	unsigned int loop_count = 0;
+	unsigned int last_position = 0;
+	
+	// Render frames
+	unsigned int frame = 0;
+	for (unsigned int i = 0; i < TOTAL_FRAMES; ++i) {
+		global_time->set_value(frame);
+		global_time->render();
+		
+		playback_stage.render(frame);
+		final_stage.render(frame);
+		
+		// Check if we've looped (position wrapped around)
+		unsigned int current_position = playback_stage.get_history().get_tape_position();
+		if (current_position < last_position && last_position > tape_size_samples / 2) {
+			loop_count++;
+			INFO("Loop detected at frame " << i << ", loop count: " << loop_count);
+		}
+		last_position = current_position;
+		
+		// Extract output samples
+		auto* output_param = final_stage.find_parameter("final_output_audio_texture");
+		if (output_param) {
+			const float* output_data = static_cast<const float*>(output_param->get_value());
+			REQUIRE(output_data != nullptr);
+			
+			// Store for verification (de-interleave from interleaved format)
+			// final_output_audio_texture is interleaved: [frame0_ch0, frame0_ch1, ..., frame0_chN, frame1_ch0, ...]
+			for (int i = 0; i < BUFFER_SIZE * num_channels; ++i) {
+				auto channel = i % num_channels;
+				output_samples_per_channel[channel].push_back(output_data[i]);
+			}
+			
+			// Push to audio output (output_data is interleaved format)
+			if (audio_output) {
+				while (!audio_output->is_ready()) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+				audio_output->push(output_data);
+			}
+		}
+		
+		// Verify tape never stops (because loop is enabled)
+		REQUIRE(playback_stage.get_history().is_tape_stopped() == false);
+		
+		frame++;
+	}
+	
+	// Clean up audio output
+	if (audio_output) {
+		audio_output->stop();
+		audio_output->close();
+		delete audio_output;
+	}
+	
+	// Verify we got output
+	REQUIRE(output_samples_per_channel[0].size() > 0);
+	
+	// Verify the output is not all zeros
+	bool has_non_zero_samples = false;
+	for (unsigned int ch = 0; ch < num_channels; ++ch) {
+		for (float sample : output_samples_per_channel[ch]) {
+			if (std::abs(sample) > 0.001f) {
+				has_non_zero_samples = true;
+				break;
+			}
+		}
+		if (has_non_zero_samples) break;
+	}
+	REQUIRE(has_non_zero_samples == true);
+	
+	// Verify we looped at least once (given enough frames)
+	unsigned int expected_loops = (TOTAL_FRAMES * BUFFER_SIZE) / tape_size_samples;
+	if (expected_loops > 0) {
+		REQUIRE(loop_count > 0);
+		INFO("Expected at least " << expected_loops << " loops, detected " << loop_count);
+	}
+	
+	SECTION("Continuity check with loop") {
+		constexpr float DISCONTINUITY_THRESHOLD = 0.3f; // Higher threshold for loop wrap points
+		
+		for (unsigned int ch = 0; ch < num_channels; ++ch) {
+			const auto& samples = output_samples_per_channel[ch];
+			std::vector<size_t> discontinuity_indices;
+			
+			// Calculate sample-to-sample differences to detect discontinuities
+			for (size_t i = 1; i < samples.size(); ++i) {
+				float sample_diff = std::abs(samples[i] - samples[i - 1]);
+				if (sample_diff > DISCONTINUITY_THRESHOLD) {
+					discontinuity_indices.push_back(i);
+				}
+			}
+			
+			INFO("Channel " << ch << " analysis:");
+			INFO("  Total samples: " << samples.size());
+			INFO("  Discontinuity threshold: " << DISCONTINUITY_THRESHOLD);
+			INFO("  Found " << discontinuity_indices.size() << " discontinuities");
+			INFO("  Loop count: " << loop_count);
+			
+			// When looping, small discontinuities at wrap points are expected
+			// Allow up to loop_count discontinuities (one per loop wrap)
+			REQUIRE(discontinuity_indices.size() <= loop_count + 2); // +2 for safety margin
+		}
+	}
+	
+	if (is_csv_output_enabled()) {
+		SECTION("Export loop playback to CSV") {
+			std::string csv_output_dir = "build/tests/csv_output";
+			system(("mkdir -p " + csv_output_dir).c_str());
+			
+			std::string csv_filename = csv_output_dir + "/wav_load_loop_playback.csv";
+			
+			CSVTestOutput csv_writer(csv_filename, SAMPLE_RATE);
+			REQUIRE(csv_writer.is_open());
+			csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+			csv_writer.close();
+			
+			INFO("CSV file written to: " << csv_filename);
+		}
+	}
+	
+	delete global_time;
+}
+TEST_CASE("AudioTape - load from WAV file with start and end points", "[audio_tape][wav_load][range][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr float WINDOW_SIZE_SECONDS = 2.0f;
+	const std::string wav_file = "media/test.wav";
+	
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	SECTION("Load portion of WAV file (1.0 to 3.0 seconds)") {
+		constexpr float start_seconds = 1.0f;
+		constexpr float end_seconds = 3.0f;
+		
+		// Load WAV file portion into AudioTape
+		auto tape = AudioTape::load_from_wav_file(wav_file, BUFFER_SIZE, SAMPLE_RATE, start_seconds, end_seconds);
+		REQUIRE(tape != nullptr);
+		REQUIRE(tape->size() > 0);
+		
+		const unsigned int num_channels = tape->num_channels();
+		const unsigned int tape_size_samples = tape->size();
+		const float expected_duration = end_seconds - start_seconds;
+		const unsigned int expected_samples = static_cast<unsigned int>(expected_duration * SAMPLE_RATE);
+		
+		INFO("Loaded tape with " << num_channels << " channels, " << tape_size_samples << " samples per channel");
+		INFO("Expected duration: " << expected_duration << " seconds, " << expected_samples << " samples");
+		
+		// Verify the tape size matches the expected range
+		REQUIRE(std::abs(static_cast<int>(tape_size_samples) - static_cast<int>(expected_samples)) < 100);
+		REQUIRE(tape->size_in_seconds() >= expected_duration * 0.95f);
+		REQUIRE(tape->size_in_seconds() <= expected_duration * 1.05f);
+		
+		// Create mock playback stage
+		MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, num_channels, WINDOW_SIZE_SECONDS);
+		playback_stage.get_history().set_tape(tape);
+		
+		// Create final render stage
+		AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, num_channels);
+		
+		// Connect and initialize
+		REQUIRE(playback_stage.connect_render_stage(&final_stage));
+		REQUIRE(playback_stage.initialize());
+		REQUIRE(final_stage.initialize());
+		
+		context.prepare_draw();
+		REQUIRE(playback_stage.bind());
+		REQUIRE(final_stage.bind());
+		
+		// Set up audio output
+		AudioPlayerOutput* audio_output = nullptr;
+		if (is_audio_output_enabled()) {
+			audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, num_channels);
+			REQUIRE(audio_output->open());
+			REQUIRE(audio_output->start());
+		}
+		
+		// Set playback speed and start position
+		playback_stage.get_history().set_tape_speed(1.0f);
+		playback_stage.get_history().set_tape_position(0u);
+		playback_stage.get_history().start_tape();
+		playback_stage.play();
+		
+		// Calculate how many frames to render
+		const unsigned int frames_to_render = (tape_size_samples / BUFFER_SIZE) + 10;
+		
+		// Collect output samples
+		std::vector<std::vector<float>> output_samples_per_channel(num_channels);
+		for (unsigned int ch = 0; ch < num_channels; ++ch) {
+			output_samples_per_channel[ch].reserve(frames_to_render * BUFFER_SIZE);
+		}
+		
+		// Render frames
+		unsigned int frame = 0;
+		for (unsigned int i = 0; i < frames_to_render; ++i) {
+			global_time->set_value(frame);
+			global_time->render();
+			
+			playback_stage.render(frame);
+			final_stage.render(frame);
+			
+			// Extract output samples
+			auto* output_param = final_stage.find_parameter("final_output_audio_texture");
+			if (output_param) {
+				const float* output_data = static_cast<const float*>(output_param->get_value());
+				REQUIRE(output_data != nullptr);
+				
+				for (int j = 0; j < BUFFER_SIZE * num_channels; ++j) {
+					auto channel = j % num_channels;
+					output_samples_per_channel[channel].push_back(output_data[j]);
+				}
+				
+				if (audio_output) {
+					while (!audio_output->is_ready()) {
+						std::this_thread::sleep_for(std::chrono::milliseconds(1));
+					}
+					audio_output->push(output_data);
+				}
+			}
+			
+			if (playback_stage.get_history().is_tape_stopped() || 
+			    playback_stage.get_history().is_tape_at_end()) {
+				break;
+			}
+			
+			frame++;
+		}
+		
+		if (audio_output) {
+			audio_output->stop();
+			audio_output->close();
+			delete audio_output;
+		}
+		
+		REQUIRE(output_samples_per_channel[0].size() > 0);
+	}
+	
+	SECTION("Load from start only (first 2 seconds)") {
+		constexpr float end_seconds = 2.0f;
+		
+		auto tape = AudioTape::load_from_wav_file(wav_file, BUFFER_SIZE, SAMPLE_RATE, std::nullopt, end_seconds);
+		REQUIRE(tape != nullptr);
+		REQUIRE(tape->size() > 0);
+		
+		const unsigned int expected_samples = static_cast<unsigned int>(end_seconds * SAMPLE_RATE);
+		const unsigned int tape_size_samples = tape->size();
+		
+		REQUIRE(std::abs(static_cast<int>(tape_size_samples) - static_cast<int>(expected_samples)) < 100);
+		REQUIRE(tape->size_in_seconds() >= end_seconds * 0.95f);
+		REQUIRE(tape->size_in_seconds() <= end_seconds * 1.05f);
+	}
+	
+	SECTION("Load from middle point to end") {
+		constexpr float start_seconds = 2.0f;
+		
+		auto tape = AudioTape::load_from_wav_file(wav_file, BUFFER_SIZE, SAMPLE_RATE, start_seconds, std::nullopt);
+		REQUIRE(tape != nullptr);
+		REQUIRE(tape->size() > 0);
+		
+		REQUIRE(tape->size() > 0);
+		REQUIRE(tape->size_in_seconds() > 0.0f);
+	}
+	
 	delete global_time;
 }

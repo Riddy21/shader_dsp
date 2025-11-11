@@ -6,6 +6,9 @@
 #include <stdexcept>
 #include <string>
 #include <limits>
+#include <fstream>
+#include <cstring>
+#include "audio_output/audio_wav.h"
 
 AudioRenderStageHistory::AudioRenderStageHistory(const unsigned int history_size,
                                                  const unsigned int frames_per_buffer,
@@ -98,6 +101,160 @@ AudioTape::AudioTape(const unsigned int frames_per_buffer,
         for (auto &ch : m_data) ch.clear();
         m_fixed_size = false;
     }
+}
+
+std::shared_ptr<AudioTape> AudioTape::load_from_wav_file(const std::string& audio_filepath,
+                                                          const unsigned int frames_per_buffer,
+                                                          const unsigned int sample_rate,
+                                                          const std::optional<float> start_seconds,
+                                                          const std::optional<float> end_seconds) {
+    // Open the audio file
+    std::ifstream file(audio_filepath, std::ios::binary);
+    if (!file) {
+        std::cerr << "Failed to open audio file: " << audio_filepath << std::endl;
+        return nullptr;
+    }
+
+    // Read the audio file header
+    WAVHeader header;
+    file.read((char *) &header, sizeof(WAVHeader));
+
+    if (strncmp(header.riff, "RIFF", 4) != 0 || strncmp(header.wave, "WAVE", 4) != 0) {
+        std::cerr << "Invalid audio file format: " << audio_filepath << std::endl;
+        return nullptr;
+    }
+
+    if (header.format_type != 1) {
+        std::cerr << "Invalid audio file format type (only PCM supported): " << audio_filepath << std::endl;
+        return nullptr;
+    }
+
+    // Print info
+    std::cout << "Loading audio file: " << audio_filepath << std::endl;
+    std::cout << "Channels: " << header.channels << std::endl;
+    std::cout << "Sample rate: " << header.sample_rate << std::endl;
+    std::cout << "Bits per sample: " << header.bits_per_sample << std::endl;
+    std::cout << "Data size: " << header.data_size << std::endl;
+
+    // Validate sample rate matches
+    if (header.sample_rate != sample_rate) {
+        std::cerr << "Warning: WAV file sample rate (" << header.sample_rate 
+                  << ") does not match requested sample rate (" << sample_rate << ")" << std::endl;
+    }
+
+    // Validate bits per sample (only 16-bit supported)
+    if (header.bits_per_sample != 16) {
+        std::cerr << "Unsupported bits per sample: " << header.bits_per_sample 
+                  << " (only 16-bit PCM supported)" << std::endl;
+        return nullptr;
+    }
+
+    const unsigned int num_channels = header.channels;
+    if (num_channels == 0) {
+        std::cerr << "Invalid number of channels: 0" << std::endl;
+        return nullptr;
+    }
+
+    // Calculate total duration and sample range
+    const unsigned int total_samples = header.data_size / sizeof(int16_t);
+    const unsigned int total_samples_per_channel = total_samples / num_channels;
+    const float total_duration_seconds = static_cast<float>(total_samples_per_channel) / static_cast<float>(header.sample_rate);
+    
+    // Calculate start and end sample indices
+    const float start_time = start_seconds.value_or(0.0f);
+    const float end_time = end_seconds.value_or(total_duration_seconds);
+    
+    // Validate start and end times
+    if (start_time < 0.0f) {
+        std::cerr << "Invalid start time: " << start_time << " (must be >= 0)" << std::endl;
+        return nullptr;
+    }
+    if (end_time <= start_time) {
+        std::cerr << "Invalid end time: " << end_time << " (must be > start time: " << start_time << ")" << std::endl;
+        return nullptr;
+    }
+    if (end_time > total_duration_seconds) {
+        std::cerr << "Warning: End time (" << end_time 
+                  << ") exceeds file duration (" << total_duration_seconds 
+                  << "). Clamping to file duration." << std::endl;
+    }
+    
+    // Calculate sample indices (in samples per channel)
+    const unsigned int start_sample = static_cast<unsigned int>(start_time * static_cast<float>(header.sample_rate));
+    const unsigned int end_sample = static_cast<unsigned int>(std::min(end_time, total_duration_seconds) * static_cast<float>(header.sample_rate));
+    const unsigned int samples_to_load = end_sample - start_sample;
+    
+    if (start_sample >= total_samples_per_channel) {
+        std::cerr << "Invalid start sample: " << start_sample 
+                  << " (file has " << total_samples_per_channel << " samples per channel)" << std::endl;
+        return nullptr;
+    }
+    
+    // Print info about the range being loaded
+    std::cout << "Loading audio file: " << audio_filepath << std::endl;
+    std::cout << "Channels: " << num_channels << std::endl;
+    std::cout << "Sample rate: " << header.sample_rate << std::endl;
+    std::cout << "Bits per sample: " << header.bits_per_sample << std::endl;
+    std::cout << "Total file duration: " << total_duration_seconds << " seconds" << std::endl;
+    std::cout << "Loading range: " << start_time << " to " << end_time << " seconds" << std::endl;
+    std::cout << "Loading samples: " << start_sample << " to " << end_sample << " (" << samples_to_load << " samples per channel)" << std::endl;
+
+    // Read the entire audio data first
+    const unsigned int expected_samples = header.data_size / sizeof(int16_t);
+    std::vector<int16_t> data(expected_samples);
+    file.read((char *) data.data(), header.data_size);
+
+    if (!file) {
+        std::cerr << "Failed to read audio data from file: " << audio_filepath << std::endl;
+        return nullptr;
+    }
+
+    // Verify we read the expected amount of data
+    const std::streamsize bytes_read = file.gcount();
+    if (bytes_read != static_cast<std::streamsize>(header.data_size)) {
+        std::cerr << "Warning: Expected " << header.data_size << " bytes, but read " 
+                  << bytes_read << " bytes" << std::endl;
+        // Adjust data size to what was actually read
+        data.resize(bytes_read / sizeof(int16_t));
+    }
+
+    // Extract only the portion we want (between start_sample and end_sample)
+    // Data is interleaved: [ch0_sample0, ch1_sample0, ch0_sample1, ch1_sample1, ...]
+    std::vector<std::vector<float>> audio_data(num_channels, std::vector<float>(samples_to_load));
+    
+    for (unsigned int sample_idx = 0; sample_idx < samples_to_load; ++sample_idx) {
+        const unsigned int global_sample_idx = start_sample + sample_idx;
+        if (global_sample_idx >= total_samples_per_channel) {
+            break; // Safety check
+        }
+        
+        for (unsigned int ch = 0; ch < num_channels; ++ch) {
+            // Calculate index in interleaved data array
+            const unsigned int data_index = global_sample_idx * num_channels + ch;
+            if (data_index < data.size()) {
+                audio_data[ch][sample_idx] = data[data_index] / 32768.0f; // Convert from int16_t to float [-1.0, 1.0]
+            } else {
+                audio_data[ch][sample_idx] = 0.0f; // Pad with zeros if out of bounds
+            }
+        }
+    }
+
+    // Create AudioTape with the loaded data (size based on loaded portion)
+    auto tape = std::make_shared<AudioTape>(frames_per_buffer, sample_rate, num_channels, samples_to_load);
+    
+    // Copy the loaded data into the tape
+    for (unsigned int ch = 0; ch < num_channels; ++ch) {
+        tape->m_data[ch] = std::move(audio_data[ch]);
+    }
+    
+    // Set the record position to the end of the loaded data
+    tape->m_current_record_position = samples_to_load;
+    
+    std::cout << "Successfully loaded " << samples_to_load << " samples per channel (" 
+              << (static_cast<float>(samples_to_load) / static_cast<float>(header.sample_rate)) 
+              << " seconds)" << std::endl;
+    
+    return tape;
 }
 
 void AudioTape::record(const float * audio_stream_data) {

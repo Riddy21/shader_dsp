@@ -6,8 +6,11 @@
 #include <vector>
 #include <optional>
 #include <memory>
+#include <fstream>
+#include <cstring>
 
 #include "audio_parameter/audio_texture2d_parameter.h"
+#include "audio_output/audio_wav.h"
 
 #define MAX_TEXTURE_SIZE 4096
 
@@ -152,6 +155,16 @@ public:
               const unsigned int num_channels, 
               const std::optional<unsigned int> tape_size = std::nullopt);
 
+    // Static factory method to load AudioTape from a WAV file
+    // Returns a shared_ptr to the created AudioTape, or nullptr on error
+    // start_seconds: Optional start time in seconds (defaults to 0.0)
+    // end_seconds: Optional end time in seconds (defaults to end of file)
+    static std::shared_ptr<AudioTape> load_from_wav_file(const std::string& audio_filepath,
+                                                          const unsigned int frames_per_buffer,
+                                                          const unsigned int sample_rate,
+                                                          const std::optional<float> start_seconds = std::nullopt,
+                                                          const std::optional<float> end_seconds = std::nullopt);
+
     // Will record the audio data in one frames per buffer chunks
     // THe audio stream data should be frames per buffer * num channels long, in channel major order
     void record(const float * audio_stream_data);
@@ -171,6 +184,10 @@ public:
     const unsigned int size() const { return m_data.empty() ? 0u : static_cast<unsigned int>(m_data[0].size()); }
     // Seconds of audio available per channel
     const float size_in_seconds() const { return static_cast<float>(size()) / static_cast<float>(m_sample_rate); }
+    // Number of channels
+    const unsigned int num_channels() const { return m_num_channels; }
+    // Sample rate
+    const unsigned int sample_rate() const { return m_sample_rate; }
 
 private:
     // Playback for render stage history - outputs directly in texture format
