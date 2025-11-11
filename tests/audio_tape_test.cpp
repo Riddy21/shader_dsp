@@ -2,7 +2,7 @@
 
 #include "catch2/catch_all.hpp"
 
-#include "audio_render_stage/audio_render_stage_history.h"
+#include "audio_core/audio_tape.h"
 
 #include <vector>
 

@@ -3,7 +3,8 @@
 #include "catch2/catch_all.hpp"
 
 #define private public
-#include "audio_render_stage/audio_render_stage_history.h"
+#include "audio_render_stage_plugins/audio_render_stage_history.h"
+#include "audio_core/audio_tape.h"
 #undef private
 
 #include "audio_parameter/audio_uniform_parameter.h"

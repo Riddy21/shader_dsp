@@ -3,7 +3,8 @@
 #define AUDIO_EFFECT_RENDER_STAGE_H
 
 #include "audio_core/audio_render_stage.h"
-#include "audio_render_stage/audio_render_stage_history.h"
+#include "audio_render_stage_plugins/audio_render_stage_history.h"
+#include "audio_core/audio_tape.h"
 #include "audio_core/audio_control.h"
 
 class AudioEffectRenderStage : public AudioRenderStage {

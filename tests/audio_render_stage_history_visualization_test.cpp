@@ -4,7 +4,8 @@
 #include "test_sdl_manager.h"
 
 #define private public
-#include "audio_render_stage/audio_render_stage_history.h"
+#include "audio_render_stage_plugins/audio_render_stage_history.h"
+#include "audio_core/audio_tape.h"
 #undef private
 
 #include "audio_core/audio_render_stage.h"
