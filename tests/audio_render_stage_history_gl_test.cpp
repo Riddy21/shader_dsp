@@ -30,6 +30,7 @@
 #include <iomanip>
 #include <map>
 #include <sstream>
+#include <filesystem>
 
 struct TestParams { int buffer_size; int num_channels; const char* name; };
 using TestParam1 = std::integral_constant<int, 0>; // 256 x 2
@@ -2227,4 +2228,180 @@ TEST_CASE("AudioTape - load from WAV file with start and end points", "[audio_ta
 	}
 	
 	delete global_time;
+}
+
+TEST_CASE("AudioTape - export to WAV file", "[audio_tape][wav_export][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int SAMPLE_RATE = 44100;
+	const std::string wav_file = "media/test.wav";
+	const std::string output_dir = "build/tests/tape_exports";
+	
+	// Create output directory
+	system(("mkdir -p " + output_dir).c_str());
+	
+	SECTION("Export full tape loaded from WAV file") {
+		// Load WAV file into AudioTape
+		auto tape = AudioTape::load_from_wav_file(wav_file, BUFFER_SIZE, SAMPLE_RATE);
+		REQUIRE(tape != nullptr);
+		REQUIRE(tape->size() > 0);
+		
+		const unsigned int num_channels = tape->num_channels();
+		const unsigned int tape_size_samples = tape->size();
+		const float tape_duration = tape->size_in_seconds();
+		
+		// Export to WAV file
+		const std::string output_file = output_dir + "/exported_full_tape.wav";
+		bool export_success = tape->export_to_wav_file(output_file);
+		REQUIRE(export_success == true);
+		
+		// Verify file was created
+		REQUIRE(std::filesystem::exists(output_file));
+		
+		// Validate WAV header
+		REQUIRE(validate_wav_header(output_file, num_channels, SAMPLE_RATE, 16));
+		
+		// Read back the exported file
+		auto exported_data = read_wav_audio_data(output_file);
+		REQUIRE(!exported_data.empty());
+		
+		// Verify sample count matches
+		const unsigned int expected_samples = tape_size_samples * num_channels;
+		REQUIRE(exported_data.size() == expected_samples);
+		
+		// Verify we can load it back
+		auto reloaded_tape = AudioTape::load_from_wav_file(output_file, BUFFER_SIZE, SAMPLE_RATE);
+		REQUIRE(reloaded_tape != nullptr);
+		REQUIRE(reloaded_tape->size() == tape_size_samples);
+		REQUIRE(reloaded_tape->num_channels() == num_channels);
+		REQUIRE(reloaded_tape->sample_rate() == SAMPLE_RATE);
+	}
+	
+	SECTION("Export portion of tape (with start/end points)") {
+		constexpr float start_seconds = 1.0f;
+		constexpr float end_seconds = 3.0f;
+		
+		// Load portion of WAV file
+		auto tape = AudioTape::load_from_wav_file(wav_file, BUFFER_SIZE, SAMPLE_RATE, start_seconds, end_seconds);
+		REQUIRE(tape != nullptr);
+		REQUIRE(tape->size() > 0);
+		
+		const unsigned int num_channels = tape->num_channels();
+		const unsigned int tape_size_samples = tape->size();
+		const float expected_duration = end_seconds - start_seconds;
+		
+		// Export to WAV file
+		const std::string output_file = output_dir + "/exported_portion_tape.wav";
+		bool export_success = tape->export_to_wav_file(output_file);
+		REQUIRE(export_success == true);
+		
+		// Verify file was created
+		REQUIRE(std::filesystem::exists(output_file));
+		
+		// Validate WAV header
+		REQUIRE(validate_wav_header(output_file, num_channels, SAMPLE_RATE, 16));
+		
+		// Verify we can load it back
+		auto reloaded_tape = AudioTape::load_from_wav_file(output_file, BUFFER_SIZE, SAMPLE_RATE);
+		REQUIRE(reloaded_tape != nullptr);
+		REQUIRE(reloaded_tape->size() == tape_size_samples);
+		REQUIRE(std::abs(reloaded_tape->size_in_seconds() - expected_duration) < 0.1f);
+	}
+	
+	SECTION("Export recorded tape") {
+		constexpr int NUM_CHANNELS = 2;
+		constexpr float TEST_FREQUENCY = 440.0f;
+		constexpr float AMPLITUDE = 0.5f;
+		constexpr int RECORD_DURATION_SECONDS = 2;
+		constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
+		
+		// Create empty tape
+		auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+		
+		// Record sine wave to tape
+		std::vector<float> phases(NUM_CHANNELS, 0.0f);
+		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, AMPLITUDE, SAMPLE_RATE, BUFFER_SIZE, 1, phases[ch]);
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
+				}
+				phases[ch] += BUFFER_SIZE;
+			}
+			tape->record(channel_major_buffer.data());
+		}
+		
+		REQUIRE(tape->size() > 0);
+		
+		// Export to WAV file
+		const std::string output_file = output_dir + "/exported_recorded_tape.wav";
+		bool export_success = tape->export_to_wav_file(output_file);
+		REQUIRE(export_success == true);
+		
+		// Verify file was created
+		REQUIRE(std::filesystem::exists(output_file));
+		
+		// Validate WAV header
+		REQUIRE(validate_wav_header(output_file, NUM_CHANNELS, SAMPLE_RATE, 16));
+		
+		// Read back and verify it contains the expected frequency
+		auto exported_data = read_wav_audio_data(output_file);
+		REQUIRE(!exported_data.empty());
+		REQUIRE(detect_frequency_int16(exported_data, TEST_FREQUENCY, SAMPLE_RATE, NUM_CHANNELS, 0.1f));
+	}
+	
+	SECTION("Export empty tape (should fail)") {
+		auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, 2);
+		
+		const std::string output_file = output_dir + "/exported_empty_tape.wav";
+		bool export_success = tape->export_to_wav_file(output_file);
+		REQUIRE(export_success == false);
+		
+		// File should not be created
+		REQUIRE(!std::filesystem::exists(output_file));
+	}
+	
+	SECTION("Round-trip test: load -> export -> load") {
+		// Load original file
+		auto original_tape = AudioTape::load_from_wav_file(wav_file, BUFFER_SIZE, SAMPLE_RATE);
+		REQUIRE(original_tape != nullptr);
+		const unsigned int original_size = original_tape->size();
+		const unsigned int original_channels = original_tape->num_channels();
+		
+		// Export
+		const std::string output_file = output_dir + "/round_trip_test.wav";
+		bool export_success = original_tape->export_to_wav_file(output_file);
+		REQUIRE(export_success == true);
+		
+		// Load back
+		auto reloaded_tape = AudioTape::load_from_wav_file(output_file, BUFFER_SIZE, SAMPLE_RATE);
+		REQUIRE(reloaded_tape != nullptr);
+		
+		// Verify properties match
+		REQUIRE(reloaded_tape->size() == original_size);
+		REQUIRE(reloaded_tape->num_channels() == original_channels);
+		REQUIRE(reloaded_tape->sample_rate() == SAMPLE_RATE);
+		
+		// Compare sample data by playing back and comparing
+		// Use playback method to access data (since m_data is private)
+		const unsigned int compare_samples = std::min(original_size, reloaded_tape->size());
+		const unsigned int compare_frames = (compare_samples / BUFFER_SIZE) + 1;
+		
+		for (unsigned int frame = 0; frame < compare_frames; ++frame) {
+			unsigned int offset = frame * BUFFER_SIZE;
+			if (offset >= compare_samples) break;
+			
+			unsigned int frames_to_compare = std::min(static_cast<unsigned int>(BUFFER_SIZE), compare_samples - offset);
+			
+			auto original_playback = original_tape->playback(frames_to_compare, offset, false);
+			auto reloaded_playback = reloaded_tape->playback(frames_to_compare, offset, false);
+			
+			REQUIRE(original_playback.size() == reloaded_playback.size());
+			
+			const float tolerance = 0.01f; // Allow tolerance for int16 conversion
+			for (size_t i = 0; i < original_playback.size(); ++i) {
+				REQUIRE(std::abs(original_playback[i] - reloaded_playback[i]) < tolerance);
+			}
+		}
+	}
 }

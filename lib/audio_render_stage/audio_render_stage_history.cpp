@@ -529,6 +529,17 @@ void AudioTape::clear() {
     m_current_playback_position = 0;
 }
 
+bool AudioTape::export_to_wav_file(const std::string& output_filepath) const {
+    // Check if tape has any data
+    if (m_data.empty() || m_data[0].empty()) {
+        std::cerr << "Cannot export empty tape to WAV file" << std::endl;
+        return false;
+    }
+    
+    // Use the WAV utility function to write the file
+    return write_wav_file(output_filepath, m_data, m_sample_rate, m_num_channels);
+}
+
 // AudioRenderStageHistory2 implementation
 AudioRenderStageHistory2::AudioRenderStageHistory2(const unsigned int frames_per_buffer,
                                                    const unsigned int sample_rate,

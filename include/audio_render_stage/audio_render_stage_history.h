@@ -188,6 +188,10 @@ public:
     const unsigned int num_channels() const { return m_num_channels; }
     // Sample rate
     const unsigned int sample_rate() const { return m_sample_rate; }
+    
+    // Export tape to WAV file
+    // Returns true on success, false on failure
+    bool export_to_wav_file(const std::string& output_filepath) const;
 
 private:
     // Playback for render stage history - outputs directly in texture format
