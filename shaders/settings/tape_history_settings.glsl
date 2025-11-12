@@ -11,6 +11,10 @@ int get_tape_history_size() {
     return audio_size.x * audio_size.y / num_channels;
 }
 
+// FIXME: add ability to play tape history sample from a specific position with s specific tape window speed
+// Make sure this is only possible when they are within the tape window size
+// If its not in the window size, return zeros
+
 // Get the audio section corresponding to the tape section in the tape history from the tape position (in samples)
 // Returns the audio sample (vec4) from the audio_history_texture at the current tape position
 // TexCoord: texture coordinates from the current shader (channel is encoded in TexCoord.y)

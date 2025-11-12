@@ -130,6 +130,10 @@ private:
     
     // Track last time value for delta-based updates
     unsigned int m_last_time = 0;
+    
+    // Track previous speed to ensure continuity when speed changes
+    // Position is advanced using the speed that was used to generate the current buffer
+    int m_previous_speed_samples_per_buffer = 0;
 
     void set_window_offset_samples(const unsigned int window_offset_samples);
 

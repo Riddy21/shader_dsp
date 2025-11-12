@@ -96,7 +96,8 @@ AudioRenderStageHistory2::AudioRenderStageHistory2(const unsigned int frames_per
       m_tape_speed(nullptr),
       m_tape_window_offset_samples(nullptr),
       m_tape_stopped(nullptr),
-      m_tape_loop(nullptr) {
+      m_tape_loop(nullptr),
+      m_previous_speed_samples_per_buffer(0) {
     
     // Convert seconds to samples
     float buffer_size_seconds = history_buffer_size_seconds;
@@ -195,8 +196,28 @@ const float AudioRenderStageHistory2::get_tape_position_in_seconds() const {
 
 void AudioRenderStageHistory2::set_tape_speed(const float speed) {
     if (m_tape_speed) {
-        // Convert speed to samples per buffer: samples_per_buffer = speed * frames_per_buffer
+        // Get the current speed before updating (this is the speed that was used for rendering)
+        int current_speed = get_tape_speed_samples_per_buffer();
+        
+        // Convert new speed to samples per buffer: samples_per_buffer = speed * frames_per_buffer
         int samples_per_buffer = static_cast<int>(speed * static_cast<float>(m_frames_per_buffer));
+        
+        // Always store current speed as previous before updating (for continuity tracking)
+        // This ensures that when update_audio_history_texture is called, it advances position
+        // using the speed that was active when the current buffer was generated
+        // Only initialize if this is the very first time (when previous is 0 and current is also 0 or default)
+        if (m_previous_speed_samples_per_buffer == 0 && current_speed == static_cast<int>(m_frames_per_buffer)) {
+            // First time: current speed is the default (1.0x), initialize with it
+            m_previous_speed_samples_per_buffer = current_speed;
+        } else if (m_previous_speed_samples_per_buffer == 0) {
+            // First time but current speed is not default: use current speed
+            m_previous_speed_samples_per_buffer = current_speed;
+        } else {
+            // Normal case: always update previous to current before changing
+            m_previous_speed_samples_per_buffer = current_speed;
+        }
+        
+        // Now update to the new speed
         static_cast<AudioIntParameter*>(m_tape_speed)->set_value(samples_per_buffer);
     }
 }
@@ -331,8 +352,26 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
     
     // Get current state
     const unsigned int current_position = get_tape_position();
-    const int speed_samples_per_buffer = get_tape_speed_samples_per_buffer();
-    const int samples_to_advance = time_delta * speed_samples_per_buffer;
+    const int current_speed_samples_per_buffer = get_tape_speed_samples_per_buffer();
+    
+    // Use previous speed for position advancement to ensure continuity
+    // The shader samples for the current frame were generated using the speed that was
+    // set BEFORE this update_audio_history_texture call. We need to advance position
+    // using that same speed to maintain continuity.
+    // After advancing, we update the previous speed to the current speed for the next frame.
+    int speed_samples_per_buffer_for_advancement = m_previous_speed_samples_per_buffer;
+    
+    // On first frame or if previous speed not initialized, use current speed
+    if (m_previous_speed_samples_per_buffer == 0) {
+        speed_samples_per_buffer_for_advancement = current_speed_samples_per_buffer;
+        m_previous_speed_samples_per_buffer = current_speed_samples_per_buffer;
+    }
+    
+    const int samples_to_advance = time_delta * speed_samples_per_buffer_for_advancement;
+    
+    // Update previous speed for next frame (after using it for advancement)
+    // This will be used to advance position after the next frame's samples are generated
+    m_previous_speed_samples_per_buffer = current_speed_samples_per_buffer;
     
     // Check if loop is enabled
     const bool loop_enabled = is_tape_loop_enabled();
@@ -455,6 +494,7 @@ void AudioRenderStageHistory2::clamp_position(int samples_to_advance,
 }
 
 void AudioRenderStageHistory2::update_texture_if_needed(std::shared_ptr<AudioTape> tape) {
+    // FIXME: move this outside the loop so you can update the audio texture data as often as you want whenever needed
     if (!is_audio_texture_data_outdated()) {
         return;
     }
@@ -538,3 +578,10 @@ std::weak_ptr<AudioTape> AudioRenderStageHistory2::get_tape() {
     return m_tape;
 }
 
+
+// FIXME: Add proper support for shifting tape windows, and make sure that the update occurs correctly when using shifting tapes
+
+// where to start:
+// 1. Update can be performed at any time
+// 2. test with shifting windows
+// 3. add support for playing at multiple positions and speeds
