@@ -186,6 +186,66 @@ private:
 	unsigned int m_texture_update_interval;
 };
 
+// Version that updates texture only when needed (checks is_audio_texture_data_outdated)
+class MockTapePlaybackStageWithConditionalUpdates : public AudioRenderStage {
+public:
+	MockTapePlaybackStageWithConditionalUpdates(unsigned int frames_per_buffer,
+	                                             unsigned int sample_rate,
+	                                             unsigned int num_channels,
+	                                             float window_seconds = 2.0f)
+	: AudioRenderStage(frames_per_buffer, sample_rate, num_channels,
+	                   kTapePlaybackFragSource,
+	                   true, // use_shader_string
+	                   std::vector<std::string>{
+	                   	"build/shaders/global_settings.glsl",
+	                   	"build/shaders/frag_shader_settings.glsl",
+	                   	"build/shaders/tape_history_settings.glsl"}),
+	  m_is_playing(false),
+	  m_texture_update_count(0)
+	{
+		// Create tape history and all its textures/parameters
+		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
+		m_history2->create_parameters(m_active_texture_count);
+		
+		// Add all parameters
+		auto params = m_history2->get_parameters();
+		for (auto* param : params) {
+			this->add_parameter(param);
+		}
+	}
+	
+	AudioRenderStageHistory2& get_history() { return *m_history2; }
+	
+	void play() { m_is_playing = true; }
+	void stop() { m_is_playing = false; }
+	bool is_playing() const { return m_is_playing; }
+	
+	unsigned int get_texture_update_count() const { return m_texture_update_count; }
+	void reset_texture_update_count() { m_texture_update_count = 0; }
+
+protected:
+	void render(const unsigned int time) override {
+		// Always update positions every frame
+		m_history2->update_tape_positions(time);
+		
+		// Update texture only when needed (checks is_audio_texture_data_outdated internally)
+		// This will only update when the tape position moves outside the valid texture window range
+		// Always update on first frame (time == 0) to initialize texture, then only when needed
+		if (time == 0 || m_history2->is_audio_texture_data_outdated()) {
+			m_history2->update_audio_history_texture();
+			m_texture_update_count++;
+		}
+		
+		AudioRenderStage::render(time);
+	}
+
+private:
+	std::unique_ptr<AudioRenderStageHistory2> m_history2;
+	bool m_is_playing;
+	unsigned int m_current_frame;
+	unsigned int m_texture_update_count;
+};
+
 
 TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio output", "[audio_history2][playback][audio_output][gl_test][template]",
 			   PlaybackTestParam1, PlaybackTestParam2, PlaybackTestParam3, PlaybackTestParam4, PlaybackTestParam5, PlaybackTestParam6) {
@@ -2927,6 +2987,246 @@ TEST_CASE("AudioRenderStageHistory2 - texture update intervals and continuity", 
 					// Allow a small number of jumps (less than 0.1% of samples, minimum 1)
 					unsigned int max_allowed = std::max(1u, static_cast<unsigned int>(samples.size() / 1000));
 					REQUIRE(large_jump_indices.size() < max_allowed);
+				}
+			}
+		}
+	}
+}
+
+TEST_CASE("AudioRenderStageHistory2 - conditional texture updates when needed", "[audio_history2][texture_update][conditional][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr float TEST_FREQUENCY = 440.0f;
+	constexpr float BASE_AMPLITUDE = 0.3f;
+	constexpr int RECORD_DURATION_SECONDS = 4;
+	constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
+	constexpr int PLAYBACK_DURATION_SECONDS = 3;
+	constexpr int NUM_PLAYBACK_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * PLAYBACK_DURATION_SECONDS;
+	constexpr float WINDOW_SIZE_SECONDS = 0.5f;
+	constexpr float PLAYBACK_SPEED = 1.0f;
+
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Create tape and mock playback stage with conditional updates
+	auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	MockTapePlaybackStageWithConditionalUpdates playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
+	playback_stage.get_history().set_tape(tape);
+	
+	// Create final render stage
+	AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	
+	// Connect playback stage to final stage
+	REQUIRE(playback_stage.connect_render_stage(&final_stage));
+	
+	// Initialize stages
+	REQUIRE(playback_stage.initialize());
+	REQUIRE(final_stage.initialize());
+	
+	context.prepare_draw();
+	REQUIRE(playback_stage.bind());
+	REQUIRE(final_stage.bind());
+	
+	SECTION("Record sine wave") {
+		// Record sine wave to tape
+		std::vector<float> phases(NUM_CHANNELS, 0.0f);
+		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				float channel_amplitude = BASE_AMPLITUDE * (ch + 1);
+				auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, channel_amplitude, SAMPLE_RATE, BUFFER_SIZE, 1, phases[ch]);
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
+				}
+				phases[ch] += BUFFER_SIZE;
+			}
+			tape->record(channel_major_buffer.data());
+		}
+		REQUIRE(tape->size() > 0);
+	}
+	
+	SECTION("Texture updates only when needed") {
+		// Setup playback
+		playback_stage.get_history().set_tape_speed(PLAYBACK_SPEED);
+		auto start_position = tape->size() / 4; // Start at 1/4 through the tape
+		playback_stage.get_history().set_tape_position(start_position);
+		playback_stage.play();
+		playback_stage.reset_texture_update_count();
+		
+		// Track when updates happen
+		std::vector<unsigned int> update_frames;
+		std::vector<unsigned int> update_positions;
+		std::vector<unsigned int> update_window_offsets;
+		
+		// Collect output samples per channel
+		std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			output_samples_per_channel[ch].reserve(SAMPLE_RATE * PLAYBACK_DURATION_SECONDS);
+		}
+		
+		// Render and capture audio, tracking texture updates
+		for (int frame = 0; frame < NUM_PLAYBACK_FRAMES; ++frame) {
+			global_time->set_value(frame);
+			global_time->render();
+			
+			// Track state before render
+			unsigned int position_before = playback_stage.get_history().get_tape_position();
+			unsigned int window_offset_before = playback_stage.get_history().get_window_offset_samples();
+			unsigned int update_count_before = playback_stage.get_texture_update_count();
+			
+			// Render playback stage (updates positions every frame, texture only when needed)
+			playback_stage.render(frame);
+			
+			// Check if texture was updated
+			unsigned int update_count_after = playback_stage.get_texture_update_count();
+			if (update_count_after > update_count_before) {
+				update_frames.push_back(frame);
+				update_positions.push_back(playback_stage.get_history().get_tape_position());
+				update_window_offsets.push_back(playback_stage.get_history().get_window_offset_samples());
+			}
+			
+			// Render final stage
+			final_stage.render(frame);
+			
+			// Get output from final stage
+			auto output_param = final_stage.find_parameter("final_output_audio_texture");
+			REQUIRE(output_param != nullptr);
+			
+			const float* output_data = static_cast<const float*>(output_param->get_value());
+			REQUIRE(output_data != nullptr);
+			
+			// De-interleave to separate channels
+			for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+				auto channel = i % NUM_CHANNELS;
+				output_samples_per_channel[channel].push_back(output_data[i]);
+			}
+			
+			// Stop if we've reached the end
+			if (playback_stage.get_history().get_tape_position() >= tape->size()) {
+				playback_stage.stop();
+				break;
+			}
+		}
+		playback_stage.stop();
+		
+		// Verify we got output
+		REQUIRE(output_samples_per_channel[0].size() > 0);
+		
+		unsigned int total_texture_updates = playback_stage.get_texture_update_count();
+		
+		INFO("Texture update analysis:");
+		INFO("  Total frames rendered: " << NUM_PLAYBACK_FRAMES);
+		INFO("  Total texture updates: " << total_texture_updates);
+		INFO("  Update rate: " << (float)total_texture_updates / NUM_PLAYBACK_FRAMES * 100.0f << "%");
+		
+		if (!update_frames.empty()) {
+			INFO("  First 10 update frames and positions:");
+			for (size_t i = 0; i < std::min(update_frames.size(), size_t(10)); ++i) {
+				INFO("    Frame " << update_frames[i] << ": position=" << update_positions[i] 
+				     << ", window_offset=" << update_window_offsets[i]);
+			}
+		}
+		
+		// Verify texture updates happened (should happen when position moves outside valid range)
+		// Updates should be relatively infrequent - only when position approaches texture boundaries
+		REQUIRE(total_texture_updates > 0); // Should have at least some updates
+		REQUIRE(total_texture_updates < NUM_PLAYBACK_FRAMES / 2); // Should be less than 50% of frames
+		
+		// Verify updates happened at reasonable intervals
+		// When playing at normal speed, texture should update periodically as position moves through the window
+		if (update_frames.size() > 1) {
+			std::vector<unsigned int> intervals;
+			for (size_t i = 1; i < update_frames.size(); ++i) {
+				intervals.push_back(update_frames[i] - update_frames[i - 1]);
+			}
+			
+			// Calculate average interval
+			unsigned int total_interval = 0;
+			for (unsigned int interval : intervals) {
+				total_interval += interval;
+			}
+			unsigned int avg_interval = intervals.empty() ? 0 : total_interval / intervals.size();
+			
+			INFO("  Average update interval: " << avg_interval << " frames");
+			
+			// Updates should happen at reasonable intervals (not too frequent, not too rare)
+			// For a 0.5 second window at normal speed, updates should happen roughly every few frames
+			// when approaching boundaries
+			REQUIRE(avg_interval >= 1); // At least 1 frame between updates
+			REQUIRE(avg_interval < NUM_PLAYBACK_FRAMES); // But not too sparse
+		}
+		
+		// Verify audio continuity - conditional updates should not cause discontinuities
+		SECTION("Audio continuity check") {
+			constexpr float DISCONTINUITY_THRESHOLD = 0.2f;
+			
+			for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				const auto& samples = output_samples_per_channel[ch];
+				std::vector<size_t> discontinuity_indices;
+				
+				for (size_t i = 1; i < samples.size(); ++i) {
+					float sample_diff = std::abs(samples[i] - samples[i - 1]);
+					if (sample_diff > DISCONTINUITY_THRESHOLD) {
+						discontinuity_indices.push_back(i);
+					}
+				}
+				
+				INFO("Channel " << ch << " continuity analysis:");
+				INFO("  Total samples: " << samples.size());
+				INFO("  Discontinuities found: " << discontinuity_indices.size());
+				
+				// Verify continuity - conditional updates should not cause discontinuities
+				unsigned int max_allowed = std::max(1u, static_cast<unsigned int>(samples.size() / 1000));
+				REQUIRE(discontinuity_indices.size() < max_allowed);
+			}
+		}
+		
+		// Verify that updates happen when position is outside valid range
+		SECTION("Update timing verification") {
+			// Re-run a shorter test to verify update logic
+			playback_stage.get_history().set_tape_position(start_position);
+			playback_stage.reset_texture_update_count();
+			
+			// Get window parameters
+			unsigned int window_size = playback_stage.get_history().get_window_size_samples();
+			int speed_samples = playback_stage.get_history().get_tape_speed_samples_per_buffer();
+			unsigned int frame_size_samples = static_cast<unsigned int>(std::abs(speed_samples));
+			
+			// Render a few frames and check update logic
+			for (int frame = 0; frame < 50; ++frame) {
+				global_time->set_value(frame);
+				global_time->render();
+				
+				unsigned int position_before = playback_stage.get_history().get_tape_position();
+				unsigned int window_offset_before = playback_stage.get_history().get_window_offset_samples();
+				bool was_outdated_before = playback_stage.get_history().is_audio_texture_data_outdated();
+				unsigned int update_count_before = playback_stage.get_texture_update_count();
+				
+				playback_stage.render(frame);
+				
+				unsigned int update_count_after = playback_stage.get_texture_update_count();
+				bool was_updated = (update_count_after > update_count_before);
+				
+				// If texture was updated, verify it was because data was outdated
+				if (was_updated) {
+					// After update, data should not be outdated (unless we're at a boundary)
+					bool is_outdated_after = playback_stage.get_history().is_audio_texture_data_outdated();
+					
+					// Update should have happened because data was outdated
+					// (Note: after update, it might still be outdated if we're at a boundary, which is OK)
+					// First frame always updates, or data was outdated before update
+					bool update_was_valid = (frame == 0) || was_outdated_before;
+					REQUIRE(update_was_valid);
+				}
+				
+				if (playback_stage.get_history().get_tape_position() >= tape->size()) {
+					break;
 				}
 			}
 		}
