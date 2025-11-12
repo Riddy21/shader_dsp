@@ -440,7 +440,7 @@ void AudioRenderStageHistory2::advance_tape_position_with_delta(int time_delta) 
     }
 }
 
-void AudioRenderStageHistory2::update_audio_history_texture() {
+void AudioRenderStageHistory2::update_audio_history_texture(bool force_update) {
     if (!m_audio_history_texture) {
         return; // Texture not created yet
     }
@@ -450,8 +450,23 @@ void AudioRenderStageHistory2::update_audio_history_texture() {
         return; // Tape not assigned
     }
     
-    // Update texture if needed
-    update_texture_if_needed(tape);
+    // Update texture if needed (or if forced)
+    if (force_update || is_audio_texture_data_outdated()) {
+        const unsigned int window_offset_samples = get_window_offset_samples_for_tape_data();
+        
+        // Get tape data in texture format
+        std::vector<float> texture_data = tape->playback_for_render_stage_history(
+            get_window_size_samples(),
+            window_offset_samples,
+            m_texture_width,
+            m_texture_rows_per_channel);
+        
+        // Update texture
+        static_cast<AudioTexture2DParameter*>(m_audio_history_texture)->set_value(texture_data.data());
+        
+        // Update window offset parameter
+        set_window_offset_samples(window_offset_samples);
+    }
 }
 
 void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
@@ -674,6 +689,5 @@ std::weak_ptr<AudioTape> AudioRenderStageHistory2::get_tape() {
 // FIXME: Add proper support for shifting tape windows, and make sure that the update occurs correctly when using shifting tapes
 
 // where to start:
-// 1. Update can be performed at any time
 // 2. test with shifting windows
 // 3. add support for playing at multiple positions and speeds

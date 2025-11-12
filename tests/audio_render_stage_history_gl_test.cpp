@@ -232,7 +232,7 @@ protected:
 		// This will only update when the tape position moves outside the valid texture window range
 		// Always update on first frame (time == 0) to initialize texture, then only when needed
 		if (time == 0 || m_history2->is_audio_texture_data_outdated()) {
-			m_history2->update_audio_history_texture();
+			m_history2->update_audio_history_texture(time == 0); // Force update on first frame
 			m_texture_update_count++;
 		}
 		
@@ -2421,7 +2421,6 @@ TEST_CASE("AudioTape - load from WAV file with loop enabled", "[audio_tape][wav_
 		
 		// Verify tape never stops (because loop is enabled)
 		REQUIRE(playback_stage.get_history().is_tape_stopped() == false);
-		
 		frame++;
 	}
 	
@@ -3033,29 +3032,45 @@ TEST_CASE("AudioRenderStageHistory2 - conditional texture updates when needed", 
 	REQUIRE(playback_stage.bind());
 	REQUIRE(final_stage.bind());
 	
-	SECTION("Record sine wave") {
-		// Record sine wave to tape
-		std::vector<float> phases(NUM_CHANNELS, 0.0f);
-		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
-			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
-			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
-				float channel_amplitude = BASE_AMPLITUDE * (ch + 1);
-				auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, channel_amplitude, SAMPLE_RATE, BUFFER_SIZE, 1, phases[ch]);
-				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
-					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
-				}
-				phases[ch] += BUFFER_SIZE;
+	// Record sine wave to tape (must happen before playback sections)
+	std::vector<float> phases(NUM_CHANNELS, 0.0f);
+	for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
+		std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			float channel_amplitude = BASE_AMPLITUDE * (ch + 1);
+			auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, channel_amplitude, SAMPLE_RATE, BUFFER_SIZE, 1, phases[ch]);
+			for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+				channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
 			}
-			tape->record(channel_major_buffer.data());
+			phases[ch] += BUFFER_SIZE;
 		}
-		REQUIRE(tape->size() > 0);
+		tape->record(channel_major_buffer.data());
 	}
+	REQUIRE(tape->size() > 0);
+	INFO("Recorded " << tape->size() << " samples per channel to tape");
 	
 	SECTION("Texture updates only when needed") {
+		// Clear stream_audio_texture to ensure it's zero when no previous stage is connected
+		auto stream_param = playback_stage.find_parameter("stream_audio_texture");
+		if (stream_param) {
+			stream_param->clear_value();
+		}
+		
+		// Setup audio output (only if enabled)
+		AudioPlayerOutput* audio_output = nullptr;
+		if (is_audio_output_enabled()) {
+			audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+			REQUIRE(audio_output->open());
+			REQUIRE(audio_output->start());
+		}
+		
 		// Setup playback
+		REQUIRE(tape->size() > 0); // Verify tape has data before playback
+		INFO("Tape size before playback: " << tape->size() << " samples per channel");
 		playback_stage.get_history().set_tape_speed(PLAYBACK_SPEED);
 		auto start_position = tape->size() / 4; // Start at 1/4 through the tape
 		playback_stage.get_history().set_tape_position(start_position);
+		INFO("Starting playback at position: " << start_position);
 		playback_stage.play();
 		playback_stage.reset_texture_update_count();
 		
@@ -3101,10 +3116,40 @@ TEST_CASE("AudioRenderStageHistory2 - conditional texture updates when needed", 
 			const float* output_data = static_cast<const float*>(output_param->get_value());
 			REQUIRE(output_data != nullptr);
 			
+			// Check if audio data is non-zero (verify we have actual audio)
+			bool has_audio = false;
+			float max_amplitude = 0.0f;
+			for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+				float abs_val = std::abs(output_data[i]);
+				if (abs_val > 0.001f) {
+					has_audio = true;
+				}
+				max_amplitude = std::max(max_amplitude, abs_val);
+			}
+			
+			// Log diagnostic info on first frame or if no audio detected
+			if (frame == 0 || (!has_audio && frame < 10)) {
+				INFO("Frame " << frame << " audio check: has_audio=" << has_audio 
+				     << ", max_amplitude=" << max_amplitude
+				     << ", tape_position=" << playback_stage.get_history().get_tape_position()
+				     << ", tape_size=" << tape->size()
+				     << ", texture_outdated=" << playback_stage.get_history().is_audio_texture_data_outdated());
+			}
+			
 			// De-interleave to separate channels
 			for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
 				auto channel = i % NUM_CHANNELS;
 				output_samples_per_channel[channel].push_back(output_data[i]);
+			}
+			
+			// Push to audio output (output_data is interleaved format)
+			// Always push audio data (even if it appears to be zero, as it might be valid silence)
+			// The audio system will handle zero samples correctly
+			if (audio_output) {
+				while (!audio_output->is_ready()) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+				audio_output->push(output_data);
 			}
 			
 			// Stop if we've reached the end
@@ -3115,8 +3160,29 @@ TEST_CASE("AudioRenderStageHistory2 - conditional texture updates when needed", 
 		}
 		playback_stage.stop();
 		
+		// Wait for audio to finish playing and close audio output
+		if (audio_output) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			audio_output->stop();
+			audio_output->close();
+			delete audio_output;
+		}
+		
 		// Verify we got output
 		REQUIRE(output_samples_per_channel[0].size() > 0);
+		
+		// Verify we actually have non-zero audio data
+		bool has_non_zero_audio = false;
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			for (float sample : output_samples_per_channel[ch]) {
+				if (std::abs(sample) > 0.001f) {
+					has_non_zero_audio = true;
+					break;
+				}
+			}
+			if (has_non_zero_audio) break;
+		}
+		REQUIRE(has_non_zero_audio); // Verify we have actual audio, not just zeros
 		
 		unsigned int total_texture_updates = playback_stage.get_texture_update_count();
 		
@@ -3229,6 +3295,304 @@ TEST_CASE("AudioRenderStageHistory2 - conditional texture updates when needed", 
 					break;
 				}
 			}
+		}
+	}
+}
+
+TEST_CASE("AudioRenderStageHistory2 - growing tape during playback", "[audio_history2][growing_tape][dynamic_size][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr float TEST_FREQUENCY = 440.0f;
+	constexpr float BASE_AMPLITUDE = 0.3f;
+	constexpr int INITIAL_RECORD_DURATION_SECONDS = 1;
+	constexpr int NUM_INITIAL_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * INITIAL_RECORD_DURATION_SECONDS;
+	constexpr int PLAYBACK_DURATION_SECONDS = 3;
+	constexpr int NUM_PLAYBACK_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * PLAYBACK_DURATION_SECONDS;
+	constexpr float WINDOW_SIZE_SECONDS = 0.5f;
+	constexpr float PLAYBACK_SPEED = 1.0f;
+	constexpr float RECORD_FREQUENCY = 880.0f; // Different frequency for recording to distinguish from playback
+
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Create tape with dynamic size (no fixed size, so it can grow)
+	auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	MockTapePlaybackStageWithConditionalUpdates playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
+	playback_stage.get_history().set_tape(tape);
+	
+	// Create final render stage
+	AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	
+	// Connect playback stage to final stage
+	REQUIRE(playback_stage.connect_render_stage(&final_stage));
+	
+	// Initialize stages
+	REQUIRE(playback_stage.initialize());
+	REQUIRE(final_stage.initialize());
+	
+	context.prepare_draw();
+
+	REQUIRE(playback_stage.bind());
+	REQUIRE(final_stage.bind());
+	
+	// Record initial sine wave to tape (must happen before playback section)
+	std::vector<float> phases(NUM_CHANNELS, 0.0f);
+	for (int frame = 0; frame < NUM_INITIAL_RECORD_FRAMES; ++frame) {
+		std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			float channel_amplitude = BASE_AMPLITUDE * (ch + 1);
+			auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, channel_amplitude, SAMPLE_RATE, BUFFER_SIZE, 1, phases[ch]);
+			for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+				channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
+			}
+			phases[ch] += BUFFER_SIZE;
+		}
+		tape->record(channel_major_buffer.data());
+	}
+	REQUIRE(tape->size() > 0);
+	INFO("Initial tape size: " << tape->size() << " samples per channel");
+	
+	SECTION("Playback while tape grows") {
+		// Clear stream_audio_texture to ensure it's zero when no previous stage is connected
+		auto stream_param = playback_stage.find_parameter("stream_audio_texture");
+		if (stream_param) {
+			stream_param->clear_value();
+		}
+		
+		// Setup audio output (only if enabled)
+		AudioPlayerOutput* audio_output = nullptr;
+		if (is_audio_output_enabled()) {
+			audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+			REQUIRE(audio_output->open());
+			REQUIRE(audio_output->start());
+		}
+		
+		// Setup playback
+		playback_stage.get_history().set_tape_speed(PLAYBACK_SPEED);
+		auto start_position = tape->size() / 2; // Start in the middle
+		playback_stage.get_history().set_tape_position(start_position);
+		playback_stage.play();
+		playback_stage.reset_texture_update_count();
+		
+		// Track initial tape size before playback starts
+		unsigned int initial_size = tape->size();
+		
+		// Track tape growth and texture updates
+		std::vector<unsigned int> tape_sizes;
+		std::vector<unsigned int> update_frames;
+		std::vector<unsigned int> tape_sizes_at_update;
+		
+		// Collect output samples per channel
+		std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			output_samples_per_channel[ch].reserve(SAMPLE_RATE * PLAYBACK_DURATION_SECONDS);
+		}
+		
+		// Generate recording data (different frequency to distinguish from playback)
+		std::vector<float> record_phases(NUM_CHANNELS, 0.0f);
+		
+		// Render and capture audio while recording new data to tape
+		for (int frame = 0; frame < NUM_PLAYBACK_FRAMES; ++frame) {
+			global_time->set_value(frame);
+			global_time->render();
+			
+			// Track tape size before render
+			unsigned int tape_size_before = tape->size();
+			unsigned int update_count_before = playback_stage.get_texture_update_count();
+			
+			// Render playback stage (updates positions every frame, texture only when needed)
+			playback_stage.render(frame);
+			
+			// Check if texture was updated
+			unsigned int update_count_after = playback_stage.get_texture_update_count();
+			if (update_count_after > update_count_before) {
+				update_frames.push_back(frame);
+				tape_sizes_at_update.push_back(tape->size());
+			}
+			
+			// Record new data to tape (growing the tape)
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				float channel_amplitude = BASE_AMPLITUDE * (ch + 1) * 0.5f; // Lower amplitude for recording
+				auto sine_buffer = generate_sine_wave(RECORD_FREQUENCY, channel_amplitude, SAMPLE_RATE, BUFFER_SIZE, 1, record_phases[ch]);
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
+				}
+				record_phases[ch] += BUFFER_SIZE;
+			}
+			// Record to the end of the tape (growing it)
+			tape->record(channel_major_buffer.data(), tape->size());
+			
+			// Track tape size after recording
+			unsigned int tape_size_after = tape->size();
+			tape_sizes.push_back(tape_size_after);
+			
+			// Render final stage
+			final_stage.render(frame);
+			
+			// Get output from final stage
+			auto output_param = final_stage.find_parameter("final_output_audio_texture");
+			REQUIRE(output_param != nullptr);
+			
+			const float* output_data = static_cast<const float*>(output_param->get_value());
+			REQUIRE(output_data != nullptr);
+			
+			// Check if audio data is non-zero (verify we have actual audio)
+			bool has_audio = false;
+			float max_amplitude = 0.0f;
+			for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+				float abs_val = std::abs(output_data[i]);
+				if (abs_val > 0.001f) {
+					has_audio = true;
+				}
+				max_amplitude = std::max(max_amplitude, abs_val);
+			}
+			
+			// Log diagnostic info on first frame or if no audio detected
+			if (frame == 0 || (!has_audio && frame < 10)) {
+				INFO("Frame " << frame << " audio check: has_audio=" << has_audio 
+				     << ", max_amplitude=" << max_amplitude
+				     << ", tape_position=" << playback_stage.get_history().get_tape_position()
+				     << ", tape_size=" << tape->size());
+			}
+			
+			// De-interleave to separate channels
+			for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+				auto channel = i % NUM_CHANNELS;
+				output_samples_per_channel[channel].push_back(output_data[i]);
+			}
+			
+			// Push to audio output (output_data is interleaved format)
+			// Always push audio data (even if it appears to be zero, as it might be valid silence)
+			// The audio system will handle zero samples correctly
+			if (audio_output) {
+				while (!audio_output->is_ready()) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+				audio_output->push(output_data);
+			}
+			
+			// Stop if we've reached the end (but tape keeps growing, so this might not happen)
+			if (playback_stage.get_history().get_tape_position() >= tape_size_before) {
+				// Position reached the end before recording, but tape has grown now
+				// Continue playback since tape has grown
+			}
+		}
+		playback_stage.stop();
+		
+		// Wait for audio to finish playing and close audio output
+		if (audio_output) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			audio_output->stop();
+			audio_output->close();
+			delete audio_output;
+		}
+		
+		// Verify we got output
+		REQUIRE(output_samples_per_channel[0].size() > 0);
+		
+		// Verify we actually have non-zero audio data
+		bool has_non_zero_audio = false;
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			for (float sample : output_samples_per_channel[ch]) {
+				if (std::abs(sample) > 0.001f) {
+					has_non_zero_audio = true;
+					break;
+				}
+			}
+			if (has_non_zero_audio) break;
+		}
+		REQUIRE(has_non_zero_audio); // Verify we have actual audio, not just zeros
+		
+		// Verify tape grew
+		REQUIRE(tape_sizes.size() > 0);
+		unsigned int final_size = tape_sizes.back();
+		REQUIRE(final_size > initial_size);
+		
+		INFO("Tape growth analysis:");
+		INFO("  Initial tape size: " << initial_size << " samples per channel");
+		INFO("  Final tape size: " << final_size << " samples per channel");
+		INFO("  Total growth: " << (final_size - initial_size) << " samples per channel");
+		INFO("  Total frames rendered: " << NUM_PLAYBACK_FRAMES);
+		INFO("  Texture updates during growth: " << playback_stage.get_texture_update_count());
+		
+		if (!update_frames.empty()) {
+			INFO("  First 10 texture update frames and tape sizes:");
+			for (size_t i = 0; i < std::min(update_frames.size(), size_t(10)); ++i) {
+				INFO("    Frame " << update_frames[i] << ": tape_size=" << tape_sizes_at_update[i]);
+			}
+		}
+		
+		// Verify tape grew by expected amount (one buffer per frame)
+		unsigned int expected_growth = NUM_PLAYBACK_FRAMES * BUFFER_SIZE;
+		unsigned int actual_growth = final_size - initial_size;
+		INFO("  Expected growth: " << expected_growth << " samples");
+		INFO("  Actual growth: " << actual_growth << " samples");
+		// Allow some tolerance (might be slightly different due to timing)
+		REQUIRE(actual_growth >= expected_growth * 0.9f); // At least 90% of expected
+		REQUIRE(actual_growth <= expected_growth * 1.1f); // At most 110% of expected
+		
+		// Verify texture updates happened (should happen as tape grows and position moves)
+		REQUIRE(playback_stage.get_texture_update_count() > 0);
+		
+		// Verify audio continuity - growing tape should not cause discontinuities
+		SECTION("Audio continuity check with growing tape") {
+			constexpr float DISCONTINUITY_THRESHOLD = 0.2f;
+			
+			for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				const auto& samples = output_samples_per_channel[ch];
+				std::vector<size_t> discontinuity_indices;
+				
+				for (size_t i = 1; i < samples.size(); ++i) {
+					float sample_diff = std::abs(samples[i] - samples[i - 1]);
+					if (sample_diff > DISCONTINUITY_THRESHOLD) {
+						discontinuity_indices.push_back(i);
+					}
+				}
+				
+				INFO("Channel " << ch << " continuity analysis:");
+				INFO("  Total samples: " << samples.size());
+				INFO("  Discontinuities found: " << discontinuity_indices.size());
+				
+				// Verify continuity - growing tape should not cause discontinuities
+				unsigned int max_allowed = std::max(1u, static_cast<unsigned int>(samples.size() / 1000));
+				REQUIRE(discontinuity_indices.size() < max_allowed);
+			}
+		}
+		
+		// Verify playback position doesn't exceed tape size unexpectedly
+		SECTION("Position tracking with growing tape") {
+			// The playback position should be able to advance as the tape grows
+			// Position should never exceed tape size (unless we're at the very end)
+			unsigned int final_position = playback_stage.get_history().get_tape_position();
+			unsigned int final_tape_size = tape->size();
+			
+			INFO("Final playback position: " << final_position);
+			INFO("Final tape size: " << final_tape_size);
+			
+			// Position should be within tape bounds (allowing for one buffer margin)
+			REQUIRE(final_position <= final_tape_size + BUFFER_SIZE);
+		}
+		
+		// Verify that texture updates happen correctly as tape grows
+		SECTION("Texture update behavior with growing tape") {
+			// Texture should update when position approaches boundaries
+			// Even as tape grows, updates should happen at appropriate times
+			REQUIRE(playback_stage.get_texture_update_count() > 0);
+			
+			// Updates should be reasonable (not too many, not too few)
+			// With a growing tape, we might have more updates as position moves through new areas
+			unsigned int update_rate_percent = (playback_stage.get_texture_update_count() * 100) / NUM_PLAYBACK_FRAMES;
+			INFO("Texture update rate: " << update_rate_percent << "%");
+			
+			// Updates should be less than 50% of frames (should be conditional, not every frame)
+			REQUIRE(playback_stage.get_texture_update_count() < NUM_PLAYBACK_FRAMES / 2);
 		}
 	}
 }

@@ -103,7 +103,8 @@ public:
     void update_tape_positions(const unsigned int time);
     
     // Update audio history texture - can be called optionally when needed
-    void update_audio_history_texture();
+    // force_update: if true, update texture even if data is not outdated (useful for initialization)
+    void update_audio_history_texture(bool force_update = false);
     
     // TODO: Implement incrementally updating the texture with tape playback data
     // When paused (speed = 0) it will stop updating position
