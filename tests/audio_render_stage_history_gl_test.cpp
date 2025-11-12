@@ -1019,19 +1019,25 @@ TEST_CASE("AudioRenderStageHistory2 - dynamic speed changes with continuity chec
 		global_time->set_value(frame);
 		global_time->render();
 		
-		// Calculate speed using sine wave: smoothly transitions from MAX_SPEED to MIN_SPEED
-		// Map frame progress [0, 1] to angle [0, π/2], use sine for smooth transition
+		// Calculate speed using cosine wave: smoothly transitions from MAX_SPEED down to MIN_SPEED and back up
+		// Map frame progress [0, 1] to angle [0, 2π], use cosine for smooth transition
 		float progress = static_cast<float>(frame) / static_cast<float>(NUM_PLAYBACK_FRAMES);
 		constexpr float PI = 3.14159265358979323846f;
-		float angle = progress * PI / 2.0f; // 0 to π/2
-		// Use sin(angle) to map [0, π/2] to [0, 1] smoothly
-		// This creates a smooth transition from MAX_SPEED (at 0) to MIN_SPEED (at π/2)
-		float speed = MAX_SPEED + (MIN_SPEED - MAX_SPEED) * std::sin(angle);
+		float angle = progress * 2.0f * PI; // 0 to 2π (full cycle)
+		// Use cos(angle) to map [-1, 1] to [MIN_SPEED, MAX_SPEED] smoothly
+		// cos(0) = 1 → MAX_SPEED, cos(π/2) = 0 → middle, cos(π) = -1 → MIN_SPEED, cos(3π/2) = 0 → middle, cos(2π) = 1 → MAX_SPEED
+		// Map cos(angle) from [-1, 1] to [MIN_SPEED, MAX_SPEED]
+		float speed = (MAX_SPEED + MIN_SPEED) / 2.0f + (MAX_SPEED - MIN_SPEED) / 2.0f * std::cos(angle);
 		
 		// Verify speed changes are continuous (small delta per frame)
+		// For a full sine/cosine cycle, allow larger deltas (especially near peaks/troughs)
 		if (frame > 0) {
 			float speed_delta = std::abs(speed - previous_speed);
-			float max_speed_delta_per_frame = std::abs(MAX_SPEED - MIN_SPEED) / static_cast<float>(NUM_PLAYBACK_FRAMES) * 2.0f; // Allow 2x for smooth curves
+			// Calculate max delta based on the derivative of cos: max derivative is at sin(angle) = ±1
+			// d/dx cos(x) = -sin(x), max magnitude is 1, so max change per radian is (MAX_SPEED - MIN_SPEED) / 2
+			// Per frame: angle_delta = 2π / NUM_PLAYBACK_FRAMES
+			// Max speed_delta ≈ (MAX_SPEED - MIN_SPEED) / 2 * 2π / NUM_PLAYBACK_FRAMES
+			float max_speed_delta_per_frame = std::abs(MAX_SPEED - MIN_SPEED) * PI / static_cast<float>(NUM_PLAYBACK_FRAMES) * 1.5f; // Allow 1.5x for safety margin
 			REQUIRE(speed_delta <= max_speed_delta_per_frame);
 		}
 		previous_speed = speed;

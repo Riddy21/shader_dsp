@@ -96,8 +96,7 @@ AudioRenderStageHistory2::AudioRenderStageHistory2(const unsigned int frames_per
       m_tape_speed(nullptr),
       m_tape_window_offset_samples(nullptr),
       m_tape_stopped(nullptr),
-      m_tape_loop(nullptr),
-      m_previous_speed_samples_per_buffer(0) {
+      m_tape_loop(nullptr) {
     
     // Convert seconds to samples
     float buffer_size_seconds = history_buffer_size_seconds;
@@ -196,29 +195,23 @@ const float AudioRenderStageHistory2::get_tape_position_in_seconds() const {
 
 void AudioRenderStageHistory2::set_tape_speed(const float speed) {
     if (m_tape_speed) {
-        // Get the current speed before updating (this is the speed that was used for rendering)
-        int current_speed = get_tape_speed_samples_per_buffer();
-        
         // Convert new speed to samples per buffer: samples_per_buffer = speed * frames_per_buffer
         int samples_per_buffer = static_cast<int>(speed * static_cast<float>(m_frames_per_buffer));
         
-        // Always store current speed as previous before updating (for continuity tracking)
+        // If this is the first speed setting (no pending speed and current speed is default),
+        // apply immediately. Otherwise, store as pending to be applied after position advancement.
         // This ensures that when update_audio_history_texture is called, it advances position
-        // using the speed that was active when the current buffer was generated
-        // Only initialize if this is the very first time (when previous is 0 and current is also 0 or default)
-        if (m_previous_speed_samples_per_buffer == 0 && current_speed == static_cast<int>(m_frames_per_buffer)) {
-            // First time: current speed is the default (1.0x), initialize with it
-            m_previous_speed_samples_per_buffer = current_speed;
-        } else if (m_previous_speed_samples_per_buffer == 0) {
-            // First time but current speed is not default: use current speed
-            m_previous_speed_samples_per_buffer = current_speed;
+        // using the current speed (which was used for the previous frame's rendering),
+        // and then applies the new speed for the current frame's rendering
+        int current_speed = get_tape_speed_samples_per_buffer();
+        if (!m_pending_speed_samples_per_buffer.has_value() && 
+            current_speed == static_cast<int>(m_frames_per_buffer)) {
+            // First time setting speed: apply immediately
+            static_cast<AudioIntParameter*>(m_tape_speed)->set_value(samples_per_buffer);
         } else {
-            // Normal case: always update previous to current before changing
-            m_previous_speed_samples_per_buffer = current_speed;
+            // Store as pending to be applied after position advancement
+            m_pending_speed_samples_per_buffer = samples_per_buffer;
         }
-        
-        // Now update to the new speed
-        static_cast<AudioIntParameter*>(m_tape_speed)->set_value(samples_per_buffer);
     }
 }
 
@@ -354,24 +347,17 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
     const unsigned int current_position = get_tape_position();
     const int current_speed_samples_per_buffer = get_tape_speed_samples_per_buffer();
     
-    // Use previous speed for position advancement to ensure continuity
-    // The shader samples for the current frame were generated using the speed that was
-    // set BEFORE this update_audio_history_texture call. We need to advance position
-    // using that same speed to maintain continuity.
-    // After advancing, we update the previous speed to the current speed for the next frame.
-    int speed_samples_per_buffer_for_advancement = m_previous_speed_samples_per_buffer;
+    // Advance position using the CURRENT speed (which was used for the previous frame's rendering)
+    // This ensures continuity: position advances by the same amount that the shader used
+    // to generate samples in the previous frame
+    const int samples_to_advance = time_delta * current_speed_samples_per_buffer;
     
-    // On first frame or if previous speed not initialized, use current speed
-    if (m_previous_speed_samples_per_buffer == 0) {
-        speed_samples_per_buffer_for_advancement = current_speed_samples_per_buffer;
-        m_previous_speed_samples_per_buffer = current_speed_samples_per_buffer;
+    // Apply pending speed change after position advancement
+    // This way, the new speed will be used for the current frame's rendering
+    if (m_pending_speed_samples_per_buffer.has_value()) {
+        static_cast<AudioIntParameter*>(m_tape_speed)->set_value(*m_pending_speed_samples_per_buffer);
+        m_pending_speed_samples_per_buffer.reset();
     }
-    
-    const int samples_to_advance = time_delta * speed_samples_per_buffer_for_advancement;
-    
-    // Update previous speed for next frame (after using it for advancement)
-    // This will be used to advance position after the next frame's samples are generated
-    m_previous_speed_samples_per_buffer = current_speed_samples_per_buffer;
     
     // Check if loop is enabled
     const bool loop_enabled = is_tape_loop_enabled();

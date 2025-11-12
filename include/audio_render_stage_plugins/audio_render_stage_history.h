@@ -131,9 +131,10 @@ private:
     // Track last time value for delta-based updates
     unsigned int m_last_time = 0;
     
-    // Track previous speed to ensure continuity when speed changes
-    // Position is advanced using the speed that was used to generate the current buffer
-    int m_previous_speed_samples_per_buffer = 0;
+    // Track pending speed change to ensure continuity when speed changes
+    // Speed changes are deferred until after position advancement, so position advances
+    // using the speed that was used for the previous frame's rendering
+    std::optional<int> m_pending_speed_samples_per_buffer;
 
     void set_window_offset_samples(const unsigned int window_offset_samples);
 
