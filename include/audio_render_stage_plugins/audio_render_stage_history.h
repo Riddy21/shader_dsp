@@ -130,7 +130,7 @@ private:
     
     // Track last time value for delta-based updates
     unsigned int m_last_time = 0;
-    
+
     // Track pending speed change to ensure continuity when speed changes
     // Speed changes are deferred until after position advancement, so position advances
     // using the speed that was used for the previous frame's rendering

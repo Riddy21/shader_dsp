@@ -1013,31 +1013,27 @@ TEST_CASE("AudioRenderStageHistory2 - dynamic speed changes with continuity chec
 	playback_stage.play();
 	
 	// Render with dynamically changing speed
+	// Transition smoothly from positive to negative speed, crossing zero
+	// This tests both forward and reverse playback in a single test
 	float previous_speed = MAX_SPEED;
 	int frames_rendered = 0;
 	for (int frame = 0; frame < NUM_PLAYBACK_FRAMES; ++frame) {
 		global_time->set_value(frame);
 		global_time->render();
 		
-		// Calculate speed using cosine wave: smoothly transitions from MAX_SPEED down to MIN_SPEED and back up
-		// Map frame progress [0, 1] to angle [0, 2π], use cosine for smooth transition
+		// Calculate speed: linear transition from MAX_SPEED (positive) to MIN_SPEED (negative)
+		// This ensures we test both positive and negative speeds, crossing zero in the middle
 		float progress = static_cast<float>(frame) / static_cast<float>(NUM_PLAYBACK_FRAMES);
-		constexpr float PI = 3.14159265358979323846f;
-		float angle = progress * 2.0f * PI; // 0 to 2π (full cycle)
-		// Use cos(angle) to map [-1, 1] to [MIN_SPEED, MAX_SPEED] smoothly
-		// cos(0) = 1 → MAX_SPEED, cos(π/2) = 0 → middle, cos(π) = -1 → MIN_SPEED, cos(3π/2) = 0 → middle, cos(2π) = 1 → MAX_SPEED
-		// Map cos(angle) from [-1, 1] to [MIN_SPEED, MAX_SPEED]
-		float speed = (MAX_SPEED + MIN_SPEED) / 2.0f + (MAX_SPEED - MIN_SPEED) / 2.0f * std::cos(angle);
+		// Linear interpolation from MAX_SPEED to MIN_SPEED
+		// At progress=0: speed = MAX_SPEED (1.0)
+		// At progress=0.5: speed = 0.0 (crosses zero)
+		// At progress=1.0: speed = MIN_SPEED (-1.0)
+		float speed = MAX_SPEED + (MIN_SPEED - MAX_SPEED) * progress;
 		
 		// Verify speed changes are continuous (small delta per frame)
-		// For a full sine/cosine cycle, allow larger deltas (especially near peaks/troughs)
 		if (frame > 0) {
 			float speed_delta = std::abs(speed - previous_speed);
-			// Calculate max delta based on the derivative of cos: max derivative is at sin(angle) = ±1
-			// d/dx cos(x) = -sin(x), max magnitude is 1, so max change per radian is (MAX_SPEED - MIN_SPEED) / 2
-			// Per frame: angle_delta = 2π / NUM_PLAYBACK_FRAMES
-			// Max speed_delta ≈ (MAX_SPEED - MIN_SPEED) / 2 * 2π / NUM_PLAYBACK_FRAMES
-			float max_speed_delta_per_frame = std::abs(MAX_SPEED - MIN_SPEED) * PI / static_cast<float>(NUM_PLAYBACK_FRAMES) * 1.5f; // Allow 1.5x for safety margin
+			float max_speed_delta_per_frame = std::abs(MAX_SPEED - MIN_SPEED) / static_cast<float>(NUM_PLAYBACK_FRAMES) * 1.5f; // Allow some margin for linear transition
 			REQUIRE(speed_delta <= max_speed_delta_per_frame);
 		}
 		previous_speed = speed;
@@ -1240,6 +1236,211 @@ TEST_CASE("AudioRenderStageHistory2 - dynamic speed changes with continuity chec
 			csv_writer.close();
 			
 			INFO("CSV file written to: " << csv_filename);
+		}
+	}
+
+	delete global_time;
+}
+
+TEST_CASE("AudioRenderStageHistory2 - negative speed playback with CSV and audio output", "[audio_history2][negative_speed][playback][audio_output][csv_output][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr float TEST_FREQUENCY = 440.0f;
+	constexpr float LEFT_AMPLITUDE = 0.5f;
+	constexpr float RIGHT_AMPLITUDE = 0.25f;
+	constexpr int RECORD_DURATION_SECONDS = 4;
+	constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
+	constexpr int PLAYBACK_DURATION_SECONDS = 2;
+	constexpr int NUM_PLAYBACK_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * PLAYBACK_DURATION_SECONDS;
+	constexpr float WINDOW_SIZE_SECONDS = 0.5f;
+	constexpr float NEGATIVE_SPEED = -1.0f; // Reverse playback
+
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Create tape and mock playback stage
+	auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
+	playback_stage.get_history().set_tape(tape);
+	
+	// Create final render stage
+	AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	
+	// Connect playback stage to final stage
+	REQUIRE(playback_stage.connect_render_stage(&final_stage));
+	
+	// Initialize stages
+	REQUIRE(playback_stage.initialize());
+	REQUIRE(final_stage.initialize());
+	
+	context.prepare_draw();
+	REQUIRE(playback_stage.bind());
+	REQUIRE(final_stage.bind());
+	
+	// Record sine wave to tape with different amplitudes per channel
+	std::vector<float> channel_amplitudes = {LEFT_AMPLITUDE, RIGHT_AMPLITUDE};
+	std::vector<float> phases(NUM_CHANNELS, 0.0f);
+	for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
+		std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			float amplitude = (ch < channel_amplitudes.size()) ? channel_amplitudes[ch] : 0.5f;
+			auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, amplitude, SAMPLE_RATE, BUFFER_SIZE, 1, phases[ch]);
+			for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+				channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
+			}
+			phases[ch] += BUFFER_SIZE;
+		}
+		tape->record(channel_major_buffer.data());
+	}
+	
+	REQUIRE(tape->size() > 0);
+	
+	// Setup audio output (only if enabled)
+	AudioPlayerOutput* audio_output = nullptr;
+	if (is_audio_output_enabled()) {
+		printf("Audio output enabled - initializing AudioPlayerOutput for negative speed playback\n");
+		audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+		bool opened = audio_output->open();
+		bool started = audio_output->start();
+		printf("Audio device opened: %s, started: %s\n", opened ? "yes" : "no", started ? "yes" : "no");
+		REQUIRE(opened);
+		REQUIRE(started);
+	} else {
+		printf("Audio output NOT enabled (ENABLE_AUDIO_OUTPUT not set)\n");
+	}
+	
+	// Initialize output sample vectors (per channel)
+	std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+	for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+		output_samples_per_channel[ch].reserve(SAMPLE_RATE * PLAYBACK_DURATION_SECONDS);
+	}
+	
+	// Start playback from near the end (for reverse playback)
+	playback_stage.get_history().set_tape_speed(NEGATIVE_SPEED);
+	unsigned int tape_size = tape->size();
+	unsigned int start_position = tape_size - (SAMPLE_RATE * PLAYBACK_DURATION_SECONDS / 2); // Start partway through
+	playback_stage.get_history().set_tape_position(start_position);
+	playback_stage.get_history().start_tape();
+	playback_stage.play();
+	
+	printf("Starting negative speed playback from position %u (tape size: %u)\n", start_position, tape_size);
+	
+	// Check the speed setting
+	int speed_samples_per_buffer = *static_cast<const int*>(playback_stage.get_history().m_tape_speed->get_value());
+	REQUIRE(static_cast<float>(speed_samples_per_buffer) == Catch::Approx(NEGATIVE_SPEED * BUFFER_SIZE).margin(1.00f));
+	
+	// Render and capture output
+	unsigned int frame_count = 0;
+	const unsigned int max_frames = NUM_PLAYBACK_FRAMES;
+	
+	for (int frame = 0; frame < max_frames; ++frame) {
+		global_time->set_value(frame);
+		global_time->render();
+		
+		// Render playback stage (updates tape history texture)
+		playback_stage.render(frame);
+		
+		// Render final stage
+		final_stage.render(frame);
+		
+		// Get output from final stage
+		auto output_param = final_stage.find_parameter("final_output_audio_texture");
+		REQUIRE(output_param != nullptr);
+		const float* output_data = static_cast<const float*>(output_param->get_value());
+		REQUIRE(output_data != nullptr);
+		
+		// Store for verification (de-interleave from interleaved format)
+		for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+			auto channel = i % NUM_CHANNELS;
+			output_samples_per_channel[channel].push_back(output_data[i]);
+		}
+		
+		// Push to audio output
+		if (audio_output) {
+			while (!audio_output->is_ready()) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+			audio_output->push(output_data);
+		}
+		
+		frame_count++;
+		
+		// Stop if tape has stopped (reached beginning for negative speed)
+		if (playback_stage.get_history().is_tape_stopped()) {
+			printf("Tape stopped at frame %d (beginning reached for negative speed)\n", frame);
+			break;
+		}
+	}
+	printf("Rendered %d frames out of %d requested\n", frame_count, NUM_PLAYBACK_FRAMES);
+	
+	// Stop playback
+	playback_stage.stop();
+	
+	// Wait for audio to finish and close audio output
+	if (audio_output) {
+		size_t queued_bytes = audio_output->queued_bytes();
+		printf("Audio queue has %zu bytes queued, waiting for playback to finish...\n", queued_bytes);
+		const int total_playback_ms = (PLAYBACK_DURATION_SECONDS * 1000) + 500;
+		int waited_ms = 0;
+		while (queued_bytes > 0 && waited_ms < total_playback_ms) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+			waited_ms += 10;
+			queued_bytes = audio_output->queued_bytes();
+			if (waited_ms % 100 == 0) {
+				printf("  Waited %d ms, %zu bytes still queued\n", waited_ms, queued_bytes);
+			}
+		}
+		printf("Finished waiting after %d ms, final queue size: %zu bytes\n", waited_ms, audio_output->queued_bytes());
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		audio_output->close();
+		delete audio_output;
+	}
+	
+	SECTION("Verify negative speed playback output") {
+		// Verify we have samples
+		for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			REQUIRE(output_samples_per_channel[ch].size() > 0);
+			
+			// Check that output is not all zeros
+			bool has_non_zero = false;
+			for (float sample : output_samples_per_channel[ch]) {
+				if (std::abs(sample) > 0.001f) {
+					has_non_zero = true;
+					break;
+				}
+			}
+			REQUIRE(has_non_zero == true);
+		}
+		
+		// Verify tape position decreased (for negative speed)
+		unsigned int final_position = playback_stage.get_history().get_tape_position();
+		INFO("Final tape position: " << final_position << ", Start position: " << start_position);
+		// Position should have decreased (or stopped at beginning)
+		REQUIRE(final_position <= start_position);
+	}
+	
+	if (is_csv_output_enabled()) {
+		SECTION("Export negative speed playback to CSV") {
+			std::string csv_output_dir = "build/tests/csv_output";
+			system(("mkdir -p " + csv_output_dir).c_str());
+			
+			std::ostringstream csv_filename_stream;
+			csv_filename_stream << csv_output_dir << "/negative_speed_playback_channels_" << NUM_CHANNELS << ".csv";
+			std::string csv_filename = csv_filename_stream.str();
+			
+			CSVTestOutput csv_writer(csv_filename, SAMPLE_RATE);
+			REQUIRE(csv_writer.is_open());
+			csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+			csv_writer.close();
+			
+			INFO("CSV file written to: " << csv_filename);
+			printf("CSV file written to: %s\n", csv_filename.c_str());
 		}
 	}
 

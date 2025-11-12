@@ -207,7 +207,7 @@ void AudioRenderStageHistory2::set_tape_speed(const float speed) {
         if (!m_pending_speed_samples_per_buffer.has_value() && 
             current_speed == static_cast<int>(m_frames_per_buffer)) {
             // First time setting speed: apply immediately
-            static_cast<AudioIntParameter*>(m_tape_speed)->set_value(samples_per_buffer);
+        static_cast<AudioIntParameter*>(m_tape_speed)->set_value(samples_per_buffer);
         } else {
             // Store as pending to be applied after position advancement
             m_pending_speed_samples_per_buffer = samples_per_buffer;
@@ -330,10 +330,6 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
         return;
     }
     
-    if (get_tape_speed_ratio() == 0.0f) {
-        return; // Speed is 0, don't update
-    }
-    
     if (!m_audio_history_texture) {
         return; // Texture not created yet
     }
@@ -343,20 +339,29 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
         return; // Tape not assigned
     }
     
-    // Get current state
+    // Get current state BEFORE applying pending speed
+    // This is the speed that was used for the previous frame's rendering
     const unsigned int current_position = get_tape_position();
-    const int current_speed_samples_per_buffer = get_tape_speed_samples_per_buffer();
+    const int speed_for_advancement = get_tape_speed_samples_per_buffer();
     
-    // Advance position using the CURRENT speed (which was used for the previous frame's rendering)
+    // Advance position using the speed that was used for the previous frame's rendering
     // This ensures continuity: position advances by the same amount that the shader used
     // to generate samples in the previous frame
-    const int samples_to_advance = time_delta * current_speed_samples_per_buffer;
+    const int samples_to_advance = time_delta * speed_for_advancement;
     
-    // Apply pending speed change after position advancement
-    // This way, the new speed will be used for the current frame's rendering
+    // Apply pending speed change AFTER position advancement
+    // This ensures that when speed transitions from positive to negative (crossing zero),
+    // the negative speed gets applied and playback continues in reverse
+    // But we check for zero AFTER applying, so negative speeds can be processed
     if (m_pending_speed_samples_per_buffer.has_value()) {
         static_cast<AudioIntParameter*>(m_tape_speed)->set_value(*m_pending_speed_samples_per_buffer);
         m_pending_speed_samples_per_buffer.reset();
+    }
+    
+    // Check if speed is zero AFTER applying pending speed
+    // This allows negative speeds to be processed, but skips updates when speed is exactly zero
+    if (get_tape_speed_ratio() == 0.0f) {
+        return; // Speed is 0, don't update (but position was already advanced above)
     }
     
     // Check if loop is enabled
@@ -391,7 +396,29 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
         update_texture_if_needed(tape);
         
         // Advance position based on time delta and speed
-        unsigned int new_position = current_position + samples_to_advance;
+        // Handle negative advancement properly to avoid unsigned wraparound
+        unsigned int new_position;
+        if (samples_to_advance >= 0) {
+            // Forward playback: simple addition
+            new_position = current_position + static_cast<unsigned int>(samples_to_advance);
+        } else {
+            // Reverse playback: subtract the absolute value
+            unsigned int abs_advance = static_cast<unsigned int>(-samples_to_advance);
+            if (abs_advance <= current_position) {
+                // Normal case: subtract without underflow
+                new_position = current_position - abs_advance;
+            } else {
+                // Would underflow: handle based on loop setting
+                if (loop_enabled && tape_size > 0) {
+                    // Wrap to end: calculate how much we overshot
+                    unsigned int overshoot = abs_advance - current_position;
+                    new_position = (tape_size > overshoot) ? (tape_size - overshoot) : 0u;
+                } else {
+                    // No loop: clamp to 0
+                    new_position = 0u;
+                }
+            }
+        }
         
         // Handle wrapping if loop is enabled and we've crossed a boundary
         if (loop_enabled) {
@@ -399,7 +426,7 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
                 // Wrapped past end: wrap to start
                 new_position = new_position % tape_size;
             } else if (samples_to_advance < 0 && new_position > tape_size) {
-                // Wrapped past start (unsigned wraparound): wrap to end
+                // This case is already handled above, but keep for safety
                 new_position = tape_size - (tape_size - new_position) % tape_size;
             }
         }
