@@ -318,7 +318,7 @@ bool AudioRenderStageHistory2::is_tape_at_end() const {
     return get_tape_position() >= tape->size();
 }
 
-void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
+void AudioRenderStageHistory2::update_tape_positions(const unsigned int time) {
     // Early returns for invalid states
     int time_delta = calculate_time_delta(time);
     if (time_delta == 0) {
@@ -330,10 +330,10 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
         return;
     }
     
-    if (!m_audio_history_texture) {
-        return; // Texture not created yet
-    }
-    
+    advance_tape_position_with_delta(time_delta);
+}
+
+void AudioRenderStageHistory2::advance_tape_position_with_delta(int time_delta) {
     auto tape = m_tape.lock();
     if (!tape) {
         return; // Tape not assigned
@@ -383,8 +383,6 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
                 wrapped_position = overshoot % tape_size;
             }
             set_tape_position(wrapped_position);
-            // Update texture after wrapping
-            update_texture_if_needed(tape);
         } else {
             // No loop: clamp and stop
             clamp_position(samples_to_advance, current_position, tape_size);
@@ -392,9 +390,6 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
             return;
         }
     } else {
-        // Update texture if needed (before advancing position)
-        update_texture_if_needed(tape);
-        
         // Advance position based on time delta and speed
         // Handle negative advancement properly to avoid unsigned wraparound
         unsigned int new_position;
@@ -442,6 +437,90 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
                 stop_tape();
             }
         }
+    }
+}
+
+void AudioRenderStageHistory2::update_audio_history_texture() {
+    if (!m_audio_history_texture) {
+        return; // Texture not created yet
+    }
+    
+    auto tape = m_tape.lock();
+    if (!tape) {
+        return; // Tape not assigned
+    }
+    
+    // Update texture if needed
+    update_texture_if_needed(tape);
+}
+
+void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
+    // Early returns for invalid states
+    int time_delta = calculate_time_delta(time);
+    if (time_delta == 0) {
+        return; // Time hasn't changed, no update needed
+    }
+    
+    // Check if tape is stopped - if so, don't update
+    if (is_tape_stopped()) {
+        return;
+    }
+    
+    if (!m_audio_history_texture) {
+        return; // Texture not created yet
+    }
+    
+    auto tape = m_tape.lock();
+    if (!tape) {
+        return; // Tape not assigned
+    }
+    
+    // Get current state BEFORE applying pending speed
+    const unsigned int current_position = get_tape_position();
+    const int speed_for_advancement = get_tape_speed_samples_per_buffer();
+    const int samples_to_advance = time_delta * speed_for_advancement;
+    
+    // Apply pending speed change
+    if (m_pending_speed_samples_per_buffer.has_value()) {
+        static_cast<AudioIntParameter*>(m_tape_speed)->set_value(*m_pending_speed_samples_per_buffer);
+        m_pending_speed_samples_per_buffer.reset();
+    }
+    
+    // Check if speed is zero AFTER applying pending speed
+    if (get_tape_speed_ratio() == 0.0f) {
+        return; // Speed is 0, don't update
+    }
+    
+    const bool loop_enabled = is_tape_loop_enabled();
+    const unsigned int tape_size = tape->size();
+    
+    // Handle boundaries: wrap around if looping, otherwise clamp and stop
+    if (should_clamp_position(samples_to_advance, current_position, tape_size)) {
+        if (loop_enabled && tape_size > 0) {
+            // Wrap around: calculate wrapped position
+            unsigned int wrapped_position;
+            if (samples_to_advance < 0) {
+                unsigned int overshoot = static_cast<unsigned int>(-samples_to_advance) - current_position;
+                wrapped_position = (tape_size > overshoot) ? (tape_size - overshoot) : 0u;
+            } else {
+                unsigned int overshoot = (current_position + static_cast<unsigned int>(samples_to_advance)) - tape_size;
+                wrapped_position = overshoot % tape_size;
+            }
+            set_tape_position(wrapped_position);
+            // Update texture after wrapping (preserves original behavior)
+            update_texture_if_needed(tape);
+        } else {
+            // No loop: clamp and stop
+            clamp_position(samples_to_advance, current_position, tape_size);
+            stop_tape();
+            return;
+        }
+    } else {
+        // Update texture if needed (before advancing position) - preserves original behavior
+        update_texture_if_needed(tape);
+        
+        // Now advance positions using the pre-calculated time delta
+        advance_tape_position_with_delta(time_delta);
     }
 }
 

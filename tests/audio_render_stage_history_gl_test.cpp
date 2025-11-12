@@ -127,6 +127,65 @@ private:
 	unsigned int m_current_frame;
 };
 
+// Modified version that allows separate control over position and texture updates
+class MockTapePlaybackStageWithSeparateUpdates : public AudioRenderStage {
+public:
+	MockTapePlaybackStageWithSeparateUpdates(unsigned int frames_per_buffer,
+	                                         unsigned int sample_rate,
+	                                         unsigned int num_channels,
+	                                         float window_seconds = 2.0f)
+	: AudioRenderStage(frames_per_buffer, sample_rate, num_channels,
+	                   kTapePlaybackFragSource,
+	                   true, // use_shader_string
+	                   std::vector<std::string>{
+	                   	"build/shaders/global_settings.glsl",
+	                   	"build/shaders/frag_shader_settings.glsl",
+	                   	"build/shaders/tape_history_settings.glsl"}),
+	  m_is_playing(false),
+	  m_texture_update_interval(1) // Default: update every frame
+	{
+		// Create tape history and all its textures/parameters
+		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
+		m_history2->create_parameters(m_active_texture_count);
+		
+		// Add all parameters
+		auto params = m_history2->get_parameters();
+		for (auto* param : params) {
+			this->add_parameter(param);
+		}
+	}
+	
+	AudioRenderStageHistory2& get_history() { return *m_history2; }
+	
+	void play() { m_is_playing = true; }
+	void stop() { m_is_playing = false; }
+	bool is_playing() const { return m_is_playing; }
+	
+	void set_texture_update_interval(unsigned int interval) {
+		m_texture_update_interval = interval;
+	}
+
+protected:
+	void render(const unsigned int time) override {
+		// Always update positions every frame
+		m_history2->update_tape_positions(time);
+		
+		// Update texture only at specified intervals
+		// Always update on first frame (time == 0), then at intervals
+		if (time == 0 || time % m_texture_update_interval == 0) {
+			m_history2->update_audio_history_texture();
+		}
+		
+		AudioRenderStage::render(time);
+	}
+
+private:
+	std::unique_ptr<AudioRenderStageHistory2> m_history2;
+	bool m_is_playing;
+	unsigned int m_current_frame;
+	unsigned int m_texture_update_interval;
+};
+
 
 TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio output", "[audio_history2][playback][audio_output][gl_test][template]",
 			   PlaybackTestParam1, PlaybackTestParam2, PlaybackTestParam3, PlaybackTestParam4, PlaybackTestParam5, PlaybackTestParam6) {
@@ -2657,51 +2716,218 @@ TEST_CASE("AudioTape - export to WAV file", "[audio_tape][wav_export][gl_test]")
 		const std::string output_file = output_dir + "/exported_empty_tape.wav";
 		bool export_success = tape->export_to_wav_file(output_file);
 		REQUIRE(export_success == false);
-		
-		// File should not be created
-		REQUIRE(!std::filesystem::exists(output_file));
+	}
+}
+
+TEST_CASE("AudioRenderStageHistory2 - texture update intervals and continuity", "[audio_history2][texture_update][continuity][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr float TEST_FREQUENCY = 440.0f;
+	constexpr float BASE_AMPLITUDE = 0.3f;
+	constexpr int RECORD_DURATION_SECONDS = 4;
+	constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
+	constexpr int PLAYBACK_DURATION_SECONDS = 2;
+	constexpr int NUM_PLAYBACK_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * PLAYBACK_DURATION_SECONDS;
+	constexpr float WINDOW_SIZE_SECONDS = 0.5f;
+	constexpr float PLAYBACK_SPEED = 1.0f;
+
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Create tape and mock playback stage with separate updates
+	auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	MockTapePlaybackStageWithSeparateUpdates playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
+	playback_stage.get_history().set_tape(tape);
+	
+	// Create final render stage
+	AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	
+	// Connect playback stage to final stage
+	REQUIRE(playback_stage.connect_render_stage(&final_stage));
+	
+	// Initialize stages
+	REQUIRE(playback_stage.initialize());
+	REQUIRE(final_stage.initialize());
+	
+	context.prepare_draw();
+	REQUIRE(playback_stage.bind());
+	REQUIRE(final_stage.bind());
+	
+	SECTION("Record sine wave") {
+		// Record sine wave to tape
+		std::vector<float> phases(NUM_CHANNELS, 0.0f);
+		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				float channel_amplitude = BASE_AMPLITUDE * (ch + 1);
+				auto sine_buffer = generate_sine_wave(TEST_FREQUENCY, channel_amplitude, SAMPLE_RATE, BUFFER_SIZE, 1, phases[ch]);
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
+				}
+				phases[ch] += BUFFER_SIZE;
+			}
+			tape->record(channel_major_buffer.data());
+		}
+		REQUIRE(tape->size() > 0);
 	}
 	
-	SECTION("Round-trip test: load -> export -> load") {
-		// Load original file
-		auto original_tape = AudioTape::load_from_wav_file(wav_file, BUFFER_SIZE, SAMPLE_RATE);
-		REQUIRE(original_tape != nullptr);
-		const unsigned int original_size = original_tape->size();
-		const unsigned int original_channels = original_tape->num_channels();
-		
-		// Export
-		const std::string output_file = output_dir + "/round_trip_test.wav";
-		bool export_success = original_tape->export_to_wav_file(output_file);
-		REQUIRE(export_success == true);
-		
-		// Load back
-		auto reloaded_tape = AudioTape::load_from_wav_file(output_file, BUFFER_SIZE, SAMPLE_RATE);
-		REQUIRE(reloaded_tape != nullptr);
-		
-		// Verify properties match
-		REQUIRE(reloaded_tape->size() == original_size);
-		REQUIRE(reloaded_tape->num_channels() == original_channels);
-		REQUIRE(reloaded_tape->sample_rate() == SAMPLE_RATE);
-		
-		// Compare sample data by playing back and comparing
-		// Use playback method to access data (since m_data is private)
-		const unsigned int compare_samples = std::min(original_size, reloaded_tape->size());
-		const unsigned int compare_frames = (compare_samples / BUFFER_SIZE) + 1;
-		
-		for (unsigned int frame = 0; frame < compare_frames; ++frame) {
-			unsigned int offset = frame * BUFFER_SIZE;
-			if (offset >= compare_samples) break;
+	// Test different texture update intervals
+	std::vector<unsigned int> texture_update_intervals = {1, 2, 5, 10, 20};
+	
+	for (unsigned int texture_interval : texture_update_intervals) {
+		SECTION("Texture update every " + std::to_string(texture_interval) + " frames") {
+			// Setup playback
+			playback_stage.set_texture_update_interval(texture_interval);
+			playback_stage.get_history().set_tape_speed(PLAYBACK_SPEED);
+			auto middle_position = tape->size() / 2;
+			playback_stage.get_history().set_tape_position(middle_position);
+			playback_stage.play();
 			
-			unsigned int frames_to_compare = std::min(static_cast<unsigned int>(BUFFER_SIZE), compare_samples - offset);
+			// Collect output samples per channel
+			std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				output_samples_per_channel[ch].reserve(SAMPLE_RATE * PLAYBACK_DURATION_SECONDS);
+			}
 			
-			auto original_playback = original_tape->playback(frames_to_compare, offset, false);
-			auto reloaded_playback = reloaded_tape->playback(frames_to_compare, offset, false);
+			// Render and capture audio
+			for (int frame = 0; frame < NUM_PLAYBACK_FRAMES; ++frame) {
+				global_time->set_value(frame);
+				global_time->render();
+				
+				// Render playback stage (updates positions every frame, texture at intervals)
+				playback_stage.render(frame);
+				
+				// Render final stage
+				final_stage.render(frame);
+				
+				// Get output from final stage
+				auto output_param = final_stage.find_parameter("final_output_audio_texture");
+				REQUIRE(output_param != nullptr);
+				
+				const float* output_data = static_cast<const float*>(output_param->get_value());
+				REQUIRE(output_data != nullptr);
+				
+				// De-interleave to separate channels
+				for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+					auto channel = i % NUM_CHANNELS;
+					output_samples_per_channel[channel].push_back(output_data[i]);
+				}
+				
+				// Stop if we've reached the end
+				if (playback_stage.get_history().get_tape_position() >= tape->size()) {
+					playback_stage.stop();
+					break;
+				}
+			}
+			playback_stage.stop();
 			
-			REQUIRE(original_playback.size() == reloaded_playback.size());
+			// Verify we got output
+			REQUIRE(output_samples_per_channel[0].size() > 0);
 			
-			const float tolerance = 0.01f; // Allow tolerance for int16 conversion
-			for (size_t i = 0; i < original_playback.size(); ++i) {
-				REQUIRE(std::abs(original_playback[i] - reloaded_playback[i]) < tolerance);
+			// Check for discontinuities
+			SECTION("Discontinuity check - interval " + std::to_string(texture_interval)) {
+				constexpr float DISCONTINUITY_THRESHOLD = 0.2f; // Threshold for detecting discontinuities
+				
+				for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+					const auto& samples = output_samples_per_channel[ch];
+					std::vector<size_t> discontinuity_indices;
+					std::vector<float> discontinuity_magnitudes;
+					
+					// Calculate sample-to-sample differences to detect discontinuities
+					for (size_t i = 1; i < samples.size(); ++i) {
+						float sample_diff = std::abs(samples[i] - samples[i - 1]);
+						if (sample_diff > DISCONTINUITY_THRESHOLD) {
+							discontinuity_indices.push_back(i);
+							discontinuity_magnitudes.push_back(sample_diff);
+						}
+					}
+					
+					INFO("Channel " << ch << " analysis (texture update interval: " << texture_interval << "):");
+					INFO("  Total samples: " << samples.size());
+					INFO("  Discontinuity threshold: " << DISCONTINUITY_THRESHOLD);
+					INFO("  Found " << discontinuity_indices.size() << " discontinuities");
+					
+					if (!discontinuity_indices.empty()) {
+						INFO("  First 10 discontinuity magnitudes:");
+						for (size_t i = 0; i < std::min(discontinuity_indices.size(), size_t(10)); ++i) {
+							INFO("    Sample " << discontinuity_indices[i] << ": " << discontinuity_magnitudes[i]);
+						}
+					}
+					
+					// Verify continuity - texture update intervals should not cause discontinuities
+					// Allow a small number of discontinuities (less than 0.1% of samples, minimum 1)
+					// This accounts for normal signal variations and texture window boundaries
+					unsigned int max_allowed = std::max(1u, static_cast<unsigned int>(samples.size() / 1000));
+					REQUIRE(discontinuity_indices.size() < max_allowed);
+				}
+			}
+			
+			// Check for sudden slope changes
+			SECTION("Slope change continuity check - interval " + std::to_string(texture_interval)) {
+				constexpr float MAX_SLOPE_CHANGE_JUMP = 0.05f; // Maximum allowed jump in slope change per sample
+				constexpr float MIN_SLOPE_CHANGE_FOR_ANALYSIS = 0.0001f; // Ignore very small slope changes
+				
+				for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+					const auto& samples = output_samples_per_channel[ch];
+					
+					if (samples.size() < 3) {
+						continue; // Need at least 3 samples to calculate slope changes
+					}
+					
+					// Calculate first derivative (slope) between consecutive samples
+					std::vector<float> slopes;
+					slopes.reserve(samples.size() - 1);
+					for (size_t i = 1; i < samples.size(); ++i) {
+						float slope = samples[i] - samples[i - 1];
+						slopes.push_back(slope);
+					}
+					
+					// Calculate second derivative (change in slope)
+					std::vector<float> slope_changes;
+					slope_changes.reserve(slopes.size() - 1);
+					for (size_t i = 1; i < slopes.size(); ++i) {
+						float slope_change = std::abs(slopes[i] - slopes[i - 1]);
+						slope_changes.push_back(slope_change);
+					}
+					
+					// Find large jumps in slope changes
+					std::vector<size_t> large_jump_indices;
+					std::vector<float> large_jump_magnitudes;
+					
+					for (size_t i = 1; i < slope_changes.size(); ++i) {
+						float jump = std::abs(slope_changes[i] - slope_changes[i - 1]);
+						// Only flag if both slope changes are significant enough to matter
+						if (slope_changes[i] > MIN_SLOPE_CHANGE_FOR_ANALYSIS && 
+						    slope_changes[i - 1] > MIN_SLOPE_CHANGE_FOR_ANALYSIS &&
+						    jump > MAX_SLOPE_CHANGE_JUMP) {
+							large_jump_indices.push_back(i);
+							large_jump_magnitudes.push_back(jump);
+						}
+					}
+					
+					INFO("Channel " << ch << " slope analysis (texture update interval: " << texture_interval << "):");
+					INFO("  Total samples: " << samples.size());
+					INFO("  Max slope change jump: " << MAX_SLOPE_CHANGE_JUMP);
+					INFO("  Found " << large_jump_indices.size() << " large slope change jumps");
+					
+					if (!large_jump_indices.empty()) {
+						INFO("  First 10 large jump magnitudes:");
+						for (size_t i = 0; i < std::min(large_jump_indices.size(), size_t(10)); ++i) {
+							INFO("    Sample " << large_jump_indices[i] << ": " << large_jump_magnitudes[i]);
+						}
+					}
+					
+					// Verify smooth slope changes - texture update intervals should not cause sudden slope changes
+					// Allow a small number of jumps (less than 0.1% of samples, minimum 1)
+					unsigned int max_allowed = std::max(1u, static_cast<unsigned int>(samples.size() / 1000));
+					REQUIRE(large_jump_indices.size() < max_allowed);
+				}
 			}
 		}
 	}

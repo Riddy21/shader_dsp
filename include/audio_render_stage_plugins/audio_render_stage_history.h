@@ -99,8 +99,15 @@ public:
     void set_tape_loop(bool loop); // Enable or disable tape looping (default: false)
     bool is_tape_loop_enabled() const; // Check if tape looping is enabled
 
+    // Update tape positions based on time - must be called every frame
+    void update_tape_positions(const unsigned int time);
+    
+    // Update audio history texture - can be called optionally when needed
+    void update_audio_history_texture();
+    
     // TODO: Implement incrementally updating the texture with tape playback data
     // When paused (speed = 0) it will stop updating position
+    // This function calls both update_tape_positions() and update_audio_history_texture() for backward compatibility
     void update_audio_history_texture(const unsigned int time);
 
     std::string get_audio_history_texture_name() { return m_audio_history_texture_name; }
@@ -147,6 +154,7 @@ private:
     bool should_clamp_position(int samples_to_advance, unsigned int current_position, unsigned int tape_size);
     void clamp_position(int samples_to_advance, unsigned int current_position, unsigned int tape_size);
     void update_texture_if_needed(std::shared_ptr<AudioTape> tape);
+    void advance_tape_position_with_delta(int time_delta); // Internal helper that advances position given a pre-calculated time delta
 };
 
 #endif // AUDIO_RENDER_STAGE_HISTORY_H
