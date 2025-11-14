@@ -35,6 +35,29 @@ scons --gdb -j15
 - `--playground=example_name`: Build playground examples
 - `--docs`: Build documentation using Doxygen
 
+### Running Tests with Audio and CSV Output
+To enable audio output for tests (allows you to hear the audio being tested):
+```bash
+scons --test=test_name --enable-audio-output --gdb -j15
+```
+
+To enable CSV output for tests (saves CSV files to `build/tests/csv_output/`):
+```bash
+scons --test=test_name --enable-csv-output --gdb -j15
+```
+
+To enable both audio and CSV output:
+```bash
+scons --test=test_name --enable-audio-output --enable-csv-output --gdb -j15
+```
+
+Example with specific test case and audio output:
+```bash
+scons --test=audio_render_stage_history_gl_test --test-case="AudioRenderStageHistory2 - shifting window with amplitude changes" --enable-audio-output --gdb -j15
+```
+
+**Note**: When running with `--enable-audio-output`, the test will attempt to play audio through your system's default audio device. If you don't hear audio, check your system audio settings. Tests run with `xvfb-run` for headless execution, but audio output should still work if your system audio is configured correctly.
+
 ## Project Structure
 - `include/`: Header files
 - `lib/`: Implementation files (.cpp)
