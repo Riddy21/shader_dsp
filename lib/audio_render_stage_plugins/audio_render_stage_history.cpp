@@ -318,7 +318,7 @@ bool AudioRenderStageHistory2::is_tape_at_end() const {
     return get_tape_position() >= tape->size();
 }
 
-void AudioRenderStageHistory2::update_tape_positions(const unsigned int time) {
+void AudioRenderStageHistory2::update_tape_position(const unsigned int time) {
     // Early returns for invalid states
     int time_delta = calculate_time_delta(time);
     if (time_delta == 0) {
@@ -440,47 +440,41 @@ void AudioRenderStageHistory2::advance_tape_position_with_delta(int time_delta) 
     }
 }
 
-void AudioRenderStageHistory2::update_audio_history_texture(bool force_update) {
-    if (!m_audio_history_texture) {
-        return; // Texture not created yet
-    }
+bool AudioRenderStageHistory2::is_outdated() const {
+    unsigned int tape_position = get_tape_position();
+
+    // Get samples per buffer directly from parameter (can be negative)
+    int samples_per_buffer = get_tape_speed_samples_per_buffer();
+    unsigned int frame_size_samples = static_cast<unsigned int>(std::abs(samples_per_buffer));
+
+    unsigned int window_offset = get_window_offset_samples();
+    unsigned int window_size = get_window_size_samples();
     
-    auto tape = m_tape.lock();
-    if (!tape) {
-        return; // Tape not assigned
-    }
+    // Calculate valid range: we need margin at both ends to ensure smooth playback
+    // The valid range excludes frame_size_samples from each end to provide safety margin
+    // This prevents accessing samples outside the window during rendering
+    unsigned int valid_start = window_offset + frame_size_samples;
+    unsigned int valid_end = window_offset + window_size - frame_size_samples;
     
-    // Update texture if needed (or if forced)
-    if (force_update || is_audio_texture_data_outdated()) {
-        const unsigned int window_offset_samples = get_window_offset_samples_for_tape_data();
-        
-        // Get tape data in texture format
-        std::vector<float> texture_data = tape->playback_for_render_stage_history(
-            get_window_size_samples(),
-            window_offset_samples,
-            m_texture_width,
-            m_texture_rows_per_channel);
-        
-        // Update texture
-        static_cast<AudioTexture2DParameter*>(m_audio_history_texture)->set_value(texture_data.data());
-        
-        // Update window offset parameter
-        set_window_offset_samples(window_offset_samples);
+    // Check if we're outside the valid range OR approaching the boundary
+    // Update preemptively when within 2 buffer sizes of the boundary to ensure continuity
+    // This prevents discontinuities when the window updates mid-render
+    unsigned int safety_margin = frame_size_samples * 2;
+    
+    // For forward playback: check if we're approaching the end or have passed start
+    if (samples_per_buffer >= 0) {
+        bool past_start = tape_position < valid_start;
+        bool near_end = tape_position >= (valid_end > safety_margin ? valid_end - safety_margin : 0);
+        return past_start || near_end;
+    } else {
+        // For reverse playback: check if we're approaching the start or have passed end
+        bool past_end = tape_position >= valid_end;
+        bool near_start = tape_position < (valid_start + safety_margin);
+        return past_end || near_start;
     }
 }
 
-void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
-    // Early returns for invalid states
-    int time_delta = calculate_time_delta(time);
-    if (time_delta == 0) {
-        return; // Time hasn't changed, no update needed
-    }
-    
-    // Check if tape is stopped - if so, don't update
-    if (is_tape_stopped()) {
-        return;
-    }
-    
+void AudioRenderStageHistory2::update_window() {
     if (!m_audio_history_texture) {
         return; // Texture not created yet
     }
@@ -490,52 +484,30 @@ void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int t
         return; // Tape not assigned
     }
     
-    // Get current state BEFORE applying pending speed
-    const unsigned int current_position = get_tape_position();
-    const int speed_for_advancement = get_tape_speed_samples_per_buffer();
-    const int samples_to_advance = time_delta * speed_for_advancement;
+    // Always update (force update)
+    const unsigned int window_offset_samples = get_window_offset_samples_for_tape_data();
     
-    // Apply pending speed change
-    if (m_pending_speed_samples_per_buffer.has_value()) {
-        static_cast<AudioIntParameter*>(m_tape_speed)->set_value(*m_pending_speed_samples_per_buffer);
-        m_pending_speed_samples_per_buffer.reset();
-    }
+    // Get tape data in texture format
+    std::vector<float> texture_data = tape->playback_for_render_stage_history(
+        get_window_size_samples(),
+        window_offset_samples,
+        m_texture_width,
+        m_texture_rows_per_channel);
     
-    // Check if speed is zero AFTER applying pending speed
-    if (get_tape_speed_ratio() == 0.0f) {
-        return; // Speed is 0, don't update
-    }
+    // Update texture
+    static_cast<AudioTexture2DParameter*>(m_audio_history_texture)->set_value(texture_data.data());
     
-    const bool loop_enabled = is_tape_loop_enabled();
-    const unsigned int tape_size = tape->size();
+    // Update window offset parameter
+    set_window_offset_samples(window_offset_samples);
+}
+
+void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
+    // Backward compatibility: call update_tape_position and then update_window if needed
+    update_tape_position(time);
     
-    // Handle boundaries: wrap around if looping, otherwise clamp and stop
-    if (should_clamp_position(samples_to_advance, current_position, tape_size)) {
-        if (loop_enabled && tape_size > 0) {
-            // Wrap around: calculate wrapped position
-            unsigned int wrapped_position;
-            if (samples_to_advance < 0) {
-                unsigned int overshoot = static_cast<unsigned int>(-samples_to_advance) - current_position;
-                wrapped_position = (tape_size > overshoot) ? (tape_size - overshoot) : 0u;
-            } else {
-                unsigned int overshoot = (current_position + static_cast<unsigned int>(samples_to_advance)) - tape_size;
-                wrapped_position = overshoot % tape_size;
-            }
-            set_tape_position(wrapped_position);
-            // Update texture after wrapping (preserves original behavior)
-            update_texture_if_needed(tape);
-        } else {
-            // No loop: clamp and stop
-            clamp_position(samples_to_advance, current_position, tape_size);
-            stop_tape();
-            return;
-        }
-    } else {
-        // Update texture if needed (before advancing position) - preserves original behavior
-        update_texture_if_needed(tape);
-        
-        // Now advance positions using the pre-calculated time delta
-        advance_tape_position_with_delta(time_delta);
+    // Update window if outdated
+    if (is_outdated()) {
+        update_window();
     }
 }
 
@@ -600,71 +572,15 @@ void AudioRenderStageHistory2::clamp_position(int samples_to_advance,
     }
 }
 
-void AudioRenderStageHistory2::update_texture_if_needed(std::shared_ptr<AudioTape> tape) {
-    // FIXME: move this outside the loop so you can update the audio texture data as often as you want whenever needed
-    if (!is_audio_texture_data_outdated()) {
-        return;
-    }
-    
-    const unsigned int window_offset_samples = get_window_offset_samples_for_tape_data();
-    
-    // Get tape data in texture format
-    std::vector<float> texture_data = tape->playback_for_render_stage_history(
-        get_window_size_samples(),
-        window_offset_samples,
-        m_texture_width,
-        m_texture_rows_per_channel);
-    
-    // Update texture
-    static_cast<AudioTexture2DParameter*>(m_audio_history_texture)->set_value(texture_data.data());
-    
-    // Update window offset parameter
-    set_window_offset_samples(window_offset_samples);
-}
-
-bool AudioRenderStageHistory2::is_audio_texture_data_outdated() {
-    unsigned int tape_position = get_tape_position();
-
-    // Get samples per buffer directly from parameter (can be negative)
-    int samples_per_buffer = get_tape_speed_samples_per_buffer();
-    unsigned int frame_size_samples = static_cast<unsigned int>(std::abs(samples_per_buffer));
-
-    unsigned int window_offset = get_window_offset_samples();
-    unsigned int window_size = get_window_size_samples();
-    
-    // Calculate valid range: we need margin at both ends to ensure smooth playback
-    // The valid range excludes frame_size_samples from each end to provide safety margin
-    // This prevents accessing samples outside the window during rendering
-    unsigned int valid_start = window_offset + frame_size_samples;
-    unsigned int valid_end = window_offset + window_size - frame_size_samples;
-    
-    // Check if we're outside the valid range OR approaching the boundary
-    // Update preemptively when within 2 buffer sizes of the boundary to ensure continuity
-    // This prevents discontinuities when the window updates mid-render
-    unsigned int safety_margin = frame_size_samples * 2;
-    
-    // For forward playback: check if we're approaching the end or have passed start
-    if (samples_per_buffer >= 0) {
-        bool past_start = tape_position < valid_start;
-        bool near_end = tape_position >= (valid_end > safety_margin ? valid_end - safety_margin : 0);
-        return past_start || near_end;
-    } else {
-        // For reverse playback: check if we're approaching the start or have passed end
-        bool past_end = tape_position >= valid_end;
-        bool near_start = tape_position < (valid_start + safety_margin);
-        return past_end || near_start;
-    }
-}
-
 const unsigned int AudioRenderStageHistory2::get_window_offset_samples_for_tape_data() const {
     unsigned int tape_position = get_tape_position();
 
     float speed_ratio = get_tape_speed_ratio();
     if (speed_ratio > 0.0f) {
-        // For positive speed, offset is position - 1, but clamp to 0 minimum to avoid underflow
-        if (tape_position == 0) {
-            return 0;
-        }
+        // For positive speed, offset is position to align with shader calculation
+        // The shader calculates: position_in_window = tape_position_param - tape_window_offset_samples + window_offset
+        // With window_offset starting at 0 for first sample and tape_position_param = tape_position,
+        // we need offset = tape_position to get position_in_window = 0 for the first sample
         return tape_position - 1;
     } else if (speed_ratio < 0.0f) {
         unsigned int window_size = get_window_size_samples();
@@ -689,5 +605,4 @@ std::weak_ptr<AudioTape> AudioRenderStageHistory2::get_tape() {
 // FIXME: Add proper support for shifting tape windows, and make sure that the update occurs correctly when using shifting tapes
 
 // where to start:
-// 2. test with shifting windows
 // 3. add support for playing at multiple positions and speeds

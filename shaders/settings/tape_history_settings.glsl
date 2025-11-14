@@ -11,14 +11,12 @@ int get_tape_history_size() {
     return audio_size.x * audio_size.y / num_channels;
 }
 
-// FIXME: add ability to play tape history sample from a specific position with s specific tape window speed
-// Make sure this is only possible when they are within the tape window size
-// If its not in the window size, return zeros
-
 // Get the audio section corresponding to the tape section in the tape history from the tape position (in samples)
-// Returns the audio sample (vec4) from the audio_history_texture at the current tape position
+// Returns the audio sample (vec4) from the audio_history_texture at the specified tape position
 // TexCoord: texture coordinates from the current shader (channel is encoded in TexCoord.y)
-vec4 get_tape_history_samples(vec2 TexCoord) {
+// sample_frame_size: number of samples per frame (typically speed_in_samples_per_buffer)
+// tape_position_param: the tape position in samples to read from
+vec4 get_tape_history_samples(vec2 TexCoord, int sample_frame_size, int tape_position_param) {
     // If tape is stopped, return zeros
     if (tape_stopped != 0) {
         return vec4(0.0);
@@ -31,8 +29,8 @@ vec4 get_tape_history_samples(vec2 TexCoord) {
     int channel = int(TexCoord.y * float(num_channels));
 
     // Calculate the position of the current position in the audio output texture
-    int window_offset = int(TexCoord.x * float(speed_in_samples_per_buffer));
-    int position_in_window = tape_position - tape_window_offset_samples + window_offset - 1;
+    int window_offset = int(TexCoord.x * float(sample_frame_size));
+    int position_in_window = tape_position_param - tape_window_offset_samples + window_offset - 1;
 
     // Calculate the position of the current position in the audio output texture
     int audio_width = audio_size.x;
@@ -61,6 +59,11 @@ vec4 get_tape_history_samples(vec2 TexCoord) {
     vec2 texture_coord = vec2(float(x_position) / float(audio_size.x), (float(y_position) + 0.5) / float(audio_size.y)); // Offset for max data
     
     return texture(audio_history_texture, texture_coord);
+}
+
+// Overload for backward compatibility - uses global uniforms
+vec4 get_tape_history_samples(vec2 TexCoord) {
+    return get_tape_history_samples(TexCoord, speed_in_samples_per_buffer, tape_position);
 }
 
 // Get the current tape position in samples

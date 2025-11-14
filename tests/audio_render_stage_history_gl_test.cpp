@@ -82,6 +82,41 @@ void main(){
 }
 )";
 
+// Fragment shader for multiple start positions test
+static const char* kMultipleStartPositionsFragSource = R"(
+uniform int start_position_0;
+uniform int start_position_1;
+
+int calculate_tape_position(int current_position, int start_position, int speed) {
+    int difference = current_position - start_position;
+
+	return difference * speed;
+}
+
+void main(){
+    // Get the audio sample from tape history using TexCoord
+	vec4 stream_audio = texture(stream_audio_texture, TexCoord);
+    // The function will use tape_position and tape_speed internally
+
+	int tape_position_0 = calculate_tape_position(global_time_val, start_position_0, speed_in_samples_per_buffer);
+	int tape_position_1 = calculate_tape_position(global_time_val, start_position_1, speed_in_samples_per_buffer);
+
+	vec4 tape_sample = vec4(0.0, 0.0, 0.0, 0.0);
+
+	if (tape_position_0 >= 0) {
+		tape_sample += get_tape_history_samples(TexCoord, speed_in_samples_per_buffer, tape_position_0);
+	}
+
+	if (tape_position_1 >= 0) {
+		tape_sample += get_tape_history_samples(TexCoord, speed_in_samples_per_buffer, tape_position_1);
+	}
+    
+    // Output the tape playback sample with some processing
+    output_audio_texture = tape_sample + stream_audio;
+    debug_audio_texture = output_audio_texture;
+}
+)";
+
 class MockTapePlaybackStage : public AudioRenderStage {
 public:
 	MockTapePlaybackStage(unsigned int frames_per_buffer,
@@ -117,7 +152,8 @@ public:
 protected:
 	void render(const unsigned int time) override {
 
-		m_history2->update_audio_history_texture(time);
+		m_history2->update_tape_position(time);
+		m_history2->update_window();
 		AudioRenderStage::render(time);
 	}
 
@@ -168,12 +204,12 @@ public:
 protected:
 	void render(const unsigned int time) override {
 		// Always update positions every frame
-		m_history2->update_tape_positions(time);
+		m_history2->update_tape_position(time);
 		
 		// Update texture only at specified intervals
 		// Always update on first frame (time == 0), then at intervals
 		if (time == 0 || time % m_texture_update_interval == 0) {
-			m_history2->update_audio_history_texture();
+			m_history2->update_window();
 		}
 		
 		AudioRenderStage::render(time);
@@ -226,13 +262,13 @@ public:
 protected:
 	void render(const unsigned int time) override {
 		// Always update positions every frame
-		m_history2->update_tape_positions(time);
+		m_history2->update_tape_position(time);
 		
-		// Update texture only when needed (checks is_audio_texture_data_outdated internally)
+		// Update texture only when needed (checks is_outdated)
 		// This will only update when the tape position moves outside the valid texture window range
 		// Always update on first frame (time == 0) to initialize texture, then only when needed
-		if (time == 0 || m_history2->is_audio_texture_data_outdated()) {
-			m_history2->update_audio_history_texture(time == 0); // Force update on first frame
+		if (time == 0 || m_history2->is_outdated()) {
+			m_history2->update_window();
 			m_texture_update_count++;
 		}
 		
@@ -246,6 +282,64 @@ private:
 	unsigned int m_texture_update_count;
 };
 
+// Mock render stage history class for multiple start positions test
+class MockMultipleStartPositionsStage : public AudioRenderStage {
+public:
+	MockMultipleStartPositionsStage(unsigned int frames_per_buffer,
+	                                unsigned int sample_rate,
+	                                unsigned int num_channels,
+	                                float window_seconds = 2.0f)
+	: AudioRenderStage(frames_per_buffer, sample_rate, num_channels,
+	                   kMultipleStartPositionsFragSource,
+	                   true, // use_shader_string
+	                   std::vector<std::string>{
+	                   	"build/shaders/global_settings.glsl",
+	                   	"build/shaders/frag_shader_settings.glsl",
+	                   	"build/shaders/tape_history_settings.glsl"}),
+	  m_is_playing(false)
+	{
+		// Create tape history and all its textures/parameters
+		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
+		m_history2->create_parameters(m_active_texture_count);
+		
+		m_start_position_0 = new AudioIntParameter("start_position_0", AudioParameter::ConnectionType::INPUT);
+		m_start_position_0->set_value(0);
+		this->add_parameter(m_start_position_0);
+
+		m_start_position_1 = new AudioIntParameter("start_position_1", AudioParameter::ConnectionType::INPUT);
+		m_start_position_1->set_value(0);
+		this->add_parameter(m_start_position_1);
+
+		// Add all parameters
+		auto params = m_history2->get_parameters();
+		for (auto* param : params) {
+			this->add_parameter(param);
+		}
+	}
+	
+	AudioRenderStageHistory2& get_history() { return *m_history2; }
+	
+	void play() { m_is_playing = true; }
+	void stop() { m_is_playing = false; }
+	bool is_playing() const { return m_is_playing; }
+
+	void set_start_position(int start_position_0, int start_position_1) {
+		m_start_position_0->set_value(start_position_0);
+		m_start_position_1->set_value(start_position_1);
+	}
+
+protected:
+	void render(const unsigned int time) override {
+		AudioRenderStage::render(time);
+	}
+
+private:
+	std::unique_ptr<AudioRenderStageHistory2> m_history2;
+	AudioIntParameter* m_start_position_0;
+	AudioIntParameter* m_start_position_1;
+	bool m_is_playing;
+	unsigned int m_current_frame;
+};
 
 TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio output", "[audio_history2][playback][audio_output][gl_test][template]",
 			   PlaybackTestParam1, PlaybackTestParam2, PlaybackTestParam3, PlaybackTestParam4, PlaybackTestParam5, PlaybackTestParam6) {
@@ -414,7 +508,10 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 		
 		if (is_csv_output_enabled()) {
 			SECTION("Write input sine wave to CSV") {
-				std::ofstream csv_file("input_sine_wave.csv");
+				std::string csv_output_dir = "build/tests/csv_output";
+				system(("mkdir -p " + csv_output_dir).c_str());
+				
+				std::ofstream csv_file(csv_output_dir + "/input_sine_wave.csv");
 				REQUIRE(csv_file.is_open());
 				
 				// Write header
@@ -436,7 +533,7 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 				}
 				
 				csv_file.close();
-				std::cout << "Wrote input sine wave to input_sine_wave.csv (" << num_samples << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
+				std::cout << "Wrote input sine wave to " << csv_output_dir << "/input_sine_wave.csv (" << num_samples << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
 			}
 		}
 		
@@ -445,9 +542,12 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - record and playback with audio ou
 				// Verify we have the correct number of channels before writing
 				REQUIRE(output_samples_per_channel.size() == NUM_CHANNELS);
 				
+				std::string csv_output_dir = "build/tests/csv_output";
+				system(("mkdir -p " + csv_output_dir).c_str());
+				
 				// Create filename with speed and channels (e.g., "output_audio_speed_1.000000_channels_3.csv")
 				std::ostringstream filename_stream;
-				filename_stream << "output_audio_speed_" << std::fixed << std::setprecision(6) << PLAYBACK_SPEED 
+				filename_stream << csv_output_dir << "/output_audio_speed_" << std::fixed << std::setprecision(6) << PLAYBACK_SPEED 
 				               << "_channels_" << NUM_CHANNELS << ".csv";
 				std::string filename = filename_stream.str();
 				
@@ -650,9 +750,12 @@ TEMPLATE_TEST_CASE("AudioRenderStageHistory2 - mock tape playback stage buffer o
 				// Verify we have the correct number of channels before writing
 				REQUIRE(output_samples_per_channel.size() == NUM_CHANNELS);
 				
+				std::string csv_output_dir = "build/tests/csv_output";
+				system(("mkdir -p " + csv_output_dir).c_str());
+				
 				// Create CSV filename with test parameters
 				std::ostringstream csv_filename_stream;
-				csv_filename_stream << "playback_history_buffer_speed_" << std::fixed << std::setprecision(6) << PLAYBACK_SPEED 
+				csv_filename_stream << csv_output_dir << "/playback_history_buffer_speed_" << std::fixed << std::setprecision(6) << PLAYBACK_SPEED 
 				                   << "_channels_" << NUM_CHANNELS << ".csv";
 				std::string csv_filename = csv_filename_stream.str();
 				
@@ -1071,7 +1174,7 @@ TEST_CASE("AudioRenderStageHistory2 - dynamic speed changes with continuity chec
 	
 	// Create tape and mock playback stage
 	auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-	MockTapePlaybackStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
+	MockTapePlaybackStageWithConditionalUpdates playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
 	playback_stage.get_history().set_tape(tape);
 	
 	// Create final render stage
@@ -3133,7 +3236,7 @@ TEST_CASE("AudioRenderStageHistory2 - conditional texture updates when needed", 
 				     << ", max_amplitude=" << max_amplitude
 				     << ", tape_position=" << playback_stage.get_history().get_tape_position()
 				     << ", tape_size=" << tape->size()
-				     << ", texture_outdated=" << playback_stage.get_history().is_audio_texture_data_outdated());
+				     << ", texture_outdated=" << playback_stage.get_history().is_outdated());
 			}
 			
 			// De-interleave to separate channels
@@ -3271,7 +3374,7 @@ TEST_CASE("AudioRenderStageHistory2 - conditional texture updates when needed", 
 				
 				unsigned int position_before = playback_stage.get_history().get_tape_position();
 				unsigned int window_offset_before = playback_stage.get_history().get_window_offset_samples();
-				bool was_outdated_before = playback_stage.get_history().is_audio_texture_data_outdated();
+				bool was_outdated_before = playback_stage.get_history().is_outdated();
 				unsigned int update_count_before = playback_stage.get_texture_update_count();
 				
 				playback_stage.render(frame);
@@ -3282,7 +3385,7 @@ TEST_CASE("AudioRenderStageHistory2 - conditional texture updates when needed", 
 				// If texture was updated, verify it was because data was outdated
 				if (was_updated) {
 					// After update, data should not be outdated (unless we're at a boundary)
-					bool is_outdated_after = playback_stage.get_history().is_audio_texture_data_outdated();
+					bool is_outdated_after = playback_stage.get_history().is_outdated();
 					
 					// Update should have happened because data was outdated
 					// (Note: after update, it might still be outdated if we're at a boundary, which is OK)
@@ -4406,7 +4509,7 @@ TEST_CASE("AudioRenderStageHistory2 - playback slower than recording hits lower 
 			INFO("  Window offset: " << playback_stage.get_history().get_window_offset_samples());
 			INFO("  Window size: " << playback_stage.get_history().get_window_size_samples());
 			INFO("  Tape stopped: " << playback_stage.get_history().is_tape_stopped());
-			INFO("  Texture outdated: " << playback_stage.get_history().is_audio_texture_data_outdated());
+			INFO("  Texture outdated: " << playback_stage.get_history().is_outdated());
 		}
 	}
 	playback_stage.stop();
@@ -4463,7 +4566,7 @@ TEST_CASE("AudioRenderStageHistory2 - playback slower than recording hits lower 
 	INFO("  Position change: " << position_change);
 	INFO("  Expected advancement (0.5x speed): ~" << (NUM_PLAYBACK_FRAMES * BUFFER_SIZE / 2));
 	
-	// Continuity check
+		// Continuity check
 	SECTION("Continuity check - slower playback hitting lower bound") {
 		constexpr float DISCONTINUITY_THRESHOLD = 0.25f;
 		
@@ -4494,4 +4597,265 @@ TEST_CASE("AudioRenderStageHistory2 - playback slower than recording hits lower 
 	INFO("  Window size: " << WINDOW_SIZE_SECONDS << " seconds");
 }
 
-// FIXME: Add tests for shifting tape window tests, make sure that the tape window is shifted correctly and that the tape is played correctly
+TEST_CASE("AudioRenderStageHistory2 - multiple start positions", "[audio_history2][multiple_start_positions][playback][audio_output][csv_output][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr int RECORD_DURATION_SECONDS = 8;
+	constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
+	constexpr int PLAYBACK_DURATION_SECONDS = 2;
+	constexpr int NUM_PLAYBACK_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * PLAYBACK_DURATION_SECONDS;
+	constexpr float WINDOW_SIZE_SECONDS = 3.0f;
+	constexpr float PLAYBACK_SPEED = 1.0f;
+
+	// Constant amplitudes for different regions
+	constexpr float AMPLITUDE = 0.5f;   // After START_POSITION_1
+
+	// Start positions (in samples)
+	constexpr unsigned int START_POSITION_0 = 0;
+	constexpr unsigned int START_POSITION_1 = SAMPLE_RATE / BUFFER_SIZE; // 172 frames
+
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Create tape and mock playback stage
+	auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	MockMultipleStartPositionsStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
+	playback_stage.get_history().set_tape(tape);
+	playback_stage.set_start_position(START_POSITION_0, START_POSITION_1);
+	
+	// Create final render stage
+	AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	
+	// Connect playback stage to final stage
+	REQUIRE(playback_stage.connect_render_stage(&final_stage));
+	
+	// Initialize stages
+	REQUIRE(playback_stage.initialize());
+	REQUIRE(final_stage.initialize());
+	
+	context.prepare_draw();
+	REQUIRE(playback_stage.bind());
+	REQUIRE(final_stage.bind());
+	
+	// Record constant values to tape with different amplitudes at different positions
+	// Before START_POSITION_1_SAMPLES: use AMPLITUDE_BEFORE_POSITION_1
+	// After START_POSITION_1_SAMPLES: use AMPLITUDE_AFTER_POSITION_1
+	std::vector<std::vector<float>> input_samples_per_channel(NUM_CHANNELS);
+	for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+		input_samples_per_channel[ch].reserve(SAMPLE_RATE * RECORD_DURATION_SECONDS);
+	}
+	
+	unsigned int current_sample = 0;
+	for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
+		std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+		
+		// Determine amplitude based on current position
+		float amplitude = AMPLITUDE;
+		
+		// Generate constant buffer for all channels
+		auto constant_buffer = generate_constant_buffer(amplitude, BUFFER_SIZE, NUM_CHANNELS);
+		
+		// Convert from interleaved to channel-major format
+		for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				channel_major_buffer[ch * BUFFER_SIZE + i] = constant_buffer[i * NUM_CHANNELS + ch];
+			}
+		}
+		
+		// Collect input samples (de-interleave from channel-major format)
+		for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				input_samples_per_channel[ch].push_back(channel_major_buffer[ch * BUFFER_SIZE + i]);
+			}
+		}
+		
+		tape->record(channel_major_buffer.data());
+		current_sample += BUFFER_SIZE;
+	}
+	
+	REQUIRE(tape->size() > 0);
+	
+	// Setup audio output (only if enabled)
+	AudioPlayerOutput* audio_output = nullptr;
+	if (is_audio_output_enabled()) {
+		audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+		REQUIRE(audio_output->open());
+		REQUIRE(audio_output->start());
+	}
+	
+	// Initialize output sample vectors (per channel)
+	std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+	for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+		output_samples_per_channel[ch].reserve(SAMPLE_RATE * PLAYBACK_DURATION_SECONDS);
+	}
+	
+	// Configure playback - start from beginning
+	playback_stage.get_history().set_tape_speed(PLAYBACK_SPEED);
+	playback_stage.get_history().set_tape_position(0u);
+	playback_stage.get_history().start_tape();
+	playback_stage.play();
+	
+	// Initialize window before first render to ensure correct offset for position 0
+	playback_stage.get_history().update_window();
+	
+	// Render and capture output
+	unsigned int frame_count = 0;
+	const unsigned int max_frames = NUM_PLAYBACK_FRAMES;
+	
+	for (int frame = 0; frame < max_frames; ++frame) {
+		global_time->set_value(frame);
+		global_time->render();
+		
+		// Render playback stage (updates tape history texture)
+		playback_stage.render(frame);
+		
+		// Render final stage
+		final_stage.render(frame);
+		
+		// Get output from final stage
+		auto output_param = final_stage.find_parameter("final_output_audio_texture");
+		REQUIRE(output_param != nullptr);
+		const float* output_data = static_cast<const float*>(output_param->get_value());
+		REQUIRE(output_data != nullptr);
+		
+		// Store for verification (de-interleave from interleaved format)
+		for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+			auto channel = i % NUM_CHANNELS;
+			output_samples_per_channel[channel].push_back(output_data[i]);
+		}
+		
+		// Push to audio output
+		if (audio_output) {
+			while (!audio_output->is_ready()) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+			audio_output->push(output_data);
+		}
+		
+		frame_count++;
+		
+		// Stop if tape has stopped or reached end
+		if (playback_stage.get_history().is_tape_stopped() || 
+		    playback_stage.get_history().is_tape_at_end()) {
+			break;
+		}
+	}
+	
+	// Stop playback
+	playback_stage.stop();
+	
+	// Wait for audio to finish and close audio output
+	if (audio_output) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		audio_output->stop();
+		audio_output->close();
+		delete audio_output;
+	}
+	
+	SECTION("Verify output") {
+		// Verify we have samples for all channels
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			REQUIRE(output_samples_per_channel[ch].size() > 0);
+			
+			// Check that output is not all zeros
+			bool has_non_zero = false;
+			for (float sample : output_samples_per_channel[ch]) {
+				if (std::abs(sample) > 0.001f) {
+					has_non_zero = true;
+					break;
+				}
+			}
+			REQUIRE(has_non_zero == true);
+		}
+	}
+	
+	SECTION("Verify amplitude changes at correct positions") {
+		// Calculate exact sample index where position_1 starts
+		// START_POSITION_1 is in frames, so multiply by BUFFER_SIZE to get sample index
+		constexpr unsigned int SAMPLE_WHERE_POSITION_1_STARTS = START_POSITION_1 * BUFFER_SIZE; // 172 * 256 = 44032
+		
+		// Small epsilon for floating point comparison
+		constexpr float EPSILON = 0.0001f;
+	
+		constexpr unsigned int AUDIO_START_SAMPLE = 0; // Audio starts at sample 0
+		constexpr unsigned int TRANSITION_SAMPLE = SAMPLE_WHERE_POSITION_1_STARTS; // 44032
+		
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			for (unsigned int i = 0; i < output_samples_per_channel[ch].size(); ++i) {
+				float sample_value = output_samples_per_channel[ch][i];
+				float expected_value;
+				
+				if (i < AUDIO_START_SAMPLE) {
+					// Before audio starts: should be 0
+					expected_value = 0.0f;
+				} else if (i < TRANSITION_SAMPLE) {
+					// After audio starts but before position_1 starts: only position_0 contributes
+					expected_value = AMPLITUDE;
+				} else {
+					// At/after position_1 starts: both positions contribute
+					expected_value = AMPLITUDE * 2.0f;
+				}
+				
+				INFO("Channel " << ch << " sample " << i << ": got " << sample_value << ", expected " << expected_value);
+				REQUIRE(std::abs(sample_value - expected_value) < EPSILON);
+			}
+		}
+	}
+	
+	if (is_csv_output_enabled()) {
+		SECTION("Export output to CSV") {
+			std::string csv_output_dir = "build/tests/csv_output";
+			system(("mkdir -p " + csv_output_dir).c_str());
+			
+			std::string csv_filename = csv_output_dir + "/multiple_start_positions_output.csv";
+			
+			CSVTestOutput csv_writer(csv_filename, SAMPLE_RATE);
+			REQUIRE(csv_writer.is_open());
+			csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+			csv_writer.close();
+			
+			INFO("CSV file written to: " << csv_filename);
+			printf("CSV file written to: %s\n", csv_filename.c_str());
+		}
+	}
+	
+	if (is_csv_output_enabled()) {
+		SECTION("Write input sine wave to CSV") {
+			std::string csv_output_dir = "build/tests/csv_output";
+			system(("mkdir -p " + csv_output_dir).c_str());
+			
+			std::ofstream csv_file(csv_output_dir + "/input_sine_wave_multiple_start_positions.csv");
+			REQUIRE(csv_file.is_open());
+			
+			// Write header
+			csv_file << "sample_index,time_seconds";
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				csv_file << ",channel_" << ch;
+			}
+			csv_file << std::endl;
+			
+			// Write data (all channels)
+			unsigned int num_samples = input_samples_per_channel[0].size();
+			for (unsigned int i = 0; i < num_samples; ++i) {
+				double time_seconds = static_cast<double>(i) / SAMPLE_RATE;
+				csv_file << i << "," << std::fixed << std::setprecision(9) << time_seconds;
+				for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+					csv_file << "," << input_samples_per_channel[ch][i];
+				}
+				csv_file << std::endl;
+			}
+			
+			csv_file.close();
+			std::cout << "Wrote input sine wave to build/tests/csv_output/input_sine_wave_multiple_start_positions.csv (" 
+			          << num_samples << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
+		}
+	}
+	
+	delete global_time;
+}

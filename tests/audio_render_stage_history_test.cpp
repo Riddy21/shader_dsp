@@ -11,7 +11,7 @@
 #include <memory>
 #include <cmath>
 
-TEST_CASE("AudioRenderStageHistory2::is_audio_texture_data_outdated - basic functionality", "[audio_history2][helper]") {
+TEST_CASE("AudioRenderStageHistory2::is_outdated - basic functionality", "[audio_history2][helper]") {
     const unsigned int frames_per_buffer = 256;
     const unsigned int sample_rate = 44100;
     const unsigned int num_channels = 2;
@@ -38,7 +38,7 @@ TEST_CASE("AudioRenderStageHistory2::is_audio_texture_data_outdated - basic func
         // Set tape position before texture start
         history.set_tape_position(texture_start - 100);
         
-        REQUIRE(history.is_audio_texture_data_outdated() == true);
+        REQUIRE(history.is_outdated() == true);
     }
     
     SECTION("Returns true when tape position is at or after texture end") {
@@ -51,11 +51,11 @@ TEST_CASE("AudioRenderStageHistory2::is_audio_texture_data_outdated - basic func
         
         // Set tape position at texture end
         history.set_tape_position(texture_end);
-        REQUIRE(history.is_audio_texture_data_outdated() == true);
+        REQUIRE(history.is_outdated() == true);
         
         // Set tape position after texture end
         history.set_tape_position(texture_end + 100);
-        REQUIRE(history.is_audio_texture_data_outdated() == true);
+        REQUIRE(history.is_outdated() == true);
     }
     
     SECTION("Returns false when tape position is within valid range") {
@@ -70,7 +70,7 @@ TEST_CASE("AudioRenderStageHistory2::is_audio_texture_data_outdated - basic func
         unsigned int middle_position = texture_start + (texture_end - texture_start) / 2;
         history.set_tape_position(middle_position);
         
-        REQUIRE(history.is_audio_texture_data_outdated() == false);
+        REQUIRE(history.is_outdated() == false);
     }
     
     SECTION("Handles different speeds correctly") {
@@ -84,16 +84,16 @@ TEST_CASE("AudioRenderStageHistory2::is_audio_texture_data_outdated - basic func
         
         // Position before start should be outdated
         history.set_tape_position(texture_start_2x - 1);
-        REQUIRE(history.is_audio_texture_data_outdated() == true);
+        REQUIRE(history.is_outdated() == true);
         
         // Position within range should not be outdated
         unsigned int middle_2x = texture_start_2x + (texture_end_2x - texture_start_2x) / 2;
         history.set_tape_position(middle_2x);
-        REQUIRE(history.is_audio_texture_data_outdated() == false);
+        REQUIRE(history.is_outdated() == false);
         
         // Position at end should be outdated
         history.set_tape_position(texture_end_2x);
-        REQUIRE(history.is_audio_texture_data_outdated() == true);
+        REQUIRE(history.is_outdated() == true);
     }
     
     SECTION("Handles negative speeds correctly") {
@@ -107,16 +107,16 @@ TEST_CASE("AudioRenderStageHistory2::is_audio_texture_data_outdated - basic func
         
         // Position before start should be outdated
         history.set_tape_position(texture_start - 1);
-        REQUIRE(history.is_audio_texture_data_outdated() == true);
+        REQUIRE(history.is_outdated() == true);
         
         // Position within range should not be outdated
         unsigned int middle = texture_start + (texture_end - texture_start) / 2;
         history.set_tape_position(middle);
-        REQUIRE(history.is_audio_texture_data_outdated() == false);
+        REQUIRE(history.is_outdated() == false);
         
         // Position at end should be outdated
         history.set_tape_position(texture_end);
-        REQUIRE(history.is_audio_texture_data_outdated() == true);
+        REQUIRE(history.is_outdated() == true);
     }
     
     SECTION("Handles zero speed") {
@@ -129,20 +129,20 @@ TEST_CASE("AudioRenderStageHistory2::is_audio_texture_data_outdated - basic func
         
         // Position before start should be outdated
         history.set_tape_position(texture_start - 1);
-        REQUIRE(history.is_audio_texture_data_outdated() == true);
+        REQUIRE(history.is_outdated() == true);
         
         // Position at start boundary is still valid (not outdated)
         history.set_tape_position(texture_start);
-        REQUIRE(history.is_audio_texture_data_outdated() == false);
+        REQUIRE(history.is_outdated() == false);
         
         // Position within range should not be outdated
         unsigned int middle = texture_start + (texture_end - texture_start) / 2;
         history.set_tape_position(middle);
-        REQUIRE(history.is_audio_texture_data_outdated() == false);
+        REQUIRE(history.is_outdated() == false);
         
         // Position at end boundary should be outdated
         history.set_tape_position(texture_end);
-        REQUIRE(history.is_audio_texture_data_outdated() == true);
+        REQUIRE(history.is_outdated() == true);
     }
 }
 
@@ -270,7 +270,7 @@ TEST_CASE("AudioRenderStageHistory2 helper functions - integration", "[audio_his
     
     unsigned int window_size_samples = history.get_window_size_samples();
     
-    SECTION("is_audio_texture_data_outdated matches get_window_offset_samples_for_tape_data for positive speed") {
+    SECTION("is_outdated matches get_window_offset_samples_for_tape_data for positive speed") {
         history.set_tape_speed(1.0f);
         static_cast<AudioIntParameter*>(history.m_tape_window_offset_samples)->set_value(5000);
         
@@ -288,14 +288,14 @@ TEST_CASE("AudioRenderStageHistory2 helper functions - integration", "[audio_his
         unsigned int texture_end = texture_start + window_size_samples - frame_size_samples;
         
         // Tape position should be before texture_start, which means outdated
-        REQUIRE(history.is_audio_texture_data_outdated() == true);
+        REQUIRE(history.is_outdated() == true);
         
         // Move position just inside the valid range
         history.set_tape_position(texture_start + 1);
-        REQUIRE(history.is_audio_texture_data_outdated() == false);
+        REQUIRE(history.is_outdated() == false);
     }
     
-    SECTION("is_audio_texture_data_outdated matches get_window_offset_samples_for_tape_data for negative speed") {
+    SECTION("is_outdated matches get_window_offset_samples_for_tape_data for negative speed") {
         history.set_tape_speed(-1.0f);
         static_cast<AudioIntParameter*>(history.m_tape_window_offset_samples)->set_value(10000);
         
@@ -317,7 +317,7 @@ TEST_CASE("AudioRenderStageHistory2 helper functions - integration", "[audio_his
         unsigned int texture_end = texture_start + window_size_samples - frame_size_samples;
         
         // Position should be before texture_start, which means outdated
-        REQUIRE(history.is_audio_texture_data_outdated() == true);
+        REQUIRE(history.is_outdated() == true);
         
         // Update the texture first to set the window_offset parameter
         history.update_audio_history_texture(1);
@@ -329,7 +329,7 @@ TEST_CASE("AudioRenderStageHistory2 helper functions - integration", "[audio_his
         unsigned int valid_end = current_window_offset + window_size_samples - frame_size_samples;
         unsigned int safe_position = valid_start + (valid_end - valid_start) / 2;
         history.set_tape_position(safe_position);
-        REQUIRE(history.is_audio_texture_data_outdated() == false);
+        REQUIRE(history.is_outdated() == false);
     }
     
     SECTION("Changing speed updates both functions correctly") {
@@ -347,7 +347,7 @@ TEST_CASE("AudioRenderStageHistory2 helper functions - integration", "[audio_his
         unsigned int texture_end_1x = texture_start_1x + window_size_samples - frame_size_1x;
         
         // Position should be outdated if outside range
-        bool outdated_1x = history.is_audio_texture_data_outdated();
+        bool outdated_1x = history.is_outdated();
         
         // Test with speed 2.0
         history.set_tape_speed(2.0f);
@@ -358,7 +358,7 @@ TEST_CASE("AudioRenderStageHistory2 helper functions - integration", "[audio_his
         unsigned int texture_start_2x = offset_2x + frame_size_2x;
         unsigned int texture_end_2x = texture_start_2x + window_size_samples - frame_size_2x;
         
-        bool outdated_2x = history.is_audio_texture_data_outdated();
+        bool outdated_2x = history.is_outdated();
         
         // Different speeds should give different outdated results
         // (unless position happens to be in range for both, which is unlikely)

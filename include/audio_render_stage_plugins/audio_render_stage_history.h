@@ -99,16 +99,18 @@ public:
     void set_tape_loop(bool loop); // Enable or disable tape looping (default: false)
     bool is_tape_loop_enabled() const; // Check if tape looping is enabled
 
-    // Update tape positions based on time - must be called every frame
-    void update_tape_positions(const unsigned int time);
+    // Update tape position based on time - must be called every frame
+    void update_tape_position(const unsigned int time);
     
-    // Update audio history texture - can be called optionally when needed
-    // force_update: if true, update texture even if data is not outdated (useful for initialization)
-    void update_audio_history_texture(bool force_update = false);
+    // Check if the tape position is out of bounds of the current window
+    bool is_outdated() const;
+    
+    // Update window - force update without any parameters, takes based on tape position
+    void update_window();
     
     // TODO: Implement incrementally updating the texture with tape playback data
     // When paused (speed = 0) it will stop updating position
-    // This function calls both update_tape_positions() and update_audio_history_texture() for backward compatibility
+    // This function calls both update_tape_position() and update_window() for backward compatibility
     void update_audio_history_texture(const unsigned int time);
 
     std::string get_audio_history_texture_name() { return m_audio_history_texture_name; }
@@ -146,7 +148,6 @@ private:
 
     void set_window_offset_samples(const unsigned int window_offset_samples);
 
-    bool is_audio_texture_data_outdated();
     const unsigned int get_window_offset_samples_for_tape_data() const;
     
     // Helper functions for update_audio_history_texture
@@ -154,7 +155,6 @@ private:
     int calculate_backwards_time_delta(const unsigned int time);
     bool should_clamp_position(int samples_to_advance, unsigned int current_position, unsigned int tape_size);
     void clamp_position(int samples_to_advance, unsigned int current_position, unsigned int tape_size);
-    void update_texture_if_needed(std::shared_ptr<AudioTape> tape);
     void advance_tape_position_with_delta(int time_delta); // Internal helper that advances position given a pre-calculated time delta
 };
 
