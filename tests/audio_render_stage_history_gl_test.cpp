@@ -4603,9 +4603,9 @@ TEST_CASE("AudioRenderStageHistory2 - multiple start positions", "[audio_history
 	constexpr int SAMPLE_RATE = 44100;
 	constexpr int RECORD_DURATION_SECONDS = 8;
 	constexpr int NUM_RECORD_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * RECORD_DURATION_SECONDS;
-	constexpr int PLAYBACK_DURATION_SECONDS = 2;
+	constexpr int PLAYBACK_DURATION_SECONDS = 3;
 	constexpr int NUM_PLAYBACK_FRAMES = (SAMPLE_RATE / BUFFER_SIZE) * PLAYBACK_DURATION_SECONDS;
-	constexpr float WINDOW_SIZE_SECONDS = 3.0f;
+	constexpr float WINDOW_SIZE_SECONDS = 1.5f;
 	constexpr float PLAYBACK_SPEED = 1.0f;
 
 	// Constant amplitudes for different regions
@@ -4780,26 +4780,42 @@ TEST_CASE("AudioRenderStageHistory2 - multiple start positions", "[audio_history
 		// START_POSITION_1 is in frames, so multiply by BUFFER_SIZE to get sample index
 		constexpr unsigned int SAMPLE_WHERE_POSITION_1_STARTS = START_POSITION_1 * BUFFER_SIZE; // 172 * 256 = 44032
 		
+		// Get actual window size from history (may differ from WINDOW_SIZE_SECONDS * SAMPLE_RATE due to texture rounding)
+		unsigned int actual_window_size_samples = playback_stage.get_history().get_window_size_samples();
+		
 		// Small epsilon for floating point comparison
 		constexpr float EPSILON = 0.0001f;
 	
 		constexpr unsigned int AUDIO_START_SAMPLE = 0; // Audio starts at sample 0
 		constexpr unsigned int TRANSITION_SAMPLE = SAMPLE_WHERE_POSITION_1_STARTS; // 44032
+		// Window for position_0 ends when it reaches window_size_samples from its start
+		// Position_0 starts at sample 0, so its window ends at actual_window_size_samples
+		// The last sample with both positions is actual_window_size_samples (inclusive)
+		const unsigned int POSITION_0_WINDOW_END = actual_window_size_samples + 1;
+		// Window for position_1 ends when it reaches window_size_samples from its start
+		// Position_1 starts at TRANSITION_SAMPLE (44032), so its window ends at TRANSITION_SAMPLE + actual_window_size_samples
+		const unsigned int POSITION_1_WINDOW_END = TRANSITION_SAMPLE + actual_window_size_samples + 1;
 		
 		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
 			for (unsigned int i = 0; i < output_samples_per_channel[ch].size(); ++i) {
 				float sample_value = output_samples_per_channel[ch][i];
 				float expected_value;
 				
-				if (i < AUDIO_START_SAMPLE) {
-					// Before audio starts: should be 0
-					expected_value = 0.0f;
+				if (i <= AUDIO_START_SAMPLE) {
+					// At audio start (sample 0): only position_0 contributes
+					expected_value = AMPLITUDE;
 				} else if (i < TRANSITION_SAMPLE) {
 					// After audio starts but before position_1 starts: only position_0 contributes
 					expected_value = AMPLITUDE;
-				} else {
-					// At/after position_1 starts: both positions contribute
+				} else if (i < POSITION_0_WINDOW_END) {
+					// After position_1 starts but before position_0's window ends: both positions contribute
 					expected_value = AMPLITUDE * 2.0f;
+				} else if (i < POSITION_1_WINDOW_END) {
+					// After position_0's window ends but before position_1's window ends: only position_1 contributes
+					expected_value = AMPLITUDE;
+				} else {
+					// After position_1's window ends: no audio
+					expected_value = 0.0f;
 				}
 				
 				INFO("Channel " << ch << " sample " << i << ": got " << sample_value << ", expected " << expected_value);

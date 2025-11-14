@@ -484,7 +484,7 @@ void AudioRenderStageHistory2::update_window() {
         return; // Tape not assigned
     }
     
-    // Always update (force update)
+    // Calculate the window offset (same value used for both data loading and shader uniform)
     const unsigned int window_offset_samples = get_window_offset_samples_for_tape_data();
     
     // Get tape data in texture format
@@ -578,9 +578,15 @@ const unsigned int AudioRenderStageHistory2::get_window_offset_samples_for_tape_
     float speed_ratio = get_tape_speed_ratio();
     if (speed_ratio > 0.0f) {
         // For positive speed, offset is position to align with shader calculation
-        // The shader calculates: position_in_window = tape_position_param - tape_window_offset_samples + window_offset
+        // The shader calculates: position_in_window = tape_position_param - tape_window_offset_samples + window_offset - 1
         // With window_offset starting at 0 for first sample and tape_position_param = tape_position,
-        // we need offset = tape_position to get position_in_window = 0 for the first sample
+        // we need offset = tape_position - 1 to get position_in_window = 0 for the first sample
+        // Special case: when tape_position = 0, we can't subtract 1 (would underflow), so return 0.
+        // The shader handles this special case by checking if tape_position_param == 0 && tape_window_offset_samples == 0
+        // and using position_in_window = window_offset directly (without the -1)
+        if (tape_position == 0) {
+            return 0;
+        }
         return tape_position - 1;
     } else if (speed_ratio < 0.0f) {
         unsigned int window_size = get_window_size_samples();
@@ -600,9 +606,3 @@ void AudioRenderStageHistory2::set_tape(std::weak_ptr<AudioTape> tape) {
 std::weak_ptr<AudioTape> AudioRenderStageHistory2::get_tape() {
     return m_tape;
 }
-
-
-// FIXME: Add proper support for shifting tape windows, and make sure that the update occurs correctly when using shifting tapes
-
-// where to start:
-// 3. add support for playing at multiple positions and speeds
