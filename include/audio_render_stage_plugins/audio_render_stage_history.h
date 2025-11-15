@@ -35,7 +35,7 @@ public:
 
     void clear_history_buffer();
 
-    std::string get_history_texture_name() { return "audio_history_texture"; }
+    std::string get_history_texture_name() { return "audio_history_texture_old"; }
 
 private:
     std::vector<std::vector<float>> m_history_buffer;
@@ -54,7 +54,7 @@ public:
                              const float history_buffer_size_seconds = 2.0f); // History buffer size in seconds of data stored in texture
 
     // Create all parameters (texture and uniform parameters)
-    void create_parameters(GLuint& active_texture_count);
+    void create_parameters(GLuint active_texture_count);
     
     // Get all parameters (texture and uniform parameters)
     std::vector<AudioParameter*> get_parameters() const;
@@ -136,7 +136,7 @@ private:
     unsigned int m_texture_rows_per_channel;
     unsigned int m_window_size_samples;
 
-    const std::string m_audio_history_texture_name = "audio_history_texture";
+    const std::string m_audio_history_texture_name = "tape_history_texture";
     
     // Track last time value for delta-based updates
     unsigned int m_last_time = 0;

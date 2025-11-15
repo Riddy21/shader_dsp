@@ -1,4 +1,4 @@
-uniform sampler2D audio_history_texture;
+uniform sampler2D tape_history_texture;
 uniform int tape_position;
 uniform int speed_in_samples_per_buffer;
 uniform int tape_window_size_samples;
@@ -7,12 +7,12 @@ uniform int tape_stopped; // 1 = stopped, 0 = playing
 
 // Get the size of the audio history texture in samples per channel
 int get_tape_history_size() {
-    ivec2 audio_size = textureSize(audio_history_texture, 0);
+    ivec2 audio_size = textureSize(tape_history_texture, 0);
     return audio_size.x * audio_size.y / num_channels;
 }
 
 // Get the audio section corresponding to the tape section in the tape history from the tape position (in samples)
-// Returns the audio sample (vec4) from the audio_history_texture at the specified tape position
+// Returns the audio sample (vec4) from the tape_history_texture at the specified tape position
 // TexCoord: texture coordinates from the current shader (channel is encoded in TexCoord.y)
 // sample_frame_size: number of samples per frame (typically speed_in_samples_per_buffer)
 // tape_position_param: the tape position in samples to read from
@@ -23,7 +23,7 @@ vec4 get_tape_history_samples(vec2 TexCoord, int sample_frame_size, int tape_pos
     }
     
     // Get texture dimensions to calculate position bar
-    ivec2 audio_size = textureSize(audio_history_texture, 0);
+    ivec2 audio_size = textureSize(tape_history_texture, 0);
 
     // Get channel as int
     int channel = int(TexCoord.y * float(num_channels));
@@ -63,7 +63,7 @@ vec4 get_tape_history_samples(vec2 TexCoord, int sample_frame_size, int tape_pos
     // Convert the x y into texture coordinates
     vec2 texture_coord = vec2(float(x_position) / float(audio_size.x), (float(y_position) + 0.5) / float(audio_size.y)); // Offset for max data
     
-    return texture(audio_history_texture, texture_coord);
+    return texture(tape_history_texture, texture_coord);
 }
 
 // Overload for backward compatibility - uses global uniforms

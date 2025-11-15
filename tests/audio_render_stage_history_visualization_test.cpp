@@ -62,7 +62,7 @@ static const char* kTapePlaybackFragSource = R"(
         vec4 tape_sample = get_tape_history_samples(TexCoord);
 
   // Get texture dimensions to calculate position bar
-    ivec2 audio_size = textureSize(audio_history_texture, 0);
+    ivec2 audio_size = textureSize(tape_history_texture, 0);
 	
 		ivec2 int_coord = ivec2(TexCoord.x * float(audio_size.x), TexCoord.y * float(audio_size.y));
 
@@ -90,7 +90,7 @@ static const char* kTapePlaybackFragSource = R"(
     vec2 texture_coord = vec2(float(x_position) / float(audio_size.x), (float(y_position) + 0.5) / float(audio_size.y)); // Offset for max data
     
         // Output the tape playback sample + stream audio (matching GL test for consistency)
-        output_audio_texture = texture(audio_history_texture, TexCoord);
+        output_audio_texture = texture(tape_history_texture, TexCoord);
         debug_audio_texture = output_audio_texture + stream_audio + tape_sample;
     }
     )";
@@ -112,7 +112,7 @@ static const char* kTapePlaybackFragSource = R"(
         {
             // Create tape history and all its textures/parameters
             m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
-            m_history2->create_parameters(m_active_texture_count);
+            m_history2->create_parameters(m_active_texture_count++);
             
             // Add all parameters
             auto params = m_history2->get_parameters();

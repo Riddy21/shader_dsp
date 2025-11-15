@@ -34,7 +34,7 @@ AudioSingleShaderFileGeneratorRenderStage::AudioSingleShaderFileGeneratorRenderS
     float tape_duration_seconds = static_cast<float>(m_tape->size()) / static_cast<float>(sample_rate);
     float WINDOW_SIZE_SECONDS = tape_duration_seconds + 1.0f; // Add 1 second margin
     m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, WINDOW_SIZE_SECONDS);
-    m_history2->create_parameters(m_active_texture_count);
+    m_history2->create_parameters(m_active_texture_count++);
     m_history2->set_tape(m_tape);
     
     // Set up tape for playback
@@ -78,7 +78,7 @@ AudioSingleShaderFileGeneratorRenderStage::AudioSingleShaderFileGeneratorRenderS
     float tape_duration_seconds = static_cast<float>(m_tape->size()) / static_cast<float>(sample_rate);
     float WINDOW_SIZE_SECONDS = tape_duration_seconds + 1.0f; // Add 1 second margin
     m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, WINDOW_SIZE_SECONDS);
-    m_history2->create_parameters(m_active_texture_count);
+    m_history2->create_parameters(m_active_texture_count++);
     m_history2->set_tape(m_tape);
     
     // Set up tape for playback
@@ -121,7 +121,7 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int 
     float tape_duration_seconds = static_cast<float>(m_tape->size()) / static_cast<float>(sample_rate);
     float WINDOW_SIZE_SECONDS = tape_duration_seconds + 1.0f; // Add 1 second margin
     m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, WINDOW_SIZE_SECONDS);
-    m_history2->create_parameters(m_active_texture_count);
+    m_history2->create_parameters(m_active_texture_count++);
     m_history2->set_tape(m_tape);
     
     // Set up tape for playback
@@ -165,7 +165,7 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const std::string &
     float tape_duration_seconds = static_cast<float>(m_tape->size()) / static_cast<float>(sample_rate);
     float WINDOW_SIZE_SECONDS = tape_duration_seconds + 1.0f; // Add 1 second margin
     m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, WINDOW_SIZE_SECONDS);
-    m_history2->create_parameters(m_active_texture_count);
+    m_history2->create_parameters(m_active_texture_count++);
     m_history2->set_tape(m_tape);
     
     // Set up tape for playback

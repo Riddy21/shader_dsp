@@ -1,6 +1,7 @@
 #include "catch2/catch_all.hpp"
 #include "framework/test_gl.h"
 #include "framework/test_main.h"
+#include "framework/csv_test_output.h"
 
 #include "audio_core/audio_render_stage.h"
 #include "audio_render_stage/audio_effect_render_stage.h"
@@ -17,6 +18,7 @@
 #include <cmath>
 #include <fstream>
 #include <iomanip>
+#include <sstream>
 
 // Add after existing includes
 #include <complex>
@@ -454,7 +456,7 @@ void main() {
 }
 
 TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test", 
-                   "[audio_effect_render_stage][gl_test][audio_output][template]", 
+                   "[audio_effect_render_stage][gl_test][audio_output][csv_output][template]", 
                    TestParam3, TestParam4, TestParam5) {
     
     // Get test parameters for this template instantiation
@@ -540,6 +542,12 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
         // Start playing the note
         sine_generator.play_note({midi_note, note_gain});
 
+        // Collect samples for CSV output
+        std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+            output_samples_per_channel[ch].reserve(NUM_FRAMES * BUFFER_SIZE);
+        }
+
         // Render and play audio with echo effect
         for (int frame = 0; frame < NUM_FRAMES; frame++) {
             // Stop the note after 1 second to hear the echoes clearly
@@ -566,13 +574,20 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
             const float* output_data = static_cast<const float*>(output_param->get_value());
             REQUIRE(output_data != nullptr);
 
-            // Wait for audio output to be ready
-            //while (!audio_output.is_ready()) {
-            //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            //}
-            
-            //// Push the audio data to the output for real-time playback
-            //audio_output.push(output_data);
+            // Collect samples for CSV
+            for (int i = 0; i < BUFFER_SIZE; i++) {
+                for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+                    output_samples_per_channel[ch].push_back(output_data[i * NUM_CHANNELS + ch]);
+                }
+            }
+
+            // Push to audio output if enabled
+            if (audio_output) {
+                while (!audio_output->is_ready()) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                }
+                audio_output->push(output_data);
+            }
         }
 
         // Let the audio finish playing (only if enabled)
@@ -584,12 +599,33 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
             delete audio_output;
             std::cout << "Echo effect playback complete!" << std::endl;
         }
+
+        // CSV output (only if enabled)
+        if (is_csv_output_enabled()) {
+            std::string csv_output_dir = "build/tests/csv_output";
+            system(("mkdir -p " + csv_output_dir).c_str());
+            
+            std::ostringstream filename_stream;
+            filename_stream << csv_output_dir << "/echo_effect_audio_output_buffer_" 
+                          << BUFFER_SIZE << "_channels_" << NUM_CHANNELS << "_freq_" << SINE_FREQUENCY << ".csv";
+            std::string filename = filename_stream.str();
+            
+            CSVTestOutput csv_writer(filename, SAMPLE_RATE);
+            REQUIRE(csv_writer.is_open());
+            
+            csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+            csv_writer.close();
+            
+            std::cout << "Wrote echo effect audio output to " << filename << " (" 
+                      << output_samples_per_channel[0].size() << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
+        }
+
         std::cout << "Did you hear the original " << SINE_FREQUENCY << "Hz tone followed by echoes getting progressively quieter?" << std::endl;
     }
 }
 
 TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity Test", 
-                   "[audio_effect_render_stage][gl_test][audio_output][template][discontinuity]", 
+                   "[audio_effect_render_stage][gl_test][audio_output][csv_output][template][discontinuity]", 
                    TestParam2, TestParam3, TestParam4) {
     
     // Get test parameters for this template instantiation
@@ -754,20 +790,52 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
             recorded_audio.push_back(output_data[i]);
         }
 
-        // TODO: ADD a compile flag to enable and disable output
-        // Wait for audio output to be ready and play
-        //while (!audio_output.is_ready()) {
-        //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        //}
-        //audio_output.push(output_data);
+        // Push to audio output if enabled
+        if (audio_output) {
+            while (!audio_output->is_ready()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            audio_output->push(output_data);
+        }
     }
 
     // Let audio finish (only if enabled)
     if (audio_output) {
-        //std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
         audio_output->stop();
         audio_output->close();
         delete audio_output;
+    }
+
+    // CSV output (only if enabled)
+    if (is_csv_output_enabled()) {
+        std::string csv_output_dir = "build/tests/csv_output";
+        system(("mkdir -p " + csv_output_dir).c_str());
+        
+        std::ostringstream filename_stream;
+        filename_stream << csv_output_dir << "/echo_effect_sequential_notes_buffer_" 
+                      << BUFFER_SIZE << "_channels_" << NUM_CHANNELS << ".csv";
+        std::string filename = filename_stream.str();
+        
+        // Convert recorded_audio to per-channel format
+        std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+            output_samples_per_channel[ch].reserve(recorded_audio.size() / NUM_CHANNELS);
+        }
+        for (size_t i = 0; i < recorded_audio.size(); i += NUM_CHANNELS) {
+            for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+                output_samples_per_channel[ch].push_back(recorded_audio[i + ch]);
+            }
+        }
+        
+        CSVTestOutput csv_writer(filename, SAMPLE_RATE);
+        REQUIRE(csv_writer.is_open());
+        
+        csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+        csv_writer.close();
+        
+        std::cout << "Wrote sequential notes echo effect output to " << filename << " (" 
+                  << output_samples_per_channel[0].size() << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
     }
     
     // Separate stereo channels for analysis
@@ -1058,7 +1126,7 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Parameterized Filter
 }
 
 TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test", 
-                   "[audio_effect_render_stage][gl_test][audio_output][template]", 
+                   "[audio_effect_render_stage][gl_test][audio_output][csv_output][template]", 
                    TestParam3, TestParam4, TestParam5) {
     
     constexpr auto params = get_test_params(TestType::value);
@@ -1124,6 +1192,12 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
     sine_generator.play_note({NOTE1_FREQ, SINE_AMPLITUDE / 2.0f});
     sine_generator.play_note({NOTE2_FREQ, SINE_AMPLITUDE / 2.0f});
 
+    // Collect samples for CSV output
+    std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+    for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+        output_samples_per_channel[ch].reserve(NUM_FRAMES * BUFFER_SIZE);
+    }
+
     for (int frame = 0; frame < NUM_FRAMES; frame++) {
         global_time_param->set_value(frame);
         global_time_param->render();
@@ -1138,23 +1212,111 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
         const float* output_data = static_cast<const float*>(output_param->get_value());
         REQUIRE(output_data != nullptr);
 
+        // Collect samples for CSV
+        for (int i = 0; i < BUFFER_SIZE; i++) {
+            for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+                output_samples_per_channel[ch].push_back(output_data[i * NUM_CHANNELS + ch]);
+            }
+        }
+
         for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; i++) {
             recorded_audio.push_back(output_data[i]);
         }
 
-        //while (!audio_output.is_ready()) {
-        //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        //}
-        //audio_output.push(output_data);
+        // Push to audio output if enabled
+        if (audio_output) {
+            while (!audio_output->is_ready()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            audio_output->push(output_data);
+        }
     }
 
     // Cleanup audio output (only if enabled)
     if (audio_output) {
-        //std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
         audio_output->stop();
         audio_output->close();
         delete audio_output;
         std::cout << "Filter effect playback complete!" << std::endl;
+    }
+    
+    // CSV output (only if enabled)
+    if (is_csv_output_enabled()) {
+        std::string csv_output_dir = "build/tests/csv_output";
+        system(("mkdir -p " + csv_output_dir).c_str());
+        
+        std::ostringstream filename_stream;
+        filename_stream << csv_output_dir << "/filter_effect_audio_output_buffer_" 
+                      << BUFFER_SIZE << "_channels_" << NUM_CHANNELS << "_low_" << LOW_CUTOFF << "_high_" << HIGH_CUTOFF << ".csv";
+        std::string filename = filename_stream.str();
+        
+        CSVTestOutput csv_writer(filename, SAMPLE_RATE);
+        REQUIRE(csv_writer.is_open());
+        
+        csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+        csv_writer.close();
+        
+        std::cout << "Wrote filter effect audio output to " << filename << " (" 
+                  << output_samples_per_channel[0].size() << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
+    }
+
+    SECTION("Verify Audio Output is Not Zero") {
+        // Check that the audio output is not all zeros (silent)
+        // This helps detect if something is causing the audio to go silent
+        bool all_zero = true;
+        float max_amplitude = 0.0f;
+        float min_amplitude = 0.0f;
+        int non_zero_samples = 0;
+        
+        for (size_t i = 0; i < recorded_audio.size(); i++) {
+            float sample = recorded_audio[i];
+            float abs_sample = std::abs(sample);
+            
+            if (abs_sample > 1e-6f) { // Threshold for "non-zero"
+                all_zero = false;
+                non_zero_samples++;
+            }
+            
+            max_amplitude = std::max(max_amplitude, abs_sample);
+            min_amplitude = std::min(min_amplitude, abs_sample);
+        }
+        
+        INFO("Total samples: " << recorded_audio.size());
+        INFO("Non-zero samples: " << non_zero_samples);
+        INFO("Max amplitude: " << max_amplitude);
+        INFO("Min amplitude: " << min_amplitude);
+        
+        // Audio should not be completely silent
+        REQUIRE_FALSE(all_zero);
+        REQUIRE(max_amplitude > 1e-6f);
+        REQUIRE(non_zero_samples > 0);
+        
+        // Check per channel
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+            bool channel_all_zero = true;
+            float channel_max = 0.0f;
+            int channel_non_zero = 0;
+            
+            for (size_t i = ch; i < recorded_audio.size(); i += NUM_CHANNELS) {
+                float sample = recorded_audio[i];
+                float abs_sample = std::abs(sample);
+                
+                if (abs_sample > 1e-6f) {
+                    channel_all_zero = false;
+                    channel_non_zero++;
+                }
+                
+                channel_max = std::max(channel_max, abs_sample);
+            }
+            
+            INFO("Channel " << ch << " - Non-zero samples: " << channel_non_zero << ", Max amplitude: " << channel_max);
+            REQUIRE_FALSE(channel_all_zero);
+            REQUIRE(channel_max > 1e-6f);
+        }
+        
+        std::cout << "Audio output verification passed: " << non_zero_samples << " non-zero samples out of " 
+                  << recorded_audio.size() << " total samples" << std::endl;
     }
 
 //    SECTION("Save Recorded Audio to CSV") {
@@ -1186,7 +1348,7 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
 }
 
 TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Dynamic Parameter Changes with Square Wave and Analysis", 
-                   "[audio_effect_render_stage][gl_test][audio_output][template][dynamic]", 
+                   "[audio_effect_render_stage][gl_test][audio_output][csv_output][template][dynamic]", 
                    TestParam3, TestParam4, TestParam5) {
     
     constexpr auto params = get_test_params(TestType::value);
@@ -1305,6 +1467,12 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Dynamic Parameter Ch
     current_segment.reserve(PARAM_CHANGE_INTERVAL * BUFFER_SIZE * NUM_CHANNELS);
     int current_param_index = 0;
 
+    // Collect samples for CSV output
+    std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+    for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+        output_samples_per_channel[ch].reserve(NUM_FRAMES * BUFFER_SIZE);
+    }
+
     for (int frame = 0; frame < NUM_FRAMES; frame++) {
         global_time_param->set_value(frame);
         global_time_param->render();
@@ -1351,16 +1519,25 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Dynamic Parameter Ch
         const float* output_data = static_cast<const float*>(output_param->get_value());
         REQUIRE(output_data != nullptr);
 
+        // Collect samples for CSV
+        for (int i = 0; i < BUFFER_SIZE; i++) {
+            for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+                output_samples_per_channel[ch].push_back(output_data[i * NUM_CHANNELS + ch]);
+            }
+        }
+
         // Store audio data for analysis (left channel only for simplicity)
         for (int i = 0; i < BUFFER_SIZE; i++) {
             current_segment.push_back(output_data[i * NUM_CHANNELS]);
         }
 
-        // Wait for audio output to be ready and play
-        //while (!audio_output.is_ready()) {
-        //    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        //}
-        //audio_output.push(output_data);
+        // Push to audio output if enabled
+        if (audio_output) {
+            while (!audio_output->is_ready()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            audio_output->push(output_data);
+        }
     }
 
     // Analyze the final segment
@@ -1382,6 +1559,26 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Dynamic Parameter Ch
         audio_output->stop();
         audio_output->close();
         delete audio_output;
+    }
+
+    // CSV output (only if enabled)
+    if (is_csv_output_enabled()) {
+        std::string csv_output_dir = "build/tests/csv_output";
+        system(("mkdir -p " + csv_output_dir).c_str());
+        
+        std::ostringstream filename_stream;
+        filename_stream << csv_output_dir << "/filter_effect_dynamic_params_buffer_" 
+                      << BUFFER_SIZE << "_channels_" << NUM_CHANNELS << "_square_" << SQUARE_FREQ << ".csv";
+        std::string filename = filename_stream.str();
+        
+        CSVTestOutput csv_writer(filename, SAMPLE_RATE);
+        REQUIRE(csv_writer.is_open());
+        
+        csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+        csv_writer.close();
+        
+        std::cout << "Wrote dynamic filter effect output to " << filename << " (" 
+                  << output_samples_per_channel[0].size() << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
     }
     
     // Analyze the collected audio segments

@@ -121,6 +121,8 @@ private:
     bool disconnect_render_stage(AudioRenderStage * render_stage) override;
 
     std::unique_ptr<AudioRenderStageHistory> m_audio_history;
+    std::unique_ptr<AudioRenderStageHistory2> m_history2;
+    std::shared_ptr<AudioTape> m_tape;
     float m_low_pass;
     float m_high_pass;
     float m_filter_follower;

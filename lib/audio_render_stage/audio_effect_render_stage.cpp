@@ -260,7 +260,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     if (!this->add_parameter(b_coeff_texture)) {
         std::cerr << "Failed to add b_coeff_texture" << std::endl;
     }
-    if (!this->add_parameter(m_audio_history->create_audio_history_texture(++m_active_texture_count))) {
+    if (!this->add_parameter(m_audio_history->create_audio_history_texture(m_active_texture_count++))) {
         std::cerr << "Failed to add audio_history_texture" << std::endl;
     }
 

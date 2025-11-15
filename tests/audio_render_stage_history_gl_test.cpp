@@ -134,7 +134,7 @@ public:
 	{
 		// Create tape history and all its textures/parameters
 		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
-		m_history2->create_parameters(m_active_texture_count);
+		m_history2->create_parameters(m_active_texture_count++);
 		
 		// Add all parameters
 		auto params = m_history2->get_parameters();
@@ -182,7 +182,7 @@ public:
 	{
 		// Create tape history and all its textures/parameters
 		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
-		m_history2->create_parameters(m_active_texture_count);
+		m_history2->create_parameters(m_active_texture_count++);
 		
 		// Add all parameters
 		auto params = m_history2->get_parameters();
@@ -241,7 +241,7 @@ public:
 	{
 		// Create tape history and all its textures/parameters
 		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
-		m_history2->create_parameters(m_active_texture_count);
+		m_history2->create_parameters(m_active_texture_count++);
 		
 		// Add all parameters
 		auto params = m_history2->get_parameters();
@@ -300,7 +300,7 @@ public:
 	{
 		// Create tape history and all its textures/parameters
 		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
-		m_history2->create_parameters(m_active_texture_count);
+		m_history2->create_parameters(m_active_texture_count++);
 		
 		m_start_position_0 = new AudioIntParameter("start_position_0", AudioParameter::ConnectionType::INPUT);
 		m_start_position_0->set_value(0);

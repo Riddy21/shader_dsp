@@ -29,7 +29,7 @@ AudioRenderStageHistory::AudioRenderStageHistory(const unsigned int history_size
 }
 
 AudioTexture2DParameter * AudioRenderStageHistory::create_audio_history_texture(GLuint m_active_texture_count) {
-    auto audio_history_texture = new AudioTexture2DParameter("audio_history_texture",
+    auto audio_history_texture = new AudioTexture2DParameter("audio_history_texture_old",
                             AudioParameter::ConnectionType::INPUT,
                             MAX_TEXTURE_SIZE, m_num_channels * m_texture_rows, // Due to restriction of the shader only can be as big as the buffer size
                             m_active_texture_count,
@@ -114,7 +114,7 @@ AudioRenderStageHistory2::AudioRenderStageHistory2(const unsigned int frames_per
     m_window_size_samples = m_texture_width * m_texture_rows_per_channel;
 }
 
-void AudioRenderStageHistory2::create_parameters(GLuint& active_texture_count) {
+void AudioRenderStageHistory2::create_parameters(GLuint active_texture_count) {
     // Create the texture parameter
     auto audio_history_texture = new AudioTexture2DParameter(m_audio_history_texture_name,
                             AudioParameter::ConnectionType::INPUT,
@@ -154,9 +154,6 @@ void AudioRenderStageHistory2::create_parameters(GLuint& active_texture_count) {
     // Create tape loop flag parameter (1 = loop enabled, 0 = loop disabled, default = 0)
     m_tape_loop = new AudioIntParameter("tape_loop", AudioParameter::ConnectionType::INPUT);
     static_cast<AudioIntParameter*>(m_tape_loop)->set_value(0); // Default to no loop
-    
-    // Increment active_texture_count for the texture we just created
-    active_texture_count++;
 }
 
 std::vector<AudioParameter*> AudioRenderStageHistory2::get_parameters() const {

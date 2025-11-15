@@ -21,7 +21,7 @@ TEST_CASE("AudioRenderStageHistory2::is_outdated - basic functionality", "[audio
     
     // Initialize parameters (normally done by create_parameters, but we'll set them directly for testing)
     GLuint active_texture_count = 0;
-    history.create_parameters(active_texture_count);
+    history.create_parameters(active_texture_count++);
     
     // Get window size for calculations
     unsigned int window_size_samples = history.get_window_size_samples();
@@ -155,7 +155,7 @@ TEST_CASE("AudioRenderStageHistory2::get_window_offset_samples_for_tape_data - b
     AudioRenderStageHistory2 history(frames_per_buffer, sample_rate, num_channels, history_buffer_size_seconds);
     
     GLuint active_texture_count = 0;
-    history.create_parameters(active_texture_count);
+    history.create_parameters(active_texture_count++);
     
     unsigned int window_size_samples = history.get_window_size_samples();
     
@@ -266,7 +266,7 @@ TEST_CASE("AudioRenderStageHistory2 helper functions - integration", "[audio_his
     AudioRenderStageHistory2 history(frames_per_buffer, sample_rate, num_channels, history_buffer_size_seconds);
     
     GLuint active_texture_count = 0;
-    history.create_parameters(active_texture_count);
+    history.create_parameters(active_texture_count++);
     
     unsigned int window_size_samples = history.get_window_size_samples();
     
@@ -377,7 +377,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
     AudioRenderStageHistory2 history(frames_per_buffer, sample_rate, num_channels, history_buffer_size_seconds);
     
     GLuint active_texture_count = 0;
-    history.create_parameters(active_texture_count);
+    history.create_parameters(active_texture_count++);
     
     unsigned int window_size_samples = history.get_window_size_samples();
     
@@ -667,7 +667,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
     AudioRenderStageHistory2 history(frames_per_buffer, sample_rate, num_channels, history_buffer_size_seconds);
     
     GLuint active_texture_count = 0;
-    history.create_parameters(active_texture_count);
+    history.create_parameters(active_texture_count++);
     
     unsigned int window_size_samples = history.get_window_size_samples();
     
@@ -890,7 +890,7 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
     AudioRenderStageHistory2 history(frames_per_buffer, sample_rate, num_channels, history_buffer_size_seconds);
     
     GLuint active_texture_count = 0;
-    history.create_parameters(active_texture_count);
+    history.create_parameters(active_texture_count++);
     
     unsigned int window_size_samples = history.get_window_size_samples();
     
@@ -1217,7 +1217,7 @@ TEST_CASE("AudioRenderStageHistory2 - tape loop functionality", "[audio_history2
     
     AudioRenderStageHistory2 history(frames_per_buffer, sample_rate, num_channels, history_buffer_size_seconds);
     GLuint active_texture_count = 0;
-    history.create_parameters(active_texture_count);
+    history.create_parameters(active_texture_count++);
     
     // Create a tape with some data
     auto tape = std::make_shared<AudioTape>(frames_per_buffer, sample_rate, num_channels);
