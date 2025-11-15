@@ -1,47 +1,33 @@
-uniform sampler2D full_audio_data_texture;
-
-vec2 translate_coord(vec2 coord, int time, float speed, int channel) {
-    // Get the chunk size
-    ivec2 audio_size = textureSize(full_audio_data_texture, 0);
-
-    int total_audio_size = audio_size.x * audio_size.y / 2 / num_channels; // divide by 2 because spacing
-
-    ivec2 chunk_size = ivec2(float(buffer_size) * speed, 1);
-
-    // Calculate the offset
-    int chunk_offset = time * chunk_size.x % total_audio_size; // repeat
-    //int chunk_offset = time * chunk_size.x; // no repeat
-
-    int total_offset = int(coord.x * float(chunk_size.x)) + chunk_offset;
-
-    ivec2 total_coord = ivec2(total_offset % audio_size.x,
-                              total_offset / audio_size.x);
-
-    // Comput normalized texture coordinates
-    // FIXME: Add the channel offset to the y coordinate as well
-    vec2 data = vec2(float(total_coord.x) / float(audio_size.x),
-                4.0 * (float(total_coord.y) + 0.5 * float(channel) + 0.25) / float(audio_size.y));
-                // For some reason, only the above line works for raspberry pi
-                 //4.0 * (float(total_coord.y) + 0.25 * coord.y) / float(audio_size.y));
-
-    return data;
+int calculate_tape_position(int current_position, int start_position, int speed_in_samples_per_buffer) {
+    int difference = current_position - start_position;
+    return difference * speed_in_samples_per_buffer;
 }
 
 void main() {
+    // Get the audio sample from stream
+    vec4 stream_audio = texture(stream_audio_texture, TexCoord);
 
     float start_time = calculateTime(play_position, vec2(0.0, 0.0));
     float end_time = calculateTime(stop_position, vec2(0.0, 0.0));
     float time = calculateTime(global_time_val, TexCoord);
 
-    int channel = int(TexCoord.y * float(num_channels));
+    // Calculate speed in samples per buffer from tone
+    float speed_ratio = tone / MIDDLE_C;
+    int speed_in_samples_per_buffer = int(float(buffer_size) * speed_ratio);
     
-    // Translate the texture coordinates
-    vec2 coord = translate_coord(TexCoord, global_time_val - play_position, tone / MIDDLE_C, channel);
+    // Calculate tape position based on play position and speed
+    int tape_position_samples = calculate_tape_position(global_time_val, play_position, speed_in_samples_per_buffer);
 
-    // Get the audio sample
-    vec4 audio_sample = texture(full_audio_data_texture, coord) * adsr_envelope(start_time, end_time, time);
+    // Get the tape sample using get_tape_history_samples
+    vec4 tape_sample = vec4(0.0, 0.0, 0.0, 0.0);
+    if (tape_position_samples >= 0) {
+        tape_sample = get_tape_history_samples(TexCoord, speed_in_samples_per_buffer, tape_position_samples);
+    }
+
+    // Apply ADSR envelope
+    vec4 audio_sample = tape_sample * adsr_envelope(start_time, end_time, time);
 
     // Output the result
-    output_audio_texture = audio_sample * gain + texture(stream_audio_texture, vec2(TexCoord));
+    output_audio_texture = audio_sample * gain + stream_audio;
     debug_audio_texture = output_audio_texture;
 }

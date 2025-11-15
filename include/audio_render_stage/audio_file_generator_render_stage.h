@@ -3,6 +3,9 @@
 #define AUDIO_FILE_GENERATOR_RENDER_STAGE_H
 
 #include "audio_render_stage/audio_generator_render_stage.h"
+#include "audio_render_stage_plugins/audio_render_stage_history.h"
+#include "audio_core/audio_tape.h"
+#include <memory>
 
 /**
  * @class AudioFileGeneratorRenderStageBase
@@ -71,6 +74,13 @@ public:
      * @brief Destroys the AudioSingleShaderFileGeneratorRenderStage object.
      */
     ~AudioSingleShaderFileGeneratorRenderStage() {}
+
+protected:
+    void render(const unsigned int time) override;
+
+private:
+    std::shared_ptr<AudioTape> m_tape;
+    std::unique_ptr<AudioRenderStageHistory2> m_history2;
 };
 
 /**
@@ -106,6 +116,13 @@ public:
      * @brief Destroys the AudioFileGeneratorRenderStage object.
      */
     ~AudioFileGeneratorRenderStage() {}
+
+protected:
+    void render(const unsigned int time) override;
+
+private:
+    std::shared_ptr<AudioTape> m_tape;
+    std::unique_ptr<AudioRenderStageHistory2> m_history2;
 };
 
 #endif // AUDIO_FILE_GENERATOR_RENDER_STAGE_H
