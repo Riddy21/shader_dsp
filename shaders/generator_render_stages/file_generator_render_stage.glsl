@@ -13,7 +13,13 @@ void main() {
 
     // Calculate speed in samples per buffer from tone
     float speed_ratio = tone / MIDDLE_C;
-    int speed_in_samples_per_buffer = int(float(buffer_size) * speed_ratio);
+    // Round to nearest integer, and ensure exact buffer_size when speed_ratio is 1.0 (MIDDLE_C)
+    int speed_in_samples_per_buffer;
+    if (abs(speed_ratio - 1.0) < 0.0001) {
+        speed_in_samples_per_buffer = buffer_size;
+    } else {
+        speed_in_samples_per_buffer = int(float(buffer_size) * speed_ratio + 0.5); // Round to nearest
+    }
     
     // Calculate tape position based on play position and speed
     int tape_position_samples = calculate_tape_position(global_time_val, play_position, speed_in_samples_per_buffer);

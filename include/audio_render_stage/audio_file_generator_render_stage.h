@@ -31,14 +31,6 @@ public:
 
 protected:
     const std::string & m_audio_filepath; // Default audio file path
-
-    // Load audio file
-    /**
-     * @brief Loads audio data from the specified audio file.
-     * 
-     * This function is responsible for loading audio data from the specified audio file into the full_audio_data vector.
-     */
-    static const std::vector<float> load_audio_data_from_file(const std::string & audio_filepath);
 };
 
 /**

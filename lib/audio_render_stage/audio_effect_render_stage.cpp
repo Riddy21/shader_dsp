@@ -253,7 +253,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
                                 MAX_TEXTURE_SIZE, 1,
                                 m_active_texture_count++,
                                 0, GL_NEAREST);
-    
+
     if (!this->add_parameter(num_taps_parameter)) {
         std::cerr << "Failed to add num_taps_parameter" << std::endl;
     }

@@ -587,7 +587,7 @@ const unsigned int AudioRenderStageHistory2::get_window_offset_samples_for_tape_
         if (tape_position == 0) {
             return 0;
         }
-        return tape_position - 1;
+        return tape_position;
     } else if (speed_ratio < 0.0f) {
         unsigned int window_size = get_window_size_samples();
         // For negative speed, offset is position - window_size, but clamp to 0 minimum

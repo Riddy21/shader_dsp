@@ -4791,10 +4791,10 @@ TEST_CASE("AudioRenderStageHistory2 - multiple start positions", "[audio_history
 		// Window for position_0 ends when it reaches window_size_samples from its start
 		// Position_0 starts at sample 0, so its window ends at actual_window_size_samples
 		// The last sample with both positions is actual_window_size_samples (inclusive)
-		const unsigned int POSITION_0_WINDOW_END = actual_window_size_samples + 1;
+		const unsigned int POSITION_0_WINDOW_END = actual_window_size_samples;
 		// Window for position_1 ends when it reaches window_size_samples from its start
 		// Position_1 starts at TRANSITION_SAMPLE (44032), so its window ends at TRANSITION_SAMPLE + actual_window_size_samples
-		const unsigned int POSITION_1_WINDOW_END = TRANSITION_SAMPLE + actual_window_size_samples + 1;
+		const unsigned int POSITION_1_WINDOW_END = TRANSITION_SAMPLE + actual_window_size_samples;
 		
 		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
 			for (unsigned int i = 0; i < output_samples_per_channel[ch].size(); ++i) {
