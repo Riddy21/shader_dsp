@@ -18,8 +18,7 @@ AudioSingleShaderFileGeneratorRenderStage::AudioSingleShaderFileGeneratorRenderS
                                                 "build/shaders/global_settings.glsl",
                                                 "build/shaders/frag_shader_settings.glsl",
                                                 "build/shaders/generator_render_stage_settings.glsl",
-                                                "build/shaders/adsr_envelope.glsl",
-                                                "build/shaders/tape_history_settings.glsl"}),
+                                                "build/shaders/adsr_envelope.glsl"}),
       AudioFileGeneratorRenderStageBase(audio_filepath) {
 
     // Load audio file into AudioTape
@@ -34,19 +33,16 @@ AudioSingleShaderFileGeneratorRenderStage::AudioSingleShaderFileGeneratorRenderS
     float tape_duration_seconds = static_cast<float>(m_tape->size()) / static_cast<float>(sample_rate);
     float WINDOW_SIZE_SECONDS = tape_duration_seconds + 1.0f; // Add 1 second margin
     m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, WINDOW_SIZE_SECONDS);
-    m_history2->create_parameters(m_active_texture_count++);
+    
+    // Register the plugin - this will automatically add shader imports and parameters
+    this->register_plugin(m_history2.get());
+    
     m_history2->set_tape(m_tape);
     
     // Set up tape for playback
     m_history2->set_tape_speed(1.0f); // Normal speed
     m_history2->set_tape_position(0u);
     m_history2->start_tape();
-
-    // Add all history parameters
-    auto params = m_history2->get_parameters();
-    for (auto* param : params) {
-        this->add_parameter(param);
-    }
 
     // Initialize window before first render
     m_history2->update_window();
@@ -62,8 +58,7 @@ AudioSingleShaderFileGeneratorRenderStage::AudioSingleShaderFileGeneratorRenderS
                                                 "build/shaders/global_settings.glsl",
                                                 "build/shaders/frag_shader_settings.glsl",
                                                 "build/shaders/generator_render_stage_settings.glsl",
-                                                "build/shaders/adsr_envelope.glsl",
-                                                "build/shaders/tape_history_settings.glsl"}),
+                                                "build/shaders/adsr_envelope.glsl"}),
       AudioFileGeneratorRenderStageBase(audio_filepath) {
 
     // Load audio file into AudioTape
@@ -78,19 +73,16 @@ AudioSingleShaderFileGeneratorRenderStage::AudioSingleShaderFileGeneratorRenderS
     float tape_duration_seconds = static_cast<float>(m_tape->size()) / static_cast<float>(sample_rate);
     float WINDOW_SIZE_SECONDS = tape_duration_seconds + 1.0f; // Add 1 second margin
     m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, WINDOW_SIZE_SECONDS);
-    m_history2->create_parameters(m_active_texture_count++);
+    
+    // Register the plugin - this will automatically add shader imports and parameters
+    this->register_plugin(m_history2.get());
+    
     m_history2->set_tape(m_tape);
     
     // Set up tape for playback
     m_history2->set_tape_speed(1.0f); // Normal speed
     m_history2->set_tape_position(0u);
     m_history2->start_tape();
-
-    // Add all history parameters
-    auto params = m_history2->get_parameters();
-    for (auto* param : params) {
-        this->add_parameter(param);
-    }
 
     // Initialize window before first render
     m_history2->update_window();
@@ -105,8 +97,7 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int 
                                     "build/shaders/global_settings.glsl",
                                     "build/shaders/frag_shader_settings.glsl",
                                     "build/shaders/multinote_generator_render_stage_settings.glsl",
-                                    "build/shaders/adsr_envelope.glsl",
-                                    "build/shaders/tape_history_settings.glsl"}),
+                                    "build/shaders/adsr_envelope.glsl"}),
       AudioFileGeneratorRenderStageBase(audio_filepath) {
 
     // Load audio file into AudioTape
@@ -121,19 +112,16 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const unsigned int 
     float tape_duration_seconds = static_cast<float>(m_tape->size()) / static_cast<float>(sample_rate);
     float WINDOW_SIZE_SECONDS = tape_duration_seconds + 1.0f; // Add 1 second margin
     m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, WINDOW_SIZE_SECONDS);
-    m_history2->create_parameters(m_active_texture_count++);
+    
+    // Register the plugin - this will automatically add shader imports and parameters
+    this->register_plugin(m_history2.get());
+    
     m_history2->set_tape(m_tape);
     
     // Set up tape for playback
     m_history2->set_tape_speed(1.0f); // Normal speed
     m_history2->set_tape_position(0u);
     m_history2->start_tape();
-
-    // Add all history parameters
-    auto params = m_history2->get_parameters();
-    for (auto* param : params) {
-        this->add_parameter(param);
-    }
 
     // Initialize window before first render
     m_history2->update_window();
@@ -149,8 +137,7 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const std::string &
                                     "build/shaders/global_settings.glsl",
                                     "build/shaders/frag_shader_settings.glsl",
                                     "build/shaders/multinote_generator_render_stage_settings.glsl",
-                                    "build/shaders/adsr_envelope.glsl",
-                                    "build/shaders/tape_history_settings.glsl"}),
+                                    "build/shaders/adsr_envelope.glsl"}),
       AudioFileGeneratorRenderStageBase(audio_filepath) {
 
     // Load audio file into AudioTape
@@ -165,19 +152,16 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const std::string &
     float tape_duration_seconds = static_cast<float>(m_tape->size()) / static_cast<float>(sample_rate);
     float WINDOW_SIZE_SECONDS = tape_duration_seconds + 1.0f; // Add 1 second margin
     m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, WINDOW_SIZE_SECONDS);
-    m_history2->create_parameters(m_active_texture_count++);
+    
+    // Register the plugin - this will automatically add shader imports and parameters
+    this->register_plugin(m_history2.get());
+    
     m_history2->set_tape(m_tape);
     
     // Set up tape for playback
     m_history2->set_tape_speed(1.0f); // Normal speed
     m_history2->set_tape_position(0u);
     m_history2->start_tape();
-
-    // Add all history parameters
-    auto params = m_history2->get_parameters();
-    for (auto* param : params) {
-        this->add_parameter(param);
-    }
 
     // Initialize window before first render
     m_history2->update_window();

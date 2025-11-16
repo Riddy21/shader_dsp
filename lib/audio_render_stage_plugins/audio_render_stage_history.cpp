@@ -114,12 +114,20 @@ AudioRenderStageHistory2::AudioRenderStageHistory2(const unsigned int frames_per
     m_window_size_samples = m_texture_width * m_texture_rows_per_channel;
 }
 
-void AudioRenderStageHistory2::create_parameters(GLuint active_texture_count) {
+std::vector<std::string> AudioRenderStageHistory2::get_fragment_shader_imports() const {
+    return {"build/shaders/tape_history_settings.glsl"};
+}
+
+std::vector<std::string> AudioRenderStageHistory2::get_vertex_shader_imports() const {
+    return {};
+}
+
+void AudioRenderStageHistory2::create_parameters(GLuint& active_texture_count, GLuint& color_attachment_count) {
     // Create the texture parameter
     auto audio_history_texture = new AudioTexture2DParameter(m_audio_history_texture_name,
                             AudioParameter::ConnectionType::INPUT,
                             m_texture_width, m_texture_height,
-                            active_texture_count,
+                            active_texture_count++,
                             0, GL_LINEAR);
     
     // Initialize with zeros

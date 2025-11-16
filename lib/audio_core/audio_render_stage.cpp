@@ -33,8 +33,14 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     frames_per_buffer(frames_per_buffer),
                                     sample_rate(sample_rate),
                                     num_channels(num_channels),
-                                    m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
-                                    m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
+                                    m_vertex_shader_path(vertex_shader_path),
+                                    m_fragment_shader_path(fragment_shader_path),
+                                    m_uses_shader_string(false),
+                                    m_initial_frag_shader_imports(frag_shader_imports),
+                                    m_initial_vert_shader_imports(vert_shader_imports) {
+    // Combine shader sources with initial imports
+    m_vertex_shader_source = combine_shader_source(vert_shader_imports, vertex_shader_path);
+    m_fragment_shader_source = combine_shader_source(frag_shader_imports, fragment_shader_path);
     setup_default_parameters();
 }
 
@@ -52,8 +58,14 @@ AudioRenderStage::AudioRenderStage(const std::string & stage_name,
                                     frames_per_buffer(frames_per_buffer),
                                     sample_rate(sample_rate),
                                     num_channels(num_channels),
-                                    m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
-                                    m_fragment_shader_source(combine_shader_source(frag_shader_imports, fragment_shader_path)) {
+                                    m_vertex_shader_path(vertex_shader_path),
+                                    m_fragment_shader_path(fragment_shader_path),
+                                    m_uses_shader_string(false),
+                                    m_initial_frag_shader_imports(frag_shader_imports),
+                                    m_initial_vert_shader_imports(vert_shader_imports) {
+    // Combine shader sources with initial imports
+    m_vertex_shader_source = combine_shader_source(vert_shader_imports, vertex_shader_path);
+    m_fragment_shader_source = combine_shader_source(frag_shader_imports, fragment_shader_path);
     setup_default_parameters();
 }
 
@@ -71,8 +83,15 @@ AudioRenderStage::AudioRenderStage(const unsigned int frames_per_buffer,
                                     frames_per_buffer(frames_per_buffer),
                                     sample_rate(sample_rate),
                                     num_channels(num_channels),
-                                    m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
-                                    m_fragment_shader_source(combine_shader_source_with_string(frag_shader_imports, fragment_shader_source)) {
+                                    m_vertex_shader_path(vertex_shader_path),
+                                    m_fragment_shader_path(""), // Empty for string-based shader
+                                    m_uses_shader_string(true),
+                                    m_fragment_shader_source_string(fragment_shader_source),
+                                    m_initial_frag_shader_imports(frag_shader_imports),
+                                    m_initial_vert_shader_imports(vert_shader_imports) {
+    // Combine shader sources with initial imports
+    m_vertex_shader_source = combine_shader_source(vert_shader_imports, vertex_shader_path);
+    m_fragment_shader_source = combine_shader_source_with_string(frag_shader_imports, fragment_shader_source);
     setup_default_parameters();
 }
 
@@ -91,8 +110,15 @@ AudioRenderStage::AudioRenderStage(const std::string & stage_name,
                                     frames_per_buffer(frames_per_buffer),
                                     sample_rate(sample_rate),
                                     num_channels(num_channels),
-                                    m_vertex_shader_source(combine_shader_source(vert_shader_imports, vertex_shader_path)),
-                                    m_fragment_shader_source(combine_shader_source_with_string(frag_shader_imports, fragment_shader_source)) {
+                                    m_vertex_shader_path(vertex_shader_path),
+                                    m_fragment_shader_path(""), // Empty for string-based shader
+                                    m_uses_shader_string(true),
+                                    m_fragment_shader_source_string(fragment_shader_source),
+                                    m_initial_frag_shader_imports(frag_shader_imports),
+                                    m_initial_vert_shader_imports(vert_shader_imports) {
+    // Combine shader sources with initial imports
+    m_vertex_shader_source = combine_shader_source(vert_shader_imports, vertex_shader_path);
+    m_fragment_shader_source = combine_shader_source_with_string(frag_shader_imports, fragment_shader_source);
     setup_default_parameters();
 }
 
@@ -283,6 +309,66 @@ AudioParameter * AudioRenderStage::find_parameter(const std::string name) const 
     }
     return nullptr;
 }  
+
+bool AudioRenderStage::register_plugin(AudioRenderStagePlugin* plugin) {
+    if (!plugin) {
+        std::cerr << "Error: Cannot register null plugin." << std::endl;
+        return false;
+    }
+
+    if (m_initialized) {
+        std::cerr << "Error: Cannot register plugin after initialization." << std::endl;
+        return false;
+    }
+
+    // Store plugin
+    m_plugins.push_back(plugin);
+
+    // Collect shader imports from plugin
+    auto frag_imports = plugin->get_fragment_shader_imports();
+    auto vert_imports = plugin->get_vertex_shader_imports();
+
+    // Combine with initial imports (avoid duplicates)
+    std::vector<std::string> combined_frag_imports = m_initial_frag_shader_imports;
+    std::vector<std::string> combined_vert_imports = m_initial_vert_shader_imports;
+
+    for (const auto& import : frag_imports) {
+        if (std::find(combined_frag_imports.begin(), combined_frag_imports.end(), import) == combined_frag_imports.end()) {
+            combined_frag_imports.push_back(import);
+        }
+    }
+
+    for (const auto& import : vert_imports) {
+        if (std::find(combined_vert_imports.begin(), combined_vert_imports.end(), import) == combined_vert_imports.end()) {
+            combined_vert_imports.push_back(import);
+        }
+    }
+
+    // Rebuild shader sources with plugin imports
+    if (m_uses_shader_string) {
+        m_fragment_shader_source = combine_shader_source_with_string(combined_frag_imports, m_fragment_shader_source_string);
+    } else {
+        m_fragment_shader_source = combine_shader_source(combined_frag_imports, m_fragment_shader_path);
+    }
+    m_vertex_shader_source = combine_shader_source(combined_vert_imports, m_vertex_shader_path);
+
+    // Create parameters for the plugin (pass texture counts by reference)
+    plugin->create_parameters(m_active_texture_count, m_color_attachment_count);
+
+    // Add all parameters from the plugin
+    auto params = plugin->get_parameters();
+    for (auto* param : params) {
+        if (!this->add_parameter(param)) {
+            std::cerr << "Error: Failed to add parameter " << param->name << " from plugin." << std::endl;
+            return false;
+        }
+    }
+
+    // Rebuild shader program with updated sources
+    m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
+
+    return true;
+}
 
 const std::string AudioRenderStage::get_shader_source(const std::string & file_path) {
     // Open file

@@ -12,6 +12,7 @@
 #include "audio_core/audio_parameter.h"
 #include "utilities/shader_program.h"
 #include "audio_core/audio_control.h"
+#include "audio_render_stage_plugins/audio_render_stage_plugin.h"
 
 // TODO: Make this a setting global 
 #define MAX_TEXTURE_SIZE 4096
@@ -152,6 +153,19 @@ public:
         return name;
     }
 
+    /**
+     * @brief Register a plugin with this render stage
+     * 
+     * This function registers a plugin, automatically:
+     * - Collects shader imports from the plugin
+     * - Creates parameters with correct texture counts
+     * - Adds all parameters to the render stage
+     * 
+     * @param plugin The plugin to register (must remain valid for the lifetime of the render stage)
+     * @return True if registration is successful, false otherwise
+     */
+    bool register_plugin(AudioRenderStagePlugin* plugin);
+
     static const std::string get_shader_source(const std::string & file_path);
     static const std::string combine_shader_source(const std::vector<std::string> & import_paths, const std::string & shader_path);
     static const std::string combine_shader_source_with_string(const std::vector<std::string> & import_paths, const std::string & shader_source);
@@ -160,8 +174,14 @@ public:
     const std::string name;
 
     // TODO: Think of way to make this static
-    const std::string m_vertex_shader_source;
-    const std::string m_fragment_shader_source;
+    std::string m_vertex_shader_source;
+    std::string m_fragment_shader_source;
+    const std::string m_vertex_shader_path;
+    const std::string m_fragment_shader_path;
+    bool m_uses_shader_string;
+    std::string m_fragment_shader_source_string; // Store original shader string for rebuilding
+    std::vector<std::string> m_initial_frag_shader_imports; // Store initial imports for rebuilding
+    std::vector<std::string> m_initial_vert_shader_imports; // Store initial imports for rebuilding
 
     // Settings
     const unsigned int frames_per_buffer;
@@ -222,6 +242,9 @@ protected:
 
     // Controls for this render stage
     std::vector<std::shared_ptr<AudioControlBase>> m_controls;
+
+    // Registered plugins
+    std::vector<AudioRenderStagePlugin*> m_plugins;
 
 private:
 

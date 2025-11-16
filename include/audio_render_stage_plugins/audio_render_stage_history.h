@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "audio_parameter/audio_texture2d_parameter.h"
+#include "audio_render_stage_plugins/audio_render_stage_plugin.h"
 
 // Forward declaration
 class AudioTape;
@@ -46,18 +47,18 @@ private:
     const unsigned int m_texture_rows;
 };
 
-class AudioRenderStageHistory2 {
+class AudioRenderStageHistory2 : public AudioRenderStagePlugin {
 public:
     AudioRenderStageHistory2(const unsigned int frames_per_buffer,
                              const unsigned int sample_rate,
                              const unsigned int num_channels,
                              const float history_buffer_size_seconds = 2.0f); // History buffer size in seconds of data stored in texture
 
-    // Create all parameters (texture and uniform parameters)
-    void create_parameters(GLuint active_texture_count);
-    
-    // Get all parameters (texture and uniform parameters)
-    std::vector<AudioParameter*> get_parameters() const;
+    // Plugin interface implementation
+    std::vector<std::string> get_fragment_shader_imports() const override;
+    std::vector<std::string> get_vertex_shader_imports() const override;
+    void create_parameters(GLuint& active_texture_count, GLuint& color_attachment_count) override;
+    std::vector<AudioParameter*> get_parameters() const override;
 
     void set_tape(std::weak_ptr<AudioTape> tape);
     std::weak_ptr<AudioTape> get_tape();

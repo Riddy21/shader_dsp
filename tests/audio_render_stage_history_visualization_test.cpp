@@ -106,19 +106,17 @@ static const char* kTapePlaybackFragSource = R"(
                            true, // use_shader_string
                            std::vector<std::string>{
                                "build/shaders/global_settings.glsl",
-                               "build/shaders/frag_shader_settings.glsl",
-                               "build/shaders/tape_history_settings.glsl"}),
+                               "build/shaders/frag_shader_settings.glsl"}),
           m_is_playing(false)
         {
-            // Create tape history and all its textures/parameters
+            // Create tape history plugin
             m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
-            m_history2->create_parameters(m_active_texture_count++);
             
-            // Add all parameters
-            auto params = m_history2->get_parameters();
-            for (auto* param : params) {
-                this->add_parameter(param);
-            }
+            // Register the plugin - this will automatically:
+            // - Add shader imports (tape_history_settings.glsl)
+            // - Create parameters with correct texture counts
+            // - Add all parameters to the render stage
+            this->register_plugin(m_history2.get());
         }
         
         AudioRenderStageHistory2& get_history() { return *m_history2; }
