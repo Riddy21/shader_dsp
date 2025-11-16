@@ -249,29 +249,19 @@ void AudioRenderStage::render(const unsigned int time) {
     // CRITICAL: glDrawBuffers array indices map to shader output layout locations.
     // drawBuffers[0] maps to layout(location=0), drawBuffers[1] maps to layout(location=1), etc.
     // The array must have exactly as many elements as there are shader outputs, and indices must match.
-    // Filter out any GL_NONE entries, but preserve the mapping by using the original indices
-    // Count valid attachments first
-    size_t max_valid_index = 0;
-    for (size_t i = 0; i < m_draw_buffers.size(); ++i) {
-        if (m_draw_buffers[i] != GL_NONE) {
-            max_valid_index = i;
+    // 
+    // Find the last valid (non-GL_NONE) entry to determine the actual array size needed.
+    // This avoids creating a new vector on every render call while handling any GL_NONE entries.
+    if (!m_draw_buffers.empty()) {
+        // Find the highest index with a valid attachment
+        size_t max_index = m_draw_buffers.size() - 1;
+        while (max_index > 0 && m_draw_buffers[max_index] == GL_NONE) {
+            --max_index;
         }
-    }
-    // Create array with correct size (max_valid_index + 1) and fill with GL_NONE, then set valid ones
-    std::vector<GLenum> draw_buffers_array(max_valid_index + 1, GL_NONE);
-    for (size_t i = 0; i < m_draw_buffers.size() && i <= max_valid_index; ++i) {
-        if (m_draw_buffers[i] != GL_NONE) {
-            draw_buffers_array[i] = m_draw_buffers[i];
+        // Only call glDrawBuffers if we have at least one valid attachment
+        if (m_draw_buffers[max_index] != GL_NONE) {
+            glDrawBuffers(max_index + 1, m_draw_buffers.data());
         }
-    }
-    if (!draw_buffers_array.empty()) {
-        glDrawBuffers(draw_buffers_array.size(), draw_buffers_array.data());
-    }
-    
-    // Check for OpenGL errors after setting draw buffers
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR) {
-        printf("Warning: OpenGL error 0x%x after glDrawBuffers\n", error);
     }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -297,21 +287,14 @@ bool AudioRenderStage::add_parameter(AudioParameter * parameter) {
         if (auto * texture_param = dynamic_cast<AudioTexture2DParameter *>(parameter)) {
             GLenum draw_buffer = GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment();
             
-            // CRITICAL: glDrawBuffers array indices map to shader output layout locations
+            // CRITICAL: glDrawBuffers array indices map to shader output layout locations.
             // drawBuffers[0] maps to layout(location=0), drawBuffers[1] maps to layout(location=1), etc.
-            // We need to ensure the array order matches the layout location order.
-            // Since color_attachment is assigned sequentially starting from 0, and layout locations
-            // are also 0, 1, 2, etc., we can sort by attachment number. However, we should ensure
-            // parameters are added in the correct order to match layout locations.
-            
-            // CRITICAL FIX: Don't sort! The array index MUST match the shader output layout location.
-            // drawBuffers[0] maps to layout(location=0), drawBuffers[1] maps to layout(location=1).
-            // We need to insert at the correct index based on color_attachment, not append and sort.
+            // The array index MUST match the shader output layout location.
             // Since color_attachment is assigned sequentially (0, 1, 2, ...) and layout locations
-            // are also sequential, we can insert at color_attachment index.
+            // are also sequential, we insert at the color_attachment index.
             size_t index = texture_param->get_color_attachment();
             if (index >= m_draw_buffers.size()) {
-                // Resize and fill with GL_NONE, then set the actual attachment
+                // Resize to accommodate the new index (fill new slots with GL_NONE)
                 m_draw_buffers.resize(index + 1, GL_NONE);
             }
             m_draw_buffers[index] = draw_buffer;
@@ -325,6 +308,23 @@ bool AudioRenderStage::remove_parameter(const std::string & name) {
     if (m_parameters.find(name) == m_parameters.end()) {
         std::cerr << "Error: Parameter " << name << " not found." << std::endl;
         return false;
+    }
+
+    auto* param = m_parameters[name].get();
+
+    // If it's an AudioTexture2DParameter output, remove from draw buffers
+    if (param->connection_type == AudioParameter::ConnectionType::OUTPUT) {
+        if (auto * texture_param = dynamic_cast<AudioTexture2DParameter *>(param)) {
+            size_t index = texture_param->get_color_attachment();
+            if (index < m_draw_buffers.size()) {
+                m_draw_buffers[index] = GL_NONE;
+                // Trim trailing GL_NONE entries to keep the array compact
+                // (but keep GL_NONE in the middle if there are gaps, as they represent missing layout locations)
+                while (!m_draw_buffers.empty() && m_draw_buffers.back() == GL_NONE) {
+                    m_draw_buffers.pop_back();
+                }
+            }
+        }
     }
 
     // Remove from input or output list

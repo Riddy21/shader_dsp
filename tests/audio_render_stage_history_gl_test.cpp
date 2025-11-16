@@ -281,9 +281,6 @@ public:
 		// Create tape history plugin
 		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
 
-		// Register the plugin - this will automatically add shader imports and parameters
-		this->register_plugin(m_history2.get());
-		
 		m_start_position_0 = new AudioIntParameter("start_position_0", AudioParameter::ConnectionType::INPUT);
 		m_start_position_0->set_value(0);
 		this->add_parameter(m_start_position_0);
@@ -291,6 +288,10 @@ public:
 		m_start_position_1 = new AudioIntParameter("start_position_1", AudioParameter::ConnectionType::INPUT);
 		m_start_position_1->set_value(0);
 		this->add_parameter(m_start_position_1);
+
+		// Register the plugin - this will automatically add shader imports and parameters
+		this->register_plugin(m_history2.get());
+		
 	}
 	
 	AudioRenderStageHistory2& get_history() { return *m_history2; }
@@ -4817,3 +4818,5 @@ TEST_CASE("AudioRenderStageHistory2 - multiple start positions", "[audio_history
 	
 	delete global_time;
 }
+
+// TODO: Add test with multiple textures at the same time
