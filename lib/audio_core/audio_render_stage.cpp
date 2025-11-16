@@ -133,6 +133,9 @@ AudioRenderStage::~AudioRenderStage() {
 }
 
 bool AudioRenderStage::initialize() {
+    // Rebuild shader program with updated sources
+    m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
+
     // Initialize the shader program
     if (!initialize_shader_program()) {
         return false;
@@ -243,9 +246,33 @@ void AudioRenderStage::render(const unsigned int time) {
         param->render();
     }
 
-    // TODO: Consider moving this to the parameter render function
-    // Use pre-built draw buffers
-    glDrawBuffers(m_draw_buffers.size(), m_draw_buffers.data());
+    // CRITICAL: glDrawBuffers array indices map to shader output layout locations.
+    // drawBuffers[0] maps to layout(location=0), drawBuffers[1] maps to layout(location=1), etc.
+    // The array must have exactly as many elements as there are shader outputs, and indices must match.
+    // Filter out any GL_NONE entries, but preserve the mapping by using the original indices
+    // Count valid attachments first
+    size_t max_valid_index = 0;
+    for (size_t i = 0; i < m_draw_buffers.size(); ++i) {
+        if (m_draw_buffers[i] != GL_NONE) {
+            max_valid_index = i;
+        }
+    }
+    // Create array with correct size (max_valid_index + 1) and fill with GL_NONE, then set valid ones
+    std::vector<GLenum> draw_buffers_array(max_valid_index + 1, GL_NONE);
+    for (size_t i = 0; i < m_draw_buffers.size() && i <= max_valid_index; ++i) {
+        if (m_draw_buffers[i] != GL_NONE) {
+            draw_buffers_array[i] = m_draw_buffers[i];
+        }
+    }
+    if (!draw_buffers_array.empty()) {
+        glDrawBuffers(draw_buffers_array.size(), draw_buffers_array.data());
+    }
+    
+    // Check for OpenGL errors after setting draw buffers
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR) {
+        printf("Warning: OpenGL error 0x%x after glDrawBuffers\n", error);
+    }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -269,9 +296,25 @@ bool AudioRenderStage::add_parameter(AudioParameter * parameter) {
         // If it's an AudioTexture2DParameter output, add to draw buffers
         if (auto * texture_param = dynamic_cast<AudioTexture2DParameter *>(parameter)) {
             GLenum draw_buffer = GL_COLOR_ATTACHMENT0 + texture_param->get_color_attachment();
-            m_draw_buffers.push_back(draw_buffer);
-            // Keep draw buffers sorted
-            std::sort(m_draw_buffers.begin(), m_draw_buffers.end());
+            
+            // CRITICAL: glDrawBuffers array indices map to shader output layout locations
+            // drawBuffers[0] maps to layout(location=0), drawBuffers[1] maps to layout(location=1), etc.
+            // We need to ensure the array order matches the layout location order.
+            // Since color_attachment is assigned sequentially starting from 0, and layout locations
+            // are also 0, 1, 2, etc., we can sort by attachment number. However, we should ensure
+            // parameters are added in the correct order to match layout locations.
+            
+            // CRITICAL FIX: Don't sort! The array index MUST match the shader output layout location.
+            // drawBuffers[0] maps to layout(location=0), drawBuffers[1] maps to layout(location=1).
+            // We need to insert at the correct index based on color_attachment, not append and sort.
+            // Since color_attachment is assigned sequentially (0, 1, 2, ...) and layout locations
+            // are also sequential, we can insert at color_attachment index.
+            size_t index = texture_param->get_color_attachment();
+            if (index >= m_draw_buffers.size()) {
+                // Resize and fill with GL_NONE, then set the actual attachment
+                m_draw_buffers.resize(index + 1, GL_NONE);
+            }
+            m_draw_buffers[index] = draw_buffer;
         }
     }
     return true;
@@ -363,9 +406,6 @@ bool AudioRenderStage::register_plugin(AudioRenderStagePlugin* plugin) {
             return false;
         }
     }
-
-    // Rebuild shader program with updated sources
-    m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
 
     return true;
 }
@@ -755,8 +795,6 @@ void AudioRenderStage::setup_default_parameters() {
     if (!this->add_parameter(samp_rate)) {
         std::cerr << "Failed to add sample_rate" << std::endl;
     }
-
-    m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
 }
 
 void AudioRenderStage::clear_output_textures() {

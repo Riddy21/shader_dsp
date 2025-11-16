@@ -90,14 +90,11 @@ uniform int start_position_1;
 
 int calculate_tape_position(int current_position, int start_position, int speed) {
     int difference = current_position - start_position;
-
 	return difference * speed;
 }
 
 void main(){
-    // Get the audio sample from tape history using TexCoord
-	vec4 stream_audio = texture(stream_audio_texture, TexCoord);
-    // The function will use tape_position and tape_speed internally
+    vec4 stream_audio = texture(stream_audio_texture, TexCoord);
 
 	int tape_position_0 = calculate_tape_position(global_time_val, start_position_0, speed_in_samples_per_buffer);
 	int tape_position_1 = calculate_tape_position(global_time_val, start_position_1, speed_in_samples_per_buffer);
@@ -105,15 +102,13 @@ void main(){
 	vec4 tape_sample = vec4(0.0, 0.0, 0.0, 0.0);
 
 	if (tape_position_0 >= 0) {
-		tape_sample += get_tape_history_samples(TexCoord, speed_in_samples_per_buffer, tape_position_0);
-	}
-
+        tape_sample += get_tape_history_samples(TexCoord, speed_in_samples_per_buffer, tape_position_0);
+    }
 	if (tape_position_1 >= 0) {
-		tape_sample += get_tape_history_samples(TexCoord, speed_in_samples_per_buffer, tape_position_1);
-	}
-    
-    // Output the tape playback sample with some processing
-	output_audio_texture = stream_audio + tape_sample + get_tape_history_samples(TexCoord);
+        tape_sample += get_tape_history_samples(TexCoord, speed_in_samples_per_buffer, tape_position_1);
+    }
+
+    output_audio_texture = tape_sample + stream_audio;
     debug_audio_texture = output_audio_texture;
 }
 )";
@@ -285,7 +280,7 @@ public:
 	{
 		// Create tape history plugin
 		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
-		
+
 		// Register the plugin - this will automatically add shader imports and parameters
 		this->register_plugin(m_history2.get());
 		
@@ -311,8 +306,6 @@ public:
 
 protected:
 	void render(const unsigned int time) override {
-		m_history2->update_tape_position(time);
-		m_history2->update_window();
 		AudioRenderStage::render(time);
 	}
 
@@ -4626,254 +4619,6 @@ TEST_CASE("AudioRenderStageHistory2 - multiple start positions", "[audio_history
 	REQUIRE(playback_stage.bind());
 	REQUIRE(final_stage.bind());
 	
-	// Debug: Print all uniform locations and shader source
-	{
-		GLuint program = playback_stage.get_shader_program();
-		std::cout << "\n========== SHADER PROGRAM DEBUG INFO ==========\n";
-		std::cout << "Shader Program ID: " << program << "\n\n";
-		
-		// Print import list
-		std::cout << "--- Fragment Shader Imports ---\n";
-		std::cout << "Initial imports:\n";
-		for (const auto& import : playback_stage.m_initial_frag_shader_imports) {
-			std::cout << "  - " << import << "\n";
-		}
-		std::cout << "Plugin imports:\n";
-		for (const auto* plugin : playback_stage.m_plugins) {
-			auto plugin_imports = plugin->get_fragment_shader_imports();
-			for (const auto& import : plugin_imports) {
-				std::cout << "  - " << import << "\n";
-			}
-		}
-		std::cout << "\n";
-		
-		// Print shader source
-		std::cout << "--- Fragment Shader Source ---\n";
-		std::cout << playback_stage.m_shader_program->get_fragment_shader_source() << "\n\n";
-		
-		// Get number of active uniforms
-		GLint num_active_uniforms = 0;
-		glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &num_active_uniforms);
-		std::cout << "Number of active uniforms: " << num_active_uniforms << "\n\n";
-		
-		// Get max uniform name length
-		GLint max_uniform_name_length = 0;
-		glGetProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &max_uniform_name_length);
-		
-		// Get number of uniform blocks
-		GLint num_uniform_blocks = 0;
-		glGetProgramiv(program, GL_ACTIVE_UNIFORM_BLOCKS, &num_uniform_blocks);
-		std::cout << "Number of active uniform blocks: " << num_uniform_blocks << "\n";
-		
-		// Print uniform block information
-		if (num_uniform_blocks > 0) {
-			std::cout << "--- Uniform Blocks ---\n";
-			for (GLint i = 0; i < num_uniform_blocks; ++i) {
-				GLint name_length = 0;
-				glGetActiveUniformBlockiv(program, i, GL_UNIFORM_BLOCK_NAME_LENGTH, &name_length);
-				std::vector<GLchar> name_buffer(name_length);
-				glGetActiveUniformBlockName(program, i, name_length, nullptr, name_buffer.data());
-				std::string block_name(name_buffer.data());
-				
-				GLuint block_index = glGetUniformBlockIndex(program, block_name.c_str());
-				GLint block_size = 0;
-				glGetActiveUniformBlockiv(program, i, GL_UNIFORM_BLOCK_DATA_SIZE, &block_size);
-				
-				std::cout << "  [" << i << "] " << block_name 
-				          << " (block_index: " << block_index 
-				          << ", size: " << block_size << " bytes)\n";
-				
-				// Get members of this uniform block
-				GLint num_block_uniforms = 0;
-				glGetActiveUniformBlockiv(program, i, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, &num_block_uniforms);
-				if (num_block_uniforms > 0) {
-					std::vector<GLuint> uniform_indices(num_block_uniforms);
-					glGetActiveUniformBlockiv(program, i, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, (GLint*)uniform_indices.data());
-					
-					std::cout << "    Members:\n";
-					for (GLint j = 0; j < num_block_uniforms; ++j) {
-						GLuint uniform_idx = uniform_indices[j];
-						std::vector<GLchar> uniform_name_buffer(max_uniform_name_length);
-						GLsizei uniform_name_length = 0;
-						GLsizei uniform_size = 0;
-						GLenum uniform_type = 0;
-						
-						glGetActiveUniform(program, uniform_idx, max_uniform_name_length, &uniform_name_length,
-						                   &uniform_size, &uniform_type, uniform_name_buffer.data());
-						
-						std::string uniform_name(uniform_name_buffer.data(), uniform_name_length);
-						GLint uniform_offset = 0;
-						glGetActiveUniformsiv(program, 1, &uniform_idx, GL_UNIFORM_OFFSET, &uniform_offset);
-						
-						std::cout << "      - " << uniform_name 
-						          << " (offset: " << uniform_offset 
-						          << ", type: " << uniform_type << ")\n";
-					}
-				}
-			}
-			std::cout << "\n";
-		}
-		
-		// Build a map of uniform names to their locations from glGetActiveUniform
-		std::map<std::string, std::pair<GLint, GLint>> active_uniform_map; // name -> (index, location)
-		
-		std::cout << "--- Uniform Locations (non-block uniforms) ---\n";
-		for (GLint i = 0; i < num_active_uniforms; ++i) {
-			std::vector<GLchar> name_buffer(max_uniform_name_length);
-			GLsizei name_length = 0;
-			GLsizei uniform_size = 0;
-			GLenum uniform_type = 0;
-			
-			glGetActiveUniform(program, i, max_uniform_name_length, &name_length, 
-			                   &uniform_size, &uniform_type, name_buffer.data());
-			
-			std::string uniform_name(name_buffer.data(), name_length);
-			
-			// Check if this uniform is part of a uniform block
-			GLuint uniform_index = i;
-			GLint uniform_block_index = -1;
-			glGetActiveUniformsiv(program, 1, &uniform_index, GL_UNIFORM_BLOCK_INDEX, &uniform_block_index);
-			
-			// Only print non-block uniforms here (block uniforms are printed above)
-			if (uniform_block_index == -1) {
-				GLint location = glGetUniformLocation(program, uniform_name.c_str());
-				
-				// Store in map for comparison
-				active_uniform_map[uniform_name] = std::make_pair(i, location);
-				
-				const char* type_str = "UNKNOWN";
-				switch (uniform_type) {
-					case GL_INT: type_str = "int"; break;
-					case GL_FLOAT: type_str = "float"; break;
-					case GL_FLOAT_VEC2: type_str = "vec2"; break;
-					case GL_FLOAT_VEC3: type_str = "vec3"; break;
-					case GL_FLOAT_VEC4: type_str = "vec4"; break;
-					case GL_INT_VEC2: type_str = "ivec2"; break;
-					case GL_INT_VEC3: type_str = "ivec3"; break;
-					case GL_INT_VEC4: type_str = "ivec4"; break;
-					case GL_SAMPLER_2D: type_str = "sampler2D"; break;
-					case GL_SAMPLER_2D_ARRAY: type_str = "sampler2DArray"; break;
-					default: type_str = "OTHER"; break;
-				}
-				
-				std::cout << "  [" << i << "] " << uniform_name 
-				          << " (type: " << type_str 
-				          << ", location: " << location 
-				          << ", size: " << uniform_size << ")\n";
-			}
-		}
-		
-		// Print parameter uniform locations - simulate what each parameter does during render()
-		std::cout << "\n--- Parameter Uniform Locations (What Parameters Use During Render) ---\n";
-		const std::vector<std::string> output_names = {"output_audio_texture", "debug_audio_texture"};
-		
-		for (const auto& [name, param] : playback_stage.m_parameters) {
-			// Skip outputs - they're not uniforms
-			bool is_output = std::find(output_names.begin(), output_names.end(), name) != output_names.end();
-			if (is_output) {
-				std::cout << "  Parameter: " << name << " -> (OUTPUT, not a uniform)\n";
-				continue;
-			}
-			
-			// Check parameter type to see how it gets its location
-			// AudioUniformParameter calls: glGetUniformLocation(m_shader_program_linked->get_program(), name.c_str())
-			// AudioTexture2DParameter calls: glGetUniformLocation(m_shader_program_linked->get_program(), name.c_str())
-			// AudioUniformBufferParameter uses: glGetUniformBlockIndex(m_shader_program_linked->get_program(), name.c_str())
-			
-			// Check if it's a uniform buffer parameter
-			GLuint block_index = glGetUniformBlockIndex(program, name.c_str());
-			if (block_index != GL_INVALID_INDEX) {
-				// This is what AudioUniformBufferParameter would use
-				std::cout << "  Parameter: " << name 
-				          << " (AudioUniformBufferParameter)"
-				          << " -> block_index: " << block_index 
-				          << " (via glGetUniformBlockIndex)\n";
-				continue;
-			}
-			
-			// For regular uniforms and textures, simulate what AudioUniformParameter::render() does:
-			// GLuint location = glGetUniformLocation(m_shader_program_linked->get_program(), name.c_str());
-			GLint location_used_by_param = glGetUniformLocation(program, name.c_str());
-			
-			// Check if it exists in the active uniform map (from glGetActiveUniform)
-			auto it = active_uniform_map.find(name);
-			if (it != active_uniform_map.end()) {
-				GLint location_from_active = it->second.second;  // Location from glGetActiveUniform
-				GLint index_from_active = it->second.first;     // Index from glGetActiveUniform
-				
-				std::cout << "  Parameter: " << name;
-				
-				// Determine parameter type
-				if (dynamic_cast<AudioTexture2DParameter*>(param.get()) != nullptr) {
-					std::cout << " (AudioTexture2DParameter)";
-				} else if (dynamic_cast<AudioIntParameter*>(param.get()) != nullptr) {
-					std::cout << " (AudioIntParameter)";
-				} else if (dynamic_cast<AudioFloatParameter*>(param.get()) != nullptr) {
-					std::cout << " (AudioFloatParameter)";
-				} else {
-					std::cout << " (Unknown type)";
-				}
-				
-				std::cout << "\n    -> Location used by parameter (glGetUniformLocation): " << location_used_by_param;
-				std::cout << "\n    -> Location from glGetActiveUniform: " << location_from_active;
-				std::cout << "\n    -> Active uniform index: " << index_from_active;
-				
-				if (location_used_by_param != location_from_active) {
-					std::cout << "\n    *** MISMATCH! Parameter uses different location than OpenGL reports! ***";
-				} else {
-					std::cout << "\n    ✓ MATCH - Parameter location matches OpenGL active uniform location";
-				}
-			} else {
-				// Not in active uniforms
-				std::cout << "  Parameter: " << name;
-				
-				// Determine parameter type
-				if (dynamic_cast<AudioTexture2DParameter*>(param.get()) != nullptr) {
-					std::cout << " (AudioTexture2DParameter)";
-				} else if (dynamic_cast<AudioIntParameter*>(param.get()) != nullptr) {
-					std::cout << " (AudioIntParameter)";
-				} else if (dynamic_cast<AudioFloatParameter*>(param.get()) != nullptr) {
-					std::cout << " (AudioFloatParameter)";
-				}
-				
-				std::cout << "\n    -> Location used by parameter (glGetUniformLocation): " << location_used_by_param;
-				
-				if (location_used_by_param == -1) {
-					std::cout << " (NOT FOUND!)";
-					// Check if it's declared in the shader source
-					std::string shader_source = playback_stage.m_shader_program->get_fragment_shader_source();
-					if (shader_source.find("uniform") != std::string::npos) {
-						// Try to find if it's declared but optimized out
-						std::string search_pattern = "uniform";
-						size_t pos = 0;
-						bool found_declaration = false;
-						while ((pos = shader_source.find(search_pattern, pos)) != std::string::npos) {
-							size_t uniform_start = pos;
-							size_t uniform_end = shader_source.find(';', uniform_start);
-							if (uniform_end != std::string::npos) {
-								std::string uniform_line = shader_source.substr(uniform_start, uniform_end - uniform_start);
-								if (uniform_line.find(name) != std::string::npos) {
-									found_declaration = true;
-									std::cout << " (DECLARED but OPTIMIZED OUT - not used in shader)";
-									break;
-								}
-							}
-							pos = uniform_end + 1;
-						}
-						if (!found_declaration) {
-							std::cout << " (NOT DECLARED in shader source)";
-						}
-					}
-				} else {
-					std::cout << " (FOUND but NOT in active uniforms list - unusual!)";
-				}
-			}
-			std::cout << "\n";
-		}
-		
-		std::cout << "\n===============================================\n\n";
-	}
-	
 	// Record constant values to tape with different amplitudes at different positions
 	// Before START_POSITION_1_SAMPLES: use AMPLITUDE_BEFORE_POSITION_1
 	// After START_POSITION_1_SAMPLES: use AMPLITUDE_AFTER_POSITION_1
@@ -4931,6 +4676,7 @@ TEST_CASE("AudioRenderStageHistory2 - multiple start positions", "[audio_history
 	playback_stage.get_history().set_tape_position(0u);
 	playback_stage.get_history().start_tape();
 	playback_stage.play();
+	playback_stage.get_history().update_window();
 	
 	// Render and capture output
 	unsigned int frame_count = 0;
@@ -5066,38 +4812,6 @@ TEST_CASE("AudioRenderStageHistory2 - multiple start positions", "[audio_history
 			
 			INFO("CSV file written to: " << csv_filename);
 			printf("CSV file written to: %s\n", csv_filename.c_str());
-		}
-	}
-	
-	if (is_csv_output_enabled()) {
-		SECTION("Write input sine wave to CSV") {
-			std::string csv_output_dir = "build/tests/csv_output";
-			system(("mkdir -p " + csv_output_dir).c_str());
-			
-			std::ofstream csv_file(csv_output_dir + "/input_sine_wave_multiple_start_positions.csv");
-			REQUIRE(csv_file.is_open());
-			
-			// Write header
-			csv_file << "sample_index,time_seconds";
-			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
-				csv_file << ",channel_" << ch;
-			}
-			csv_file << std::endl;
-			
-			// Write data (all channels)
-			unsigned int num_samples = input_samples_per_channel[0].size();
-			for (unsigned int i = 0; i < num_samples; ++i) {
-				double time_seconds = static_cast<double>(i) / SAMPLE_RATE;
-				csv_file << i << "," << std::fixed << std::setprecision(9) << time_seconds;
-				for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
-					csv_file << "," << input_samples_per_channel[ch][i];
-				}
-				csv_file << std::endl;
-			}
-			
-			csv_file.close();
-			std::cout << "Wrote input sine wave to build/tests/csv_output/input_sine_wave_multiple_start_positions.csv (" 
-			          << num_samples << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
 		}
 	}
 	
