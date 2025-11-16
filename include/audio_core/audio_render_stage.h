@@ -287,6 +287,14 @@ private:
 
     // Shared constructor logic to set up parameters and shader program
     void setup_default_parameters();
+
+    /**
+     * @brief Rebuild shader sources and create shader program with all registered plugin imports
+     * 
+     * This function collects shader imports from all registered plugins,
+     * rebuilds the vertex and fragment shader sources, and creates the shader program.
+     */
+    void rebuild_shader_sources();
 };
 
 #endif // AUDIO_RENDER_STAGE_H

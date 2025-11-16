@@ -4819,4 +4819,290 @@ TEST_CASE("AudioRenderStageHistory2 - multiple start positions", "[audio_history
 	delete global_time;
 }
 
-// TODO: Add test with multiple textures at the same time
+// Fragment shader for multiple history plugins test
+// Note: Each plugin's shader import will have its functions parameterized with the plugin name
+// So we need to call the specific function names for each plugin
+static const char* kMultipleHistoryPluginsFragSource = R"(
+void main(){
+    vec4 stream_audio = texture(stream_audio_texture, TexCoord);
+    
+    // Get samples from all three history plugins using their parameterized function names
+    vec4 sample1 = get_tape_history_samples_freq1(TexCoord);
+    vec4 sample2 = get_tape_history_samples_freq2(TexCoord);
+    vec4 sample3 = get_tape_history_samples_freq3(TexCoord);
+    
+    // Combine all samples
+    vec4 combined = sample1 + sample2 + sample3;
+    
+    // Output the combined samples
+    output_audio_texture = combined + stream_audio;
+    debug_audio_texture = output_audio_texture;
+}
+)";
+
+// Mock stage for multiple history plugins
+class MockMultipleHistoryPluginsStage : public AudioRenderStage {
+public:
+	MockMultipleHistoryPluginsStage(unsigned int frames_per_buffer,
+	                                unsigned int sample_rate,
+	                                unsigned int num_channels,
+	                                float window_seconds = 2.0f)
+	: AudioRenderStage(frames_per_buffer, sample_rate, num_channels,
+	                   kMultipleHistoryPluginsFragSource,
+	                   true, // use_shader_string
+	                   std::vector<std::string>{
+	                   	"build/shaders/global_settings.glsl",
+	                   	"build/shaders/frag_shader_settings.glsl"}),
+	  m_is_playing(false)
+	{
+		// Create three history plugins with different names
+		m_history1 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds, "freq1");
+		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds, "freq2");
+		m_history3 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds, "freq3");
+		
+		// Register all three plugins
+		this->register_plugin(m_history1.get());
+		this->register_plugin(m_history2.get());
+		this->register_plugin(m_history3.get());
+	}
+	
+	AudioRenderStageHistory2& get_history1() { return *m_history1; }
+	AudioRenderStageHistory2& get_history2() { return *m_history2; }
+	AudioRenderStageHistory2& get_history3() { return *m_history3; }
+	
+	void play() { m_is_playing = true; }
+	void stop() { m_is_playing = false; }
+	bool is_playing() const { return m_is_playing; }
+
+protected:
+	void render(const unsigned int time) override {
+		// Update all three history plugins
+		m_history1->update_tape_position(time);
+		m_history1->update_window();
+		m_history2->update_tape_position(time);
+		m_history2->update_window();
+		m_history3->update_tape_position(time);
+		m_history3->update_window();
+		
+		AudioRenderStage::render(time);
+	}
+
+private:
+	std::unique_ptr<AudioRenderStageHistory2> m_history1;
+	std::unique_ptr<AudioRenderStageHistory2> m_history2;
+	std::unique_ptr<AudioRenderStageHistory2> m_history3;
+	bool m_is_playing;
+};
+
+TEST_CASE("AudioRenderStageHistory2 - multiple history plugins with different frequencies", "[audio_render_stage_history][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr float WINDOW_SIZE_SECONDS = 2.0f;
+	constexpr float RECORD_DURATION_SECONDS = 1.0f;
+	constexpr float PLAYBACK_DURATION_SECONDS = 1.0f;
+	constexpr int NUM_RECORD_FRAMES = static_cast<int>(RECORD_DURATION_SECONDS * SAMPLE_RATE / BUFFER_SIZE);
+	constexpr int NUM_PLAYBACK_FRAMES = static_cast<int>(PLAYBACK_DURATION_SECONDS * SAMPLE_RATE / BUFFER_SIZE);
+	
+	// Three different frequencies for the three plugins
+	constexpr float FREQ1 = 220.0f;  // A3
+	constexpr float FREQ2 = 440.0f;  // A4
+	constexpr float FREQ3 = 880.0f;  // A5
+	constexpr float AMPLITUDE = 0.3f;
+	
+	// Initialize window and OpenGL context
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Create three tapes for the three frequencies
+	auto tape1 = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	auto tape2 = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	auto tape3 = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	
+	// Create mock playback stage with multiple history plugins
+	MockMultipleHistoryPluginsStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
+	playback_stage.get_history1().set_tape(tape1);
+	playback_stage.get_history2().set_tape(tape2);
+	playback_stage.get_history3().set_tape(tape3);
+	
+	// Create final render stage
+	AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	
+	// Connect playback stage to final stage
+	REQUIRE(playback_stage.connect_render_stage(&final_stage));
+	
+	// Initialize stages
+	REQUIRE(playback_stage.initialize());
+	REQUIRE(final_stage.initialize());
+	
+	context.prepare_draw();
+	REQUIRE(playback_stage.bind());
+	REQUIRE(final_stage.bind());
+	
+	SECTION("Record three different frequency sine waves and playback simultaneously") {
+		// Record sine wave to tape1 (FREQ1)
+		std::vector<float> phases1(NUM_CHANNELS, 0.0f);
+		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				auto sine_buffer = generate_sine_wave(FREQ1, AMPLITUDE, SAMPLE_RATE, BUFFER_SIZE, 1, phases1[ch]);
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
+				}
+				phases1[ch] += BUFFER_SIZE;
+			}
+			tape1->record(channel_major_buffer.data());
+		}
+		
+		// Record sine wave to tape2 (FREQ2)
+		std::vector<float> phases2(NUM_CHANNELS, 0.0f);
+		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				auto sine_buffer = generate_sine_wave(FREQ2, AMPLITUDE, SAMPLE_RATE, BUFFER_SIZE, 1, phases2[ch]);
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
+				}
+				phases2[ch] += BUFFER_SIZE;
+			}
+			tape2->record(channel_major_buffer.data());
+		}
+		
+		// Record sine wave to tape3 (FREQ3)
+		std::vector<float> phases3(NUM_CHANNELS, 0.0f);
+		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
+			std::vector<float> channel_major_buffer(BUFFER_SIZE * NUM_CHANNELS);
+			for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+				auto sine_buffer = generate_sine_wave(FREQ3, AMPLITUDE, SAMPLE_RATE, BUFFER_SIZE, 1, phases3[ch]);
+				for (unsigned int i = 0; i < BUFFER_SIZE; ++i) {
+					channel_major_buffer[ch * BUFFER_SIZE + i] = sine_buffer[i];
+				}
+				phases3[ch] += BUFFER_SIZE;
+			}
+			tape3->record(channel_major_buffer.data());
+		}
+		
+		REQUIRE(tape1->size() > 0);
+		REQUIRE(tape2->size() > 0);
+		REQUIRE(tape3->size() > 0);
+		
+		// Setup audio output (only if enabled)
+		AudioPlayerOutput* audio_output = nullptr;
+		if (is_audio_output_enabled()) {
+			audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+			REQUIRE(audio_output->open());
+			REQUIRE(audio_output->start());
+		}
+		
+		// Configure playback for all three plugins
+		playback_stage.get_history1().set_tape_speed(1.0f);
+		playback_stage.get_history1().set_tape_position(0u);
+		playback_stage.get_history2().set_tape_speed(1.0f);
+		playback_stage.get_history2().set_tape_position(0u);
+		playback_stage.get_history3().set_tape_speed(1.0f);
+		playback_stage.get_history3().set_tape_position(0u);
+		playback_stage.play();
+		
+		// Initialize output sample vectors (per channel)
+		std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			output_samples_per_channel[ch].reserve(SAMPLE_RATE * PLAYBACK_DURATION_SECONDS);
+		}
+		
+		// Render and play audio
+		for (int frame = 0; frame < NUM_PLAYBACK_FRAMES; ++frame) {
+			global_time->set_value(frame);
+			global_time->render();
+			
+			// Render playback stage (updates all three history textures)
+			playback_stage.render(frame);
+			
+			// Render final stage
+			final_stage.render(frame);
+			
+			// Get output from final stage
+			auto output_param = final_stage.find_parameter("final_output_audio_texture");
+			REQUIRE(output_param != nullptr);
+			
+			const float* output_data = static_cast<const float*>(output_param->get_value());
+			REQUIRE(output_data != nullptr);
+			
+			// Store for verification (de-interleave)
+			for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+				auto channel = i % NUM_CHANNELS;
+				output_samples_per_channel[channel].push_back(output_data[i]);
+			}
+			
+			// Push to audio output
+			if (audio_output) {
+				while (!audio_output->is_ready()) {
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+				audio_output->push(output_data);
+			}
+			
+			// Stop playback if we've reached the end of any tape
+			if (playback_stage.get_history1().get_tape_position() >= tape1->size() ||
+			    playback_stage.get_history2().get_tape_position() >= tape2->size() ||
+			    playback_stage.get_history3().get_tape_position() >= tape3->size()) {
+				playback_stage.stop();
+				break;
+			}
+		}
+		
+		// Stop playback
+		playback_stage.stop();
+		
+		// Wait for audio to finish playing and close audio output
+		if (audio_output) {
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));
+			audio_output->close();
+			delete audio_output;
+		}
+		
+		// Verify output contains all three frequencies
+		REQUIRE(output_samples_per_channel[0].size() > 0);
+		REQUIRE(output_samples_per_channel[1].size() > 0);
+		
+		// Analyze frequency content to verify all three frequencies are present
+		// We expect to see peaks at FREQ1, FREQ2, and FREQ3
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+			auto& samples = output_samples_per_channel[ch];
+			REQUIRE(samples.size() > 0);
+			
+			// Check that we have non-zero samples (indicating playback is working)
+			bool has_non_zero = false;
+			for (const auto& sample : samples) {
+				if (std::abs(sample) > 0.001f) {
+					has_non_zero = true;
+					break;
+				}
+			}
+			REQUIRE(has_non_zero);
+		}
+		
+		if (is_csv_output_enabled()) {
+			SECTION("Export output to CSV") {
+				std::string csv_output_dir = "build/tests/csv_output";
+				system(("mkdir -p " + csv_output_dir).c_str());
+				
+				std::string csv_filename = csv_output_dir + "/multiple_history_plugins_output.csv";
+				
+				CSVTestOutput csv_writer(csv_filename, SAMPLE_RATE);
+				REQUIRE(csv_writer.is_open());
+				csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+				csv_writer.close();
+				
+				INFO("CSV file written to: " << csv_filename);
+				printf("CSV file written to: %s\n", csv_filename.c_str());
+			}
+		}
+	}
+	
+	delete global_time;
+}

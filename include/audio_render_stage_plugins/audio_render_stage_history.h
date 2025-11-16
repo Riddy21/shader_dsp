@@ -52,11 +52,15 @@ public:
     AudioRenderStageHistory2(const unsigned int frames_per_buffer,
                              const unsigned int sample_rate,
                              const unsigned int num_channels,
-                             const float history_buffer_size_seconds = 2.0f); // History buffer size in seconds of data stored in texture
+                             const float history_buffer_size_seconds = 2.0f, // History buffer size in seconds of data stored in texture
+                             const std::string& plugin_name = ""); // Plugin name for parameterizing variable/function names (empty = default)
 
     // Plugin interface implementation
+    std::string get_plugin_name() const override;
     std::vector<std::string> get_fragment_shader_imports() const override;
     std::vector<std::string> get_vertex_shader_imports() const override;
+    // get_processed_fragment_shader_source and get_processed_vertex_shader_source
+    // are inherited from base class and automatically apply {PLUGIN_SUFFIX} replacement
     void create_parameters(GLuint& active_texture_count, GLuint& color_attachment_count) override;
     std::vector<AudioParameter*> get_parameters() const override;
 
@@ -114,7 +118,9 @@ public:
     // This function calls both update_tape_position() and update_window() for backward compatibility
     void update_audio_history_texture(const unsigned int time);
 
-    std::string get_audio_history_texture_name() { return m_audio_history_texture_name; }
+    std::string get_audio_history_texture_name() { 
+        return m_plugin_name.empty() ? "tape_history_texture" : ("tape_history_texture_" + m_plugin_name);
+    }
     
 private:
     AudioParameter * m_audio_history_texture;
@@ -137,7 +143,7 @@ private:
     unsigned int m_texture_rows_per_channel;
     unsigned int m_window_size_samples;
 
-    const std::string m_audio_history_texture_name = "tape_history_texture";
+    const std::string m_plugin_name; // Plugin name for parameterizing variable/function names
     
     // Track last time value for delta-based updates
     unsigned int m_last_time = 0;

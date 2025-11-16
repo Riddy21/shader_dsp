@@ -1,6 +1,7 @@
 #include "audio_render_stage_plugins/audio_render_stage_history.h"
 #include "audio_core/audio_tape.h"
 #include "audio_parameter/audio_uniform_parameter.h"
+#include "audio_core/audio_render_stage.h"
 #include <algorithm>
 #include <optional>
 #include <cmath>
@@ -86,10 +87,12 @@ void AudioRenderStageHistory::clear_history_buffer() {
 AudioRenderStageHistory2::AudioRenderStageHistory2(const unsigned int frames_per_buffer,
                                                    const unsigned int sample_rate,
                                                    const unsigned int num_channels,
-                                                   const float history_buffer_size_seconds)
+                                                   const float history_buffer_size_seconds,
+                                                   const std::string& plugin_name)
     : m_frames_per_buffer(frames_per_buffer),
       m_sample_rate(sample_rate),
       m_num_channels(num_channels),
+      m_plugin_name(plugin_name.empty() ? "" : plugin_name),
       m_audio_history_texture(nullptr),
       m_tape_position(nullptr),
       m_tape_window_size_samples(nullptr),
@@ -114,6 +117,10 @@ AudioRenderStageHistory2::AudioRenderStageHistory2(const unsigned int frames_per
     m_window_size_samples = m_texture_width * m_texture_rows_per_channel;
 }
 
+std::string AudioRenderStageHistory2::get_plugin_name() const {
+    return m_plugin_name;
+}
+
 std::vector<std::string> AudioRenderStageHistory2::get_fragment_shader_imports() const {
     return {"build/shaders/tape_history_settings.glsl"};
 }
@@ -123,8 +130,17 @@ std::vector<std::string> AudioRenderStageHistory2::get_vertex_shader_imports() c
 }
 
 void AudioRenderStageHistory2::create_parameters(GLuint& active_texture_count, GLuint& color_attachment_count) {
+    // Generate parameterized names using base class helper
+    std::string texture_name = make_parameterized_name("tape_history_texture", m_plugin_name);
+    std::string position_name = make_parameterized_name("tape_position", m_plugin_name);
+    std::string speed_name = make_parameterized_name("speed_in_samples_per_buffer", m_plugin_name);
+    std::string window_size_name = make_parameterized_name("tape_window_size_samples", m_plugin_name);
+    std::string window_offset_name = make_parameterized_name("tape_window_offset_samples", m_plugin_name);
+    std::string stopped_name = make_parameterized_name("tape_stopped", m_plugin_name);
+    std::string loop_name = make_parameterized_name("tape_loop", m_plugin_name);
+    
     // Create the texture parameter
-    auto audio_history_texture = new AudioTexture2DParameter(m_audio_history_texture_name,
+    auto audio_history_texture = new AudioTexture2DParameter(texture_name,
                             AudioParameter::ConnectionType::INPUT,
                             m_texture_width, m_texture_height,
                             active_texture_count++,
@@ -140,27 +156,27 @@ void AudioRenderStageHistory2::create_parameters(GLuint& active_texture_count, G
     m_audio_history_texture = audio_history_texture;
     
     // Create uniform parameters for tape control
-    m_tape_position = new AudioIntParameter("tape_position", AudioParameter::ConnectionType::INPUT);
+    m_tape_position = new AudioIntParameter(position_name, AudioParameter::ConnectionType::INPUT);
     static_cast<AudioIntParameter*>(m_tape_position)->set_value(0);
     
     // Store samples per buffer (default = frames_per_buffer, which means speed = 1.0)
-    m_tape_speed = new AudioIntParameter("speed_in_samples_per_buffer", AudioParameter::ConnectionType::INPUT);
+    m_tape_speed = new AudioIntParameter(speed_name, AudioParameter::ConnectionType::INPUT);
     static_cast<AudioIntParameter*>(m_tape_speed)->set_value(static_cast<int>(m_frames_per_buffer));
     
     // Calculate window size in samples based on texture dimensions
-    m_tape_window_size_samples = new AudioIntParameter("tape_window_size_samples", AudioParameter::ConnectionType::INPUT);
+    m_tape_window_size_samples = new AudioIntParameter(window_size_name, AudioParameter::ConnectionType::INPUT);
     static_cast<AudioIntParameter*>(m_tape_window_size_samples)->set_value(static_cast<int>(m_window_size_samples));
     
-    m_tape_window_offset_samples = new AudioIntParameter("tape_window_offset_samples", AudioParameter::ConnectionType::INPUT);
+    m_tape_window_offset_samples = new AudioIntParameter(window_offset_name, AudioParameter::ConnectionType::INPUT);
     // Set to large value to ensure texture updates on first frame
     static_cast<AudioIntParameter*>(m_tape_window_offset_samples)->set_value(1000000000);
     
     // Create tape stopped flag parameter (1 = stopped, 0 = playing)
-    m_tape_stopped = new AudioIntParameter("tape_stopped", AudioParameter::ConnectionType::INPUT);
+    m_tape_stopped = new AudioIntParameter(stopped_name, AudioParameter::ConnectionType::INPUT);
     static_cast<AudioIntParameter*>(m_tape_stopped)->set_value(0); // Start as playing
     
     // Create tape loop flag parameter (1 = loop enabled, 0 = loop disabled, default = 0)
-    m_tape_loop = new AudioIntParameter("tape_loop", AudioParameter::ConnectionType::INPUT);
+    m_tape_loop = new AudioIntParameter(loop_name, AudioParameter::ConnectionType::INPUT);
     static_cast<AudioIntParameter*>(m_tape_loop)->set_value(0); // Default to no loop
 }
 

@@ -133,8 +133,8 @@ AudioRenderStage::~AudioRenderStage() {
 }
 
 bool AudioRenderStage::initialize() {
-    // Rebuild shader program with updated sources
-    m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
+    // Rebuild shader sources and create shader program with all plugin imports
+    rebuild_shader_sources();
 
     // Initialize the shader program
     if (!initialize_shader_program()) {
@@ -366,34 +366,6 @@ bool AudioRenderStage::register_plugin(AudioRenderStagePlugin* plugin) {
 
     // Store plugin
     m_plugins.push_back(plugin);
-
-    // Collect shader imports from plugin
-    auto frag_imports = plugin->get_fragment_shader_imports();
-    auto vert_imports = plugin->get_vertex_shader_imports();
-
-    // Combine with initial imports (avoid duplicates)
-    std::vector<std::string> combined_frag_imports = m_initial_frag_shader_imports;
-    std::vector<std::string> combined_vert_imports = m_initial_vert_shader_imports;
-
-    for (const auto& import : frag_imports) {
-        if (std::find(combined_frag_imports.begin(), combined_frag_imports.end(), import) == combined_frag_imports.end()) {
-            combined_frag_imports.push_back(import);
-        }
-    }
-
-    for (const auto& import : vert_imports) {
-        if (std::find(combined_vert_imports.begin(), combined_vert_imports.end(), import) == combined_vert_imports.end()) {
-            combined_vert_imports.push_back(import);
-        }
-    }
-
-    // Rebuild shader sources with plugin imports
-    if (m_uses_shader_string) {
-        m_fragment_shader_source = combine_shader_source_with_string(combined_frag_imports, m_fragment_shader_source_string);
-    } else {
-        m_fragment_shader_source = combine_shader_source(combined_frag_imports, m_fragment_shader_path);
-    }
-    m_vertex_shader_source = combine_shader_source(combined_vert_imports, m_vertex_shader_path);
 
     // Create parameters for the plugin (pass texture counts by reference)
     plugin->create_parameters(m_active_texture_count, m_color_attachment_count);
@@ -817,4 +789,206 @@ void AudioRenderStage::clear_output_textures() {
             }
         }
     }
+}
+
+void AudioRenderStage::rebuild_shader_sources() {
+    // Start with initial imports (no plugin-specific processing needed for these)
+    std::string combined_frag_source = "";
+    std::string combined_vert_source = "";
+    bool frag_version_added = false;
+    bool vert_version_added = false;
+    
+    // Process initial fragment shader imports
+    for (const auto& import_path : m_initial_frag_shader_imports) {
+        std::string import_source = get_shader_source(import_path);
+        
+        // Handle #version directive
+        if (import_source.find("#version") != std::string::npos) {
+            if (!frag_version_added) {
+                size_t version_pos = import_source.find("#version");
+                size_t newline_pos = import_source.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_frag_source += import_source.substr(version_pos, newline_pos - version_pos + 1);
+                    combined_frag_source += import_source.substr(newline_pos + 1);
+                } else {
+                    combined_frag_source += import_source;
+                }
+                frag_version_added = true;
+            } else {
+                size_t version_pos = import_source.find("#version");
+                size_t newline_pos = import_source.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_frag_source += import_source.substr(newline_pos + 1);
+                } else {
+                    combined_frag_source += import_source;
+                }
+            }
+        } else {
+            combined_frag_source += import_source;
+        }
+        combined_frag_source += "\n";
+    }
+    
+    // Process initial vertex shader imports
+    for (const auto& import_path : m_initial_vert_shader_imports) {
+        std::string import_source = get_shader_source(import_path);
+        
+        // Handle #version directive
+        if (import_source.find("#version") != std::string::npos) {
+            if (!vert_version_added) {
+                size_t version_pos = import_source.find("#version");
+                size_t newline_pos = import_source.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_vert_source += import_source.substr(version_pos, newline_pos - version_pos + 1);
+                    combined_vert_source += import_source.substr(newline_pos + 1);
+                } else {
+                    combined_vert_source += import_source;
+                }
+                vert_version_added = true;
+            } else {
+                size_t version_pos = import_source.find("#version");
+                size_t newline_pos = import_source.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_vert_source += import_source.substr(newline_pos + 1);
+                } else {
+                    combined_vert_source += import_source;
+                }
+            }
+        } else {
+            combined_vert_source += import_source;
+        }
+        combined_vert_source += "\n";
+    }
+
+    // Process each plugin's shader imports separately - plugins handle their own replacements
+    for (auto* registered_plugin : m_plugins) {
+        // Process fragment shader imports for this plugin
+        auto frag_imports = registered_plugin->get_fragment_shader_imports();
+        for (const auto& import_path : frag_imports) {
+            // Get processed shader source from plugin (with replacements already applied)
+            std::string import_source = registered_plugin->get_processed_fragment_shader_source(import_path);
+            
+            // Handle #version directive (skip if already added)
+            if (import_source.find("#version") != std::string::npos) {
+                if (!frag_version_added) {
+                    size_t version_pos = import_source.find("#version");
+                    size_t newline_pos = import_source.find('\n', version_pos);
+                    if (newline_pos != std::string::npos) {
+                        combined_frag_source += import_source.substr(version_pos, newline_pos - version_pos + 1);
+                        combined_frag_source += import_source.substr(newline_pos + 1);
+                    } else {
+                        combined_frag_source += import_source;
+                    }
+                    frag_version_added = true;
+                } else {
+                    size_t version_pos = import_source.find("#version");
+                    size_t newline_pos = import_source.find('\n', version_pos);
+                    if (newline_pos != std::string::npos) {
+                        combined_frag_source += import_source.substr(newline_pos + 1);
+                    } else {
+                        combined_frag_source += import_source;
+                    }
+                }
+            } else {
+                combined_frag_source += import_source;
+            }
+            combined_frag_source += "\n";
+        }
+        
+        // Process vertex shader imports for this plugin
+        auto vert_imports = registered_plugin->get_vertex_shader_imports();
+        for (const auto& import_path : vert_imports) {
+            // Get processed shader source from plugin (with replacements already applied)
+            std::string import_source = registered_plugin->get_processed_vertex_shader_source(import_path);
+            
+            // Handle #version directive (skip if already added)
+            if (import_source.find("#version") != std::string::npos) {
+                if (!vert_version_added) {
+                    size_t version_pos = import_source.find("#version");
+                    size_t newline_pos = import_source.find('\n', version_pos);
+                    if (newline_pos != std::string::npos) {
+                        combined_vert_source += import_source.substr(version_pos, newline_pos - version_pos + 1);
+                        combined_vert_source += import_source.substr(newline_pos + 1);
+                    } else {
+                        combined_vert_source += import_source;
+                    }
+                    vert_version_added = true;
+                } else {
+                    size_t version_pos = import_source.find("#version");
+                    size_t newline_pos = import_source.find('\n', version_pos);
+                    if (newline_pos != std::string::npos) {
+                        combined_vert_source += import_source.substr(newline_pos + 1);
+                    } else {
+                        combined_vert_source += import_source;
+                    }
+                }
+            } else {
+                combined_vert_source += import_source;
+            }
+            combined_vert_source += "\n";
+        }
+    }
+
+    // Add main shader sources
+    if (m_uses_shader_string) {
+        std::string main_shader = m_fragment_shader_source_string;
+        if (main_shader.find("#version") != std::string::npos) {
+            if (!frag_version_added) {
+                combined_frag_source += main_shader;
+                frag_version_added = true;
+            } else {
+                size_t version_pos = main_shader.find("#version");
+                size_t newline_pos = main_shader.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_frag_source += main_shader.substr(newline_pos + 1);
+                } else {
+                    combined_frag_source += main_shader;
+                }
+            }
+        } else {
+            combined_frag_source += main_shader;
+        }
+    } else {
+        std::string main_shader = get_shader_source(m_fragment_shader_path);
+        if (main_shader.find("#version") != std::string::npos) {
+            if (!frag_version_added) {
+                combined_frag_source += main_shader;
+                frag_version_added = true;
+            } else {
+                size_t version_pos = main_shader.find("#version");
+                size_t newline_pos = main_shader.find('\n', version_pos);
+                if (newline_pos != std::string::npos) {
+                    combined_frag_source += main_shader.substr(newline_pos + 1);
+                } else {
+                    combined_frag_source += main_shader;
+                }
+            }
+        } else {
+            combined_frag_source += main_shader;
+        }
+    }
+    
+    std::string vert_shader = get_shader_source(m_vertex_shader_path);
+    if (vert_shader.find("#version") != std::string::npos) {
+        if (!vert_version_added) {
+            combined_vert_source += vert_shader;
+            vert_version_added = true;
+        } else {
+            size_t version_pos = vert_shader.find("#version");
+            size_t newline_pos = vert_shader.find('\n', version_pos);
+            if (newline_pos != std::string::npos) {
+                combined_vert_source += vert_shader.substr(newline_pos + 1);
+            } else {
+                combined_vert_source += vert_shader;
+            }
+        }
+    } else {
+        combined_vert_source += vert_shader;
+    }
+
+    m_fragment_shader_source = combined_frag_source;
+    m_vertex_shader_source = combined_vert_source;
+
+    // Create shader program with updated sources
+    m_shader_program = std::make_unique<AudioShaderProgram>(m_vertex_shader_source, m_fragment_shader_source);
 }
