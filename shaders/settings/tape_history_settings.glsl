@@ -41,14 +41,15 @@ vec4 get_tape_history_samples{PLUGIN_SUFFIX}(vec2 TexCoord, int sample_frame_siz
     int audio_width = audio_size.x;
     int audio_height = audio_size.y / num_channels / 2; // 2 because we need to store both the audio data and the zeros
 
-    // Clamp position_in_window to valid range [0, window_size_samples)
-    // Handle negative values properly
+    // Return zeros for out-of-range positions
+    // This ensures that positions before the window start or after the window end return zeros
+    // This matches the behavior of the tape's playback_for_render_stage_history method
     if (position_in_window < 0) {
-        // Before window start - return zero
+        // Before window start - position is out of range, return zero
         return vec4(0.0);
     }
     if (position_in_window >= tape_window_size_samples{PLUGIN_SUFFIX}) {
-        // After window end - return zero
+        // After window end - position is out of range, return zero
         return vec4(0.0);
     }
 

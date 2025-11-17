@@ -464,11 +464,11 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
     constexpr int BUFFER_SIZE = params.buffer_size;
     constexpr int NUM_CHANNELS = params.num_channels;
     constexpr int SAMPLE_RATE = 44100;
-    constexpr float SINE_FREQUENCY = 261.63 * std::pow(SEMI_TONE, 2);
-    constexpr float SINE_AMPLITUDE = 0.3f; // Moderate volume
-    constexpr float ECHO_DELAY = 0.1f; // 200ms delay between echoes
-    constexpr float ECHO_DECAY = 0.4f; // Each echo is 50% of previous
-    constexpr int NUM_ECHOS = 5; // Test with 4 echoes for clear effect
+    constexpr float SQUARE_FREQUENCY = 261.63 * std::pow(SEMI_TONE, 2);
+    constexpr float SQUARE_AMPLITUDE = 0.3f; // Moderate volume
+    constexpr float ECHO_DELAY = 1.0f; // 200ms delay between echoes
+    constexpr float ECHO_DECAY = 1.0f; // Each echo is 50% of previous
+    constexpr int NUM_ECHOS = 1; // Test with 4 echoes for clear effect
     constexpr int PLAYBACK_SECONDS = 5; // Play for 5 seconds
     constexpr int NUM_FRAMES = (SAMPLE_RATE * PLAYBACK_SECONDS) / BUFFER_SIZE;
 
@@ -476,7 +476,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
     SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
     GLContext context;
     // Create sine wave generator render stage
-    AudioGeneratorRenderStage sine_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, "build/shaders/multinote_sine_generator_render_stage.glsl");
+    AudioGeneratorRenderStage square_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, "build/shaders/multinote_square_generator_render_stage.glsl");
 
     // Create echo effect render stage
     AudioEchoEffectRenderStage echo_effect(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
@@ -485,7 +485,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
     AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
 
     // Connect: sine generator -> echo effect -> final render stage
-    REQUIRE(sine_generator.connect_render_stage(&echo_effect));
+    REQUIRE(square_generator.connect_render_stage(&echo_effect));
     REQUIRE(echo_effect.connect_render_stage(&final_render_stage));
 
     // Add global_time parameter as a buffer parameter
@@ -494,7 +494,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
     global_time_param->initialize();
     
     // Initialize the render stages
-    REQUIRE(sine_generator.initialize());
+    REQUIRE(square_generator.initialize());
     REQUIRE(echo_effect.initialize());
     REQUIRE(final_render_stage.initialize());
 
@@ -514,18 +514,18 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
     context.prepare_draw();
     
     // Bind the render stages
-    REQUIRE(sine_generator.bind());
+    REQUIRE(square_generator.bind());
     REQUIRE(echo_effect.bind());
     REQUIRE(final_render_stage.bind());
     
 
     SECTION("Echo Effect Audio Playback") {
         std::cout << "\n=== Echo Effect Audio Playback Test ===" << std::endl;
-        std::cout << "Playing " << SINE_FREQUENCY << "Hz sine wave with echo effect for " 
+        std::cout << "Playing " << SQUARE_FREQUENCY << "Hz square wave with echo effect for " 
                   << PLAYBACK_SECONDS << " seconds..." << std::endl;
         std::cout << "Echo settings: " << ECHO_DELAY << "s delay, " 
                   << ECHO_DECAY << " decay, " << NUM_ECHOS << " echoes" << std::endl;
-        std::cout << "You should hear a " << SINE_FREQUENCY << "Hz tone for 1 second, followed by echoes." << std::endl;
+        std::cout << "You should hear a " << SQUARE_FREQUENCY << "Hz tone for 1 second, followed by echoes." << std::endl;
 
         // Create audio output for real-time playback (only if enabled)
         AudioPlayerOutput* audio_output = nullptr;
@@ -536,11 +536,11 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
         }
 
         // Convert frequency to MIDI note (A4 = 440Hz = MIDI note 69)
-        float midi_note = SINE_FREQUENCY; // A4 note
-        float note_gain = SINE_AMPLITUDE;
+        float midi_note = SQUARE_FREQUENCY; // A4 note
+        float note_gain = SQUARE_AMPLITUDE;
 
         // Start playing the note
-        sine_generator.play_note({midi_note, note_gain});
+        square_generator.play_note({midi_note, note_gain});
 
         // Collect samples for CSV output
         std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
@@ -552,14 +552,14 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
         for (int frame = 0; frame < NUM_FRAMES; frame++) {
             // Stop the note after 1 second to hear the echoes clearly
             if (frame == (SAMPLE_RATE / BUFFER_SIZE)) {
-                sine_generator.stop_note(midi_note);
+                square_generator.stop_note(midi_note);
                 std::cout << "Note stopped, listening for echoes..." << std::endl;
             }
             global_time_param->set_value(frame);
             global_time_param->render();
 
-            // Render the sine wave generator
-            sine_generator.render(frame);
+            // Render the square wave generator
+            square_generator.render(frame);
             
             // Render the echo effect
             echo_effect.render(frame);
@@ -607,7 +607,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
             
             std::ostringstream filename_stream;
             filename_stream << csv_output_dir << "/echo_effect_audio_output_buffer_" 
-                          << BUFFER_SIZE << "_channels_" << NUM_CHANNELS << "_freq_" << SINE_FREQUENCY << ".csv";
+                          << BUFFER_SIZE << "_channels_" << NUM_CHANNELS << "_freq_" << SQUARE_FREQUENCY << ".csv";
             std::string filename = filename_stream.str();
             
             CSVTestOutput csv_writer(filename, SAMPLE_RATE);
@@ -620,7 +620,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
                       << output_samples_per_channel[0].size() << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
         }
 
-        std::cout << "Did you hear the original " << SINE_FREQUENCY << "Hz tone followed by echoes getting progressively quieter?" << std::endl;
+        std::cout << "Did you hear the original " << SQUARE_FREQUENCY << "Hz tone followed by echoes getting progressively quieter?" << std::endl;
     }
 }
 

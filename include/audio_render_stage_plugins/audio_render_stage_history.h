@@ -69,7 +69,7 @@ public:
 
     void set_tape_position(const unsigned int tape_position); 
     void set_tape_position(const float seconds_offset);
-    const unsigned int get_tape_position() const;
+    const int get_tape_position() const;
     const float get_tape_position_in_seconds() const;
 
     void set_tape_speed(const float speed);

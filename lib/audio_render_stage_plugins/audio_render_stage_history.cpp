@@ -203,9 +203,14 @@ void AudioRenderStageHistory2::set_tape_position(const float seconds_offset) {
     set_tape_position(samples_offset);
 }
 
-const unsigned int AudioRenderStageHistory2::get_tape_position() const {
+const int AudioRenderStageHistory2::get_tape_position() const {
+    // Always return playback position (from parameter)
+    // Record position is separate and managed by the tape
     if (m_tape_position) {
-        return static_cast<unsigned int>(*static_cast<const int*>(m_tape_position->get_value()));
+        const void* value_ptr = m_tape_position->get_value();
+        if (value_ptr != nullptr) {
+            return *static_cast<const int*>(value_ptr);
+        }
     }
     return 0;
 }
@@ -328,7 +333,7 @@ bool AudioRenderStageHistory2::is_tape_loop_enabled() const {
 }
 
 bool AudioRenderStageHistory2::is_tape_at_beginning() const {
-    return get_tape_position() == 0u;
+    return get_tape_position() == 0;
 }
 
 bool AudioRenderStageHistory2::is_tape_at_end() const {
@@ -336,7 +341,8 @@ bool AudioRenderStageHistory2::is_tape_at_end() const {
     if (!tape) {
         return false;
     }
-    return get_tape_position() >= tape->size();
+    int position = get_tape_position();
+    return position >= 0 && static_cast<unsigned int>(position) >= tape->size();
 }
 
 void AudioRenderStageHistory2::update_tape_position(const unsigned int time) {
@@ -350,7 +356,6 @@ void AudioRenderStageHistory2::update_tape_position(const unsigned int time) {
     if (is_tape_stopped()) {
         return;
     }
-    
     advance_tape_position_with_delta(time_delta);
 }
 
@@ -360,9 +365,10 @@ void AudioRenderStageHistory2::advance_tape_position_with_delta(int time_delta) 
         return; // Tape not assigned
     }
     
-    // Get current state BEFORE applying pending speed
+    // Get current playback position BEFORE applying pending speed
     // This is the speed that was used for the previous frame's rendering
-    const unsigned int current_position = get_tape_position();
+    const int current_position_int = get_tape_position();
+    const unsigned int current_position = (current_position_int >= 0) ? static_cast<unsigned int>(current_position_int) : 0u;
     const int speed_for_advancement = get_tape_speed_samples_per_buffer();
     
     // Advance position using the speed that was used for the previous frame's rendering
@@ -385,6 +391,32 @@ void AudioRenderStageHistory2::advance_tape_position_with_delta(int time_delta) 
         return; // Speed is 0, don't update (but position was already advanced above)
     }
     
+    // For fixed-size tapes, playback position can grow independently (virtual position)
+    // It doesn't wrap/clamp based on tape capacity - it can grow beyond it
+    // The window is based on record position, so playback can drift out of view if paused
+    if (tape->m_fixed_size) {
+        // Advance position based on time delta and speed
+        // For fixed-size tapes, position can grow indefinitely (virtual position)
+        unsigned int new_position;
+        if (samples_to_advance >= 0) {
+            // Forward playback: simple addition (can grow beyond tape capacity)
+            new_position = current_position + static_cast<unsigned int>(samples_to_advance);
+        } else {
+            // Reverse playback: subtract the absolute value
+            unsigned int abs_advance = static_cast<unsigned int>(-samples_to_advance);
+            if (abs_advance <= current_position) {
+                // Normal case: subtract without underflow
+                new_position = current_position - abs_advance;
+            } else {
+                // Would underflow: clamp to 0
+                new_position = 0u;
+            }
+        }
+        set_tape_position(new_position);
+        return;
+    }
+    
+    // For dynamic-size tapes, advance position with wrapping/clamping logic
     // Check if loop is enabled
     const bool loop_enabled = is_tape_loop_enabled();
     const unsigned int tape_size = tape->size();
@@ -462,7 +494,13 @@ void AudioRenderStageHistory2::advance_tape_position_with_delta(int time_delta) 
 }
 
 bool AudioRenderStageHistory2::is_outdated() const {
-    unsigned int tape_position = get_tape_position();
+    auto tape = m_tape.lock();
+    if (!tape) {
+        return false;
+    }
+    
+    int tape_position_int = get_tape_position();
+    unsigned int tape_position = (tape_position_int >= 0) ? static_cast<unsigned int>(tape_position_int) : 0u;
 
     // Get samples per buffer directly from parameter (can be negative)
     int samples_per_buffer = get_tape_speed_samples_per_buffer();
@@ -471,6 +509,77 @@ bool AudioRenderStageHistory2::is_outdated() const {
     unsigned int window_offset = get_window_offset_samples();
     unsigned int window_size = get_window_size_samples();
     
+    // For fixed-size tapes, window is based on record position
+    // Check if playback position is within the visible window
+    if (tape->m_fixed_size) {
+        unsigned int capacity = tape->size();
+        if (capacity == 0) {
+            return false;
+        }
+        
+        // Calculate preferred window based on record position
+        unsigned int record_position = tape->m_current_record_position;
+        unsigned int preferred_window_start = (record_position > capacity)
+                                               ? (record_position - capacity)
+                                               : 0u;
+        unsigned int preferred_window_end = preferred_window_start + window_size;
+        
+        // Calculate current visible window from window_offset
+        // For negative speed, window_offset is adjusted, so we need to reconstruct the actual window_start
+        float speed_ratio = get_tape_speed_ratio();
+        unsigned int current_window_start = window_offset;
+        if (speed_ratio < 0.0f) {
+            // For negative speed, window_offset = window_start - window_size, so window_start = window_offset + window_size
+            current_window_start = window_offset + window_size;
+        }
+        unsigned int current_window_end = current_window_start + window_size;
+        
+        // Check if playback is within current window or preferred window
+        bool playback_in_current = (tape_position >= current_window_start) && (tape_position < current_window_end);
+        bool playback_in_preferred = (tape_position >= preferred_window_start) && (tape_position < preferred_window_end);
+        
+        // Use the window that contains playback, or preferred window if window_offset is uninitialized (0)
+        unsigned int effective_window_start;
+        unsigned int effective_window_end;
+        if (window_offset == 0 || !playback_in_current) {
+            // Use preferred window if window is uninitialized or playback is not in current window
+            effective_window_start = preferred_window_start;
+            effective_window_end = preferred_window_end;
+        } else {
+            // Use current window if it contains playback
+            effective_window_start = current_window_start;
+            effective_window_end = current_window_end;
+        }
+        
+        // Check if playback position is within the effective visible window
+        bool playback_in_window = (tape_position >= effective_window_start) && (tape_position < effective_window_end);
+        
+        // If playback is outside the window, we need to update
+        if (!playback_in_window) {
+            return true;
+        }
+        
+        // Playback is within window, check if we're approaching boundaries
+        unsigned int valid_start = effective_window_start + frame_size_samples;
+        unsigned int valid_end = effective_window_end - frame_size_samples;
+        
+        // Check if we're outside the valid range OR approaching the boundary
+        unsigned int safety_margin = frame_size_samples * 2;
+        
+        // For forward playback: check if we're approaching the end or have passed start
+        if (samples_per_buffer >= 0) {
+            bool past_start = tape_position < valid_start;
+            bool near_end = tape_position >= (valid_end > safety_margin ? valid_end - safety_margin : effective_window_start);
+            return past_start || near_end;
+        } else {
+            // For reverse playback: check if we're approaching the start or have passed end
+            bool past_end = tape_position >= valid_end;
+            bool near_start = tape_position < (valid_start + safety_margin);
+            return past_end || near_start;
+        }
+    }
+    
+    // For dynamic-size tapes, use original logic
     // Calculate valid range: we need margin at both ends to ensure smooth playback
     // The valid range excludes frame_size_samples from each end to provide safety margin
     // This prevents accessing samples outside the window during rendering
@@ -594,8 +703,109 @@ void AudioRenderStageHistory2::clamp_position(int samples_to_advance,
 }
 
 const unsigned int AudioRenderStageHistory2::get_window_offset_samples_for_tape_data() const {
-    unsigned int tape_position = get_tape_position();
+    auto tape = m_tape.lock();
+    if (!tape) {
+        return 0;
+    }
+    
+    // For fixed-size tapes, window offset is based on record position (not playback position)
+    // This ensures the window always shows the most recent data
+    // Playback position can be anywhere and can drift out of the visible window if paused
+    if (tape->m_fixed_size) {
+        unsigned int capacity = tape->size();
+        if (capacity == 0) {
+            return 0;
+        }
+        
+        // Get playback position to check if it's outside the visible window
+        int tape_position_int = get_tape_position();
+        unsigned int playback_position = (tape_position_int >= 0) ? static_cast<unsigned int>(tape_position_int) : 0u;
+        
+        // Use record position to calculate preferred window_start (where the visible window begins)
+        unsigned int record_position = tape->m_current_record_position;
+        unsigned int preferred_window_start = (record_position > capacity)
+                                               ? (record_position - capacity)
+                                               : 0u;
+        
+        unsigned int window_size = get_window_size_samples();
+        unsigned int preferred_window_end = preferred_window_start + window_size;
+        
+        // Check if playback position is outside the preferred visible window
+        // If so, adjust window to include playback position
+        bool playback_outside_window = (playback_position < preferred_window_start) || 
+                                       (playback_position >= preferred_window_end);
+        
+        unsigned int window_start;
+        if (playback_outside_window) {
+            // Adjust window to include playback position
+            // For positive speed, place playback near the end of the window
+            // For negative speed, place playback near the start of the window
+            float speed_ratio = get_tape_speed_ratio();
+            if (speed_ratio > 0.0f) {
+                // For forward playback, place playback position near the end of the window
+                // window_start = max(0, playback_position - window_size + margin)
+                // Use a small margin to keep playback away from the very end
+                unsigned int margin = window_size / 4; // Keep playback at ~75% through the window
+                if (playback_position >= margin) {
+                    window_start = playback_position - margin;
+                } else {
+                    window_start = 0u;
+                }
+            } else if (speed_ratio < 0.0f) {
+                // For reverse playback, place playback position near the start of the window
+                // window_start = max(0, playback_position - margin)
+                unsigned int margin = window_size / 4; // Keep playback at ~25% through the window
+                if (playback_position >= margin) {
+                    window_start = playback_position - margin;
+                } else {
+                    window_start = 0u;
+                }
+            } else {
+                // Speed is 0, center playback in the window
+                if (playback_position >= window_size / 2) {
+                    window_start = playback_position - window_size / 2;
+                } else {
+                    window_start = 0u;
+                }
+            }
+            
+            // Ensure window doesn't exceed tape capacity bounds
+            // The window should be within [0, record_position] if record_position < capacity,
+            // or within [record_position - capacity, record_position] if record_position >= capacity
+            unsigned int min_window_start = (record_position > capacity) ? (record_position - capacity) : 0u;
+            unsigned int max_window_start = record_position;
+            
+            if (window_start < min_window_start) {
+                window_start = min_window_start;
+            }
+            if (window_start > max_window_start) {
+                window_start = (max_window_start >= window_size) ? (max_window_start - window_size) : 0u;
+            }
+        } else {
+            // Playback is within preferred window, use preferred window_start
+            window_start = preferred_window_start;
+        }
+        
+        float speed_ratio = get_tape_speed_ratio();
+        if (speed_ratio > 0.0f) {
+            // For positive speed with fixed-size tape, return window_start
+            // This aligns with how playback_for_render_stage_history calculates the window
+            return window_start;
+        } else if (speed_ratio < 0.0f) {
+            // For negative speed, calculate offset from window_start
+            if (window_start < window_size) {
+                return 0;
+            }
+            return window_start - window_size;
+        }
+        return window_start;
+    }
+    
+    // For dynamic-size tapes, use playback position
+    int tape_position_int = get_tape_position();
+    unsigned int tape_position = (tape_position_int >= 0) ? static_cast<unsigned int>(tape_position_int) : 0u;
 
+    // For dynamic-size tapes, use the original logic
     float speed_ratio = get_tape_speed_ratio();
     if (speed_ratio > 0.0f) {
         // For positive speed, offset is position to align with shader calculation

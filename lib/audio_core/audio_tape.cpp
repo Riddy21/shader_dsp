@@ -320,18 +320,22 @@ const std::vector<float> AudioTape::playback(unsigned int num_frames, unsigned i
         for (unsigned int i = 0; i < frames_to_read; ++i) {
             const unsigned int global_index = start_global + i;
 
-            float sample_value = 0.0f;
+            float sample_value = 0.0f; // Default to zero for out-of-range positions
             if (!is_fixed) {
                 // Dynamic-size: direct index if within bounds
+                // Return zero if position is out of range (before recording started or after recording ended)
                 if (global_index < channel_size) {
                     sample_value = channel_data[global_index];
                 }
+                // else: sample_value remains 0.0f (out of range)
             } else {
                 // Fixed-size sliding window
+                // Return zero if position is outside the visible window
                 if (global_index >= window_start && global_index < window_end_exclusive) {
                     const unsigned int local_index = global_index - window_start;
                     sample_value = channel_data[local_index];
                 }
+                // else: sample_value remains 0.0f (out of range - before window start or after window end)
             }
 
             if (interleaved) {
@@ -408,18 +412,22 @@ const std::vector<float> AudioTape::playback_for_render_stage_history(
             for (unsigned int i = 0; i < source_end - source_start; ++i) {
                 const unsigned int global_index = start_global + source_start + i;
                 
-                float sample_value = 0.0f;
+                float sample_value = 0.0f; // Default to zero for out-of-range positions
                 if (!is_fixed) {
                     // Dynamic-size: direct index if within bounds
+                    // Return zero if position is out of range (before recording started or after recording ended)
                     if (global_index < channel_size) {
                         sample_value = channel_data[global_index];
                     }
+                    // else: sample_value remains 0.0f (out of range)
                 } else {
                     // Fixed-size sliding window
+                    // Return zero if position is outside the visible window
                     if (global_index >= window_start && global_index < window_end_exclusive) {
                         const unsigned int local_index = global_index - window_start;
                         sample_value = channel_data[local_index];
                     }
+                    // else: sample_value remains 0.0f (out of range - before window start or after window end)
                 }
                 
                 dest_row[i] = sample_value;

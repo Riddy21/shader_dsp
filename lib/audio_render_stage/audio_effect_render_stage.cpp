@@ -8,6 +8,7 @@
 #include "audio_parameter/audio_uniform_array_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
 #include "audio_render_stage/audio_effect_render_stage.h"
+#include "audio_render_stage_plugins/audio_render_stage_history.h"
 
 const std::vector<std::string> AudioGainEffectRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
@@ -180,6 +181,26 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage
         [decay_parameter](const float& v) { decay_parameter->set_value(v); }
     );
     m_controls.push_back(decay_control);
+
+    // Create audio tape for history recording
+    m_tape = std::make_shared<AudioTape>(frames_per_buffer, sample_rate, num_channels, HISTORY_WINDOW_SIZE_SECONDS * sample_rate);
+
+    // Create tape history with fixed 2-second window size
+    m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, HISTORY_WINDOW_SIZE_SECONDS);
+    
+    // Register the plugin - this will automatically add shader imports and parameters
+    if (!this->register_plugin(m_history2.get())) {
+        std::cerr << "Failed to register history plugin" << std::endl;
+    }
+    
+    // Set the tape for the history plugin
+    m_history2->set_tape(m_tape);
+    
+    // Set up tape for recording (speed = 1.0, position starts at 0)
+    m_history2->set_tape_speed(1.0f);
+    m_history2->set_tape_position(0u);
+    m_history2->start_tape();
+    m_history2->set_tape_loop(true);
 }
 
 void AudioEchoEffectRenderStage::render(unsigned int time) {
@@ -198,6 +219,19 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
 
     // Update the echo buffer with the new data
     std::copy(data, data + frames_per_buffer * num_channels, m_echo_buffer.begin());
+
+    // Record output audio to tape and update history
+    m_tape->record(data);
+    
+    // For fixed-size tapes, record position keeps growing independently (managed by tape)
+    // Playback position advances separately based on speed/time (managed by history stage)
+    // The difference between record and playback positions grows at the right pace
+    // If playback is paused, it will drift out of frame if left long enough
+    m_history2->update_tape_position(time);
+    
+    // Update the history window to show the most recent audio
+    // Window is based on record position, so it always shows the most recent data
+    m_history2->update_window();
 }
 
 bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * render_stage) {
@@ -209,6 +243,12 @@ bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * rend
 
     // Clear the echo buffer
     std::fill(m_echo_buffer.begin(), m_echo_buffer.end(), 0.0f);
+    
+    // Clear the tape
+    if (m_tape) {
+        m_tape->clear();
+    }
+    
     return true;
 }
 
