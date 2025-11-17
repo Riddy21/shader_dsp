@@ -75,14 +75,12 @@ public:
     ~AudioEchoEffectRenderStage() {};
 
 private:
-    static constexpr unsigned int M_MAX_ECHO_BUFFER_SIZE = 500;
     static constexpr float HISTORY_WINDOW_SIZE_SECONDS = 2.0f;
 
     void render(const unsigned int time) override;
 
     bool disconnect_render_stage(AudioRenderStage * render_stage) override;
 
-    std::vector<float> m_echo_buffer;
     std::unique_ptr<AudioRenderStageHistory2> m_history2;
     std::shared_ptr<AudioTape> m_tape;
 };

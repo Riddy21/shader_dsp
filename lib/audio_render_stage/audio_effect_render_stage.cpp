@@ -137,16 +137,6 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage
                                 AudioParameter::ConnectionType::INPUT);
     decay_parameter->set_value(.4f);
 
-    auto echo_audio_texture =
-        new AudioTexture2DParameter("echo_audio_texture",
-                                AudioParameter::ConnectionType::INPUT,
-                                frames_per_buffer, M_MAX_ECHO_BUFFER_SIZE * num_channels, // Around 2s of audio data
-                                m_active_texture_count++,
-                                0, GL_NEAREST);
-
-    m_echo_buffer.resize(frames_per_buffer * num_channels * M_MAX_ECHO_BUFFER_SIZE, 0.0f);
-    echo_audio_texture->set_value(m_echo_buffer.data());
-
     if (!this->add_parameter(feedback_parameter)) {
         std::cerr << "Failed to add feedback_parameter" << std::endl;
     }
@@ -155,9 +145,6 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage
     }
     if (!this->add_parameter(decay_parameter)) {
         std::cerr << "Failed to add decay_parameter" << std::endl;
-    }
-    if (!this->add_parameter(echo_audio_texture)) {
-        std::cerr << "Failed to add echo_audio_texture" << std::endl;
     }
 
     m_controls.clear();
@@ -204,21 +191,11 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage
 }
 
 void AudioEchoEffectRenderStage::render(unsigned int time) {
-    // Always set echo_audio_texture to the current m_echo_buffer
-    this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
-
-    if (time != m_time) {
-        // Shift the echo buffer
-        std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - frames_per_buffer * num_channels, m_echo_buffer.begin() + frames_per_buffer * num_channels);
-    }
 
     AudioRenderStage::render(time);
 
     // Get the audio data
     auto * data = (float *)this->find_parameter("output_audio_texture")->get_value();
-
-    // Update the echo buffer with the new data
-    std::copy(data, data + frames_per_buffer * num_channels, m_echo_buffer.begin());
 
     // Record output audio to tape and update history
     m_tape->record(data);
@@ -229,6 +206,7 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
     // If playback is paused, it will drift out of frame if left long enough
     m_history2->update_tape_position(time);
     
+    // TODO: Consider how to make this update less often, but still show the most recent audio
     // Update the history window to show the most recent audio
     // Window is based on record position, so it always shows the most recent data
     m_history2->update_window();
@@ -241,9 +219,6 @@ bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * rend
         return false;
     }
 
-    // Clear the echo buffer
-    std::fill(m_echo_buffer.begin(), m_echo_buffer.end(), 0.0f);
-    
     // Clear the tape
     if (m_tape) {
         m_tape->clear();
