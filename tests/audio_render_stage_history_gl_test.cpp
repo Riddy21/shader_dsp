@@ -3455,9 +3455,7 @@ TEST_CASE("AudioRenderStageHistory2 - fixed-size tape playback with delay and sm
 		} else {
 			// Enough data recorded, start playback if it was stopped
 			if (history.is_tape_stopped()) {
-				// Calculate initial playback position based on delay
-				unsigned int initial_playback_pos = tape->m_current_record_position - PLAYBACK_DELAY_SAMPLES;
-				history.set_tape_position(initial_playback_pos);
+				history.update_tape_position(frame);
 				history.start_tape();
 				// Restore speed (stop_tape() sets it to 0, so we need to restore it)
 				history.set_tape_speed(1.0f);
@@ -6043,3 +6041,5 @@ TEST_CASE("AudioRenderStageHistory2 - multiple history plugins with different fr
 	
 	delete global_time;
 }
+
+// TODO: Fix render stage history test when switching from one render stage to another that the tape keeps working in the right place

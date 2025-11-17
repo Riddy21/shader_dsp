@@ -23,8 +23,9 @@ void main() {
             break;
         }
         vec2 echo_sample_coord = vec2(TexCoord.x, echo_sample_index);
-        //echo += texture(echo_audio_texture, echo_sample_coord) * decay_factor;
-        echo += get_tape_history_samples(TexCoord, speed_in_samples_per_buffer, tape_position - 1000);
+        // WIP still working on the echo
+        echo += texture(echo_audio_texture, echo_sample_coord) * decay_factor;
+        //echo += get_tape_history_samples(TexCoord, speed_in_samples_per_buffer, tape_position - (delay_in_samples * i)) * decay_factor;
     }
 
     output_audio_texture = texture(stream_audio_texture, TexCoord) + echo;
