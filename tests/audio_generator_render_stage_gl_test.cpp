@@ -1708,4 +1708,199 @@ TEMPLATE_TEST_CASE("AudioFileGeneratorRenderStage - WAV File Speed Comparison Te
     }
 }
 
-// FIXME: Add ADSR tests
+TEST_CASE("AudioGeneratorRenderStage - Note State Transfer on Connect/Disconnect", "[audio_generator_render_stage][gl_test][note_state_transfer]") {
+    constexpr int BUFFER_SIZE = 512;
+    constexpr int NUM_CHANNELS = 2;
+    constexpr int SAMPLE_RATE = 44100;
+
+    // Initialize window and OpenGL context
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+
+    // Create two generator render stages
+    AudioGeneratorRenderStage generator1(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 
+                                        "build/shaders/multinote_sine_generator_render_stage.glsl");
+    AudioGeneratorRenderStage generator2(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 
+                                        "build/shaders/multinote_sine_generator_render_stage.glsl");
+    AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    // Initialize all stages
+    REQUIRE(generator1.initialize());
+    REQUIRE(generator2.initialize());
+    REQUIRE(final_render_stage.initialize());
+
+    // Connect generator1 to final render stage
+    REQUIRE(generator1.connect_render_stage(&final_render_stage));
+
+    context.prepare_draw();
+    REQUIRE(generator1.bind());
+    REQUIRE(final_render_stage.bind());
+
+    // Add global_time parameter
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    global_time_param->initialize();
+
+    // Set envelope parameters for immediate response
+    auto attack_param1 = generator1.find_parameter("attack_time");
+    attack_param1->set_value(0.0f);
+    auto release_param1 = generator1.find_parameter("release_time");
+    release_param1->set_value(0.1f); // Short release for testing
+
+    // Play multiple notes on generator1
+    const float note1 = 261.63f; // C4
+    const float note2 = 293.66f; // D4
+    const float note3 = 329.63f; // E4
+    const float gain = 0.5f;
+
+    generator1.play_note({note1, gain});
+    generator1.play_note({note2, gain});
+    generator1.play_note({note3, gain});
+
+    // Render a few frames to let notes start playing
+    for (int frame = 0; frame < 5; frame++) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        generator1.render(frame);
+        final_render_stage.render(frame);
+    }
+
+    // Verify generator1 has 3 active notes
+    auto active_notes_param1 = generator1.find_parameter("active_notes");
+    REQUIRE(active_notes_param1 != nullptr);
+    int active_notes1 = *(int*)active_notes_param1->get_value();
+    REQUIRE(active_notes1 == 3);
+
+    // Stop one note (note2) - this should mark it as stopped but not delete it yet
+    generator1.stop_note(note2);
+
+    // Render a few more frames
+    for (int frame = 5; frame < 10; frame++) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        generator1.render(frame);
+        final_render_stage.render(frame);
+    }
+
+    // Verify generator1 still has 3 notes (one stopped, two playing)
+    active_notes1 = *(int*)active_notes_param1->get_value();
+    REQUIRE(active_notes1 == 3);
+
+    // Get stop_positions to verify one note is stopped
+    auto stop_positions_param1 = generator1.find_parameter("stop_positions");
+    REQUIRE(stop_positions_param1 != nullptr);
+    int* stop_positions1 = (int*)stop_positions_param1->get_value();
+    
+    // Find which note is stopped (should have stop_position != -1)
+    int stopped_count = 0;
+    int playing_count = 0;
+    for (int i = 0; i < active_notes1; i++) {
+        if (stop_positions1[i] == -1) {
+            playing_count++;
+        } else {
+            stopped_count++;
+        }
+    }
+    REQUIRE(stopped_count == 1); // One note should be stopped
+    REQUIRE(playing_count == 2); // Two notes should still be playing
+
+    // Disconnect generator1 - should upload only actively playing notes to clipboard
+    REQUIRE(generator1.disconnect_render_stage(&final_render_stage));
+
+    // Verify generator1's note state is cleared
+    active_notes1 = *(int*)active_notes_param1->get_value();
+    REQUIRE(active_notes1 == 0);
+
+    // Connect generator2 - should download notes from clipboard
+    REQUIRE(generator2.connect_render_stage(&final_render_stage));
+
+    // Set envelope parameters for generator2
+    auto attack_param2 = generator2.find_parameter("attack_time");
+    attack_param2->set_value(0.0f);
+    auto release_param2 = generator2.find_parameter("release_time");
+    release_param2->set_value(0.1f);
+
+    REQUIRE(generator2.bind());
+
+    // Verify generator2 has 2 active notes (only the playing ones, not the stopped one)
+    auto active_notes_param2 = generator2.find_parameter("active_notes");
+    REQUIRE(active_notes_param2 != nullptr);
+    int active_notes2 = *(int*)active_notes_param2->get_value();
+    REQUIRE(active_notes2 == 2); // Only actively playing notes should be transferred
+
+    // Verify the notes are the correct ones (note1 and note3, not note2)
+    auto tones_param2 = generator2.find_parameter("tones");
+    REQUIRE(tones_param2 != nullptr);
+    float* tones2 = (float*)tones_param2->get_value();
+    
+    bool found_note1 = false;
+    bool found_note3 = false;
+    bool found_note2 = false;
+    
+    for (int i = 0; i < active_notes2; i++) {
+        if (std::abs(tones2[i] - note1) < 0.01f) {
+            found_note1 = true;
+        } else if (std::abs(tones2[i] - note3) < 0.01f) {
+            found_note3 = true;
+        } else if (std::abs(tones2[i] - note2) < 0.01f) {
+            found_note2 = true;
+        }
+    }
+    
+    REQUIRE(found_note1);
+    REQUIRE(found_note3);
+    REQUIRE(!found_note2); // Stopped note should not be transferred
+
+    // Verify all transferred notes are still playing (stop_positions == -1)
+    auto stop_positions_param2 = generator2.find_parameter("stop_positions");
+    REQUIRE(stop_positions_param2 != nullptr);
+    int* stop_positions2 = (int*)stop_positions_param2->get_value();
+    
+    for (int i = 0; i < active_notes2; i++) {
+        REQUIRE(stop_positions2[i] == -1); // All transferred notes should be playing
+    }
+
+    // Render a few frames with generator2 to verify it works
+    for (int frame = 10; frame < 15; frame++) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        generator2.render(frame);
+        final_render_stage.render(frame);
+    }
+
+    // Verify clipboard is cleared after download
+    // When generator2 connected, it downloaded notes and cleared the clipboard.
+    // Now verify that when generator2 disconnects, it uploads its current notes.
+    // Then when generator3 connects, it should download those notes and clear the clipboard again.
+    
+    // Clear generator2's notes directly to test that empty state is uploaded
+    while (generator2.m_note_state.m_active_notes > 0) {
+        generator2.m_note_state.delete_note(0);
+    }
+    generator2.m_note_state.set_parameters(&generator2);
+    
+    // Verify generator2 has no active notes now
+    active_notes2 = *(int*)active_notes_param2->get_value();
+    REQUIRE(active_notes2 == 0);
+    
+    // Disconnect generator2 - should upload empty state (0 notes)
+    REQUIRE(generator2.disconnect_render_stage(&final_render_stage));
+    
+    // Connect generator3 - should download 0 notes (empty clipboard)
+    AudioGeneratorRenderStage generator3(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 
+                                        "build/shaders/multinote_sine_generator_render_stage.glsl");
+    REQUIRE(generator3.initialize());
+    REQUIRE(generator3.connect_render_stage(&final_render_stage));
+    
+    auto active_notes_param3 = generator3.find_parameter("active_notes");
+    REQUIRE(active_notes_param3 != nullptr);
+    int active_notes3 = *(int*)active_notes_param3->get_value();
+    REQUIRE(active_notes3 == 0); // Clipboard should be empty (generator2 uploaded empty state)
+
+    // Cleanup
+    generator1.unbind();
+    generator2.unbind();
+    generator3.unbind();
+    final_render_stage.unbind();
+    delete global_time_param;
+}

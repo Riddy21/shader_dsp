@@ -337,13 +337,6 @@ void AudioGeneratorRenderStage::play_note(const std::pair<float, float>& note)
 
     // Update the shader parameters
     m_note_state.set_parameters(this);
-    
-    // Print out the notes that are currently playing
-    printf("Notes currently playing: ");
-    for (unsigned int i = 0; i < m_note_state.m_active_notes; i++) {
-        printf("%f ", m_note_state.m_tones[i]);
-    }
-    printf("\n");
 }
 
 void AudioGeneratorRenderStage::stop_note(const float tone)
@@ -408,7 +401,6 @@ bool AudioGeneratorRenderStage::connect_render_stage(AudioRenderStage * next_sta
     // Clear clipboard after downloading to prevent stale notes from being transferred
     NoteState::clear_clipboard();
     m_note_state.set_parameters(this);
-    printf("Downloaded note state from clipboard with %d active notes.\n", m_note_state.m_active_notes);
 
     return true;
 }
@@ -418,10 +410,13 @@ bool AudioGeneratorRenderStage::disconnect_render_stage(AudioRenderStage * next_
         return false;
     }
 
+    // Upload only actively playing notes (filter out stopped notes) to clipboard
+    // This allows notes to be transferred to the next generator that connects
     NoteState::upload_clipboard(m_note_state);
+    
+    // Clear local note state
     m_note_state.clear();
     m_note_state.set_parameters(this);
-    printf("Copied note state to clipboard with %d active notes.\n", m_note_state.m_active_notes);
 
     return true;
 }

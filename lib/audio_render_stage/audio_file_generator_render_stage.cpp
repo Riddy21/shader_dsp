@@ -163,7 +163,7 @@ AudioFileGeneratorRenderStage::AudioFileGeneratorRenderStage(const std::string &
     m_history2->set_tape_position(0u);
     m_history2->start_tape();
 
-    // Initialize window before first render
+// Initialize window before first render
     m_history2->update_window();
 }
 
