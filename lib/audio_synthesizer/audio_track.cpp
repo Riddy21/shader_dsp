@@ -127,10 +127,15 @@ void AudioTrack::change_effect(const std::string & effect_name) {
     m_audio_renderer->activate_render_context();
 
     if (m_effect_modules.find(effect_name) != m_effect_modules.end()) {
-        m_module_manager.replace_module(m_current_effect->name(), m_effect_modules[effect_name]);
-        m_current_effect = m_effect_modules[effect_name];
+        // If m_current_effect is null (during initialization), just set it without replacing
+        if (m_current_effect == nullptr) {
+            m_current_effect = m_effect_modules[effect_name];
+        } else {
+            m_module_manager.replace_module(m_current_effect->name(), m_effect_modules[effect_name]);
+            m_current_effect = m_effect_modules[effect_name];
 
-        std::cout << "Switched effect to " << effect_name << std::endl;
+            std::cout << "Switched effect to " << effect_name << std::endl;
+        }
     } else {
         std::cerr << "Effect not found: " << effect_name << std::endl;
     }
@@ -144,10 +149,15 @@ void AudioTrack::change_voice(const std::string & voice_name) {
     m_audio_renderer->activate_render_context();
 
     if (m_voice_modules.find(voice_name) != m_voice_modules.end()) {
-        m_module_manager.replace_module(m_current_voice->name(), m_voice_modules[voice_name]);
-        m_current_voice = m_voice_modules[voice_name];
+        // If m_current_voice is null (during initialization), just set it without replacing
+        if (m_current_voice == nullptr) {
+            m_current_voice = m_voice_modules[voice_name];
+        } else {
+            m_module_manager.replace_module(m_current_voice->name(), m_voice_modules[voice_name]);
+            m_current_voice = m_voice_modules[voice_name];
 
-        std::cout << "Switched voice to " << voice_name << std::endl;
+            std::cout << "Switched voice to " << voice_name << std::endl;
+        }
     } else {
         std::cerr << "Voice not found: " << voice_name << std::endl;
     }

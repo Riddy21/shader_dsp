@@ -113,6 +113,9 @@ public:
     const float get_filter_follower() { return m_filter_follower; };
     const float get_resonance() { return m_resonance; };
 
+    // Force coefficient update (useful when switching to this stage)
+    void force_coefficient_update() { m_b_coefficients_dirty = true; };
+
     ~AudioFrequencyFilterEffectRenderStage() {};
 
 private:
