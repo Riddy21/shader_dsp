@@ -172,6 +172,6 @@ void AudioSingleShaderFileGeneratorRenderStage::render(const unsigned int time) 
 }
 
 void AudioFileGeneratorRenderStage::render(const unsigned int time) {
-    // Call base class render (AudioRenderStage) since AudioGeneratorRenderStage::render() is private
-    AudioRenderStage::render(time);
+    // Call base class render to handle note deletion logic
+    AudioGeneratorRenderStage::render(time);
 }

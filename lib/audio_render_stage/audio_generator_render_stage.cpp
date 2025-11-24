@@ -337,6 +337,13 @@ void AudioGeneratorRenderStage::play_note(const std::pair<float, float>& note)
 
     // Update the shader parameters
     m_note_state.set_parameters(this);
+    
+    // Print out the notes that are currently playing
+    printf("Notes currently playing: ");
+    for (unsigned int i = 0; i < m_note_state.m_active_notes; i++) {
+        printf("%f ", m_note_state.m_tones[i]);
+    }
+    printf("\n");
 }
 
 void AudioGeneratorRenderStage::stop_note(const float tone)
@@ -398,6 +405,8 @@ bool AudioGeneratorRenderStage::connect_render_stage(AudioRenderStage * next_sta
     }
 
     NoteState::download_clipboard(m_note_state);
+    // Clear clipboard after downloading to prevent stale notes from being transferred
+    NoteState::clear_clipboard();
     m_note_state.set_parameters(this);
     printf("Downloaded note state from clipboard with %d active notes.\n", m_note_state.m_active_notes);
 
@@ -506,7 +515,24 @@ void AudioGeneratorRenderStage::NoteState::upload_clipboard(NoteState& src) {
         delete clipboard;
         clipboard = nullptr;
     }
-    clipboard = new NoteState(src);
+    
+    // Create a filtered copy that only includes actively playing notes
+    // (filter out notes that have been stopped - stop_positions != -1)
+    NoteState* filtered = new NoteState(src.m_play_positions.size());
+    for (unsigned int i = 0; i < src.m_active_notes; i++) {
+        // Only include notes that are still playing (stop_positions == -1)
+        if (src.m_stop_positions[i] == -1) {
+            filtered->add_note(
+                src.m_play_positions[i],
+                src.m_stop_positions[i],
+                src.m_tones[i],
+                src.m_gains[i],
+                static_cast<unsigned int>(src.m_play_positions.size())
+            );
+        }
+    }
+    
+    clipboard = filtered;
 }
 
 bool AudioGeneratorRenderStage::NoteState::download_clipboard(NoteState& dst) {
