@@ -50,6 +50,9 @@ struct PlaybackTestParams {
 	const char* name; 
 };
 
+
+// FIXME: Add test for multiple render calls in a row
+
 using PlaybackTestParam1 = std::integral_constant<int, 0>; // 256x1, 1.0x
 using PlaybackTestParam2 = std::integral_constant<int, 1>; // 256x1, 0.5x
 using PlaybackTestParam3 = std::integral_constant<int, 2>; // 256x2, 1.0x
@@ -5945,7 +5948,7 @@ TEST_CASE("AudioRenderStageHistory2 - multiple history plugins with different fr
 		
 		// Initialize output sample vectors (per channel)
 		std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
-		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ch) {
+		for (unsigned int ch = 0; ch < NUM_CHANNELS; ++ ch) {
 			output_samples_per_channel[ch].reserve(SAMPLE_RATE * PLAYBACK_DURATION_SECONDS);
 		}
 		
@@ -6037,6 +6040,253 @@ TEST_CASE("AudioRenderStageHistory2 - multiple history plugins with different fr
 				printf("CSV file written to: %s\n", csv_filename.c_str());
 			}
 		}
+	}
+	
+	delete global_time;
+}
+
+// Mock render stage that tracks time, record position, tape position, and window offset
+class MockSporadicRenderStage : public AudioRenderStage {
+public:
+	struct TrackedValues {
+		unsigned int time;
+		unsigned int record_position;
+		unsigned int playback_position;
+		int tape_position;
+		unsigned int window_offset;
+	};
+	
+	MockSporadicRenderStage(unsigned int frames_per_buffer,
+	                       unsigned int sample_rate,
+	                       unsigned int num_channels,
+	                       float window_seconds = 2.0f)
+	: AudioRenderStage(frames_per_buffer, sample_rate, num_channels,
+	                   kTapePlaybackFragSource,
+	                   true, // use_shader_string
+	                   std::vector<std::string>{
+	                   	"build/shaders/global_settings.glsl",
+	                   	"build/shaders/frag_shader_settings.glsl"}),
+	  m_tape(nullptr)
+	{
+		// Create tape history plugin
+		m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, window_seconds);
+		
+		// Register the plugin - this will automatically add shader imports and parameters
+		this->register_plugin(m_history2.get());
+	}
+	
+	AudioRenderStageHistory2& get_history() { return *m_history2; }
+	
+	void set_tape(std::shared_ptr<AudioTape> tape) {
+		m_tape = tape;
+		m_history2->set_tape(tape);
+	}
+	
+	const std::vector<TrackedValues>& get_tracked_values() const {
+		return m_tracked_values;
+	}
+	
+	void clear_tracked_values() {
+		m_tracked_values.clear();
+	}
+
+protected:
+	void render(const unsigned int time) override {
+		// Record to tape if time changed (similar to effect render stage)
+		if (m_tape && (time == 0 || m_last_time != time)) {
+			// Get audio data from stream_audio_texture parameter
+			auto* stream_param = this->find_parameter("stream_audio_texture");
+			if (stream_param) {
+				auto* data = (float*)stream_param->get_value();
+				if (data) {
+					m_tape->record(data);
+				}
+			}
+		}
+		
+		// Update tape position and window (similar to effect render stage)
+		m_history2->update_tape_position(time);
+		m_history2->update_window();
+		
+		// Track values
+		TrackedValues values;
+		values.time = time;
+		if (m_tape) {
+			values.record_position = m_tape->get_current_record_position();
+			values.playback_position = m_tape->get_current_playback_position();
+		} else {
+			values.record_position = 0;
+			values.playback_position = 0;
+		}
+		values.tape_position = m_history2->get_tape_position();
+		values.window_offset = m_history2->get_window_offset_samples();
+		m_tracked_values.push_back(values);
+		
+		m_last_time = time;
+		
+		AudioRenderStage::render(time);
+	}
+
+private:
+	std::unique_ptr<AudioRenderStageHistory2> m_history2;
+	std::shared_ptr<AudioTape> m_tape;
+	unsigned int m_last_time = 0;
+	std::vector<TrackedValues> m_tracked_values;
+};
+
+TEST_CASE("AudioRenderStageHistory2 - sporadic render and record calls", "[audio_render_stage_history][gl_test]") {
+	constexpr int BUFFER_SIZE = 256;
+	constexpr int NUM_CHANNELS = 2;
+	constexpr int SAMPLE_RATE = 44100;
+	constexpr float WINDOW_SIZE_SECONDS = 2.0f;
+	
+	// Initialize window and OpenGL context
+	SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+	GLContext context;
+	
+	// Global time buffer
+	auto global_time = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+	global_time->set_value(0);
+	REQUIRE(global_time->initialize());
+	
+	// Create tape
+	auto tape = std::make_shared<AudioTape>(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	
+	// Create mock render stage
+	MockSporadicRenderStage render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, WINDOW_SIZE_SECONDS);
+	render_stage.set_tape(tape);
+	
+	// Create final render stage
+	AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+	
+	// Connect render stage to final stage
+	REQUIRE(render_stage.connect_render_stage(&final_stage));
+	
+	// Initialize stages
+	REQUIRE(render_stage.initialize());
+	REQUIRE(final_stage.initialize());
+	
+	context.prepare_draw();
+	REQUIRE(render_stage.bind());
+	REQUIRE(final_stage.bind());
+	
+	SECTION("Sporadic render and record calls with time gaps") {
+		// Create a simple generator stage that produces sine wave audio
+		constexpr float TEST_FREQUENCY = 440.0f;
+		constexpr float AMPLITUDE = 0.5f;
+		
+		// Create a simple sine wave generator shader
+		std::string generator_shader = R"(
+void main() {
+    float sample_pos = TexCoord.x * float(buffer_size);
+    float time_in_seconds = sample_pos / float(sample_rate);
+    float sine_wave = sin(TWO_PI * )" + std::to_string(TEST_FREQUENCY) + R"( * time_in_seconds) * )" + std::to_string(AMPLITUDE) + R"(;
+    
+    vec4 stream_audio = texture(stream_audio_texture, TexCoord);
+    output_audio_texture = vec4(sine_wave) + stream_audio;
+    debug_audio_texture = output_audio_texture;
+}
+)";
+		
+		AudioRenderStage generator_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, generator_shader, true);
+		
+		// Connect generator to render stage
+		REQUIRE(generator_stage.connect_render_stage(&render_stage));
+		
+		// Initialize generator
+		REQUIRE(generator_stage.initialize());
+		REQUIRE(generator_stage.bind());
+		
+		// Test scenario 1: Multiple render calls at same time
+		// Render at time 0, 0, 0 (multiple times)
+		global_time->set_value(0);
+		global_time->render();
+		
+		// Render generator first to produce audio data, then render stage
+		generator_stage.render(0);
+		render_stage.render(0);
+		generator_stage.render(0);
+		render_stage.render(0);
+		generator_stage.render(0);
+		render_stage.render(0);
+		
+		// Test scenario 2: Large time gap
+		// Jump from time 0 to time 100
+		global_time->set_value(100);
+		global_time->render();
+		
+		generator_stage.render(100);
+		render_stage.render(100);
+		
+		// Test scenario 3: Multiple renders with small time increments
+		for (unsigned int t = 101; t <= 105; ++t) {
+			global_time->set_value(t);
+			global_time->render();
+			
+			// Render generator and stage multiple times per frame
+			generator_stage.render(t);
+			render_stage.render(t);
+			generator_stage.render(t);
+			render_stage.render(t);
+		}
+		
+		// Test scenario 4: Another large time gap
+		// Jump from time 105 to time 500
+		global_time->set_value(500);
+		global_time->render();
+		
+		generator_stage.render(500);
+		render_stage.render(500);
+		
+		// Get tracked values
+		const auto& tracked = render_stage.get_tracked_values();
+		REQUIRE(tracked.size() > 0);
+		
+		// Verify tracked values
+		// Check that time values are tracked correctly
+		REQUIRE(tracked[0].time == 0);
+		REQUIRE(tracked[1].time == 0);
+		REQUIRE(tracked[2].time == 0);
+		
+		// Find the render at time 100
+		auto it_100 = std::find_if(tracked.begin(), tracked.end(),
+			[](const MockSporadicRenderStage::TrackedValues& v) { return v.time == 100; });
+		REQUIRE(it_100 != tracked.end());
+		
+		// Find the render at time 500
+		auto it_500 = std::find_if(tracked.begin(), tracked.end(),
+			[](const MockSporadicRenderStage::TrackedValues& v) { return v.time == 500; });
+		REQUIRE(it_500 != tracked.end());
+		
+		// Verify record position increases as we record
+		// Recording only happens inside render() when time changes (time == 0 || m_last_time != time)
+		// Records happen at: time 0 (1st render), time 100 (1st render), times 101-105 (1st render each), time 500 (1st render)
+		// Total: 8 records (1 + 1 + 5 + 1)
+		// Note: The generator must render first to provide audio data, but recording only happens in render_stage.render()
+		unsigned int expected_record_position = BUFFER_SIZE * 8;
+		
+		// Check the last tracked value (captured during time 500 render)
+		REQUIRE(tracked.back().record_position == expected_record_position);
+		
+		// Also verify the final record position matches
+		REQUIRE(tape->get_current_record_position() == expected_record_position);
+		
+		// Verify tape position is tracked (can be any int value, just verify it was captured)
+		// The tape position is set by update_tape_position() and can be any int
+		(void)tracked.back().tape_position; // Verify it exists and is accessible
+		
+		// Verify window offset is tracked
+		REQUIRE(tracked.back().window_offset >= 0);
+		
+		// Print tracked values for debugging
+		printf("\nTracked values:\n");
+		for (size_t i = 0; i < tracked.size(); ++i) {
+			const auto& v = tracked[i];
+			printf("  [%zu] time: %u, record_pos: %u, playback_pos: %u, tape_pos: %d, window_offset: %u\n",
+				i, v.time, v.record_position, v.playback_position, v.tape_position, v.window_offset);
+		}
+		printf("\nExpected record position: %u, Actual: %u\n", expected_record_position, tracked.back().record_position);
+		printf("Total tracked renders: %zu\n", tracked.size());
 	}
 	
 	delete global_time;

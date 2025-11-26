@@ -57,6 +57,10 @@ public:
     // Returns true on success, false on failure
     bool export_to_wav_file(const std::string& output_filepath) const;
 
+    // Get current record and playback positions
+    const unsigned int get_current_record_position() const { return m_current_record_position; }
+    const unsigned int get_current_playback_position() const { return m_current_playback_position; }
+
 private:
     // Playback for render stage history - outputs directly in texture format
     // Format: [ch0_row0][zeros][ch1_row0][zeros][ch0_row1][zeros][ch1_row1][zeros]...
