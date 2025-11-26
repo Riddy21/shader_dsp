@@ -471,6 +471,7 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     m_history2->update_tape_position(time);
     m_history2->update_window();
 
+    // FIXME: This is wrong
     printf("time: %d\n", time);
     printf("record position: %d\n", m_tape->get_current_record_position());
     printf("playback position: %d\n", m_tape->get_current_playback_position());
