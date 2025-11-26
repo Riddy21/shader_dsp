@@ -1145,7 +1145,7 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
     SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
     GLContext context;
 
-    AudioGeneratorRenderStage sine_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, "build/shaders/multinote_sine_generator_render_stage.glsl");
+    AudioGeneratorRenderStage sine_generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, "build/shaders/multinote_square_generator_render_stage.glsl");
 
     AudioFrequencyFilterEffectRenderStage filter_effect(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
 
