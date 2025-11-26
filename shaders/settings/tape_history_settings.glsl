@@ -98,3 +98,76 @@ float get_tape_window_size_seconds{PLUGIN_SUFFIX}() {
     return float(tape_window_size_samples{PLUGIN_SUFFIX}) / float(sample_rate);
 }
 
+// Get audio sample at a specific global tape index (in samples) for a given channel
+// The index is relative to the start of the tape (global index)
+// Returns 0.0 if index is out of range or outside the visible window
+float get_tape_history_sample_at_index{PLUGIN_SUFFIX}(int index, int channel) {
+    // Get texture dimensions
+    ivec2 audio_size = textureSize(tape_history_texture{PLUGIN_SUFFIX}, 0);
+    int audio_width = audio_size.x;
+    
+    // Calculate position relative to window offset (convert global index to window-relative index)
+    int position_in_window = index - tape_window_offset_samples{PLUGIN_SUFFIX};
+    
+    // Check if position is within the visible window
+    if (position_in_window < 0 || position_in_window >= tape_window_size_samples{PLUGIN_SUFFIX}) {
+        return 0.0; // Out of visible window
+    }
+    
+    // Check channel bounds
+    if (channel < 0 || channel >= num_channels) {
+        return 0.0; // Invalid channel
+    }
+    
+    // Calculate the x and y position in the texture
+    int x_position = position_in_window % audio_width;
+    int y_row_position = position_in_window / audio_width;
+    
+    // Calculate y_position for the channel (multiply by 2 because of zeros, then add channel offset)
+    int y_position = (y_row_position * num_channels + channel) * 2;
+    
+    // Convert to texture coordinates
+    vec2 texture_coord = vec2(float(x_position) / float(audio_size.x), (float(y_position) + 0.5) / float(audio_size.y));
+    
+    return texture(tape_history_texture{PLUGIN_SUFFIX}, texture_coord).r;
+}
+
+// Get audio sample counting from the back (index_from_back = 0 is the current tape position)
+// This uses the current tape position as reference and counts backwards
+// Returns 0.0 if index_from_back is out of range or outside the visible window
+float get_tape_history_sample_from_back{PLUGIN_SUFFIX}(int index_from_back, int channel) {
+    // Calculate the global index from the current tape position
+    // index_from_back = 0 means the current tape position (most recent)
+    // index_from_back = 1 means one sample back from current position, etc.
+    int index = tape_position{PLUGIN_SUFFIX} - index_from_back;
+    
+    // Get texture dimensions
+    ivec2 audio_size = textureSize(tape_history_texture{PLUGIN_SUFFIX}, 0);
+    int audio_width = audio_size.x;
+    
+    // Calculate position relative to window offset (convert global index to window-relative index)
+    int position_in_window = index - tape_window_offset_samples{PLUGIN_SUFFIX};
+    
+    // Check if position is within the visible window
+    if (position_in_window < 0 || position_in_window >= tape_window_size_samples{PLUGIN_SUFFIX}) {
+        return 0.0; // Out of visible window
+    }
+    
+    // Check channel bounds
+    if (channel < 0 || channel >= num_channels) {
+        return 0.0; // Invalid channel
+    }
+    
+    // Calculate the x and y position in the texture
+    int x_position = position_in_window % audio_width;
+    int y_row_position = position_in_window / audio_width;
+    
+    // Calculate y_position for the channel (multiply by 2 because of zeros, then add channel offset)
+    int y_position = (y_row_position * num_channels + channel) * 2;
+    
+    // Convert to texture coordinates
+    vec2 texture_coord = vec2(float(x_position) / float(audio_size.x), (float(y_position) + 0.5) / float(audio_size.y));
+    
+    return texture(tape_history_texture{PLUGIN_SUFFIX}, texture_coord).r;
+}
+

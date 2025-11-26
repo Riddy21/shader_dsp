@@ -18,7 +18,8 @@ float get_data(int index) {
     if (index < history_size) {
         // History texture
         int history_index = index + total_history_size - history_size;
-        return get_audio_history_sample(history_index, channel);
+        float history_sample = get_tape_history_sample_at_index(history_index, channel);
+        return get_audio_history_sample(history_index, channel) + 0.00001 * history_sample;
     } else {
         // stream texture
         int history_index = index - history_size;

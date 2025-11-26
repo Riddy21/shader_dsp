@@ -279,6 +279,24 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
         std::cerr << "Failed to add audio_history_texture" << std::endl;
     }
 
+    m_tape = std::make_shared<AudioTape>(frames_per_buffer, sample_rate, num_channels, MAX_TEXTURE_SIZE);
+    float history_window_size_seconds = float(MAX_TEXTURE_SIZE) / float(frames_per_buffer);
+    m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, history_window_size_seconds);
+
+    // Register the plugin - this will automatically add shader imports and parameters
+    if (!this->register_plugin(m_history2.get())) {
+        std::cerr << "Failed to register history plugin" << std::endl;
+    }
+    
+    // Set the tape for the history plugin
+    m_history2->set_tape(m_tape);
+    
+    // Set up tape for recording (speed = 1.0, position starts at 0)
+    m_history2->set_tape_speed(1.0f);
+    m_history2->set_tape_position(0u);
+    m_history2->start_tape();
+    m_history2->set_tape_loop(true);
+
     m_controls.clear();
     auto low_pass_control = std::make_shared<AudioControl<float>>(
         "low_pass",
@@ -312,6 +330,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
 }
 
 // Assume this function is a member of AudioFrequencyFilterEffectRenderStage.
+// TODO: Think of a way to offload this to the vertex shader stage
 const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin_b_coefficients(
     const float low_pass_param,
     const float high_pass_param,
@@ -445,6 +464,10 @@ const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin
 
 void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
+
+    m_tape->record(data);
+    m_history2->update_tape_position(time);
+    m_history2->update_window();
 
     if (m_b_coefficients_dirty) {
         float current_amplitude = std::accumulate(data, data + frames_per_buffer * num_channels, 0.0f, [](float sum, float value) {

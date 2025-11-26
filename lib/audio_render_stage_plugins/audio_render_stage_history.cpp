@@ -9,6 +9,7 @@
 #include <string>
 #include <limits>
 
+// TODO: Change this to use unsigned ints for time and position
 AudioRenderStageHistory::AudioRenderStageHistory(const unsigned int history_size,
                                                  const unsigned int frames_per_buffer,
                                                  const unsigned int sample_rate,
