@@ -188,8 +188,8 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage
     m_history2->set_tape_position(0u);
     m_history2->start_tape();
     m_history2->set_tape_loop(true);
-    
-    // Initialize window before first render to ensure it's ready
+
+    m_tape->clear();
     m_history2->update_window();
 }
 
@@ -292,6 +292,9 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     m_history2->start_tape();
     m_history2->set_tape_loop(true);
 
+    m_tape->clear();
+    m_history2->update_window();
+
     m_controls.clear();
     auto low_pass_control = std::make_shared<AudioControl<float>>(
         "low_pass",
@@ -322,9 +325,6 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     m_controls.push_back(resonance_control);
 
     update_b_coefficients();
-    
-    // Initialize window before first render to ensure it's ready
-    m_history2->update_window();
 }
 
 // Assume this function is a member of AudioFrequencyFilterEffectRenderStage.
