@@ -335,7 +335,7 @@ TEST_CASE("AudioRenderStageHistory2 helper functions - integration", "[audio_his
         REQUIRE(history.is_outdated() == true);
         
         // Update the texture first to set the window_offset parameter
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         
         // Now move position just inside the valid range
         // The valid range is: [window_offset + frame_size_samples, window_offset + window_size - frame_size_samples]
@@ -418,7 +418,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         // First update should change the window offset
         unsigned int position_before_update = history.get_tape_position();
         unsigned int expected_offset = position_before_update; // For positive speed, offset = position
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         
         // Window offset should now be set to the calculated offset
         // Position advances first, then offset is calculated from new position
@@ -437,7 +437,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         history.set_tape_position(0u);
         
         // First update - should set initial offset
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         unsigned int offset_after_first = history.get_window_offset_samples();
         // Position advances first (0 -> 256), then offset calculated from 256
         int speed_samples = history.get_tape_speed_samples_per_buffer();
@@ -453,7 +453,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         history.set_tape_position(safe_position);
         
         // Update - should not change offset (still in range)
-        history.update_audio_history_texture(2);
+        history.update_audio_history_texture();
         unsigned int offset_before_outdated = history.get_window_offset_samples();
         REQUIRE(offset_before_outdated == offset_after_first);
         
@@ -474,7 +474,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         unsigned int offset_before = history.get_window_offset_samples();
         
         // Update - should change offset to new calculated value since texture is outdated
-        history.update_audio_history_texture(3);
+        history.update_audio_history_texture();
         unsigned int offset_after_outdated = history.get_window_offset_samples();
         unsigned int position_after_update = history.get_tape_position();
         
@@ -495,7 +495,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         history.set_tape_speed(2.0f);
         history.set_tape_position(0u);
         
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         unsigned int offset_2x = history.get_window_offset_samples();
         // Position advances first (0 -> 512 for 2x speed), then offset calculated
         int speed_samples_2x = history.get_tape_speed_samples_per_buffer();
@@ -521,7 +521,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         // Store offset before update
         unsigned int offset_before_2x = history.get_window_offset_samples();
         
-        history.update_audio_history_texture(2);
+        history.update_audio_history_texture();
         
         unsigned int offset_after_update_2x = history.get_window_offset_samples();
         unsigned int position_after_update_2x = history.get_tape_position();
@@ -547,9 +547,9 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         history.m_last_time = 0;
         
         // Update multiple times to ensure speed is applied and position advances
-        history.update_audio_history_texture(1);
-        history.update_audio_history_texture(2);
-        history.update_audio_history_texture(3);
+        history.update_audio_history_texture();
+        history.update_audio_history_texture();
+        history.update_audio_history_texture();
         
         // Verify offset is calculated correctly (should be based on current position)
         unsigned int position_after_updates = history.get_tape_position();
@@ -565,7 +565,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         // Verify that offset updates correctly when position changes
         unsigned int test_position = window_size_samples * 2;
         history.set_tape_position(test_position);
-        history.update_audio_history_texture(4);
+        history.update_audio_history_texture();
         unsigned int offset_after_position_change = history.get_window_offset_samples();
         unsigned int position_after_position_change = history.get_tape_position();
         // Offset should be calculated from the new position
@@ -580,7 +580,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         // Calculate expected offset before update (position - window_size for negative speed)
         unsigned int expected_offset_before = test_position - window_size_samples;
         
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         
         // After update, the tape position will have been decremented by speed_samples_per_buffer
         // Offset is calculated AFTER position update, so from the new (decremented) position
@@ -611,7 +611,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         REQUIRE(current_position == 0u);
         
         // Update - should clamp position to 0 (can't go below 0)
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         
         // Position should be clamped to 0, not wrap around
         unsigned int position_after_update = history.get_tape_position();
@@ -630,7 +630,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         REQUIRE(offset_valid);
         
         // Try updating again - should still stay at 0
-        history.update_audio_history_texture(2);
+        history.update_audio_history_texture();
         REQUIRE(history.get_tape_position() == 0u);
         
         // Verify that speed ratio check works (should not update if speed is 0)
@@ -647,7 +647,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         unsigned int initial_offset = history.get_window_offset_samples();
         
         // Update - should NOT update texture (at boundary with negative speed)
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         
         // Window offset should NOT have changed (texture not updated)
         // However, get_window_offset_samples_for_tape_data() might return 0 for position 0
@@ -660,7 +660,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         REQUIRE(history.get_tape_position() == 0u);
         
         // Multiple updates should still not change the offset
-        history.update_audio_history_texture(2);
+        history.update_audio_history_texture();
         unsigned int offset_after_second = history.get_window_offset_samples();
         REQUIRE(offset_after_second == 0u); // Offset is 0 at position 0
     }
@@ -678,11 +678,11 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         history.set_tape_position(tape_size);
         
         // First update to set initial offset
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         unsigned int offset_after_first = history.get_window_offset_samples();
         
         // Update again - should NOT update texture (at boundary with positive speed)
-        history.update_audio_history_texture(2);
+        history.update_audio_history_texture();
         
         // Window offset should NOT have changed (texture not updated)
         unsigned int offset_after_update = history.get_window_offset_samples();
@@ -694,7 +694,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         REQUIRE(position_after >= tape_size);
         
         // Multiple updates should still not change the offset
-        history.update_audio_history_texture(3);
+        history.update_audio_history_texture();
         unsigned int offset_after_second = history.get_window_offset_samples();
         REQUIRE(offset_after_second == offset_after_first);
     }
@@ -716,7 +716,7 @@ TEST_CASE("AudioRenderStageHistory2 - window offset updates correctly", "[audio_
         history.set_window_offset_samples(1000000000u);
         
         // Update - should update texture (not at boundary)
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         
         // Window offset should have changed (texture updated)
         unsigned int offset_after_update = history.get_window_offset_samples();
@@ -769,7 +769,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
         history.set_tape_position(test_position);
         
         // First update - should set window offset and position advances automatically
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         unsigned int offset_1 = history.get_window_offset_samples();
         unsigned int position_1 = history.get_tape_position();
         
@@ -781,7 +781,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
         REQUIRE(offset_1 == position_1);
         
         // Call update again - position advances again
-        history.update_audio_history_texture(2);
+        history.update_audio_history_texture();
         unsigned int position_2 = history.get_tape_position();
         unsigned int expected_position_2 = position_1 + speed_samples;
         REQUIRE(position_2 == expected_position_2); // Position advances automatically
@@ -806,7 +806,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
         
         // Set position forward
         history.set_tape_position(forward_position);
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         unsigned int offset_forward = history.get_window_offset_samples();
         unsigned int position_after_forward = history.get_tape_position();
         
@@ -819,7 +819,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
         
         // Now set position backwards
         history.set_tape_position(backward_position);
-        history.update_audio_history_texture(2);
+        history.update_audio_history_texture();
         unsigned int offset_backward = history.get_window_offset_samples();
         unsigned int position_after_backward = history.get_tape_position();
         
@@ -839,7 +839,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
         history.set_tape_position(test_position);
         
         // First update
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         unsigned int position_1 = history.get_tape_position();
         unsigned int offset_1 = history.get_window_offset_samples();
         
@@ -854,7 +854,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
         unsigned int position_before_update = history.get_tape_position();
         REQUIRE(position_before_update == test_position); // Should be reset
         
-        history.update_audio_history_texture(2);
+        history.update_audio_history_texture();
         unsigned int position_2 = history.get_tape_position();
         unsigned int offset_2 = history.get_window_offset_samples();
         
@@ -872,7 +872,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
         
         // Set to position 1
         history.set_tape_position(pos1);
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         unsigned int position_1_after = history.get_tape_position();
         unsigned int offset_1 = history.get_window_offset_samples();
         int speed_samples = history.get_tape_speed_samples_per_buffer();
@@ -885,7 +885,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
         history.set_tape_position(pos2);
         // Verify position was set correctly before update
         REQUIRE(history.get_tape_position() == pos2);
-        history.update_audio_history_texture(2);
+        history.update_audio_history_texture();
         unsigned int position_2_after = history.get_tape_position();
         unsigned int offset_2 = history.get_window_offset_samples();
         unsigned int expected_position_2 = pos2 + speed_samples;
@@ -903,7 +903,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
         
         // Quickly change to position 3
         history.set_tape_position(pos3);
-        history.update_audio_history_texture(3);
+        history.update_audio_history_texture();
         unsigned int position_3_after = history.get_tape_position();
         unsigned int offset_3 = history.get_window_offset_samples();
         unsigned int expected_position_3 = pos3 + speed_samples;
@@ -931,7 +931,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
         
         // Set position forward
         history.set_tape_position(forward_position);
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         unsigned int offset_forward = history.get_window_offset_samples();
         unsigned int position_after_forward = history.get_tape_position();
         
@@ -950,7 +950,7 @@ TEST_CASE("AudioRenderStageHistory2 - time handling and position changes", "[aud
         
         // Set position backwards
         history.set_tape_position(backward_position);
-        history.update_audio_history_texture(2);
+        history.update_audio_history_texture();
         unsigned int offset_backward = history.get_window_offset_samples();
         unsigned int position_after_backward = history.get_tape_position();
         
@@ -1012,7 +1012,7 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
     }
     
     SECTION("Same time doesn't update") {
-        // First call
+        // First call at time = 1
         history.update_audio_history_texture(1);
         unsigned int position_after_first = history.get_tape_position();
         
@@ -1143,6 +1143,7 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
         // Test with speed 2.0
         history.set_tape_speed(2.0f);
         history.set_tape_position(0u);
+        history.m_last_time = 0; // Reset for first frame behavior
         history.update_audio_history_texture(1);
         unsigned int pos1_2x = history.get_tape_position();
         int speed_samples_2x = history.get_tape_speed_samples_per_buffer();
@@ -1150,7 +1151,7 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
         // Should advance by 1 * speed_samples_2x (which is 2x normal)
         REQUIRE(pos1_2x == speed_samples_2x);
         
-        // Skip frames with 2x speed
+        // Skip frames with 2x speed (time jumps from 1 to 5, delta = 4)
         history.update_audio_history_texture(5);
         unsigned int pos5_2x = history.get_tape_position();
         // Delta = 4, so advance by 4 * speed_samples_2x
@@ -1170,7 +1171,7 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
         // Just verify it advanced by at least speed_samples_half
         REQUIRE(pos1_half >= static_cast<unsigned int>(speed_samples_half));
         
-        // Skip frames with 0.5x speed
+        // Skip frames with 0.5x speed (time jumps from 1 to 5, delta = 4)
         history.update_audio_history_texture(5);
         unsigned int pos5_half = history.get_tape_position();
         REQUIRE(pos5_half == pos1_half + (4 * speed_samples_half));
@@ -1179,6 +1180,7 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
     SECTION("Negative speed with time delta") {
         history.set_tape_speed(-1.0f);
         history.set_tape_position(window_size_samples * 2);
+        history.m_last_time = 0; // Reset for first frame behavior
         
         unsigned int initial_position = history.get_tape_position();
         history.update_audio_history_texture(1);
@@ -1188,7 +1190,7 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
         // Should advance backwards by 1 buffer period
         REQUIRE(pos1 == initial_position + speed_samples_neg); // speed_samples_neg is negative
         
-        // Skip frames with negative speed
+        // Skip frames with negative speed (time jumps from 1 to 5, delta = 4)
         history.update_audio_history_texture(5);
         unsigned int pos5 = history.get_tape_position();
         // Delta = 4, so advance backwards by 4 * speed_samples_neg
@@ -1206,7 +1208,7 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
         unsigned int pos1 = history.get_tape_position();
         REQUIRE(pos1 == initial_position); // No advance with zero speed
         
-        // Skip frames with zero speed
+        // Skip frames with zero speed (time jumps from 1 to 10, delta = 9)
         history.update_audio_history_texture(10);
         unsigned int pos10 = history.get_tape_position();
         REQUIRE(pos10 == initial_position); // Still no advance
@@ -1215,6 +1217,7 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
     SECTION("Backwards time movement") {
         history.set_tape_speed(1.0f);
         history.set_tape_position(10000u); // Use larger position to avoid clamping
+        history.m_last_time = 0; // Reset for first frame behavior
         
         // First call at time = 10
         history.update_audio_history_texture(10);
@@ -1237,6 +1240,7 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
     SECTION("Backwards time movement with negative speed") {
         history.set_tape_speed(-1.0f);
         history.set_tape_position(window_size_samples * 2);
+        history.m_last_time = 0; // Reset for first frame behavior
         
         unsigned int initial_position = history.get_tape_position();
         
@@ -1260,6 +1264,7 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
     SECTION("Backwards time movement clamps to 0") {
         history.set_tape_speed(1.0f);
         history.set_tape_position(100u);
+        history.m_last_time = 0; // Reset for first frame behavior
         
         // First call at time = 10
         history.update_audio_history_texture(10);
@@ -1267,7 +1272,8 @@ TEST_CASE("AudioRenderStageHistory2 - time delta handling", "[audio_history2][ti
         int speed_samples = history.get_tape_speed_samples_per_buffer();
         
         // Time goes backwards by a large amount that would cause position to go below 0
-        history.update_audio_history_texture(1);
+        // Go from time 10 to time 0, which is a delta of -10
+        history.update_audio_history_texture(0);
         unsigned int position_after_large_backwards = history.get_tape_position();
         
         // Should clamp to 0
@@ -1352,7 +1358,7 @@ TEST_CASE("AudioRenderStageHistory2 - tape loop functionality", "[audio_history2
         
         // Call update multiple times to wrap around
         for (unsigned int t = 1; t <= frames_to_wrap; ++t) {
-            history.update_audio_history_texture(t);
+            history.update_audio_history_texture();
         }
         
         unsigned int final_position = history.get_tape_position();
@@ -1375,7 +1381,7 @@ TEST_CASE("AudioRenderStageHistory2 - tape loop functionality", "[audio_history2
         
         // Call update multiple times to wrap around
         for (unsigned int t = 1; t <= frames_to_wrap; ++t) {
-            history.update_audio_history_texture(t);
+            history.update_audio_history_texture();
         }
         
         unsigned int final_position = history.get_tape_position();
@@ -1397,7 +1403,7 @@ TEST_CASE("AudioRenderStageHistory2 - tape loop functionality", "[audio_history2
         
         // Call update enough times to reach the end
         for (unsigned int t = 1; t <= frames_to_end; ++t) {
-            history.update_audio_history_texture(t);
+            history.update_audio_history_texture();
             if (history.is_tape_stopped()) {
                 break;
             }
@@ -1422,7 +1428,7 @@ TEST_CASE("AudioRenderStageHistory2 - tape loop functionality", "[audio_history2
         
         // Call update enough times to reach the start
         for (unsigned int t = 1; t <= frames_to_start; ++t) {
-            history.update_audio_history_texture(t);
+            history.update_audio_history_texture();
             if (history.is_tape_stopped()) {
                 break;
             }
@@ -1446,7 +1452,7 @@ TEST_CASE("AudioRenderStageHistory2 - tape loop functionality", "[audio_history2
         
         // Call update multiple times to wrap around multiple times
         for (unsigned int t = 1; t <= frames_to_wrap_multiple; ++t) {
-            history.update_audio_history_texture(t);
+            history.update_audio_history_texture();
         }
         
         unsigned int final_position = history.get_tape_position();
@@ -1649,7 +1655,7 @@ TEST_CASE("AudioRenderStageHistory2 - fixed-size tape behavior", "[audio_history
         history.set_tape_speed(1.0f);
         
         // Update should advance playback position
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         unsigned int playback_pos_1 = history.get_tape_position();
         REQUIRE(playback_pos_1 > 0u);
         
@@ -1658,7 +1664,7 @@ TEST_CASE("AudioRenderStageHistory2 - fixed-size tape behavior", "[audio_history
         REQUIRE(record_pos_1 == tape_capacity);
         
         // Advance playback more
-        history.update_audio_history_texture(2);
+        history.update_audio_history_texture();
         unsigned int playback_pos_2 = history.get_tape_position();
         REQUIRE(playback_pos_2 > playback_pos_1);
         
@@ -1692,7 +1698,7 @@ TEST_CASE("AudioRenderStageHistory2 - fixed-size tape behavior", "[audio_history
         
         // Update should trigger window update to include playback position
         // Note: update_audio_history_texture advances the position first, then updates the window
-        history.update_audio_history_texture(1);
+        history.update_audio_history_texture();
         
         // Get the playback position after advancement
         unsigned int playback_position_after = history.get_tape_position();

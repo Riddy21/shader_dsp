@@ -106,6 +106,7 @@ public:
 
     // Update tape position based on time - must be called every frame
     void update_tape_position(const unsigned int time);
+    void increment_tape_position_by_one();
     
     // Check if the tape position is out of bounds of the current window
     bool is_outdated() const;
@@ -116,6 +117,10 @@ public:
     // TODO: Implement incrementally updating the texture with tape playback data
     // When paused (speed = 0) it will stop updating position
     // This function calls both update_tape_position() and update_window() for backward compatibility
+    void update_audio_history_texture();
+    
+    // Overload that takes time parameter and handles time deltas
+    // Updates tape position based on time delta, then updates window if outdated
     void update_audio_history_texture(const unsigned int time);
 
     std::string get_audio_history_texture_name() { 

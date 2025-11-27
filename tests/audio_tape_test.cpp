@@ -278,3 +278,142 @@ TEMPLATE_TEST_CASE("AudioTape playback - parameterized channels and seconds vs s
     }
 }
 
+TEST_CASE("AudioTape clear and record - variable size tape position increments", "[audio_tape][clear][record]") {
+    const unsigned int frames_per_buffer = 4;
+    const unsigned int sample_rate = 44100;
+    const unsigned int num_channels = 2;
+
+    AudioTape tape(frames_per_buffer, sample_rate, num_channels);
+
+    // Prepare test data
+    std::vector<float> frame1 = {
+        // ch0
+        1.f, 2.f, 3.f, 4.f,
+        // ch1
+        10.f, 20.f, 30.f, 40.f
+    };
+
+    std::vector<float> frame2 = {
+        // ch0
+        5.f, 6.f, 7.f, 8.f,
+        // ch1
+        50.f, 60.f, 70.f, 80.f
+    };
+
+    std::vector<float> frame3 = {
+        // ch0
+        9.f, 10.f, 11.f, 12.f,
+        // ch1
+        90.f, 100.f, 110.f, 120.f
+    };
+
+    // Record first frame
+    REQUIRE(tape.get_current_record_position() == 0);
+    tape.record(frame1.data());
+    REQUIRE(tape.get_current_record_position() == frames_per_buffer);
+
+    // Record second frame (should advance position)
+    tape.record(frame2.data());
+    REQUIRE(tape.get_current_record_position() == 2 * frames_per_buffer);
+
+    // Verify data was recorded
+    REQUIRE(tape.size() == 2 * frames_per_buffer);
+    REQUIRE(tape.m_data[0][0] == Catch::Approx(1.f));
+    REQUIRE(tape.m_data[0][frames_per_buffer] == Catch::Approx(5.f));
+
+    // Clear the tape
+    tape.clear();
+    REQUIRE(tape.get_current_record_position() == 0);
+    REQUIRE(tape.size() == 0); // Variable-size tape should be empty after clear
+
+    // Record again after clear
+    tape.record(frame3.data());
+    REQUIRE(tape.get_current_record_position() == frames_per_buffer);
+
+    // Record another frame to verify position continues incrementing
+    tape.record(frame1.data());
+    REQUIRE(tape.get_current_record_position() == 2 * frames_per_buffer);
+
+    // Verify new data was recorded correctly
+    REQUIRE(tape.size() == 2 * frames_per_buffer);
+    REQUIRE(tape.m_data[0][0] == Catch::Approx(9.f));
+    REQUIRE(tape.m_data[0][frames_per_buffer] == Catch::Approx(1.f));
+    REQUIRE(tape.m_data[1][0] == Catch::Approx(90.f));
+    REQUIRE(tape.m_data[1][frames_per_buffer] == Catch::Approx(10.f));
+}
+
+TEST_CASE("AudioTape clear and record - fixed size tape position increments", "[audio_tape][clear][record]") {
+    const unsigned int frames_per_buffer = 4;
+    const unsigned int sample_rate = 44100;
+    const unsigned int num_channels = 2;
+    const unsigned int capacity = 16; // Fixed capacity per channel
+
+    AudioTape tape(frames_per_buffer, sample_rate, num_channels, capacity);
+
+    // Prepare test data
+    std::vector<float> frame1 = {
+        // ch0
+        1.f, 2.f, 3.f, 4.f,
+        // ch1
+        10.f, 20.f, 30.f, 40.f
+    };
+
+    std::vector<float> frame2 = {
+        // ch0
+        5.f, 6.f, 7.f, 8.f,
+        // ch1
+        50.f, 60.f, 70.f, 80.f
+    };
+
+    std::vector<float> frame3 = {
+        // ch0
+        9.f, 10.f, 11.f, 12.f,
+        // ch1
+        90.f, 100.f, 110.f, 120.f
+    };
+
+    // Record first frame
+    REQUIRE(tape.get_current_record_position() == 0);
+    tape.record(frame1.data());
+    REQUIRE(tape.get_current_record_position() == frames_per_buffer);
+
+    // Record second frame (should advance position)
+    tape.record(frame2.data());
+    REQUIRE(tape.get_current_record_position() == 2 * frames_per_buffer);
+
+    // Verify data was recorded and capacity is preserved
+    REQUIRE(tape.size() == capacity);
+    REQUIRE(tape.m_data[0][0] == Catch::Approx(1.f));
+    REQUIRE(tape.m_data[0][frames_per_buffer] == Catch::Approx(5.f));
+
+    // Clear the tape
+    tape.clear();
+    REQUIRE(tape.get_current_record_position() == 0);
+    REQUIRE(tape.size() == capacity); // Fixed-size tape should preserve size
+
+    // Verify tape is filled with zeros after clear
+    for (unsigned int i = 0; i < capacity; ++i) {
+        REQUIRE(tape.m_data[0][i] == Catch::Approx(0.f));
+        REQUIRE(tape.m_data[1][i] == Catch::Approx(0.f));
+    }
+
+    // Record again after clear
+    tape.record(frame3.data());
+    REQUIRE(tape.get_current_record_position() == frames_per_buffer);
+
+    // Record another frame to verify position continues incrementing
+    tape.record(frame1.data());
+    REQUIRE(tape.get_current_record_position() == 2 * frames_per_buffer);
+
+    // Verify new data was recorded correctly
+    REQUIRE(tape.size() == capacity);
+    REQUIRE(tape.m_data[0][0] == Catch::Approx(9.f));
+    REQUIRE(tape.m_data[0][frames_per_buffer] == Catch::Approx(1.f));
+    REQUIRE(tape.m_data[1][0] == Catch::Approx(90.f));
+    REQUIRE(tape.m_data[1][frames_per_buffer] == Catch::Approx(10.f));
+
+    // Verify that positions beyond what we wrote are still zero
+    REQUIRE(tape.m_data[0][2 * frames_per_buffer] == Catch::Approx(0.f));
+    REQUIRE(tape.m_data[1][2 * frames_per_buffer] == Catch::Approx(0.f));
+}
+

@@ -346,6 +346,13 @@ bool AudioRenderStageHistory2::is_tape_at_end() const {
     return position >= 0 && static_cast<unsigned int>(position) >= tape->size();
 }
 
+void AudioRenderStageHistory2::increment_tape_position_by_one() {
+    if (is_tape_stopped()) {
+        return;
+    }
+    advance_tape_position_with_delta(1);
+}
+
 void AudioRenderStageHistory2::update_tape_position(const unsigned int time) {
     // Early returns for invalid states
     int time_delta = calculate_time_delta(time);
@@ -357,6 +364,7 @@ void AudioRenderStageHistory2::update_tape_position(const unsigned int time) {
     if (is_tape_stopped()) {
         return;
     }
+
     advance_tape_position_with_delta(time_delta);
 }
 
@@ -632,8 +640,18 @@ void AudioRenderStageHistory2::update_window() {
     set_window_offset_samples(window_offset_samples);
 }
 
-void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
+void AudioRenderStageHistory2::update_audio_history_texture() {
     // Backward compatibility: call update_tape_position and then update_window if needed
+    increment_tape_position_by_one();
+    
+    // Update window if outdated
+    if (is_outdated()) {
+        update_window();
+    }
+}
+
+void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
+    // Update tape position based on time delta
     update_tape_position(time);
     
     // Update window if outdated

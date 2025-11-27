@@ -33,6 +33,7 @@
 #include <map>
 #include <sstream>
 #include <filesystem>
+#include <climits>
 
 struct TestParams { int buffer_size; int num_channels; const char* name; };
 using TestParam1 = std::integral_constant<int, 0>; // 256 x 2
@@ -146,7 +147,7 @@ public:
 protected:
 	void render(const unsigned int time) override {
 
-		m_history2->update_tape_position(time);
+		m_history2->increment_tape_position_by_one();
 		m_history2->update_window();
 		AudioRenderStage::render(time);
 	}
@@ -193,7 +194,7 @@ public:
 protected:
 	void render(const unsigned int time) override {
 		// Always update positions every frame
-		m_history2->update_tape_position(time);
+		m_history2->increment_tape_position_by_one();
 		
 		// Update texture only at specified intervals
 		// Always update on first frame (time == 0), then at intervals
@@ -246,7 +247,7 @@ public:
 protected:
 	void render(const unsigned int time) override {
 		// Always update positions every frame
-		m_history2->update_tape_position(time);
+		m_history2->increment_tape_position_by_one();
 		
 		// Update texture only when needed (checks is_outdated)
 		// This will only update when the tape position moves outside the valid texture window range
@@ -2944,7 +2945,7 @@ TEST_CASE("AudioRenderStageHistory2 - tape position verification during recordin
 		}
 	}
 	
-	SECTION("Position should not advance with update_tape_position when tape is stopped") {
+	SECTION("Position should not advance with increment_tape_position_by_one when tape is stopped") {
 		// Record initial audio
 		std::vector<float> phases(NUM_CHANNELS, 0.0f);
 		for (int frame = 0; frame < NUM_RECORD_FRAMES; ++frame) {
@@ -2971,18 +2972,13 @@ TEST_CASE("AudioRenderStageHistory2 - tape position verification during recordin
 		history.stop_tape();
 		REQUIRE(history.is_tape_stopped() == true);
 		
-		// Now call update_tape_position - this should NOT advance when stopped
-		global_time->set_value(0);
-		global_time->render();
-		history.update_tape_position(0); // Initialize time tracking
-		
-		global_time->set_value(1);
-		global_time->render();
-		history.update_tape_position(1);
+		// Now call increment_tape_position_by_one - this should NOT advance when stopped
+		history.increment_tape_position_by_one();
+		history.increment_tape_position_by_one();
 		
 		unsigned int position_after_update = history.get_tape_position();
 		INFO("Position before update: " << position_before_update);
-		INFO("Position after update_tape_position (stopped): " << position_after_update);
+		INFO("Position after increment_tape_position_by_one (stopped): " << position_after_update);
 		
 		// Position should NOT have advanced when tape is stopped
 		REQUIRE(position_after_update == position_before_update);
@@ -3139,7 +3135,7 @@ TEST_CASE("AudioRenderStageHistory2 - fixed-size tape position keeps growing", "
 			// Update time and advance playback position
 			global_time->set_value(frame);
 			global_time->render();
-			history.update_tape_position(frame);
+			history.increment_tape_position_by_one();
 			history.update_window();
 			
 			// Record position should keep growing (not wrap)
@@ -3182,7 +3178,7 @@ TEST_CASE("AudioRenderStageHistory2 - fixed-size tape position keeps growing", "
 			
 			global_time->set_value(frame);
 			global_time->render();
-			history.update_tape_position(frame);
+			history.increment_tape_position_by_one();
 			history.update_window();
 			
 			// Window offset should be based on record position, not playback position
@@ -3299,7 +3295,7 @@ TEST_CASE("AudioRenderStageHistory2 - fixed-size tape position keeps growing", "
 			
 			global_time->set_value(frame);
 			global_time->render();
-			history.update_tape_position(frame);
+			history.increment_tape_position_by_one();
 			history.update_window();
 		}
 		
@@ -3325,7 +3321,7 @@ TEST_CASE("AudioRenderStageHistory2 - fixed-size tape position keeps growing", "
 			
 			global_time->set_value(frame);
 			global_time->render();
-			history.update_tape_position(frame); // Should not advance when stopped
+			history.increment_tape_position_by_one(); // Should not advance when stopped
 			history.update_window();
 			
 			// Record position should keep growing
@@ -3458,7 +3454,7 @@ TEST_CASE("AudioRenderStageHistory2 - fixed-size tape playback with delay and sm
 		} else {
 			// Enough data recorded, start playback if it was stopped
 			if (history.is_tape_stopped()) {
-				history.update_tape_position(frame);
+				history.increment_tape_position_by_one();
 				history.start_tape();
 				// Restore speed (stop_tape() sets it to 0, so we need to restore it)
 				history.set_tape_speed(1.0f);
@@ -3472,7 +3468,7 @@ TEST_CASE("AudioRenderStageHistory2 - fixed-size tape playback with delay and sm
 		
 		// STEP 3: Render playback stage (reads from history texture and updates playback position)
 		// This will playback audio from the tape using the history plugin texture
-		// The render() method calls update_tape_position() internally
+		// The render() method calls increment_tape_position_by_one() internally
 		playback_stage.render(frame);
 		
 		// STEP 4: Render final stage
@@ -5815,11 +5811,11 @@ public:
 protected:
 	void render(const unsigned int time) override {
 		// Update all three history plugins
-		m_history1->update_tape_position(time);
+		m_history1->increment_tape_position_by_one();
 		m_history1->update_window();
-		m_history2->update_tape_position(time);
+		m_history2->increment_tape_position_by_one();
 		m_history2->update_window();
-		m_history3->update_tape_position(time);
+		m_history3->increment_tape_position_by_one();
 		m_history3->update_window();
 		
 		AudioRenderStage::render(time);
@@ -6093,7 +6089,8 @@ public:
 protected:
 	void render(const unsigned int time) override {
 		// Record to tape if time changed (similar to effect render stage)
-		if (m_tape && (time == 0 || m_last_time != time)) {
+		// Only record when time actually changes, not on every render at the same time
+		if (m_tape && m_last_time != time) {
 			// Get audio data from stream_audio_texture parameter
 			auto* stream_param = this->find_parameter("stream_audio_texture");
 			if (stream_param) {
@@ -6105,7 +6102,7 @@ protected:
 		}
 		
 		// Update tape position and window (similar to effect render stage)
-		m_history2->update_tape_position(time);
+		m_history2->increment_tape_position_by_one();
 		m_history2->update_window();
 		
 		// Track values
@@ -6130,7 +6127,7 @@ protected:
 private:
 	std::unique_ptr<AudioRenderStageHistory2> m_history2;
 	std::shared_ptr<AudioTape> m_tape;
-	unsigned int m_last_time = 0;
+	unsigned int m_last_time = UINT_MAX; // Initialize to sentinel value so first render always records
 	std::vector<TrackedValues> m_tracked_values;
 };
 
@@ -6259,9 +6256,10 @@ void main() {
 		REQUIRE(it_500 != tracked.end());
 		
 		// Verify record position increases as we record
-		// Recording only happens inside render() when time changes (time == 0 || m_last_time != time)
+		// Recording only happens inside render() when time changes (m_last_time != time)
 		// Records happen at: time 0 (1st render), time 100 (1st render), times 101-105 (1st render each), time 500 (1st render)
 		// Total: 8 records (1 + 1 + 5 + 1)
+		// Note: Multiple renders at the same time (e.g., 3 renders at time 0) only result in 1 record
 		// Note: The generator must render first to provide audio data, but recording only happens in render_stage.render()
 		unsigned int expected_record_position = BUFFER_SIZE * 8;
 		
@@ -6272,7 +6270,7 @@ void main() {
 		REQUIRE(tape->get_current_record_position() == expected_record_position);
 		
 		// Verify tape position is tracked (can be any int value, just verify it was captured)
-		// The tape position is set by update_tape_position() and can be any int
+		// The tape position is set by increment_tape_position_by_one() and can be any int
 		(void)tracked.back().tape_position; // Verify it exists and is accessible
 		
 		// Verify window offset is tracked

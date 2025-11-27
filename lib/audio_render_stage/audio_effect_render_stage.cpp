@@ -188,28 +188,25 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage
     m_history2->set_tape_position(0u);
     m_history2->start_tape();
     m_history2->set_tape_loop(true);
+    
+    // Initialize window before first render to ensure it's ready
+    m_history2->update_window();
 }
 
 void AudioEchoEffectRenderStage::render(unsigned int time) {
+    auto current_time = m_time;
 
     AudioRenderStage::render(time);
 
     // Get the audio data
     auto * data = (float *)this->find_parameter("output_audio_texture")->get_value();
 
-    // Record output audio to tape and update history
-    m_tape->record(data);
-    
-    // For fixed-size tapes, record position keeps growing independently (managed by tape)
-    // Playback position advances separately based on speed/time (managed by history stage)
-    // The difference between record and playback positions grows at the right pace
-    // If playback is paused, it will drift out of frame if left long enough
-    m_history2->update_tape_position(time);
-    
-    // TODO: Consider how to make this update less often, but still show the most recent audio
-    // Update the history window to show the most recent audio
-    // Window is based on record position, so it always shows the most recent data
-    m_history2->update_window();
+    if (current_time != time) {
+        // Record output audio to tape and update history
+        m_tape->record(data);
+        m_history2->increment_tape_position_by_one();
+        m_history2->update_window();
+    }
 }
 
 bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * render_stage) {
@@ -219,11 +216,9 @@ bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * rend
         return false;
     }
 
-    // Clear the tape
-    if (m_tape) {
-        m_tape->clear();
-    }
-    
+    m_tape->clear();
+    m_history2->set_tape_position(0u);
+
     return true;
 }
 
@@ -327,6 +322,9 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     m_controls.push_back(resonance_control);
 
     update_b_coefficients();
+    
+    // Initialize window before first render to ensure it's ready
+    m_history2->update_window();
 }
 
 // Assume this function is a member of AudioFrequencyFilterEffectRenderStage.
@@ -465,18 +463,11 @@ const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin
 void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
-    if (time == 0 || m_time != time) {
+    if (m_time != time) {
         m_tape->record(data);
+        m_history2->increment_tape_position_by_one();
+        m_history2->update_window();
     }
-    m_history2->update_tape_position(time);
-    m_history2->update_window();
-
-    // FIXME: This is wrong
-    printf("time: %d\n", time);
-    printf("record position: %d\n", m_tape->get_current_record_position());
-    printf("playback position: %d\n", m_tape->get_current_playback_position());
-    printf("tape position: %d\n", m_history2->get_tape_position());
-    printf("window offset: %d\n", m_history2->get_window_offset_samples());
 
     if (m_b_coefficients_dirty) {
         float current_amplitude = std::accumulate(data, data + frames_per_buffer * num_channels, 0.0f, [](float sum, float value) {
@@ -511,6 +502,9 @@ bool AudioFrequencyFilterEffectRenderStage::disconnect_render_stage(AudioRenderS
         std::cerr << "Failed to disconnect render stage" << std::endl;
         return false;
     }
+
+    m_tape->clear();
+    m_history2->set_tape_position(0u);
 
     // Clear history buffer
     m_audio_history->clear_history_buffer();

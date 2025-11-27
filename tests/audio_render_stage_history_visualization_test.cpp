@@ -128,7 +128,7 @@ static const char* kTapePlaybackFragSource = R"(
     protected:
         void render(const unsigned int time) override {
     
-            m_history2->update_audio_history_texture(time);
+            m_history2->update_audio_history_texture();
 
             auto original_framebuffer = m_framebuffer;
 

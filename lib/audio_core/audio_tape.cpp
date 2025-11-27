@@ -450,8 +450,17 @@ const std::vector<float> AudioTape::playback_for_render_stage_history(
 }
 
 void AudioTape::clear() {
-    for (auto &ch : m_data) {
-        ch.clear();
+    if (m_fixed_size && !m_data.empty()) {
+        // For fixed-size tapes, preserve the size and fill with zeros
+        const unsigned int fixed_size = static_cast<unsigned int>(m_data[0].size());
+        for (auto &ch : m_data) {
+            ch.assign(fixed_size, 0.0f);
+        }
+    } else {
+        // For dynamic-size tapes, clear completely
+        for (auto &ch : m_data) {
+            ch.clear();
+        }
     }
     m_current_record_position = 0;
     m_current_playback_position = 0;
