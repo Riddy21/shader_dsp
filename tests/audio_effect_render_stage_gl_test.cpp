@@ -9,6 +9,7 @@
 #include "audio_render_stage/audio_generator_render_stage.h"
 #include "audio_output/audio_player_output.h"
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
+#include "audio_parameter/audio_uniform_parameter.h"
 
 #include <iostream>
 #include <vector>
@@ -274,6 +275,7 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Parameterized Echo Test",
     constexpr int TOTAL_SAMPLES = 50000; // Total samples to capture for echo analysis
     constexpr int NUM_FRAMES = (TOTAL_SAMPLES + BUFFER_SIZE - 1) / BUFFER_SIZE; // Calculate frames needed
     constexpr int IMPULSE_DURATION = 1; // Impulse lasts for 1 sample
+    constexpr int IMPULSE_DELAY = 100; // Impulse starts at this frame sample (default: 1, skipping first frame)
 
     // Initialize window and OpenGL context
     SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
@@ -282,16 +284,18 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Parameterized Echo Test",
     // Create impulse generator shader - produces a short burst followed by silence
     // This will clearly show the echo effect as discrete peaks
     std::string impulse_shader = R"(
+uniform int impulse_delay;
+
 void main() {
     vec4 stream_audio = texture(stream_audio_texture, TexCoord);
     
-    // Generate an impulse: first few samples are 1.0, rest are 0.0
+    // Generate an impulse: samples starting at impulse_delay are 1.0, rest are 0.0
     // Use global time to ensure impulse only occurs at the beginning
     int sample_index = int(TexCoord.x * float(buffer_size));
     int frame_sample = int(global_time_val) * buffer_size + sample_index;
     
     float impulse_value = 0.0;
-    if (frame_sample < )" + std::to_string(IMPULSE_DURATION) + R"() {
+    if (frame_sample >= impulse_delay && frame_sample < impulse_delay + )" + std::to_string(IMPULSE_DURATION) + R"() {
         impulse_value = )" + std::to_string(IMPULSE_AMPLITUDE) + R"(;
     }
     
@@ -318,6 +322,11 @@ void main() {
     auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
     global_time_param->set_value(0);
     global_time_param->initialize();
+
+    // Add impulse_delay parameter to impulse generator
+    auto impulse_delay_param = new AudioIntParameter("impulse_delay", AudioParameter::ConnectionType::INPUT);
+    impulse_delay_param->set_value(IMPULSE_DELAY);
+    REQUIRE(impulse_generator.add_parameter(impulse_delay_param));
 
     // Configure echo effect parameters
     auto delay_param = echo_effect.find_parameter("delay");

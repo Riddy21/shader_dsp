@@ -202,7 +202,6 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
     auto * data = (float *)this->find_parameter("output_audio_texture")->get_value();
 
     if (current_time != time) {
-        // Record output audio to tape and update history
         m_tape->record(data);
         m_history2->increment_tape_position_by_one();
         m_history2->update_window();

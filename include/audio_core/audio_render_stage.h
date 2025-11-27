@@ -212,7 +212,7 @@ protected:
     virtual void render(const unsigned int time);
 
     // Time
-    unsigned int m_time = 0;
+    unsigned int m_time = std::numeric_limits<unsigned int>::max(); // Start it at max int value to ensure it is updated on first render
 
     // Initialized
     bool m_initialized = false;
