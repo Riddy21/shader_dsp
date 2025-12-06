@@ -7,9 +7,20 @@
 
 bool AudioPlayerOutput::open() {
     const char* device_name = nullptr;
-    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
-        error(SDL_GetError());
-        return false;
+    // Check if SDL is already initialized
+    // If not initialized, use SDL_Init; if already initialized, use SDL_InitSubSystem
+    if (SDL_WasInit(0) == 0) {
+        // SDL not initialized yet, initialize it with audio subsystem
+        if (SDL_Init(SDL_INIT_AUDIO) < 0) {
+            error(SDL_GetError());
+            return false;
+        }
+    } else {
+        // SDL already initialized, just add the audio subsystem
+        if (SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) {
+            error(SDL_GetError());
+            return false;
+        }
     }
 
     SDL_AudioSpec desired_spec;
