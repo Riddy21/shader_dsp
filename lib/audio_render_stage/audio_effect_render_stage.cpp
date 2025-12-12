@@ -274,7 +274,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     }
 
     m_tape = std::make_shared<AudioTape>(frames_per_buffer, sample_rate, num_channels, MAX_TEXTURE_SIZE);
-    float history_window_size_seconds = float(MAX_TEXTURE_SIZE) / float(frames_per_buffer);
+    float history_window_size_seconds = float(MAX_TEXTURE_SIZE) / float(sample_rate);
     m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, history_window_size_seconds);
 
     // Register the plugin - this will automatically add shader imports and parameters
