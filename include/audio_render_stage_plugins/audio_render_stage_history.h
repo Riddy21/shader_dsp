@@ -118,10 +118,6 @@ public:
     // When paused (speed = 0) it will stop updating position
     // This function calls both update_tape_position() and update_window() for backward compatibility
     void update_audio_history_texture();
-    
-    // Overload that takes time parameter and handles time deltas
-    // Updates tape position based on time delta, then updates window if outdated
-    void update_audio_history_texture(const unsigned int time);
 
     std::string get_audio_history_texture_name() { 
         return m_plugin_name.empty() ? "tape_history_texture" : ("tape_history_texture_" + m_plugin_name);

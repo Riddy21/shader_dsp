@@ -650,16 +650,6 @@ void AudioRenderStageHistory2::update_audio_history_texture() {
     }
 }
 
-void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
-    // Update tape position based on time delta
-    update_tape_position(time);
-    
-    // Update window if outdated
-    if (is_outdated()) {
-        update_window();
-    }
-}
-
 int AudioRenderStageHistory2::calculate_time_delta(const unsigned int time) {
     // First frame: default increment to 1 buffer period
     if (m_last_time == 0) {
