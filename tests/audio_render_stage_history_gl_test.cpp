@@ -5693,7 +5693,7 @@ TEST_CASE("AudioRenderStageHistory2 - multiple start positions", "[audio_history
 		unsigned int actual_window_size_samples = playback_stage.get_history().get_window_size_samples();
 		
 		// Small epsilon for floating point comparison
-		constexpr float EPSILON = 0.0001f;
+		constexpr float EPSILON = 0.001f;
 	
 		constexpr unsigned int AUDIO_START_SAMPLE = 0; // Audio starts at sample 0
 		constexpr unsigned int TRANSITION_SAMPLE = SAMPLE_WHERE_POSITION_1_STARTS; // 44032

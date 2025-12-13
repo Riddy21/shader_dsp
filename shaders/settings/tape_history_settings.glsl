@@ -62,8 +62,8 @@ vec4 get_tape_history_samples{PLUGIN_SUFFIX}(vec2 TexCoord, int sample_frame_siz
     int y_position = ( y_row_position * num_channels + channel) * 2;
 
     // Convert the x y into texture coordinates
-    vec2 texture_coord = vec2((float(x_position) + 0.500001) / float(audio_size.x),
-                              (float(y_position) + 0.500001) / float(audio_size.y)); // Offset for max data
+    vec2 texture_coord = vec2((float(x_position) + 0.5001) / float(audio_size.x),
+                              (float(y_position) + 0.5001) / float(audio_size.y)); // Offset for max data
     
     return texture(tape_history_texture{PLUGIN_SUFFIX}, texture_coord);
 }
