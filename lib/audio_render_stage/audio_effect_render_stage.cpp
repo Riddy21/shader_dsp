@@ -203,7 +203,7 @@ void AudioEchoEffectRenderStage::render(unsigned int time) {
 
     if (current_time != time) {
         m_tape->record(data);
-        m_history2->increment_tape_position_by_one();
+        m_history2->update_audio_history_texture(time);
         m_history2->update_window();
     }
 }
@@ -464,7 +464,7 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
 
     if (m_time != time) {
         m_tape->record(data);
-        m_history2->increment_tape_position_by_one();
+        m_history2->update_audio_history_texture(time);
         m_history2->update_window();
     }
 
