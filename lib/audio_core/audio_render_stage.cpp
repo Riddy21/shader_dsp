@@ -233,6 +233,10 @@ bool AudioRenderStage::unbind() {
 }
 
 void AudioRenderStage::render(const unsigned int time) {
+    if (m_time != time) {
+        m_local_time++;
+    }
+
     m_time = time;
 
     // Use the shader program of the stage
@@ -644,6 +648,7 @@ bool AudioRenderStage::disconnect_render_stage(AudioRenderStage * next_stage) {
 
     m_connected_output_render_stages.extract(next_stage);
     next_stage->m_connected_stream_render_stages.extract(this);
+    m_local_time = 0;
 
     return true;
 }

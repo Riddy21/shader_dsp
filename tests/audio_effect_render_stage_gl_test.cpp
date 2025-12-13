@@ -1729,3 +1729,178 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Dynamic Parameter Ch
     std::cout << "The square wave's harmonics were filtered differently at each parameter change." << std::endl;
     std::cout << "The filter follower parameter made the filter respond to the audio amplitude, creating dynamic filtering effects." << std::endl;
 }
+
+TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Multiple Renders Per Frame Discontinuity Test", 
+                   "[audio_effect_render_stage][gl_test][template][discontinuity][multiple_renders]", 
+                   TestParam2, TestParam3, TestParam4) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
+    constexpr int SAMPLE_RATE = 44100;
+    
+    // Test configuration
+    constexpr float SQUARE_FREQ = 261.63f; // Middle C
+    constexpr float SQUARE_AMPLITUDE = 0.5f;
+    constexpr float ECHO_DELAY = 0.1f; // 100ms
+    constexpr float ECHO_DECAY = 0.5f;
+    constexpr int NUM_ECHOS = 3;
+    constexpr int TOTAL_FRAMES = 50; 
+    
+    // Initialize window and OpenGL context
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+    
+    // Create sine wave generator
+    AudioGeneratorRenderStage generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, "build/shaders/multinote_sine_generator_render_stage.glsl");
+
+    // Create echo effect render stage
+    AudioEchoEffectRenderStage echo_effect(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    // Create final render stage
+    AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    // Connect stages
+    REQUIRE(generator.connect_render_stage(&echo_effect));
+    REQUIRE(echo_effect.connect_render_stage(&final_render_stage));
+
+    // Add global_time parameter
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    global_time_param->initialize();
+    
+    // Initialize the render stages
+    REQUIRE(generator.initialize());
+    REQUIRE(echo_effect.initialize());
+    REQUIRE(final_render_stage.initialize());
+
+    // Configure echo effect
+    {
+        auto delay_param = echo_effect.find_parameter("delay");
+        auto decay_param = echo_effect.find_parameter("decay");
+        auto num_echos_param = echo_effect.find_parameter("num_echos");
+        delay_param->set_value(ECHO_DELAY);
+        decay_param->set_value(ECHO_DECAY);
+        num_echos_param->set_value(NUM_ECHOS);
+    }
+    
+    // Enable ADSR for soft start/end transitions to prevent discontinuities
+    // Use longer attack/release times to ensure smooth transitions even with multiple renders per frame
+    auto attack_param = generator.find_parameter("attack_time");
+    auto decay_param = generator.find_parameter("decay_time");
+    auto sustain_param = generator.find_parameter("sustain_level");
+    auto release_param = generator.find_parameter("release_time");
+    attack_param->set_value(0.02f);  // 20ms attack for smooth start (longer to handle multiple renders)
+    decay_param->set_value(0.01f);   // 10ms decay
+    sustain_param->set_value(0.8f);  // 80% sustain level
+    release_param->set_value(0.1f);  // 100ms release for smooth end (longer to handle echo tails) 
+
+    context.prepare_draw();
+    
+    REQUIRE(generator.bind());
+    REQUIRE(echo_effect.bind());
+    REQUIRE(final_render_stage.bind());
+
+    std::vector<float> recorded_audio;
+    recorded_audio.reserve(TOTAL_FRAMES * BUFFER_SIZE * NUM_CHANNELS * 2); // Reserve extra space
+    
+    std::cout << "\n=== Multiple Renders Per Frame Test ===" << std::endl;
+    std::cout << "Rendering same frame multiple times with input changes in between..." << std::endl;
+    std::cout << "Testing both note start and note stop mid-frame..." << std::endl;
+
+    // Don't start note initially - we'll start it mid-frame
+    // Start with no notes playing
+    
+    for (int frame = 0; frame < TOTAL_FRAMES; frame++) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+
+        // Render pass 1: Normal render
+        generator.render(frame);
+        echo_effect.render(frame);
+        final_render_stage.render(frame);
+        
+        // INTERMEDIATE INPUT CHANGES: Start/stop notes mid-frame
+        if (frame == 5) {
+            std::cout << "Frame " << frame << ": Starting note between renders" << std::endl;
+            generator.play_note({SQUARE_FREQ, SQUARE_AMPLITUDE});
+        } else if (frame == 10) {
+            std::cout << "Frame " << frame << ": Stopping note between renders" << std::endl;
+            generator.stop_note(SQUARE_FREQ);
+        } else if (frame == 15) {
+            std::cout << "Frame " << frame << ": Starting note again between renders" << std::endl;
+            generator.play_note({SQUARE_FREQ, SQUARE_AMPLITUDE});
+        }
+        
+        // Render pass 2: Same frame index, potentially different state
+        generator.render(frame);
+        echo_effect.render(frame);
+        final_render_stage.render(frame);
+
+        // Capture output 2 (This simulates the final presented audio)
+        auto output_param2 = final_render_stage.find_parameter("final_output_audio_texture");
+        const float* output_data2 = static_cast<const float*>(output_param2->get_value());
+        for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; i++) {
+            recorded_audio.push_back(output_data2[i]);
+        }
+    }
+    
+    SECTION("Slope Sudden Change Analysis (Multiple Renders)") {
+        constexpr float MAX_SLOPE_CHANGE_JUMP = 0.05f; 
+        constexpr float MIN_SLOPE_CHANGE_FOR_ANALYSIS = 0.0001f;
+
+        std::vector<float> left_channel;
+        for (size_t i = 0; i < recorded_audio.size(); i += NUM_CHANNELS) {
+            left_channel.push_back(recorded_audio[i]);
+        }
+        
+        // Standard slope analysis on the concatenated buffer
+        std::vector<float> slopes;
+        slopes.reserve(left_channel.size() - 1);
+        for (size_t i = 1; i < left_channel.size(); ++i) {
+            slopes.push_back(left_channel[i] - left_channel[i - 1]);
+        }
+        
+        std::vector<float> slope_changes;
+        slope_changes.reserve(slopes.size() - 1);
+        for (size_t i = 1; i < slopes.size(); ++i) {
+            slope_changes.push_back(std::abs(slopes[i] - slopes[i - 1]));
+        }
+        
+        std::vector<size_t> large_jump_indices;
+        std::vector<float> jump_magnitudes;
+        for (size_t i = 1; i < slope_changes.size(); ++i) {
+            if (slope_changes[i] > MIN_SLOPE_CHANGE_FOR_ANALYSIS && 
+                slope_changes[i - 1] > MIN_SLOPE_CHANGE_FOR_ANALYSIS &&
+                std::abs(slope_changes[i] - slope_changes[i - 1]) > MAX_SLOPE_CHANGE_JUMP) {
+                large_jump_indices.push_back(i);
+                jump_magnitudes.push_back(std::abs(slope_changes[i] - slope_changes[i - 1]));
+            }
+        }
+        
+        std::cout << "Found " << large_jump_indices.size() << " discontinuities in multiple render test." << std::endl;
+        if (!large_jump_indices.empty()) {
+            std::cout << "  First 5 discontinuity magnitudes: ";
+            for (size_t i = 0; i < std::min(large_jump_indices.size(), size_t(5)); ++i) {
+                std::cout << jump_magnitudes[i] << " ";
+            }
+            std::cout << std::endl;
+            std::cout << "  Threshold: " << MAX_SLOPE_CHANGE_JUMP << std::endl;
+        }
+        
+        // Verify we don't have excessive discontinuities
+        // With ADSR enabled for soft start/end and the echo effect updating the window before rendering,
+        // there should be no discontinuities. The fix ensures the echo reads from the most recent tape state
+        // when rendering the same frame multiple times, preventing discontinuities when overwriting tape data.
+        // Allow a small buffer (1-2) for numerical precision issues, but expect essentially zero discontinuities.
+        constexpr size_t max_allowed_jumps = 2;
+        CHECK(large_jump_indices.size() <= max_allowed_jumps); 
+    }
+    
+    // Cleanup
+    final_render_stage.unbind();
+    echo_effect.unbind();
+    generator.unbind();
+    delete global_time_param;
+}

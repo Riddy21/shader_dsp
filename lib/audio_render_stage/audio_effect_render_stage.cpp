@@ -196,16 +196,27 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage
 void AudioEchoEffectRenderStage::render(unsigned int time) {
     auto current_time = m_time;
 
+    if (current_time != time) {
+        // Only advance the tape position (playback head) if we have moved to a new frame
+        m_history2->increment_tape_position_by_one();
+    }
+
+    // Always update the window BEFORE rendering to ensure the echo reads from the most recent tape state.
+    // This is critical for continuity - the echo must read from the tape state that includes any previous
+    // renders, especially when rendering the same frame multiple times with input changes.
+    m_history2->update_window();
+
     AudioRenderStage::render(time);
 
     // Get the audio data
     auto * data = (float *)this->find_parameter("output_audio_texture")->get_value();
 
-    if (current_time != time) {
-        m_tape->record(data);
-        m_history2->increment_tape_position_by_one();
-        m_history2->update_window();
-    }
+    // Calculate the recording position based on the frame time
+    // This allows us to overwrite the current frame's data if we are re-rendering the same frame
+
+    // FIXME: find a better way than use local time
+    unsigned int record_position = m_local_time * frames_per_buffer;
+    m_tape->record(data, record_position);
 }
 
 bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * render_stage) {

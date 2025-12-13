@@ -188,6 +188,8 @@ public:
     const unsigned int sample_rate;
     const unsigned int num_channels;
 
+    unsigned int m_local_time = 0;
+
 protected:
 
     /**
