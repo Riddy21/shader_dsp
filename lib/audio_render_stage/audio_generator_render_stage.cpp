@@ -123,12 +123,12 @@ AudioSingleShaderGeneratorRenderStage::AudioSingleShaderGeneratorRenderStage(con
     auto sustain_level_parameter =
         new AudioFloatParameter("sustain_level",
                               AudioParameter::ConnectionType::INPUT);
-    sustain_level_parameter->set_value(1.0f);
+    sustain_level_parameter->set_value(0.8f);
 
     auto release_time_parameter =
         new AudioFloatParameter("release_time",
                               AudioParameter::ConnectionType::INPUT);
-    release_time_parameter->set_value(0.4f);
+    release_time_parameter->set_value(0.3f);
 
     if (!this->add_parameter(attack_time_parameter)) {
         std::cerr << "Failed to add attack_time_parameter" << std::endl;

@@ -878,6 +878,95 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
         // Test assertion: discontinuity ratio should be reasonable
         REQUIRE(discontinuity_indices.size() == 0);
     }
+
+    SECTION("Slope Sudden Change Test") {
+        std::cout << "\n=== Slope Sudden Change Analysis ===" << std::endl;
+        
+        // This test verifies that the rate of change (slope) changes incrementally
+        // without large jumps. Large jumps in slope change would indicate "pops" or artifacts.
+        constexpr float MAX_SLOPE_CHANGE_JUMP = 0.01f; // Threshold for slope change jump
+        constexpr float MIN_SLOPE_CHANGE_FOR_ANALYSIS = 0.0001f; // Ignore very small slope changes
+        
+        std::vector<std::vector<float>> channels;
+        channels.push_back(left_channel);
+        if (NUM_CHANNELS > 1) {
+            channels.push_back(right_channel);
+        }
+
+        for (int ch = 0; ch < channels.size(); ++ch) {
+            const auto& samples = channels[ch];
+            
+            if (samples.size() < 3) {
+                continue; // Need at least 3 samples to calculate slope changes
+            }
+            
+            // Calculate first derivative (slope) between consecutive samples
+            std::vector<float> slopes;
+            slopes.reserve(samples.size() - 1);
+            for (size_t i = 1; i < samples.size(); ++i) {
+                float slope = samples[i] - samples[i - 1];
+                slopes.push_back(slope);
+            }
+            
+            // Calculate second derivative (change in slope)
+            std::vector<float> slope_changes;
+            slope_changes.reserve(slopes.size() - 1);
+            for (size_t i = 1; i < slopes.size(); ++i) {
+                float slope_change = std::abs(slopes[i] - slopes[i - 1]);
+                slope_changes.push_back(slope_change);
+            }
+            
+            // Find large jumps in slope changes
+            std::vector<size_t> large_jump_indices;
+            std::vector<float> large_jump_magnitudes;
+            
+            for (size_t i = 1; i < slope_changes.size(); ++i) {
+                float jump = std::abs(slope_changes[i] - slope_changes[i - 1]);
+                // Only flag if both slope changes are significant enough to matter
+                if (slope_changes[i] > MIN_SLOPE_CHANGE_FOR_ANALYSIS && 
+                    slope_changes[i - 1] > MIN_SLOPE_CHANGE_FOR_ANALYSIS &&
+                    jump > MAX_SLOPE_CHANGE_JUMP) {
+                    large_jump_indices.push_back(i);
+                    large_jump_magnitudes.push_back(jump);
+                }
+            }
+            
+            INFO("Channel " << ch << " slope analysis:");
+            INFO("  Total samples: " << samples.size());
+            INFO("  Total slopes calculated: " << slopes.size());
+            INFO("  Total slope changes calculated: " << slope_changes.size());
+            INFO("  Max slope change jump threshold: " << MAX_SLOPE_CHANGE_JUMP);
+            INFO("  Found " << large_jump_indices.size() << " large jumps in slope changes");
+            
+            if (!large_jump_indices.empty()) {
+                INFO("  First 5 large jump magnitudes:");
+                for (size_t i = 0; i < std::min(large_jump_indices.size(), size_t(5)); ++i) {
+                    INFO("    Sample " << large_jump_indices[i] << ": jump = " << large_jump_magnitudes[i]);
+                    // Print surrounding samples for context
+                    size_t idx = large_jump_indices[i];
+                    if (idx > 2 && idx < samples.size() - 2) {
+                        INFO("    Context: " << samples[idx-2] << ", " << samples[idx-1] << ", " 
+                             << samples[idx] << ", " << samples[idx+1] << ", " << samples[idx+2]);
+                    }
+                }
+            }
+            
+            // Verify that slope changes incrementally without large jumps
+            // Ideally, with smooth envelopes, there should be zero large jumps in slope changes.
+            const size_t max_allowed_jumps = 0; 
+            
+            // Fail if we found any jumps
+            CHECK(large_jump_indices.size() <= max_allowed_jumps);
+            
+            if (large_jump_indices.size() > max_allowed_jumps) {
+                std::cout << "FAILURE: Found " << large_jump_indices.size() << " large slope jumps in channel " << ch 
+                          << " (expected " << max_allowed_jumps << ")" << std::endl;
+            } else {
+                std::cout << "SUCCESS: Found " << large_jump_indices.size() << " large slope jumps in channel " << ch << std::endl;
+            }
+        }
+    }
+
     
     //SECTION("Derivative Analysis and CSV Export") {
     //    // Export audio data to CSV for visualization and analysis

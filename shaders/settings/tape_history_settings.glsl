@@ -62,6 +62,9 @@ vec4 get_tape_history_samples{PLUGIN_SUFFIX}(vec2 TexCoord, int sample_frame_siz
     int y_position = ( y_row_position * num_channels + channel) * 2;
 
     // Convert the x y into texture coordinates
+    // We add 0.5001 to the position to sample the center of the texel.
+    // This is important because we use linear filtering to smooth out the pixels,
+    // and sampling at the edge would cause bleeding from neighboring pixels.
     vec2 texture_coord = vec2((float(x_position) + 0.5001) / float(audio_size.x),
                               (float(y_position) + 0.5001) / float(audio_size.y)); // Offset for max data
     

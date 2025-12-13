@@ -73,7 +73,7 @@ int main() {
     EventLoop& event_loop = EventLoop::get_instance();
 
     auto & synthesizer = AudioSynthesizer::get_instance();
-    if (!synthesizer.initialize(512, 44100, 2)) {
+    if (!synthesizer.initialize(1024, 44100, 2)) {
         std::cerr << "Failed to initialize AudioSynthesizer." << std::endl;
         return -1;
     }
