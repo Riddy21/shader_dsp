@@ -318,10 +318,11 @@ void main() {
     REQUIRE(impulse_generator.connect_render_stage(&echo_effect));
     REQUIRE(echo_effect.connect_render_stage(&final_render_stage));
 
-    // Add global_time parameter as a buffer parameter
+    // Add global_time parameter to impulse generator
     auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
     global_time_param->set_value(0);
     global_time_param->initialize();
+    REQUIRE(impulse_generator.add_parameter(global_time_param));
 
     // Add impulse_delay parameter to impulse generator
     auto impulse_delay_param = new AudioIntParameter("impulse_delay", AudioParameter::ConnectionType::INPUT);
@@ -361,9 +362,8 @@ void main() {
 
     for (int frame = 0; frame < NUM_FRAMES; frame++) {
         global_time_param->set_value(frame);
-        global_time_param->render();
 
-        // Render the impulse generator stage
+        // Render the impulse generator stage (this will automatically render global_time_param)
         impulse_generator.render(frame);
         
         // Render the echo effect stage
@@ -498,10 +498,11 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
     REQUIRE(square_generator.connect_render_stage(&echo_effect));
     REQUIRE(echo_effect.connect_render_stage(&final_render_stage));
 
-    // Add global_time parameter as a buffer parameter
+    // Add global_time parameter to square generator
     auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
     global_time_param->set_value(0);
     global_time_param->initialize();
+    REQUIRE(square_generator.add_parameter(global_time_param));
     
     // Initialize the render stages
     REQUIRE(square_generator.initialize());
@@ -566,9 +567,8 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Audio Output Test",
                 std::cout << "Note stopped, listening for echoes..." << std::endl;
             }
             global_time_param->set_value(frame);
-            global_time_param->render();
 
-            // Render the square wave generator
+            // Render the square wave generator (this will automatically render global_time_param)
             square_generator.render(frame);
             
             // Render the echo effect
@@ -681,10 +681,11 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
     REQUIRE(sine_generator.connect_render_stage(&echo_effect));
     REQUIRE(echo_effect.connect_render_stage(&final_render_stage));
 
-    // Add global_time parameter
+    // Add global_time parameter to sine generator
     auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
     global_time_param->set_value(0);
     global_time_param->initialize();
+    REQUIRE(sine_generator.add_parameter(global_time_param));
     
     // Initialize the render stages
     REQUIRE(sine_generator.initialize());
@@ -779,11 +780,10 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
             }
         }
         
-        // Update global time and render
+        // Update global time
         global_time_param->set_value(frame);
-        global_time_param->render();
 
-        // Render all stages
+        // Render all stages (sine_generator.render will automatically render global_time_param)
         sine_generator.render(frame);
         echo_effect.render(frame);
         final_render_stage.render(frame);
@@ -1091,11 +1091,11 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Sequential Notes Discontinuity 
     final_render_stage.unbind();
     echo_effect.unbind();
     sine_generator.unbind();
-    delete global_time_param;
+    // Note: global_time_param is owned by sine_generator and will be deleted automatically
 }
 
 TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Parameterized Filter Test", 
-                   "[audio_effect_render_stage][gl_test][template]", 
+                   "[audio_effect_render_stage][gl_test][audio_output][csv_output][template]", 
                    TestParam2, TestParam3, TestParam4) {
     
     constexpr auto params = get_test_params(TestType::value);
@@ -1135,6 +1135,7 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Parameterized Filter
     auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
     global_time_param->set_value(0);
     global_time_param->initialize();
+    REQUIRE(sine_generator.add_parameter(global_time_param));
 
     REQUIRE(sine_generator.initialize());
     REQUIRE(filter_effect.initialize());
@@ -1146,10 +1147,29 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Parameterized Filter
     REQUIRE(filter_effect.bind());
     REQUIRE(final_render_stage.bind());
 
+    std::cout << "\n=== Filter Effect Parameterized Test ===" << std::endl;
+    std::cout << "Playing three tones (" << NOTE1_FREQ << "Hz, " << NOTE2_FREQ << "Hz, " << NOTE3_FREQ << "Hz) with band pass filter (" 
+              << LOW_CUTOFF << "Hz - " << HIGH_CUTOFF << "Hz) for 2 seconds..." << std::endl;
+    std::cout << "You should hear primarily the " << NOTE2_FREQ << "Hz tone (inside bandpass)." << std::endl;
+
+    // Setup audio output (only if enabled)
+    AudioPlayerOutput* audio_output = nullptr;
+    if (is_audio_output_enabled()) {
+        audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+        REQUIRE(audio_output->open());
+        REQUIRE(audio_output->start());
+    }
+
     // Play three notes
     sine_generator.play_note({NOTE1_FREQ, SINE_AMPLITUDE});
     sine_generator.play_note({NOTE2_FREQ, SINE_AMPLITUDE});
     sine_generator.play_note({NOTE3_FREQ, SINE_AMPLITUDE});
+
+    // Collect samples for CSV output
+    std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+    for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+        output_samples_per_channel[ch].reserve(TOTAL_SAMPLES);
+    }
 
     std::vector<float> left_channel_samples;
     std::vector<float> right_channel_samples;
@@ -1176,7 +1196,51 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Parameterized Filter
             if (NUM_CHANNELS > 1) {
                 right_channel_samples.push_back(output_data[i * NUM_CHANNELS + 1]);
             }
+            
+            // Collect samples for CSV
+            for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+                if (static_cast<int>(output_samples_per_channel[ch].size()) < TOTAL_SAMPLES) {
+                    output_samples_per_channel[ch].push_back(output_data[i * NUM_CHANNELS + ch]);
+                }
+            }
         }
+
+        // Push to audio output if enabled
+        if (audio_output) {
+            while (!audio_output->is_ready()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            audio_output->push(output_data);
+        }
+    }
+
+    // Cleanup audio output (only if enabled)
+    if (audio_output) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        audio_output->stop();
+        audio_output->close();
+        delete audio_output;
+        std::cout << "Filter effect playback complete!" << std::endl;
+    }
+
+    // CSV output (only if enabled)
+    if (is_csv_output_enabled()) {
+        std::string csv_output_dir = "build/tests/csv_output";
+        system(("mkdir -p " + csv_output_dir).c_str());
+        
+        std::ostringstream filename_stream;
+        filename_stream << csv_output_dir << "/filter_effect_parameterized_buffer_" 
+                      << BUFFER_SIZE << "_channels_" << NUM_CHANNELS << "_low_" << LOW_CUTOFF << "_high_" << HIGH_CUTOFF << ".csv";
+        std::string filename = filename_stream.str();
+        
+        CSVTestOutput csv_writer(filename, SAMPLE_RATE);
+        REQUIRE(csv_writer.is_open());
+        
+        csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+        csv_writer.close();
+        
+        std::cout << "Wrote filter effect parameterized test output to " << filename << " (" 
+                  << output_samples_per_channel[0].size() << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
     }
 
     REQUIRE(left_channel_samples.size() == TOTAL_SAMPLES);
@@ -1208,8 +1272,17 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Parameterized Filter
         INFO("Power at " << NOTE3_FREQ << "Hz (above): " << power_note3);
 
         // Note2 should have significantly higher power than Note1 and Note3
+        // Also verify that Note1 and Note3 are actually attenuated (not just that Note2 is higher)
         REQUIRE(power_note2 > power_note1 * 5.0f);
         REQUIRE(power_note2 > power_note3 * 5.0f);
+        
+        // Verify that the filter is actually doing something - the filtered frequencies should be attenuated
+        // If the filter isn't working, all frequencies would have similar power
+        REQUIRE(power_note1 < power_note2 * 0.2f); // Note1 should be at least 5x weaker than Note2
+        REQUIRE(power_note3 < power_note2 * 0.2f); // Note3 should be at least 5x weaker than Note2
+        
+        // Verify that Note2 has significant power (filter is passing it through)
+        REQUIRE(power_note2 > 0.01f); // Should have measurable power
 
         if (NUM_CHANNELS > 1) {
             std::vector<float> right_analysis(right_channel_samples.begin() + ANALYSIS_START, 
@@ -1218,8 +1291,97 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Parameterized Filter
             float r_power_note2 = compute_power(right_analysis, NOTE2_FREQ, SAMPLE_RATE);
             float r_power_note3 = compute_power(right_analysis, NOTE3_FREQ, SAMPLE_RATE);
 
+            INFO("Right channel - Power at " << NOTE1_FREQ << "Hz: " << r_power_note1);
+            INFO("Right channel - Power at " << NOTE2_FREQ << "Hz: " << r_power_note2);
+            INFO("Right channel - Power at " << NOTE3_FREQ << "Hz: " << r_power_note3);
+
             REQUIRE(r_power_note2 > r_power_note1 * 5.0f);
             REQUIRE(r_power_note2 > r_power_note3 * 5.0f);
+            REQUIRE(r_power_note1 < r_power_note2 * 0.2f);
+            REQUIRE(r_power_note3 < r_power_note2 * 0.2f);
+            REQUIRE(r_power_note2 > 0.01f);
+        }
+    }
+
+    SECTION("Discontinuity Detection Test") {
+        std::cout << "\n=== Discontinuity Detection Analysis ===" << std::endl;
+        
+        constexpr float DISCONTINUITY_THRESHOLD = 0.05f;
+        std::vector<size_t> discontinuity_indices;
+        std::vector<float> discontinuity_magnitudes;
+        
+        // Calculate sample-to-sample differences to detect discontinuities
+        for (size_t i = 1; i < left_channel_samples.size(); ++i) {
+            float sample_diff = std::abs(left_channel_samples[i] - left_channel_samples[i - 1]);
+            if (sample_diff > DISCONTINUITY_THRESHOLD) {
+                discontinuity_indices.push_back(i);
+                discontinuity_magnitudes.push_back(sample_diff);
+            }
+        }
+        
+        std::cout << "Discontinuity threshold: " << DISCONTINUITY_THRESHOLD << std::endl;
+        std::cout << "Found " << discontinuity_indices.size() << " discontinuities" << std::endl;
+        
+        // Test assertion: should have no discontinuities
+        REQUIRE(discontinuity_indices.size() == 0);
+    }
+
+    SECTION("Non-Zero Output Test") {
+        // Check that the filter outputs non-zero values when given input
+        constexpr float NON_ZERO_THRESHOLD = 1e-6f;
+        
+        bool all_zero = true;
+        float max_amplitude = 0.0f;
+        int non_zero_samples = 0;
+        
+        for (size_t i = 0; i < left_channel_samples.size(); i++) {
+            float sample = left_channel_samples[i];
+            float abs_sample = std::abs(sample);
+            
+            if (abs_sample > NON_ZERO_THRESHOLD) {
+                all_zero = false;
+                non_zero_samples++;
+            }
+            
+            max_amplitude = std::max(max_amplitude, abs_sample);
+        }
+        
+        INFO("Total samples: " << left_channel_samples.size());
+        INFO("Non-zero samples: " << non_zero_samples);
+        INFO("Max amplitude: " << max_amplitude);
+        
+        // Audio should not be completely silent when we have input
+        REQUIRE_FALSE(all_zero);
+        REQUIRE(max_amplitude > NON_ZERO_THRESHOLD);
+        REQUIRE(non_zero_samples > 0);
+        
+        // Check all channels
+        std::vector<std::vector<float>*> channels = {&left_channel_samples};
+        if (NUM_CHANNELS > 1) {
+            channels.push_back(&right_channel_samples);
+        }
+        
+        for (size_t ch = 0; ch < channels.size(); ch++) {
+            const auto& samples = *channels[ch];
+            bool channel_all_zero = true;
+            float channel_max = 0.0f;
+            int channel_non_zero = 0;
+            
+            for (size_t i = 0; i < samples.size(); i++) {
+                float sample = samples[i];
+                float abs_sample = std::abs(sample);
+                
+                if (abs_sample > NON_ZERO_THRESHOLD) {
+                    channel_all_zero = false;
+                    channel_non_zero++;
+                }
+                
+                channel_max = std::max(channel_max, abs_sample);
+            }
+            
+            INFO("Channel " << ch << " - Non-zero samples: " << channel_non_zero << ", Max amplitude: " << channel_max);
+            REQUIRE_FALSE(channel_all_zero);
+            REQUIRE(channel_max > NON_ZERO_THRESHOLD);
         }
     }
 }
@@ -1261,6 +1423,7 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
     auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
     global_time_param->set_value(0);
     global_time_param->initialize();
+    REQUIRE(sine_generator.add_parameter(global_time_param));
     
     REQUIRE(sine_generator.initialize());
     REQUIRE(filter_effect.initialize());
@@ -1299,8 +1462,8 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Audio Output Test",
 
     for (int frame = 0; frame < NUM_FRAMES; frame++) {
         global_time_param->set_value(frame);
-        global_time_param->render();
 
+        // sine_generator.render will automatically render global_time_param
         sine_generator.render(frame);
         filter_effect.render(frame);
         final_render_stage.render(frame);
@@ -1478,6 +1641,7 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Dynamic Parameter Ch
     auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
     global_time_param->set_value(0);
     global_time_param->initialize();
+    REQUIRE(square_generator.add_parameter(global_time_param));
     
     REQUIRE(square_generator.initialize());
     REQUIRE(filter_effect.initialize());
@@ -1574,7 +1738,6 @@ TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Dynamic Parameter Ch
 
     for (int frame = 0; frame < NUM_FRAMES; frame++) {
         global_time_param->set_value(frame);
-        global_time_param->render();
 
         // Change parameters at regular intervals
         int param_index = (frame / PARAM_CHANGE_INTERVAL) % low_pass_sequence.size();
@@ -1765,10 +1928,11 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Multiple Renders Per Frame Disc
     REQUIRE(generator.connect_render_stage(&echo_effect));
     REQUIRE(echo_effect.connect_render_stage(&final_render_stage));
 
-    // Add global_time parameter
+    // Add global_time parameter to generator
     auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
     global_time_param->set_value(0);
     global_time_param->initialize();
+    REQUIRE(generator.add_parameter(global_time_param));
     
     // Initialize the render stages
     REQUIRE(generator.initialize());
@@ -1814,9 +1978,8 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Multiple Renders Per Frame Disc
     
     for (int frame = 0; frame < TOTAL_FRAMES; frame++) {
         global_time_param->set_value(frame);
-        global_time_param->render();
 
-        // Render pass 1: Normal render
+        // Render pass 1: Normal render (generator.render will automatically render global_time_param)
         generator.render(frame);
         echo_effect.render(frame);
         final_render_stage.render(frame);
@@ -1902,5 +2065,176 @@ TEMPLATE_TEST_CASE("AudioEchoEffectRenderStage - Multiple Renders Per Frame Disc
     final_render_stage.unbind();
     echo_effect.unbind();
     generator.unbind();
-    delete global_time_param;
+    // Note: global_time_param is owned by generator and will be deleted automatically
+}
+
+TEMPLATE_TEST_CASE("AudioFrequencyFilterEffectRenderStage - Multiple Renders Per Frame Discontinuity Test", 
+                   "[audio_effect_render_stage][gl_test][template][discontinuity][multiple_renders]", 
+                   TestParam2, TestParam3, TestParam4) {
+    
+    // Get test parameters for this template instantiation
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
+    constexpr int SAMPLE_RATE = 44100;
+    
+    // Test configuration
+    constexpr float SQUARE_FREQ = 261.63f; // Middle C
+    constexpr float SQUARE_AMPLITUDE = 0.5f;
+    constexpr float LOW_CUTOFF = 1000.0f;
+    constexpr float HIGH_CUTOFF = 200.0f;
+    constexpr float RESONANCE = 1.0f;
+    constexpr int TOTAL_FRAMES = 50; 
+    
+    // Initialize window and OpenGL context
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+    
+    // Create sine wave generator
+    AudioGeneratorRenderStage generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, "build/shaders/multinote_sine_generator_render_stage.glsl");
+
+    // Create filter effect render stage
+    AudioFrequencyFilterEffectRenderStage filter_effect(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    // Create final render stage
+    AudioFinalRenderStage final_render_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+
+    // Connect stages
+    REQUIRE(generator.connect_render_stage(&filter_effect));
+    REQUIRE(filter_effect.connect_render_stage(&final_render_stage));
+
+    // Add global_time parameter to generator
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    global_time_param->initialize();
+    REQUIRE(generator.add_parameter(global_time_param));
+    
+    // Initialize the render stages
+    REQUIRE(generator.initialize());
+    REQUIRE(filter_effect.initialize());
+    REQUIRE(final_render_stage.initialize());
+
+    // Configure filter effect
+    filter_effect.set_low_pass(LOW_CUTOFF);
+    filter_effect.set_high_pass(HIGH_CUTOFF);
+    filter_effect.set_resonance(RESONANCE);
+    filter_effect.set_filter_follower(0.0f);
+    
+    // Enable ADSR for soft start/end transitions to prevent discontinuities
+    // Use longer attack/release times to ensure smooth transitions even with multiple renders per frame
+    auto attack_param = generator.find_parameter("attack_time");
+    auto decay_param = generator.find_parameter("decay_time");
+    auto sustain_param = generator.find_parameter("sustain_level");
+    auto release_param = generator.find_parameter("release_time");
+    attack_param->set_value(0.02f);  // 20ms attack for smooth start (longer to handle multiple renders)
+    decay_param->set_value(0.01f);   // 10ms decay
+    sustain_param->set_value(0.8f);  // 80% sustain level
+    release_param->set_value(0.1f);  // 100ms release for smooth end (longer to handle filter tails) 
+
+    context.prepare_draw();
+    
+    REQUIRE(generator.bind());
+    REQUIRE(filter_effect.bind());
+    REQUIRE(final_render_stage.bind());
+
+    std::vector<float> recorded_audio;
+    recorded_audio.reserve(TOTAL_FRAMES * BUFFER_SIZE * NUM_CHANNELS * 2); // Reserve extra space
+    
+    std::cout << "\n=== Multiple Renders Per Frame Test ===" << std::endl;
+    std::cout << "Rendering same frame multiple times with input changes in between..." << std::endl;
+    std::cout << "Testing both note start and note stop mid-frame..." << std::endl;
+
+    // Don't start note initially - we'll start it mid-frame
+    // Start with no notes playing
+    
+    for (int frame = 0; frame < TOTAL_FRAMES; frame++) {
+        global_time_param->set_value(frame);
+
+        // Render pass 1: Normal render (generator.render will automatically render global_time_param)
+        generator.render(frame);
+        filter_effect.render(frame);
+        final_render_stage.render(frame);
+        
+        // INTERMEDIATE INPUT CHANGES: Start/stop notes mid-frame
+        if (frame == 5) {
+            std::cout << "Frame " << frame << ": Starting note between renders" << std::endl;
+            generator.play_note({SQUARE_FREQ, SQUARE_AMPLITUDE});
+        } else if (frame == 10) {
+            std::cout << "Frame " << frame << ": Stopping note between renders" << std::endl;
+            generator.stop_note(SQUARE_FREQ);
+        } else if (frame == 15) {
+            std::cout << "Frame " << frame << ": Starting note again between renders" << std::endl;
+            generator.play_note({SQUARE_FREQ, SQUARE_AMPLITUDE});
+        }
+        
+        // Render pass 2: Same frame index, potentially different state
+        generator.render(frame);
+        filter_effect.render(frame);
+        final_render_stage.render(frame);
+
+        // Capture output 2 (This simulates the final presented audio)
+        auto output_param2 = final_render_stage.find_parameter("final_output_audio_texture");
+        const float* output_data2 = static_cast<const float*>(output_param2->get_value());
+        for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; i++) {
+            recorded_audio.push_back(output_data2[i]);
+        }
+    }
+    
+    SECTION("Slope Sudden Change Analysis (Multiple Renders)") {
+        constexpr float MAX_SLOPE_CHANGE_JUMP = 0.05f; 
+        constexpr float MIN_SLOPE_CHANGE_FOR_ANALYSIS = 0.0001f;
+
+        std::vector<float> left_channel;
+        for (size_t i = 0; i < recorded_audio.size(); i += NUM_CHANNELS) {
+            left_channel.push_back(recorded_audio[i]);
+        }
+        
+        // Standard slope analysis on the concatenated buffer
+        std::vector<float> slopes;
+        slopes.reserve(left_channel.size() - 1);
+        for (size_t i = 1; i < left_channel.size(); ++i) {
+            slopes.push_back(left_channel[i] - left_channel[i - 1]);
+        }
+        
+        std::vector<float> slope_changes;
+        slope_changes.reserve(slopes.size() - 1);
+        for (size_t i = 1; i < slopes.size(); ++i) {
+            slope_changes.push_back(std::abs(slopes[i] - slopes[i - 1]));
+        }
+        
+        std::vector<size_t> large_jump_indices;
+        std::vector<float> jump_magnitudes;
+        for (size_t i = 1; i < slope_changes.size(); ++i) {
+            if (slope_changes[i] > MIN_SLOPE_CHANGE_FOR_ANALYSIS && 
+                slope_changes[i - 1] > MIN_SLOPE_CHANGE_FOR_ANALYSIS &&
+                std::abs(slope_changes[i] - slope_changes[i - 1]) > MAX_SLOPE_CHANGE_JUMP) {
+                large_jump_indices.push_back(i);
+                jump_magnitudes.push_back(std::abs(slope_changes[i] - slope_changes[i - 1]));
+            }
+        }
+        
+        std::cout << "Found " << large_jump_indices.size() << " discontinuities in multiple render test." << std::endl;
+        if (!large_jump_indices.empty()) {
+            std::cout << "  First 5 discontinuity magnitudes: ";
+            for (size_t i = 0; i < std::min(large_jump_indices.size(), size_t(5)); ++i) {
+                std::cout << jump_magnitudes[i] << " ";
+            }
+            std::cout << std::endl;
+            std::cout << "  Threshold: " << MAX_SLOPE_CHANGE_JUMP << std::endl;
+        }
+        
+        // Verify we don't have excessive discontinuities
+        // With ADSR enabled for soft start/end and the filter effect updating the window before rendering,
+        // there should be no discontinuities. The fix ensures the filter reads from the most recent tape state
+        // when rendering the same frame multiple times, preventing discontinuities when overwriting tape data.
+        // Allow a small buffer (1-2) for numerical precision issues, but expect essentially zero discontinuities.
+        constexpr size_t max_allowed_jumps = 2;
+        CHECK(large_jump_indices.size() <= max_allowed_jumps); 
+    }
+    
+    // Cleanup
+    final_render_stage.unbind();
+    filter_effect.unbind();
+    generator.unbind();
+    // Note: global_time_param is owned by generator and will be deleted automatically
 }

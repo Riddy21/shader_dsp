@@ -234,8 +234,7 @@ bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * rend
 
 const std::vector<std::string> AudioFrequencyFilterEffectRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
-    "build/shaders/frag_shader_settings.glsl",
-    "build/shaders/history_settings.glsl"
+    "build/shaders/frag_shader_settings.glsl"
 };
 
 AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(const unsigned int frames_per_buffer,
@@ -260,8 +259,6 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
       m_filter_follower(0.0f),
       m_resonance(1.0f) {
 
-    m_audio_history = std::make_unique<AudioRenderStageHistory>(MAX_TEXTURE_SIZE, frames_per_buffer, sample_rate, num_channels);
-
     auto num_taps_parameter =
         new AudioIntParameter("num_taps",
                                 AudioParameter::ConnectionType::INPUT);
@@ -279,9 +276,6 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
     }
     if (!this->add_parameter(b_coeff_texture)) {
         std::cerr << "Failed to add b_coeff_texture" << std::endl;
-    }
-    if (!this->add_parameter(m_audio_history->create_audio_history_texture(m_active_texture_count++))) {
-        std::cerr << "Failed to add audio_history_texture" << std::endl;
     }
 
     m_tape = std::make_shared<AudioTape>(frames_per_buffer, sample_rate, num_channels, MAX_TEXTURE_SIZE);
@@ -474,10 +468,9 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
     if (m_time != time) {
-        m_tape->record(data);
         m_history2->increment_tape_position_by_one();
-        m_history2->update_window();
     }
+    m_history2->update_window();
 
     if (m_b_coefficients_dirty) {
         float current_amplitude = std::accumulate(data, data + frames_per_buffer * num_channels, 0.0f, [](float sum, float value) {
@@ -485,15 +478,11 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
         }) / (frames_per_buffer * num_channels);
         update_b_coefficients(current_amplitude);
     }
-    
-    if (time != m_time) {
-        m_audio_history->shift_history_buffer();
-    }
-
-    m_audio_history->save_stream_to_history(data);
-    m_audio_history->update_audio_history_texture();
 
     AudioRenderStage::render(time);
+
+    unsigned int record_position = m_local_time * frames_per_buffer;
+    m_tape->record(data, record_position);
 }
 
 void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float current_amplitude) {
@@ -516,7 +505,5 @@ bool AudioFrequencyFilterEffectRenderStage::disconnect_render_stage(AudioRenderS
     m_tape->clear();
     m_history2->set_tape_position(0u);
 
-    // Clear history buffer
-    m_audio_history->clear_history_buffer();
     return true;
 }
