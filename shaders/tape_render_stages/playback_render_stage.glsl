@@ -20,5 +20,6 @@ void main() {
         playback = texture(playback_texture, vec2(TexCoord.x, playback_sample_index));
     }
 
-    output_audio_texture = texture(stream_audio_texture, TexCoord) + playback;
+    output_audio_texture = texture(stream_audio_texture, TexCoord) + get_tape_history_samples(TexCoord);
+    debug_audio_texture = playback;
 }

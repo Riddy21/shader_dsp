@@ -5,6 +5,9 @@
 #include "audio_render_stage/audio_multitrack_join_render_stage.h"
 #include "audio_render_stage/audio_final_render_stage.h"
 #include "audio_parameter/audio_uniform_buffer_parameter.h"
+#include "audio_output/audio_player_output.h"
+#include "framework/test_main.h"
+#include "framework/csv_test_output.h"
 
 #include <iostream>
 #include <vector>
@@ -136,9 +139,19 @@ void main() {
     REQUIRE(join.bind());
     // Remove final bind
 
+    // Prepare audio output (only if enabled)
+    AudioPlayerOutput* audio_output = nullptr;
+    if (is_audio_output_enabled()) {
+        audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+        REQUIRE(audio_output->open());
+        REQUIRE(audio_output->start());
+    }
+
     // Render multiple frames
     std::vector<float> first_channel_samples;
+    std::vector<float> all_samples;
     first_channel_samples.reserve(BUFFER_SIZE * NUM_FRAMES);
+    all_samples.reserve(BUFFER_SIZE * NUM_CHANNELS * NUM_FRAMES);
 
     for (int frame = 0; frame < NUM_FRAMES; frame++) {
         global_time_param->set_value(frame);
@@ -156,10 +169,40 @@ void main() {
         const float* output_data = static_cast<const float*>(output_param->get_value());
         REQUIRE(output_data != nullptr);
 
-        // Store only first channel samples
-        for (int i = 0; i < BUFFER_SIZE; i++) {
-            first_channel_samples.push_back(output_data[i]);
+        // Store all samples (channel-major format)
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            const float* channel_data = output_data + (ch * BUFFER_SIZE);
+            for (int i = 0; i < BUFFER_SIZE; ++i) {
+                all_samples.push_back(channel_data[i]);
+                if (ch == 0) {
+                    first_channel_samples.push_back(channel_data[i]);
+                }
+            }
         }
+
+        // Push to audio output (only if enabled)
+        if (audio_output) {
+            // Convert channel-major to interleaved for audio output
+            std::vector<float> interleaved(BUFFER_SIZE * NUM_CHANNELS);
+            for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+                const float* channel_data = output_data + (ch * BUFFER_SIZE);
+                for (int i = 0; i < BUFFER_SIZE; ++i) {
+                    interleaved[i * NUM_CHANNELS + ch] = channel_data[i];
+                }
+            }
+            while (!audio_output->is_ready()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            audio_output->push(interleaved.data());
+        }
+    }
+
+    // Cleanup audio (only if enabled)
+    if (audio_output) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        audio_output->stop();
+        audio_output->close();
+        delete audio_output;
     }
 
     // Verify
@@ -178,6 +221,39 @@ void main() {
         for (size_t i = 1; i < first_channel_samples.size(); ++i) {
             REQUIRE(first_channel_samples[i] == Catch::Approx(first_channel_samples[0]).margin(0.001f));
         }
+    }
+
+    // CSV output (only if enabled)
+    if (is_csv_output_enabled()) {
+        std::string csv_output_dir = "build/tests/csv_output";
+        system(("mkdir -p " + csv_output_dir).c_str());
+        
+        // Convert to per-channel format
+        std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+        const size_t samples_per_channel = BUFFER_SIZE * NUM_FRAMES;
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+            output_samples_per_channel[ch].reserve(samples_per_channel);
+        }
+        
+        // Convert from channel-major to per-channel vectors
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            const float* channel_data = all_samples.data() + (ch * BUFFER_SIZE * NUM_FRAMES);
+            for (size_t i = 0; i < samples_per_channel; ++i) {
+                output_samples_per_channel[ch].push_back(channel_data[i]);
+            }
+        }
+        
+        std::ostringstream filename_stream;
+        filename_stream << csv_output_dir << "/multitrack_join_" << params.name << ".csv";
+        std::string filename = filename_stream.str();
+        
+        CSVTestOutput csv_writer(filename, SAMPLE_RATE);
+        REQUIRE(csv_writer.is_open());
+        csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+        csv_writer.close();
+        
+        std::cout << "Wrote multitrack join output to " << filename << " (" 
+                  << samples_per_channel << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
     }
 }
 

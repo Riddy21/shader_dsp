@@ -118,6 +118,7 @@ public:
     // When paused (speed = 0) it will stop updating position
     // This function calls both update_tape_position() and update_window() for backward compatibility
     void update_audio_history_texture();
+    void update_audio_history_texture(const unsigned int time);
 
     std::string get_audio_history_texture_name() { 
         return m_plugin_name.empty() ? "tape_history_texture" : ("tape_history_texture_" + m_plugin_name);
@@ -132,7 +133,7 @@ private:
     AudioParameter * m_tape_stopped; // Flag indicating if tape is stopped (1 = stopped, 0 = playing)
     AudioParameter * m_tape_loop; // Flag indicating if tape should loop (1 = loop enabled, 0 = loop disabled, default = 0)
 
-    std::weak_ptr<AudioTape> m_tape; // Weak reference to tape
+    std::weak_ptr<AudioTape> m_tape; // Weak pointer to tape (non-owning)
 
     const unsigned int m_frames_per_buffer;
     const unsigned int m_sample_rate;

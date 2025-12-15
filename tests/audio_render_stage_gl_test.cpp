@@ -8,11 +8,18 @@
 #include "audio_render_stage/audio_effect_render_stage.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
 #include "audio_parameter/audio_uniform_parameter.h"
+#include "audio_output/audio_player_output.h"
+#include "framework/test_main.h"
+#include "framework/csv_test_output.h"
 
 #include <functional>
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <vector>
+#include <thread>
+#include <chrono>
+#include <sstream>
 
 /**
  * @brief Tests for render stage functionality with OpenGL context
@@ -103,6 +110,17 @@ void main() {
 
         context.prepare_draw();
 
+        // Prepare audio output (only if enabled)
+        AudioPlayerOutput* audio_output = nullptr;
+        if (is_audio_output_enabled()) {
+            audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+            REQUIRE(audio_output->open());
+            REQUIRE(audio_output->start());
+        }
+
+        std::vector<float> output_samples;
+        output_samples.reserve(BUFFER_SIZE * NUM_CHANNELS);
+
         render_stage.render(0);
         
         // Get output data
@@ -112,6 +130,34 @@ void main() {
         const float* output_data = static_cast<const float*>(output_param->get_value());
 
         REQUIRE(output_data != nullptr);
+
+        // Store output samples (channel-major format)
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            const float* channel_data = output_data + (ch * BUFFER_SIZE);
+            for (int i = 0; i < BUFFER_SIZE; ++i) {
+                output_samples.push_back(channel_data[i]);
+            }
+        }
+
+        // Push to audio output (only if enabled)
+        if (audio_output) {
+            // Convert channel-major to interleaved for audio output
+            std::vector<float> interleaved(BUFFER_SIZE * NUM_CHANNELS);
+            for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+                const float* channel_data = output_data + (ch * BUFFER_SIZE);
+                for (int i = 0; i < BUFFER_SIZE; ++i) {
+                    interleaved[i * NUM_CHANNELS + ch] = channel_data[i];
+                }
+            }
+            while (!audio_output->is_ready()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            audio_output->push(interleaved.data());
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            audio_output->stop();
+            audio_output->close();
+            delete audio_output;
+        }
 
         // Verify output contains simple sine wave data for all channels
         // Each channel occupies BUFFER_SIZE consecutive indices: ch0[0...BUFFER_SIZE-1], ch1[BUFFER_SIZE...2*BUFFER_SIZE-1], etc.
@@ -141,6 +187,38 @@ void main() {
         }
 
         render_stage.unbind();
+
+        // CSV output (only if enabled)
+        if (is_csv_output_enabled()) {
+            std::string csv_output_dir = "build/tests/csv_output";
+            system(("mkdir -p " + csv_output_dir).c_str());
+            
+            // Convert to per-channel format
+            std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+            for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+                output_samples_per_channel[ch].reserve(BUFFER_SIZE);
+            }
+            
+            // Convert from channel-major to per-channel vectors
+            for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+                const float* channel_data = output_samples.data() + (ch * BUFFER_SIZE);
+                for (int i = 0; i < BUFFER_SIZE; ++i) {
+                    output_samples_per_channel[ch].push_back(channel_data[i]);
+                }
+            }
+            
+            std::ostringstream filename_stream;
+            filename_stream << csv_output_dir << "/audio_render_stage_sine_wave_" << params.name << ".csv";
+            std::string filename = filename_stream.str();
+            
+            CSVTestOutput csv_writer(filename, SAMPLE_RATE);
+            REQUIRE(csv_writer.is_open());
+            csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+            csv_writer.close();
+            
+            std::cout << "Wrote output samples to " << filename << " (" 
+                      << BUFFER_SIZE << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
+        }
     }
 }
 
@@ -202,6 +280,18 @@ void main(){
     REQUIRE(stage1.bind());
     REQUIRE(stage2.bind());
 
+    // Prepare audio output (only if enabled)
+    AudioPlayerOutput* audio_output = nullptr;
+    if (is_audio_output_enabled()) {
+        audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+        REQUIRE(audio_output->open());
+        REQUIRE(audio_output->start());
+    }
+
+    std::vector<float> stage1_samples, stage2_samples;
+    stage1_samples.reserve(BUFFER_SIZE * NUM_CHANNELS);
+    stage2_samples.reserve(BUFFER_SIZE * NUM_CHANNELS);
+
     stage1.render(0);
 
     // Validate debug texture of stage1 is sine wave for all channels
@@ -230,6 +320,14 @@ void main(){
     const float *output_data = static_cast<const float *>(output_param->get_value());
     REQUIRE(output_data != nullptr);
 
+    // Store stage2 output samples (channel-major format)
+    for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+        const float* channel_data = output_data + (ch * BUFFER_SIZE);
+        for (int i = 0; i < BUFFER_SIZE; ++i) {
+            stage2_samples.push_back(channel_data[i]);
+        }
+    }
+
     for (int i = 0; i < BUFFER_SIZE; ++i) {
         float tex_coord_x = (static_cast<float>(i) + 0.5f) / BUFFER_SIZE; // TexCoord.x for this pixel
         float sample_pos = tex_coord_x * BUFFER_SIZE;
@@ -240,6 +338,26 @@ void main(){
         for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
             REQUIRE(output_data[i + ch * BUFFER_SIZE] == Catch::Approx(expected).margin(0.1f));
         }
+    }
+
+    // Push to audio output (only if enabled)
+    if (audio_output) {
+        // Convert channel-major to interleaved for audio output
+        std::vector<float> interleaved(BUFFER_SIZE * NUM_CHANNELS);
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            const float* channel_data = output_data + (ch * BUFFER_SIZE);
+            for (int i = 0; i < BUFFER_SIZE; ++i) {
+                interleaved[i * NUM_CHANNELS + ch] = channel_data[i];
+            }
+        }
+        while (!audio_output->is_ready()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        audio_output->push(interleaved.data());
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        audio_output->stop();
+        audio_output->close();
+        delete audio_output;
     }
 
     // Debug texture of stage2 should remain zeros for all channels
@@ -256,6 +374,38 @@ void main(){
 
     stage2.unbind();
     stage1.unbind();
+
+    // CSV output (only if enabled)
+    if (is_csv_output_enabled()) {
+        std::string csv_output_dir = "build/tests/csv_output";
+        system(("mkdir -p " + csv_output_dir).c_str());
+        
+        // Convert to per-channel format
+        std::vector<std::vector<float>> stage2_samples_per_channel(NUM_CHANNELS);
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+            stage2_samples_per_channel[ch].reserve(BUFFER_SIZE);
+        }
+        
+        // Convert from channel-major to per-channel vectors
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            const float* channel_data = stage2_samples.data() + (ch * BUFFER_SIZE);
+            for (int i = 0; i < BUFFER_SIZE; ++i) {
+                stage2_samples_per_channel[ch].push_back(channel_data[i]);
+            }
+        }
+        
+        std::ostringstream filename_stream;
+        filename_stream << csv_output_dir << "/audio_render_stage_passthrough_" << params.name << ".csv";
+        std::string filename = filename_stream.str();
+        
+        CSVTestOutput csv_writer(filename, SAMPLE_RATE);
+        REQUIRE(csv_writer.is_open());
+        csv_writer.write_channels(stage2_samples_per_channel, SAMPLE_RATE);
+        csv_writer.close();
+        
+        std::cout << "Wrote passthrough output samples to " << filename << " (" 
+                  << BUFFER_SIZE << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
+    }
 }
 
 TEMPLATE_TEST_CASE("AudioRenderStage dynamic passthrough switch", "[audio_render_stage][gl_test][template]",

@@ -100,7 +100,8 @@ AudioRenderStageHistory2::AudioRenderStageHistory2(const unsigned int frames_per
       m_tape_speed(nullptr),
       m_tape_window_offset_samples(nullptr),
       m_tape_stopped(nullptr),
-      m_tape_loop(nullptr) {
+      m_tape_loop(nullptr),
+      m_tape() {
     
     // Convert seconds to samples
     float buffer_size_seconds = history_buffer_size_seconds;
@@ -311,6 +312,11 @@ void AudioRenderStageHistory2::start_tape() {
         static_cast<AudioIntParameter*>(m_tape_stopped)->set_value(0);
     }
     // Speed should be set separately by user, we just clear the stopped flag
+    // However, if speed is 0, we should reset it to default to ensure playback starts
+    if (get_tape_speed_ratio() == 0.0f && m_tape_speed) {
+        static_cast<AudioIntParameter*>(m_tape_speed)->set_value(static_cast<int>(m_frames_per_buffer));
+        m_pending_speed_samples_per_buffer.reset();
+    }
 }
 
 bool AudioRenderStageHistory2::is_tape_stopped() const {
@@ -650,11 +656,27 @@ void AudioRenderStageHistory2::update_audio_history_texture() {
     }
 }
 
+void AudioRenderStageHistory2::update_audio_history_texture(const unsigned int time) {
+    // Update tape position using time delta
+    update_tape_position(time);
+    
+    // Update window if outdated
+    if (is_outdated()) {
+        update_window();
+    }
+}
+
 int AudioRenderStageHistory2::calculate_time_delta(const unsigned int time) {
-    // First frame: default increment to 1 buffer period
+    // First frame: initialize last time, no delta
+    if (m_last_time == 0 && time == 0) {
+        m_last_time = time;
+        return 0;
+    }
+    
+    // If last time is 0 but current time is not (started late), treat as init
     if (m_last_time == 0) {
         m_last_time = time;
-        return 1;
+        return 0;
     }
     
     // Calculate signed delta to support backwards time movement

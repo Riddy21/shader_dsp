@@ -131,7 +131,8 @@ float get_tape_history_sample_at_index{PLUGIN_SUFFIX}(int index, int channel) {
     int y_position = (y_row_position * num_channels + channel) * 2;
     
     // Convert to texture coordinates
-    vec2 texture_coord = vec2((float(x_position) + 0.5001) / float(audio_size.x), (float(y_position) + 0.5001) / float(audio_size.y));
+    vec2 texture_coord = vec2((float(x_position) + 0.5001) / float(audio_size.x),
+                              (float(y_position) + 0.5001) / float(audio_size.y));
     
     return texture(tape_history_texture{PLUGIN_SUFFIX}, texture_coord).r;
 }
@@ -170,7 +171,8 @@ float get_tape_history_sample_from_back{PLUGIN_SUFFIX}(int index_from_back, int 
     int y_position = (y_row_position * num_channels + channel) * 2;
     
     // Convert to texture coordinates
-    vec2 texture_coord = vec2((float(x_position) + 0.5001) / float(audio_size.x), (float(y_position) + 0.5001) / float(audio_size.y));
+    vec2 texture_coord = vec2((float(x_position) + 0.5001) / float(audio_size.x),
+                              (float(y_position) + 0.5001) / float(audio_size.y));
     
     return texture(tape_history_texture{PLUGIN_SUFFIX}, texture_coord).r;
 }

@@ -462,8 +462,6 @@ const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin
     return h;
 }
 
-
-
 void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
 
