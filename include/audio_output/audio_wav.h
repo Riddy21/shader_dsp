@@ -3,6 +3,8 @@
 #define AUDIO_WAV_H
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 struct WAVHeader {
     char riff[4] = {'R', 'I', 'F', 'F'};
@@ -19,5 +21,18 @@ struct WAVHeader {
     char data_chunk_header[4] = {'d', 'a', 't', 'a'};
     uint32_t data_size;
 };
+
+/**
+ * @brief Write float audio data to a WAV file
+ * @param output_filepath Path to output WAV file
+ * @param audio_data Channel-major format: vector of channels, each channel is a vector of float samples
+ * @param sample_rate Sample rate in Hz
+ * @param num_channels Number of channels
+ * @return true on success, false on failure
+ */
+bool write_wav_file(const std::string& output_filepath,
+                    const std::vector<std::vector<float>>& audio_data,
+                    unsigned int sample_rate,
+                    unsigned int num_channels);
 
 #endif

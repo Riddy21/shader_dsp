@@ -165,9 +165,11 @@ class AudioGeneratorRenderStage : public AudioRenderStage {
             static ClipboardCleaner clipboard_cleaner_instance;
         };
 
+    protected:
+        void render(const unsigned int time) override;
+
     private:
         void delete_note(const unsigned int index);
-        void render(const unsigned int time) override;
 
         static const unsigned int MAX_NOTES_PLAYED_AT_ONCE = 24;
 

@@ -1,5 +1,6 @@
 #include "catch2/catch_all.hpp"
 #include "framework/test_gl.h"
+#include "framework/test_main.h"
 
 #include "audio_core/audio_renderer.h"
 #include "audio_core/audio_render_graph.h"
@@ -93,13 +94,15 @@ TEST_CASE("AudioRenderer - Echo Effect Audio Output Test",
                   << ECHO_DECAY << " decay, " << NUM_ECHOS << " echoes" << std::endl;
         std::cout << "You should hear a " << SINE_FREQUENCY << "Hz tone for 1 second, followed by echoes." << std::endl;
 
-        // Create audio output for real-time playback
-        AudioPlayerOutput* audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
-        REQUIRE(audio_output->open());
-        REQUIRE(audio_output->start());
-
-        // Add audio output to the renderer
-        REQUIRE(audio_renderer.add_render_output(audio_output));
+        // Create audio output for real-time playback (only if enabled)
+        AudioPlayerOutput* audio_output = nullptr;
+        if (is_audio_output_enabled()) {
+            audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+            REQUIRE(audio_output->open());
+            REQUIRE(audio_output->start());
+            // Add audio output to the renderer
+            REQUIRE(audio_renderer.add_render_output(audio_output));
+        }
 
         // Initialize the audio renderer
         REQUIRE(audio_renderer.initialize(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS));
@@ -123,20 +126,23 @@ TEST_CASE("AudioRenderer - Echo Effect Audio Output Test",
             // Use AudioRenderer's render method instead of manual rendering
             audio_renderer.render();
 
-            while (!audio_output->is_ready()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            if (audio_output) {
+                while (!audio_output->is_ready()) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                }
             }
             
             audio_renderer.present();
         }
 
-        // Let the audio finish playing
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        
-        // Clean up
-        audio_output->stop();
-        audio_output->close();
-        std::cout << "AudioRenderer echo effect playback complete!" << std::endl;
+        // Let the audio finish playing (only if enabled)
+        if (audio_output) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            // Clean up
+            audio_output->stop();
+            audio_output->close();
+            std::cout << "AudioRenderer echo effect playback complete!" << std::endl;
+        }
         std::cout << "Did you hear the original " << SINE_FREQUENCY << "Hz tone followed by echoes getting progressively quieter?" << std::endl;
     }
 

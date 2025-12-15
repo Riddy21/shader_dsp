@@ -3,7 +3,8 @@
 #define AUDIO_EFFECT_RENDER_STAGE_H
 
 #include "audio_core/audio_render_stage.h"
-#include "audio_render_stage/audio_render_stage_history.h"
+#include "audio_render_stage_plugins/audio_render_stage_history.h"
+#include "audio_core/audio_tape.h"
 #include "audio_core/audio_control.h"
 
 class AudioEffectRenderStage : public AudioRenderStage {
@@ -74,13 +75,14 @@ public:
     ~AudioEchoEffectRenderStage() {};
 
 private:
-    static constexpr unsigned int M_MAX_ECHO_BUFFER_SIZE = 500;
+    static constexpr float HISTORY_WINDOW_SIZE_SECONDS = 2.0f;
 
     void render(const unsigned int time) override;
 
     bool disconnect_render_stage(AudioRenderStage * render_stage) override;
 
-    std::vector<float> m_echo_buffer;
+    std::unique_ptr<AudioRenderStageHistory2> m_history2;
+    std::shared_ptr<AudioTape> m_tape;
 };
 
 class AudioFrequencyFilterEffectRenderStage : public AudioEffectRenderStage {
@@ -111,6 +113,9 @@ public:
     const float get_filter_follower() { return m_filter_follower; };
     const float get_resonance() { return m_resonance; };
 
+    // Force coefficient update (useful when switching to this stage)
+    void force_coefficient_update() { m_b_coefficients_dirty = true; };
+
     ~AudioFrequencyFilterEffectRenderStage() {};
 
 private:
@@ -119,7 +124,8 @@ private:
     void render(const unsigned int time) override;
     bool disconnect_render_stage(AudioRenderStage * render_stage) override;
 
-    std::unique_ptr<AudioRenderStageHistory> m_audio_history;
+    std::unique_ptr<AudioRenderStageHistory2> m_history2;
+    std::shared_ptr<AudioTape> m_tape;
     float m_low_pass;
     float m_high_pass;
     float m_filter_follower;

@@ -8,6 +8,7 @@
 #include "audio_parameter/audio_uniform_array_parameter.h"
 #include "audio_parameter/audio_texture2d_parameter.h"
 #include "audio_render_stage/audio_effect_render_stage.h"
+#include "audio_render_stage_plugins/audio_render_stage_history.h"
 
 const std::vector<std::string> AudioGainEffectRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
@@ -136,16 +137,6 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage
                                 AudioParameter::ConnectionType::INPUT);
     decay_parameter->set_value(.4f);
 
-    auto echo_audio_texture =
-        new AudioTexture2DParameter("echo_audio_texture",
-                                AudioParameter::ConnectionType::INPUT,
-                                frames_per_buffer, M_MAX_ECHO_BUFFER_SIZE * num_channels, // Around 2s of audio data
-                                m_active_texture_count++,
-                                0, GL_NEAREST);
-
-    m_echo_buffer.resize(frames_per_buffer * num_channels * M_MAX_ECHO_BUFFER_SIZE, 0.0f);
-    echo_audio_texture->set_value(m_echo_buffer.data());
-
     if (!this->add_parameter(feedback_parameter)) {
         std::cerr << "Failed to add feedback_parameter" << std::endl;
     }
@@ -154,9 +145,6 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage
     }
     if (!this->add_parameter(decay_parameter)) {
         std::cerr << "Failed to add decay_parameter" << std::endl;
-    }
-    if (!this->add_parameter(echo_audio_texture)) {
-        std::cerr << "Failed to add echo_audio_texture" << std::endl;
     }
 
     m_controls.clear();
@@ -180,24 +168,55 @@ AudioEchoEffectRenderStage::AudioEchoEffectRenderStage(const std::string & stage
         [decay_parameter](const float& v) { decay_parameter->set_value(v); }
     );
     m_controls.push_back(decay_control);
+
+    // Create audio tape for history recording
+    m_tape = std::make_shared<AudioTape>(frames_per_buffer, sample_rate, num_channels, HISTORY_WINDOW_SIZE_SECONDS * sample_rate);
+
+    // Create tape history with fixed 2-second window size
+    m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, HISTORY_WINDOW_SIZE_SECONDS);
+    
+    // Register the plugin - this will automatically add shader imports and parameters
+    if (!this->register_plugin(m_history2.get())) {
+        std::cerr << "Failed to register history plugin" << std::endl;
+    }
+    
+    // Set the tape for the history plugin
+    m_history2->set_tape(m_tape);
+    
+    // Set up tape for recording (speed = 1.0, position starts at 0)
+    m_history2->set_tape_speed(1.0f);
+    m_history2->set_tape_position(0u);
+    m_history2->start_tape();
+    m_history2->set_tape_loop(true);
+
+    m_tape->clear();
+    m_history2->update_window();
 }
 
 void AudioEchoEffectRenderStage::render(unsigned int time) {
-    // Always set echo_audio_texture to the current m_echo_buffer
-    this->find_parameter("echo_audio_texture")->set_value(m_echo_buffer.data());
+    auto current_time = m_time;
 
-    if (time != m_time) {
-        // Shift the echo buffer
-        std::copy(m_echo_buffer.begin(), m_echo_buffer.end() - frames_per_buffer * num_channels, m_echo_buffer.begin() + frames_per_buffer * num_channels);
+    if (current_time != time) {
+        // Only advance the tape position (playback head) if we have moved to a new frame
+        m_history2->increment_tape_position_by_one();
     }
+
+    // Always update the window BEFORE rendering to ensure the echo reads from the most recent tape state.
+    // This is critical for continuity - the echo must read from the tape state that includes any previous
+    // renders, especially when rendering the same frame multiple times with input changes.
+    m_history2->update_window();
 
     AudioRenderStage::render(time);
 
     // Get the audio data
     auto * data = (float *)this->find_parameter("output_audio_texture")->get_value();
 
-    // Update the echo buffer with the new data
-    std::copy(data, data + frames_per_buffer * num_channels, m_echo_buffer.begin());
+    // Calculate the recording position based on the frame time
+    // This allows us to overwrite the current frame's data if we are re-rendering the same frame
+
+    // FIXME: find a better way than use local time
+    unsigned int record_position = m_local_time * frames_per_buffer;
+    m_tape->record(data, record_position);
 }
 
 bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * render_stage) {
@@ -207,15 +226,15 @@ bool AudioEchoEffectRenderStage::disconnect_render_stage(AudioRenderStage * rend
         return false;
     }
 
-    // Clear the echo buffer
-    std::fill(m_echo_buffer.begin(), m_echo_buffer.end(), 0.0f);
+    m_tape->clear();
+    m_history2->set_tape_position(0u);
+
     return true;
 }
 
 const std::vector<std::string> AudioFrequencyFilterEffectRenderStage::default_frag_shader_imports = {
     "build/shaders/global_settings.glsl",
-    "build/shaders/frag_shader_settings.glsl",
-    "build/shaders/history_settings.glsl"
+    "build/shaders/frag_shader_settings.glsl"
 };
 
 AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(const unsigned int frames_per_buffer,
@@ -240,8 +259,6 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
       m_filter_follower(0.0f),
       m_resonance(1.0f) {
 
-    m_audio_history = std::make_unique<AudioRenderStageHistory>(MAX_TEXTURE_SIZE, frames_per_buffer, sample_rate, num_channels);
-
     auto num_taps_parameter =
         new AudioIntParameter("num_taps",
                                 AudioParameter::ConnectionType::INPUT);
@@ -253,16 +270,34 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
                                 MAX_TEXTURE_SIZE, 1,
                                 m_active_texture_count++,
                                 0, GL_NEAREST);
-    
+
     if (!this->add_parameter(num_taps_parameter)) {
         std::cerr << "Failed to add num_taps_parameter" << std::endl;
     }
     if (!this->add_parameter(b_coeff_texture)) {
         std::cerr << "Failed to add b_coeff_texture" << std::endl;
     }
-    if (!this->add_parameter(m_audio_history->create_audio_history_texture(++m_active_texture_count))) {
-        std::cerr << "Failed to add audio_history_texture" << std::endl;
+
+    m_tape = std::make_shared<AudioTape>(frames_per_buffer, sample_rate, num_channels, MAX_TEXTURE_SIZE);
+    float history_window_size_seconds = float(MAX_TEXTURE_SIZE) / float(sample_rate);
+    m_history2 = std::make_unique<AudioRenderStageHistory2>(frames_per_buffer, sample_rate, num_channels, history_window_size_seconds);
+
+    // Register the plugin - this will automatically add shader imports and parameters
+    if (!this->register_plugin(m_history2.get())) {
+        std::cerr << "Failed to register history plugin" << std::endl;
     }
+    
+    // Set the tape for the history plugin
+    m_history2->set_tape(m_tape);
+    
+    // Set up tape for recording (speed = 1.0, position starts at 0)
+    m_history2->set_tape_speed(1.0f);
+    m_history2->set_tape_position(0u);
+    m_history2->start_tape();
+    m_history2->set_tape_loop(true);
+
+    m_tape->clear();
+    m_history2->update_window();
 
     m_controls.clear();
     auto low_pass_control = std::make_shared<AudioControl<float>>(
@@ -297,6 +332,7 @@ AudioFrequencyFilterEffectRenderStage::AudioFrequencyFilterEffectRenderStage(con
 }
 
 // Assume this function is a member of AudioFrequencyFilterEffectRenderStage.
+// TODO: Think of a way to offload this to the vertex shader stage
 const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin_b_coefficients(
     const float low_pass_param,
     const float high_pass_param,
@@ -426,10 +462,13 @@ const std::vector<float> AudioFrequencyFilterEffectRenderStage::calculate_firwin
     return h;
 }
 
-
-
 void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
     auto * data = (float *)this->find_parameter("stream_audio_texture")->get_value();
+
+    if (m_time != time) {
+        m_history2->increment_tape_position_by_one();
+    }
+    m_history2->update_window();
 
     if (m_b_coefficients_dirty) {
         float current_amplitude = std::accumulate(data, data + frames_per_buffer * num_channels, 0.0f, [](float sum, float value) {
@@ -437,15 +476,11 @@ void AudioFrequencyFilterEffectRenderStage::render(const unsigned int time) {
         }) / (frames_per_buffer * num_channels);
         update_b_coefficients(current_amplitude);
     }
-    
-    if (time != m_time) {
-        m_audio_history->shift_history_buffer();
-    }
-
-    m_audio_history->save_stream_to_history(data);
-    m_audio_history->update_audio_history_texture();
 
     AudioRenderStage::render(time);
+
+    unsigned int record_position = m_local_time * frames_per_buffer;
+    m_tape->record(data, record_position);
 }
 
 void AudioFrequencyFilterEffectRenderStage::update_b_coefficients(const float current_amplitude) {
@@ -465,7 +500,8 @@ bool AudioFrequencyFilterEffectRenderStage::disconnect_render_stage(AudioRenderS
         return false;
     }
 
-    // Clear history buffer
-    m_audio_history->clear_history_buffer();
+    m_tape->clear();
+    m_history2->set_tape_position(0u);
+
     return true;
 }

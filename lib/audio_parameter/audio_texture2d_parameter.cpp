@@ -175,9 +175,14 @@ bool AudioTexture2DParameter::bind() {
 
     glBindTexture(GL_TEXTURE_2D, linked_param->get_texture());
 
-    // Link the texture to the framebuffer
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + m_color_attachment,
-                           GL_TEXTURE_2D, linked_param->get_texture(), 0);
+    // Only attach to framebuffer if this is an OUTPUT parameter, or if it's a PASSTHROUGH that's linked
+    // PASSTHROUGH parameters that aren't linked shouldn't attach to framebuffer (they're just input textures)
+    if (connection_type == ConnectionType::OUTPUT || 
+        (connection_type == ConnectionType::PASSTHROUGH && m_linked_parameter != nullptr)) {
+        // Link the texture to the framebuffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + m_color_attachment,
+                               GL_TEXTURE_2D, linked_param->get_texture(), 0);
+    }
 
     // Unbind texture
     glBindTexture(GL_TEXTURE_2D, 0);

@@ -14,6 +14,7 @@ struct SDLWindow {
     SDL_Window * window = nullptr;
     SDL_GLContext glctx = nullptr;
     int width, height;
+    bool visible;
     
     // EGL objects
     EGLDisplay eglDisplay = EGL_NO_DISPLAY;
@@ -21,13 +22,33 @@ struct SDLWindow {
     EGLContext eglContext = EGL_NO_CONTEXT;
     EGLConfig eglConfig = nullptr;
 
+    // Constructor for hidden window (default, for offscreen rendering)
     SDLWindow(int w, int h)
-        : width(w), height(h) {
+        : width(w), height(h), visible(false) {
         window = SDL_CreateWindow(
             "Offscreen",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-            w, h, SDL_WINDOW_HIDDEN // Remove SDL_WINDOW_OPENGL flag since we're using EGL
+            w, h, SDL_WINDOW_HIDDEN
         );
+        
+        // Initialize EGL
+        initialize_egl();
+    }
+    
+    // Constructor for visible window (for visualization/debugging)
+    SDLWindow(int w, int h, const char* title, bool make_visible = true)
+        : width(w), height(h), visible(make_visible) {
+        Uint32 flags = make_visible ? SDL_WINDOW_SHOWN : SDL_WINDOW_HIDDEN;
+        window = SDL_CreateWindow(
+            title ? title : "Test Window",
+            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+            w, h, flags
+        );
+        
+        if (!window) {
+            std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
+            return;
+        }
         
         // Initialize EGL
         initialize_egl();
@@ -35,7 +56,21 @@ struct SDLWindow {
 
     ~SDLWindow() {
         cleanup_egl();
-        SDL_DestroyWindow(window);
+        if (window) {
+            SDL_DestroyWindow(window);
+        }
+    }
+    
+    // Swap buffers for visible windows
+    void swap_buffers() {
+        if (eglDisplay != EGL_NO_DISPLAY && eglSurface != EGL_NO_SURFACE) {
+            eglSwapBuffers(eglDisplay, eglSurface);
+        }
+    }
+    
+    // Get window pointer (for event handling, etc.)
+    SDL_Window* get_window() const {
+        return window;
     }
 
 private:
@@ -158,7 +193,7 @@ struct GLContext {
     GLContext()
     {
         float quad[] = {
-            // Position    Texcoords
+            // Position    Texcoords (flipped vertically)
             -1.0f, -1.0f, 0.0f, 0.0f,  // Bottom-left
             -1.0f,  1.0f, 0.0f, 1.0f,  // Top-left
              1.0f, -1.0f, 1.0f, 0.0f,  // Bottom-right

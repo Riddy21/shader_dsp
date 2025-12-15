@@ -11,6 +11,7 @@
 #include <SDL2/SDL.h>
 #include "audio_output/audio_player_output.h"
 #include "utils/audio_test_utils.h"
+#include "framework/test_main.h"
 
 // Test parameter structure for audio player output tests
 struct AudioPlayerTestParams {
@@ -66,59 +67,85 @@ TEMPLATE_TEST_CASE("AudioPlayerOutput basic functionality", "[audio_player_outpu
     
     SECTION("Open and close audio device") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
-        REQUIRE(player.open() == true);
-        REQUIRE(player.close() == true);
+        if (is_audio_output_enabled()) {
+            REQUIRE(player.open() == true);
+            REQUIRE(player.close() == true);
+        } else {
+            // Test API without actually opening device
+            // Just verify the API exists - may succeed or fail depending on system
+            bool opened = player.open();
+            (void)opened; // Suppress unused variable warning
+            // If it opened, close it
+            if (opened) {
+                player.close();
+            }
+        }
     }
     
     SECTION("Start and stop audio device") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
-        REQUIRE(player.open() == true);
-        REQUIRE(player.start() == true);
-        REQUIRE(player.stop() == true);
-        REQUIRE(player.close() == true);
+        if (is_audio_output_enabled()) {
+            REQUIRE(player.open() == true);
+            REQUIRE(player.start() == true);
+            REQUIRE(player.stop() == true);
+            REQUIRE(player.close() == true);
+        } else {
+            // Test API without actually starting device
+            REQUIRE(player.start() == false); // Should fail if not opened
+        }
     }
     
     SECTION("Check ready state") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
-        REQUIRE(player.open() == true);
-        REQUIRE(player.start() == true);
-        
-        // Should be ready after starting
-        REQUIRE(player.is_ready() == true);
-        
-        REQUIRE(player.stop() == true);
-        REQUIRE(player.close() == true);
+        if (is_audio_output_enabled()) {
+            REQUIRE(player.open() == true);
+            REQUIRE(player.start() == true);
+            
+            // Should be ready after starting
+            REQUIRE(player.is_ready() == true);
+            
+            REQUIRE(player.stop() == true);
+            REQUIRE(player.close() == true);
+        } else {
+            // Test API without actually starting device
+            REQUIRE(player.is_ready() == false); // Should be false if not started
+        }
     }
     
     SECTION("Queued bytes consumption") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
 
-        REQUIRE(player.open() == true);
-        REQUIRE(player.start() == true);
+        if (is_audio_output_enabled()) {
+            REQUIRE(player.open() == true);
+            REQUIRE(player.start() == true);
 
-        // Before pushing, nothing should be queued.
-        size_t queued_before = player.queued_bytes();
-        REQUIRE(queued_before == 0);
+            // Before pushing, nothing should be queued.
+            size_t queued_before = player.queued_bytes();
+            REQUIRE(queued_before == 0);
 
-        // Generate one buffer of audio and queue it.
-        auto buffer = generate_sine_wave(440.0f, 0.3f, sample_rate,
-                                         frames_per_buffer, channels);
-        player.push(buffer.data());
+            // Generate one buffer of audio and queue it.
+            auto buffer = generate_sine_wave(440.0f, 0.3f, sample_rate,
+                                             frames_per_buffer, channels);
+            player.push(buffer.data());
 
-        // After push we expect SDL to report queued data.
-        size_t queued_after_push = player.queued_bytes();
-        REQUIRE(queued_after_push > 0);
+            // After push we expect SDL to report queued data.
+            size_t queued_after_push = player.queued_bytes();
+            REQUIRE(queued_after_push > 0);
 
-        // Give the device thread some time to consume the data.
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            // Give the device thread some time to consume the data.
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-        size_t queued_after_wait = player.queued_bytes();
+            size_t queued_after_wait = player.queued_bytes();
 
-        // The queued amount should have decreased (or reached zero) once playback progressed.
-        REQUIRE(queued_after_wait < queued_after_push);
+            // The queued amount should have decreased (or reached zero) once playback progressed.
+            REQUIRE(queued_after_wait < queued_after_push);
 
-        REQUIRE(player.stop() == true);
-        REQUIRE(player.close() == true);
+            REQUIRE(player.stop() == true);
+            REQUIRE(player.close() == true);
+        } else {
+            // Test API without actually playing audio
+            REQUIRE(player.queued_bytes() == 0); // Should be 0 if not started
+        }
     }
 }
 
@@ -136,49 +163,57 @@ TEMPLATE_TEST_CASE("AudioPlayerOutput sine wave playback", "[audio_player_output
     SECTION("Play a simple sine wave") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
         
-        REQUIRE(player.open() == true);
-        REQUIRE(player.start() == true);
-        
-        // Clear any initial queued audio to start with a clean state
-        player.clear_queue();
-        
-        // Generate and play sine wave for 2 seconds
-        const unsigned num_buffers = (sample_rate / frames_per_buffer) * 2;
-        float phase = 0.0f;
-        
-        for (unsigned i = 0; i < num_buffers; ++i) {
-            // Wait until the device is ready for more audio
-            while (!player.is_ready()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        if (is_audio_output_enabled()) {
+            REQUIRE(player.open() == true);
+            REQUIRE(player.start() == true);
+            
+            // Clear any initial queued audio to start with a clean state
+            player.clear_queue();
+            
+            // Generate and play sine wave for 2 seconds
+            const unsigned num_buffers = (sample_rate / frames_per_buffer) * 2;
+            float phase = 0.0f;
+            
+            for (unsigned i = 0; i < num_buffers; ++i) {
+                // Wait until the device is ready for more audio
+                while (!player.is_ready()) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                }
+                
+                // Generate sine wave buffer
+                auto buffer = generate_sine_wave(frequency, amplitude, sample_rate, 
+                                               frames_per_buffer, channels, phase);
+
+                // Check current queue state before pushing
+                size_t queued_before = player.queued_bytes();
+                
+                // Push audio data
+                player.push(buffer.data());
+                
+                // Update phase for next buffer
+                phase += frames_per_buffer;
             }
             
-            // Generate sine wave buffer
+            // After push we expect SDL to report queued data.
+            size_t queued_after_push = player.queued_bytes();
+            REQUIRE(queued_after_push > 0);
+
+            // Wait a bit for audio to finish playing
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+            // The queued amount should have decreased (or reached zero) once playback progressed.
+            size_t queued_after_wait = player.queued_bytes();
+            REQUIRE(queued_after_wait < queued_after_push);
+            
+            REQUIRE(player.stop() == true);
+            REQUIRE(player.close() == true);
+        } else {
+            // Test without actually playing audio - just verify API works
+            // Generate sine wave buffer to test buffer generation
             auto buffer = generate_sine_wave(frequency, amplitude, sample_rate, 
-                                           frames_per_buffer, channels, phase);
-
-            // Check current queue state before pushing
-            size_t queued_before = player.queued_bytes();
-            
-            // Push audio data
-            player.push(buffer.data());
-            
-            // Update phase for next buffer
-            phase += frames_per_buffer;
+                                           frames_per_buffer, channels);
+            REQUIRE(buffer.size() == frames_per_buffer * channels);
         }
-        
-        // After push we expect SDL to report queued data.
-        size_t queued_after_push = player.queued_bytes();
-        REQUIRE(queued_after_push > 0);
-
-        // Wait a bit for audio to finish playing
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-        // The queued amount should have decreased (or reached zero) once playback progressed.
-        size_t queued_after_wait = player.queued_bytes();
-        REQUIRE(queued_after_wait < queued_after_push);
-        
-        REQUIRE(player.stop() == true);
-        REQUIRE(player.close() == true);
     }
 }
 
@@ -228,19 +263,27 @@ TEMPLATE_TEST_CASE("AudioPlayerOutput different configurations", "[audio_player_
     
     AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
     
-    REQUIRE(player.open() == true);
-    REQUIRE(player.start() == true);
-    
-    // Generate and play a short sine wave (frequency varies by sample rate)
-    float frequency = 440.0f + (sample_rate / 1000.0f); // Vary frequency based on sample rate
-    auto buffer = generate_sine_wave(frequency, 0.2f, sample_rate, 
-                                   frames_per_buffer, channels);
-    player.push(buffer.data());
-    
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    
-    REQUIRE(player.stop() == true);
-    REQUIRE(player.close() == true);
+    if (is_audio_output_enabled()) {
+        REQUIRE(player.open() == true);
+        REQUIRE(player.start() == true);
+        
+        // Generate and play a short sine wave (frequency varies by sample rate)
+        float frequency = 440.0f + (sample_rate / 1000.0f); // Vary frequency based on sample rate
+        auto buffer = generate_sine_wave(frequency, 0.2f, sample_rate, 
+                                       frames_per_buffer, channels);
+        player.push(buffer.data());
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        
+        REQUIRE(player.stop() == true);
+        REQUIRE(player.close() == true);
+    } else {
+        // Test without actually playing audio - just verify buffer generation
+        float frequency = 440.0f + (sample_rate / 1000.0f);
+        auto buffer = generate_sine_wave(frequency, 0.2f, sample_rate, 
+                                       frames_per_buffer, channels);
+        REQUIRE(buffer.size() == frames_per_buffer * channels);
+    }
 }
 
 TEMPLATE_TEST_CASE("AudioPlayerOutput continuous playback", "[audio_player_output][template]",
@@ -255,54 +298,69 @@ TEMPLATE_TEST_CASE("AudioPlayerOutput continuous playback", "[audio_player_outpu
     SECTION("Continuous sine wave with frequency sweep") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
         
-        REQUIRE(player.open() == true);
-        REQUIRE(player.start() == true);
-        
-        // Clear any initial queued audio to start with a clean state
-        player.clear_queue();
-        
-        // Play a frequency sweep for 2 seconds
-        const unsigned num_buffers = (sample_rate / frames_per_buffer) * 2;
-        float phase = 0.0f;
-        
-        for (unsigned i = 0; i < num_buffers; ++i) {
-            // Wait until the device is ready for more audio
-            while (!player.is_ready()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        if (is_audio_output_enabled()) {
+            REQUIRE(player.open() == true);
+            REQUIRE(player.start() == true);
+            
+            // Clear any initial queued audio to start with a clean state
+            player.clear_queue();
+            
+            // Play a frequency sweep for 2 seconds
+            const unsigned num_buffers = (sample_rate / frames_per_buffer) * 2;
+            float phase = 0.0f;
+            
+            for (unsigned i = 0; i < num_buffers; ++i) {
+                // Wait until the device is ready for more audio
+                while (!player.is_ready()) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                }
+                
+                // Calculate frequency that sweeps from 200Hz to 2000Hz
+                float progress = static_cast<float>(i) / num_buffers;
+                float frequency = 200.0f + (1800.0f * progress);
+                
+                // Generate sine wave buffer
+                auto buffer = generate_sine_wave(frequency, 0.2f, sample_rate, 
+                                               frames_per_buffer, channels, phase);
+
+                // Measure queued bytes before push
+                size_t queued_before = player.queued_bytes();
+                
+                // Push audio data
+                player.push(buffer.data());
+
+                // Measure queued bytes after push
+                size_t queued_after_push = player.queued_bytes();
+                // After push, queued bytes should increase or stay the same (if device consumed immediately)
+                REQUIRE(queued_after_push >= queued_before);
+                
+                // Update phase for next buffer
+                phase += frames_per_buffer;
             }
             
-            // Calculate frequency that sweeps from 200Hz to 2000Hz
-            float progress = static_cast<float>(i) / num_buffers;
-            float frequency = 200.0f + (1800.0f * progress);
-            
-            // Generate sine wave buffer
-            auto buffer = generate_sine_wave(frequency, 0.2f, sample_rate, 
-                                           frames_per_buffer, channels, phase);
+            // Wait for audio to finish
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-            // Measure queued bytes before push
-            size_t queued_before = player.queued_bytes();
+            // After waiting, queued bytes should have decreased or reached zero
+            size_t queued_after_wait = player.queued_bytes();
+            REQUIRE(queued_after_wait <= player.queued_bytes());
             
-            // Push audio data
-            player.push(buffer.data());
-
-            // Measure queued bytes after push
-            size_t queued_after_push = player.queued_bytes();
-            // After push, queued bytes should increase or stay the same (if device consumed immediately)
-            REQUIRE(queued_after_push >= queued_before);
+            REQUIRE(player.stop() == true);
+            REQUIRE(player.close() == true);
+        } else {
+            // Test without actually playing audio - generate frequency sweep buffers
+            const unsigned num_buffers = (sample_rate / frames_per_buffer) * 2;
+            float phase = 0.0f;
             
-            // Update phase for next buffer
-            phase += frames_per_buffer;
+            for (unsigned i = 0; i < num_buffers; ++i) {
+                float progress = static_cast<float>(i) / num_buffers;
+                float frequency = 200.0f + (1800.0f * progress);
+                auto buffer = generate_sine_wave(frequency, 0.2f, sample_rate, 
+                                               frames_per_buffer, channels, phase);
+                REQUIRE(buffer.size() == frames_per_buffer * channels);
+                phase += frames_per_buffer;
+            }
         }
-        
-        // Wait for audio to finish
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-        // After waiting, queued bytes should have decreased or reached zero
-        size_t queued_after_wait = player.queued_bytes();
-        REQUIRE(queued_after_wait <= player.queued_bytes());
-        
-        REQUIRE(player.stop() == true);
-        REQUIRE(player.close() == true);
     }
 }
 
@@ -318,44 +376,55 @@ TEMPLATE_TEST_CASE("AudioPlayerOutput buffer management", "[audio_player_output]
     SECTION("Test buffer overflow handling") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
         
-        REQUIRE(player.open() == true);
-        REQUIRE(player.start() == true);
-        
-        // Fill the buffer completely
-        auto buffer = generate_constant_buffer(0.1f, frames_per_buffer, channels);
-        
-        // Push many buffers quickly to test overflow handling
-        for (int i = 0; i < 100; ++i) {
-            player.push(buffer.data());
+        if (is_audio_output_enabled()) {
+            REQUIRE(player.open() == true);
+            REQUIRE(player.start() == true);
+            
+            // Fill the buffer completely
+            auto buffer = generate_constant_buffer(0.1f, frames_per_buffer, channels);
+            
+            // Push many buffers quickly to test overflow handling
+            for (int i = 0; i < 100; ++i) {
+                player.push(buffer.data());
+            }
+            
+            // Wait a bit for the audio system to process
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            
+            REQUIRE(player.stop() == true);
+            REQUIRE(player.close() == true);
+        } else {
+            // Test without actually playing audio - just verify buffer generation
+            auto buffer = generate_constant_buffer(0.1f, frames_per_buffer, channels);
+            REQUIRE(buffer.size() == frames_per_buffer * channels);
         }
-        
-        // Wait a bit for the audio system to process
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        
-        REQUIRE(player.stop() == true);
-        REQUIRE(player.close() == true);
     }
     
     SECTION("Test is_ready() behavior") {
         AudioPlayerOutput player(frames_per_buffer, sample_rate, channels);
         
-        REQUIRE(player.open() == true);
-        REQUIRE(player.start() == true);
-        
-        // Initially should be ready
-        REQUIRE(player.is_ready() == true);
-        
-        // Fill the buffer
-        auto buffer = generate_constant_buffer(0.1f, frames_per_buffer, channels);
-        for (int i = 0; i < 10; ++i) {
-            player.push(buffer.data());
+        if (is_audio_output_enabled()) {
+            REQUIRE(player.open() == true);
+            REQUIRE(player.start() == true);
+            
+            // Initially should be ready
+            REQUIRE(player.is_ready() == true);
+            
+            // Fill the buffer
+            auto buffer = generate_constant_buffer(0.1f, frames_per_buffer, channels);
+            for (int i = 0; i < 10; ++i) {
+                player.push(buffer.data());
+            }
+            
+            // May not be ready immediately after pushing
+            // Wait a bit and check again
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            
+            REQUIRE(player.stop() == true);
+            REQUIRE(player.close() == true);
+        } else {
+            // Test API without actually starting device
+            REQUIRE(player.is_ready() == false); // Should be false if not started
         }
-        
-        // May not be ready immediately after pushing
-        // Wait a bit and check again
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        
-        REQUIRE(player.stop() == true);
-        REQUIRE(player.close() == true);
     }
 } 
