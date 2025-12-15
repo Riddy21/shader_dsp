@@ -136,7 +136,7 @@ void main() {
         }
 
         // Verify recorded data
-        AudioTape* tape = record_stage.get_tape_new();
+        AudioTape* tape = record_stage.get_tape().lock().get();
         REQUIRE(tape != nullptr);
         REQUIRE(tape->size() >= NUM_FRAMES * BUFFER_SIZE);
 
@@ -212,7 +212,7 @@ void main() {
         record_stage.stop();
 
         // Verify recorded data
-        AudioTape* tape = record_stage.get_tape_new();
+        AudioTape* tape = record_stage.get_tape().lock().get();
         REQUIRE(tape != nullptr);
         REQUIRE(tape->size() >= (10 + NUM_FRAMES) * BUFFER_SIZE);
 
@@ -278,7 +278,7 @@ void main() {
         record_stage.stop();
 
         // Verify recorded data
-        AudioTape* tape = record_stage.get_tape_new();
+        AudioTape* tape = record_stage.get_tape().lock().get();
         REQUIRE(tape != nullptr);
 
         // Check first recording session (frames 0-9 at positions 0-9)
@@ -407,7 +407,7 @@ void main() {
         record_stage.stop();
 
         // Verify recorded data
-        AudioTape* tape = record_stage.get_tape_new();
+        AudioTape* tape = record_stage.get_tape().lock().get();
         REQUIRE(tape != nullptr);
 
         // Check first part (frames 0-9, recorded with time 0-9)
@@ -540,7 +540,7 @@ void main() {
 
     SECTION("Recorded Data Verification") {
         // Verify recorded data
-        AudioTape* tape = record_stage.get_tape_new();
+        AudioTape* tape = record_stage.get_tape().lock().get();
         REQUIRE(tape != nullptr);
         
         // Verify that frames 5-14 were recorded at position 0-9 (first recording session)

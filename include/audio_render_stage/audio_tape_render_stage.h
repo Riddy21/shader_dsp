@@ -6,7 +6,6 @@
 #include "audio_render_stage_plugins/audio_render_stage_history.h"
 #include "audio_core/audio_tape.h"
 
-typedef std::vector<float> Tape;
 class AudioRecordRenderStage : public AudioRenderStage {
 public:
     AudioRecordRenderStage(const unsigned int frames_per_buffer,
@@ -33,17 +32,13 @@ public:
     bool is_recording() {
         return m_recording;
     }
-    Tape & get_tape() {
-        return m_tape;
-    }
-    std::weak_ptr<AudioTape> get_tape_new() {
+    std::weak_ptr<AudioTape> get_tape() {
         return m_tape_new;
     }
 
 private:
     void render(const unsigned int time) override;
 
-    Tape m_tape;
     std::shared_ptr<AudioTape> m_tape_new;
 
     bool m_recording = false;
@@ -72,28 +67,20 @@ public:
 
     ~AudioPlaybackRenderStage() {};
 
-    void load_tape(const Tape & tape);
     void load_tape(const std::weak_ptr<AudioTape> tape);
 
     void play(unsigned int play_position);
     void stop();
     bool is_playing();
-
-private:
-    bool m_playing = false;
     
-    void render(const unsigned int time) override;
-
     const unsigned int get_current_tape_position(const unsigned int time);
 
-    void load_tape_data_to_texture(const Tape & tape, const unsigned int offset);
+private:
+    void render(const unsigned int time) override;
 
-    const Tape * m_tape_ptr;
-    std::weak_ptr<AudioTape> m_tape_ptr_new;
+    std::shared_ptr<AudioTape> m_tape_ptr_new;
 
     std::unique_ptr<AudioRenderStageHistory2> m_history;
-
-    static const unsigned int M_TAPE_SIZE = 200;
 };
 
 #endif // AUDIO_TAPE_RENDER_STAGE_H

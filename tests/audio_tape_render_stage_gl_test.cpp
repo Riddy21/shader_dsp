@@ -140,7 +140,6 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
     record_stage.stop();
 
     // Load tape from record to playback
-    playback_stage.load_tape(record_stage.get_tape_new());
     playback_stage.load_tape(record_stage.get_tape());
 
     // Start playback
@@ -383,6 +382,59 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
         }
     }
 
+    SECTION("Tape Position Tracking") {
+        // Test that get_current_tape_position returns correct values
+        playback_stage.load_tape(record_stage.get_tape());
+        
+        // Get initial position (might not be 0 if playback_stage was used before)
+        unsigned int initial_pos = playback_stage.get_current_tape_position(0);
+        
+        // Start playback at position 0 (this will set the position)
+        playback_stage.play(0);
+        unsigned int pos_after_play = playback_stage.get_current_tape_position(0);
+        REQUIRE(pos_after_play == 0);
+        
+        // Render a few frames and check position advances
+        for (int frame = 0; frame < 10; ++frame) {
+            global_time_param->set_value(frame);
+            global_time_param->render();
+            playback_stage.render(frame);
+            
+            unsigned int current_pos = playback_stage.get_current_tape_position(frame);
+            // Position should advance by frames_per_buffer each frame (at 1.0x speed)
+            // Note: position updates happen during render, so check after render
+            unsigned int expected_pos = (frame + 1) * BUFFER_SIZE; // After render, position advances
+            REQUIRE(current_pos == expected_pos);
+        }
+        
+        // Stop playback
+        playback_stage.stop();
+        
+        // Position should remain at last position after stop (10 frames rendered = position at 10 * BUFFER_SIZE)
+        unsigned int pos_after_stop = playback_stage.get_current_tape_position(10);
+        REQUIRE(pos_after_stop == 10 * BUFFER_SIZE);
+        
+        // Start playback at a different position
+        playback_stage.play(5);
+        unsigned int pos_at_position_5 = playback_stage.get_current_tape_position(10);
+        REQUIRE(pos_at_position_5 == 5 * BUFFER_SIZE);
+        
+        // Render a few more frames
+        for (int frame = 10; frame < 15; ++frame) {
+            global_time_param->set_value(frame);
+            global_time_param->render();
+            playback_stage.render(frame);
+            
+            unsigned int current_pos = playback_stage.get_current_tape_position(frame);
+            // Position should be: 5 * BUFFER_SIZE + (frame - 10 + 1) * BUFFER_SIZE
+            // +1 because position advances during render
+            unsigned int expected_pos = (5 + (frame - 10) + 1) * BUFFER_SIZE;
+            REQUIRE(current_pos == expected_pos);
+        }
+        
+        playback_stage.stop();
+    }
+
     // Cleanup
     delete global_time_param;
 }
@@ -469,7 +521,6 @@ void main() {
 
         // Load tape from record to playback
         playback_stage.load_tape(record_stage.get_tape());
-        playback_stage.load_tape(record_stage.get_tape_new());
 
         for (int start_sec = 0; start_sec < NUM_INTERVALS; ++start_sec) {
             float expected = float(start_sec) * 0.1f;
@@ -598,7 +649,6 @@ void main() {
 
         // Step 3: Load updated tape and verify playback around and inside overwritten region
         playback_stage.load_tape(record_stage.get_tape());
-        playback_stage.load_tape(record_stage.get_tape_new());
 
         auto verify_playback_at = [&](int play_position, float expected_value) {
             playback_stage.play(play_position);
@@ -835,7 +885,6 @@ void main() {
     SECTION("Recorded Data Verification") {
         // Load tape and verify recorded data
         playback_stage.load_tape(record_stage.get_tape());
-        playback_stage.load_tape(record_stage.get_tape_new());
         
         // Verify that frames 5-14 were recorded (first recording session)
         playback_stage.play(0);
