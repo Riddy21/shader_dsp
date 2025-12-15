@@ -110,6 +110,14 @@ bool AudioPlaybackRenderStage::is_playing() {
     return !m_history->is_tape_stopped();
 }
 
+void AudioPlaybackRenderStage::set_tape_speed(const float speed) {
+    m_history->set_tape_speed(speed);
+}
+
+const float AudioPlaybackRenderStage::get_tape_speed() const {
+    return m_history->get_tape_speed_ratio();
+}
+
 const unsigned int AudioPlaybackRenderStage::get_current_tape_position(const unsigned int time) {
     // Get the current tape position from the history plugin
     // The position is in samples (per channel)

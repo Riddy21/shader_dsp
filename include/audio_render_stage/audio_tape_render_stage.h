@@ -73,6 +73,9 @@ public:
     void stop();
     bool is_playing();
     
+    void set_tape_speed(const float speed);
+    const float get_tape_speed() const;
+    
     const unsigned int get_current_tape_position(const unsigned int time);
 
 private:

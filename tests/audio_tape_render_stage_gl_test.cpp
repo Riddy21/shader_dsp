@@ -435,6 +435,395 @@ TEMPLATE_TEST_CASE("AudioTapeRenderStage - Simple Record and Playback to Audio",
         playback_stage.stop();
     }
 
+    SECTION("Tape Speed Control") {
+        // Test that set_tape_speed and get_tape_speed work correctly
+        playback_stage.load_tape(record_stage.get_tape());
+        
+        // Start playback first to ensure tape is in a known state
+        playback_stage.play(0);
+        
+        // Test positive speeds
+        playback_stage.set_tape_speed(2.0f); // Double speed
+        // Render once to apply pending speed changes
+        global_time_param->set_value(0);
+        global_time_param->render();
+        playback_stage.render(0);
+        REQUIRE(playback_stage.get_tape_speed() == Catch::Approx(2.0f).margin(0.001f));
+        
+        playback_stage.set_tape_speed(0.5f); // Half speed
+        global_time_param->set_value(1);
+        global_time_param->render();
+        playback_stage.render(1);
+        REQUIRE(playback_stage.get_tape_speed() == Catch::Approx(0.5f).margin(0.001f));
+        
+        playback_stage.set_tape_speed(1.0f); // Normal speed
+        global_time_param->set_value(2);
+        global_time_param->render();
+        playback_stage.render(2);
+        REQUIRE(playback_stage.get_tape_speed() == Catch::Approx(1.0f).margin(0.001f));
+        
+        // Test negative speeds (reverse playback)
+        playback_stage.set_tape_speed(-1.0f); // Reverse at normal speed
+        global_time_param->set_value(3);
+        global_time_param->render();
+        playback_stage.render(3);
+        REQUIRE(playback_stage.get_tape_speed() == Catch::Approx(-1.0f).margin(0.001f));
+        
+        playback_stage.set_tape_speed(-2.0f); // Reverse at double speed
+        global_time_param->set_value(4);
+        global_time_param->render();
+        playback_stage.render(4);
+        REQUIRE(playback_stage.get_tape_speed() == Catch::Approx(-2.0f).margin(0.001f));
+        
+        playback_stage.set_tape_speed(-0.5f); // Reverse at half speed
+        global_time_param->set_value(5);
+        global_time_param->render();
+        playback_stage.render(5);
+        REQUIRE(playback_stage.get_tape_speed() == Catch::Approx(-0.5f).margin(0.001f));
+        
+        // Test that speed affects playback direction
+        playback_stage.stop();
+        playback_stage.play(10); // Start at position 10
+        playback_stage.set_tape_speed(2.0f); // Double speed forward
+        
+        // Render a few frames and verify position advances forward
+        // Need to render once to get initial position after play() sets it
+        global_time_param->set_value(0);
+        global_time_param->render();
+        playback_stage.render(0);
+        unsigned int pos_before = playback_stage.get_current_tape_position(0);
+        
+        for (int frame = 1; frame < 4; ++frame) {
+            global_time_param->set_value(frame);
+            global_time_param->render();
+            playback_stage.render(frame);
+        }
+        unsigned int pos_after_forward = playback_stage.get_current_tape_position(4);
+        // Position should have advanced forward
+        REQUIRE(pos_after_forward > pos_before);
+        
+        // Test reverse playback - position should decrease
+        playback_stage.set_tape_speed(-1.0f); // Reverse at normal speed
+        // Render once to apply speed change
+        global_time_param->set_value(4);
+        global_time_param->render();
+        playback_stage.render(4);
+        unsigned int pos_before_reverse = playback_stage.get_current_tape_position(4);
+        
+        // Render a few frames in reverse
+        for (int frame = 5; frame < 8; ++frame) {
+            global_time_param->set_value(frame);
+            global_time_param->render();
+            playback_stage.render(frame);
+        }
+        unsigned int pos_after_reverse = playback_stage.get_current_tape_position(8);
+        // Position should have decreased (moved backward)
+        REQUIRE(pos_after_reverse < pos_before_reverse);
+        
+        playback_stage.stop();
+    }
+
+    // Cleanup
+    delete global_time_param;
+}
+
+TEMPLATE_TEST_CASE("AudioTapeRenderStage - Forward/Reverse Playback with Continuous Speed Changes", 
+                   "[audio_tape_render_stage][gl_test][template][speed_changes]", 
+                   TestParam1, TestParam2, TestParam3) {
+    
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
+    constexpr int SAMPLE_RATE = 44100;
+    constexpr float TEST_FREQUENCY = 440.0f;
+    constexpr float TEST_GAIN = 0.3f;
+    constexpr float MAX_SPEED = 2.0f; // Maximum playback speed (forward)
+    constexpr float MIN_SPEED = -2.0f; // Minimum playback speed (reverse)
+    constexpr float PLAYBACK_DURATION_SECONDS = 6.0f; // Total playback duration
+    constexpr int PLAYBACK_FRAMES = static_cast<int>(SAMPLE_RATE / BUFFER_SIZE * PLAYBACK_DURATION_SECONDS);
+    // Record enough audio to cover playback at max speed (2x) plus some buffer
+    // At 2x speed, 6 seconds of playback needs 12 seconds of audio, plus buffer for reverse
+    constexpr float RECORD_DURATION_SECONDS = PLAYBACK_DURATION_SECONDS * std::abs(MAX_SPEED) + 2.0f; // Extra 2 seconds buffer
+    constexpr int RECORD_FRAMES = static_cast<int>(SAMPLE_RATE / BUFFER_SIZE * RECORD_DURATION_SECONDS);
+    
+    // Initialize window and OpenGL context
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+    
+    // Create sine generator
+    AudioGeneratorRenderStage generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 
+                                        "build/shaders/multinote_sine_generator_render_stage.glsl");
+    
+    // Create record stage
+    AudioRecordRenderStage record_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    
+    // Create playback stage
+    AudioPlaybackRenderStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    
+    // Create final render stage
+    AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    
+    // Add global_time parameter
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    global_time_param->initialize();
+    
+    // Initialize all stages
+    REQUIRE(generator.initialize());
+    REQUIRE(record_stage.initialize());
+    REQUIRE(playback_stage.initialize());
+    REQUIRE(final_stage.initialize());
+    
+    // Connect stages
+    REQUIRE(generator.connect_render_stage(&record_stage));
+    REQUIRE(playback_stage.connect_render_stage(&final_stage));
+    
+    context.prepare_draw();
+    
+    // Bind all stages
+    REQUIRE(generator.bind());
+    REQUIRE(record_stage.bind());
+    REQUIRE(playback_stage.bind());
+    REQUIRE(final_stage.bind());
+    
+    // Record sine wave
+    record_stage.record(0);
+    generator.play_note({TEST_FREQUENCY, TEST_GAIN});
+    
+    for (int frame = 0; frame < RECORD_FRAMES; ++frame) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        
+        generator.render(frame);
+        record_stage.render(frame);
+    }
+    
+    generator.stop_note(TEST_FREQUENCY);
+    record_stage.stop();
+    
+    // Load tape to playback stage
+    playback_stage.load_tape(record_stage.get_tape());
+    playback_stage.play(0);
+    
+    // Prepare audio output (only if enabled)
+    AudioPlayerOutput* audio_output = nullptr;
+    if (is_audio_output_enabled()) {
+        audio_output = new AudioPlayerOutput(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+        REQUIRE(audio_output->open());
+        REQUIRE(audio_output->start());
+    }
+    
+    // Store output samples for analysis
+    std::vector<float> output_samples;
+    output_samples.reserve(BUFFER_SIZE * NUM_CHANNELS * PLAYBACK_FRAMES);
+    
+    // Playback with gradually changing speed: smoothly transition from +2.0x to -2.0x
+    // Use linear interpolation to create smooth speed transitions
+    for (int frame = 0; frame < PLAYBACK_FRAMES; ++frame) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        
+        // Calculate normalized position (0.0 to 1.0) across playback duration
+        float normalized_pos = static_cast<float>(frame) / static_cast<float>(PLAYBACK_FRAMES - 1);
+        
+        // Gradually change speed from MAX_SPEED (+2.0x) to MIN_SPEED (-2.0x)
+        // Using linear interpolation: speed = MAX_SPEED + (MIN_SPEED - MAX_SPEED) * normalized_pos
+        float speed = MAX_SPEED + (MIN_SPEED - MAX_SPEED) * normalized_pos;
+        
+        playback_stage.set_tape_speed(speed);
+        playback_stage.render(frame);
+        final_stage.render(frame);
+        
+        // Get output data
+        auto output_param = final_stage.find_parameter("final_output_audio_texture");
+        REQUIRE(output_param != nullptr);
+        
+        const float* output_data = static_cast<const float*>(output_param->get_value());
+        REQUIRE(output_data != nullptr);
+        
+        // Store output samples (interleaved format)
+        for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+            output_samples.push_back(output_data[i]);
+        }
+        
+        // Push to audio output (only if enabled)
+        if (audio_output) {
+            while (!audio_output->is_ready()) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            audio_output->push(output_data);
+        }
+    }
+    
+    playback_stage.stop();
+    
+    // Cleanup audio (only if enabled)
+    if (audio_output) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        audio_output->stop();
+        audio_output->close();
+        delete audio_output;
+    }
+    
+    // CSV output (only if enabled)
+    if (is_csv_output_enabled()) {
+        std::string csv_output_dir = "build/tests/csv_output";
+        system(("mkdir -p " + csv_output_dir).c_str());
+        
+        // Convert interleaved samples to per-channel format
+        std::vector<std::vector<float>> output_samples_per_channel(NUM_CHANNELS);
+        const size_t samples_per_channel = PLAYBACK_FRAMES * BUFFER_SIZE;
+        for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+            output_samples_per_channel[ch].reserve(samples_per_channel);
+        }
+        
+        // Deinterleave output samples
+        for (size_t i = 0; i < output_samples.size(); i += NUM_CHANNELS) {
+            for (int ch = 0; ch < NUM_CHANNELS; ch++) {
+                output_samples_per_channel[ch].push_back(output_samples[i + ch]);
+            }
+        }
+        
+        std::ostringstream filename_stream;
+        filename_stream << csv_output_dir << "/tape_speed_changes_" << params.name << ".csv";
+        std::string filename = filename_stream.str();
+        
+        CSVTestOutput csv_writer(filename, SAMPLE_RATE);
+        REQUIRE(csv_writer.is_open());
+        csv_writer.write_channels(output_samples_per_channel, SAMPLE_RATE);
+        csv_writer.close();
+        
+        std::cout << "Wrote speed change test output to " << filename << " (" 
+                  << samples_per_channel << " samples, " << NUM_CHANNELS << " channels)" << std::endl;
+    }
+    
+    SECTION("Continuity Check - No Discontinuities") {
+        // Split interleaved samples into per-channel vectors
+        std::vector<std::vector<float>> channel_samples(NUM_CHANNELS);
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            channel_samples[ch].reserve(output_samples.size() / NUM_CHANNELS);
+        }
+        for (size_t i = 0; i + (NUM_CHANNELS - 1) < output_samples.size(); i += NUM_CHANNELS) {
+            for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+                channel_samples[ch].push_back(output_samples[i + ch]);
+            }
+        }
+        
+        // Check for sample-to-sample discontinuities per channel
+        // Use a more lenient threshold since speed changes can cause larger differences
+        constexpr float MAX_SAMPLE_DIFF = 0.2f; // Allow larger differences during speed transitions
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            std::size_t discontinuity_count = 0;
+            std::vector<size_t> discontinuity_indices;
+            const auto &samples = channel_samples[ch];
+            for (size_t i = 1; i < samples.size(); ++i) {
+                float diff = std::abs(samples[i] - samples[i - 1]);
+                if (diff > MAX_SAMPLE_DIFF) {
+                    discontinuity_count++;
+                    if (discontinuity_indices.size() < 10) { // Store first 10 for debugging
+                        discontinuity_indices.push_back(i);
+                    }
+                }
+            }
+            INFO("Channel " << ch << " discontinuities: " << discontinuity_count << " out of " << samples.size() << " samples");
+            if (discontinuity_indices.size() > 0) {
+                INFO("  First discontinuity at sample " << discontinuity_indices[0]);
+            }
+            // Allow some discontinuities during speed transitions, but should be minimal
+            REQUIRE(discontinuity_count < samples.size() / 50); // Less than 2% discontinuities
+        }
+    }
+    
+    SECTION("Slope Change Check - Smooth Transitions") {
+        // Split interleaved samples into per-channel vectors
+        std::vector<std::vector<float>> channel_samples(NUM_CHANNELS);
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            channel_samples[ch].reserve(output_samples.size() / NUM_CHANNELS);
+        }
+        for (size_t i = 0; i + (NUM_CHANNELS - 1) < output_samples.size(); i += NUM_CHANNELS) {
+            for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+                channel_samples[ch].push_back(output_samples[i + ch]);
+            }
+        }
+        
+        // Check for sudden slope changes that would indicate discontinuities
+        // Use more lenient thresholds since speed changes can cause larger slope variations
+        constexpr float MAX_SLOPE_CHANGE_JUMP = 0.15f; // Maximum allowed jump in slope change per sample
+        constexpr float MAX_ABSOLUTE_SLOPE_CHANGE = 0.25f; // Maximum allowed absolute slope change
+        constexpr float MIN_SLOPE_CHANGE_FOR_ANALYSIS = 0.0001f; // Ignore very small slope changes
+        
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            const auto &samples = channel_samples[ch];
+            
+            if (samples.size() < 3) {
+                continue; // Need at least 3 samples to calculate slope changes
+            }
+            
+            // Calculate first derivative (slope) between consecutive samples
+            std::vector<float> slopes;
+            slopes.reserve(samples.size() - 1);
+            for (size_t i = 1; i < samples.size(); ++i) {
+                float slope = samples[i] - samples[i - 1];
+                slopes.push_back(slope);
+            }
+            
+            // Calculate second derivative (change in slope)
+            std::vector<float> slope_changes;
+            slope_changes.reserve(slopes.size() - 1);
+            for (size_t i = 1; i < slopes.size(); ++i) {
+                float slope_change = std::abs(slopes[i] - slopes[i - 1]);
+                slope_changes.push_back(slope_change);
+            }
+            
+            // Find large absolute slope changes
+            std::vector<size_t> large_absolute_slope_change_indices;
+            std::vector<float> large_absolute_slope_change_magnitudes;
+            
+            for (size_t i = 0; i < slope_changes.size(); ++i) {
+                if (slope_changes[i] > MAX_ABSOLUTE_SLOPE_CHANGE) {
+                    large_absolute_slope_change_indices.push_back(i + 1);
+                    large_absolute_slope_change_magnitudes.push_back(slope_changes[i]);
+                }
+            }
+            
+            // Find large jumps in slope changes (third derivative)
+            std::vector<size_t> large_jump_indices;
+            std::vector<float> large_jump_magnitudes;
+            
+            for (size_t i = 1; i < slope_changes.size(); ++i) {
+                float jump = std::abs(slope_changes[i] - slope_changes[i - 1]);
+                if (slope_changes[i] > MIN_SLOPE_CHANGE_FOR_ANALYSIS && 
+                    slope_changes[i - 1] > MIN_SLOPE_CHANGE_FOR_ANALYSIS &&
+                    jump > MAX_SLOPE_CHANGE_JUMP) {
+                    large_jump_indices.push_back(i + 1);
+                    large_jump_magnitudes.push_back(jump);
+                }
+            }
+            
+            INFO("Channel " << ch << " slope change analysis:");
+            INFO("  Total samples: " << samples.size());
+            INFO("  Found " << large_absolute_slope_change_indices.size() << " large absolute slope changes");
+            INFO("  Found " << large_jump_indices.size() << " large slope change jumps");
+            
+            if (large_absolute_slope_change_indices.size() > 0) {
+                INFO("  First large absolute slope change at sample " << large_absolute_slope_change_indices[0]
+                     << " with magnitude " << large_absolute_slope_change_magnitudes[0]);
+            }
+            
+            if (large_jump_indices.size() > 0) {
+                INFO("  First large jump at sample " << large_jump_indices[0]
+                     << " with magnitude " << large_jump_magnitudes[0]);
+            }
+            
+            // Verify that slope changes are relatively smooth
+            // Allow some jumps during speed transitions, but should be minimal
+            REQUIRE(large_jump_indices.size() < samples.size() / 100); // Less than 1% large jumps
+            
+            // Also check for large absolute slope changes (should be minimal)
+            REQUIRE(large_absolute_slope_change_indices.size() < samples.size() / 50); // Less than 2% large changes
+        }
+    }
+    
     // Cleanup
     delete global_time_param;
 }
@@ -956,6 +1345,487 @@ void main() {
         }
     }
 
+    // Cleanup
+    delete global_time_param;
+}
+
+TEMPLATE_TEST_CASE("AudioTapeRenderStage - Forward Playback Reaching End of Tape", 
+                   "[audio_tape_render_stage][gl_test][template][edge_cases]", 
+                   TestParam1, TestParam2, TestParam3) {
+    
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
+    constexpr int SAMPLE_RATE = 44100;
+    constexpr float TEST_FREQUENCY = 440.0f;
+    constexpr float TEST_GAIN = 0.3f;
+    constexpr int RECORD_FRAMES = SAMPLE_RATE / BUFFER_SIZE * 2; // Record 2 seconds
+    
+    // Initialize window and OpenGL context
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+    
+    // Create sine generator
+    AudioGeneratorRenderStage generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 
+                                        "build/shaders/multinote_sine_generator_render_stage.glsl");
+    
+    // Create record stage
+    AudioRecordRenderStage record_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    
+    // Create playback stage
+    AudioPlaybackRenderStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    
+    // Create final render stage
+    AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    
+    // Add global_time parameter
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    global_time_param->initialize();
+    
+    // Initialize all stages
+    REQUIRE(generator.initialize());
+    REQUIRE(record_stage.initialize());
+    REQUIRE(playback_stage.initialize());
+    REQUIRE(final_stage.initialize());
+    
+    // Connect stages
+    REQUIRE(generator.connect_render_stage(&record_stage));
+    REQUIRE(playback_stage.connect_render_stage(&final_stage));
+    
+    context.prepare_draw();
+    
+    // Bind all stages
+    REQUIRE(generator.bind());
+    REQUIRE(record_stage.bind());
+    REQUIRE(playback_stage.bind());
+    REQUIRE(final_stage.bind());
+    
+    // Record sine wave
+    record_stage.record(0);
+    generator.play_note({TEST_FREQUENCY, TEST_GAIN});
+    
+    for (int frame = 0; frame < RECORD_FRAMES; ++frame) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        
+        generator.render(frame);
+        record_stage.render(frame);
+    }
+    
+    generator.stop_note(TEST_FREQUENCY);
+    record_stage.stop();
+    
+    // Get tape size
+    auto tape = record_stage.get_tape().lock();
+    REQUIRE(tape != nullptr);
+    unsigned int tape_size_samples = tape->size();
+    unsigned int tape_size_frames = tape_size_samples / BUFFER_SIZE;
+    
+    // Load tape to playback stage
+    playback_stage.load_tape(record_stage.get_tape());
+    
+    SECTION("Normal Speed (1x) - Reaches End") {
+        playback_stage.play(0);
+        playback_stage.set_tape_speed(1.0f);
+        
+        // Render enough frames to exceed tape length
+        int frames_to_render = tape_size_frames + 10; // Render past end
+        std::vector<float> output_samples;
+        output_samples.reserve(BUFFER_SIZE * NUM_CHANNELS * frames_to_render);
+        
+        bool was_playing = true;
+        unsigned int last_position = 0;
+        
+        for (int frame = 0; frame < frames_to_render; ++frame) {
+            global_time_param->set_value(frame);
+            global_time_param->render();
+            
+            playback_stage.render(frame);
+            final_stage.render(frame);
+            
+            bool is_playing_now = playback_stage.is_playing();
+            unsigned int current_position = playback_stage.get_current_tape_position(frame);
+            
+            // Get output data
+            auto output_param = final_stage.find_parameter("final_output_audio_texture");
+            REQUIRE(output_param != nullptr);
+            const float* output_data = static_cast<const float*>(output_param->get_value());
+            REQUIRE(output_data != nullptr);
+            
+            // Store output samples
+            for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+                output_samples.push_back(output_data[i]);
+            }
+            
+            // Verify position doesn't exceed tape size
+            REQUIRE(current_position <= tape_size_samples);
+            
+            // Track when stopping occurs
+            bool just_stopped = !is_playing_now && was_playing;
+            
+            // Once stopped, position should be near or at end
+            if (just_stopped) {
+                INFO("Tape stopped at frame " << frame << ", position: " << current_position);
+                REQUIRE(current_position >= tape_size_samples - BUFFER_SIZE * 2); // Allow some margin
+                REQUIRE(current_position <= tape_size_samples);
+            }
+            
+            // Verify position stays within bounds (might advance slightly after stopping due to window updates)
+            REQUIRE(current_position <= tape_size_samples);
+            
+            was_playing = is_playing_now;
+            last_position = current_position;
+        }
+        
+        // Verify tape stopped
+        REQUIRE_FALSE(playback_stage.is_playing());
+        
+        // Verify final position is at or near end
+        unsigned int final_position = playback_stage.get_current_tape_position(frames_to_render - 1);
+        REQUIRE(final_position >= tape_size_samples - BUFFER_SIZE);
+        REQUIRE(final_position <= tape_size_samples);
+        
+        // Check for discontinuities near the end
+        std::vector<std::vector<float>> channel_samples(NUM_CHANNELS);
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            channel_samples[ch].reserve(output_samples.size() / NUM_CHANNELS);
+        }
+        for (size_t i = 0; i + (NUM_CHANNELS - 1) < output_samples.size(); i += NUM_CHANNELS) {
+            for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+                channel_samples[ch].push_back(output_samples[i + ch]);
+            }
+        }
+        
+        // Check last portion of audio for discontinuities
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            const auto &samples = channel_samples[ch];
+            if (samples.size() < 100) continue;
+            
+            // Check last 100 samples for discontinuities
+            size_t start_check = samples.size() > 100 ? samples.size() - 100 : 0;
+            std::size_t discontinuity_count = 0;
+            for (size_t i = start_check + 1; i < samples.size(); ++i) {
+                float diff = std::abs(samples[i] - samples[i - 1]);
+                if (diff > 0.3f) { // Allow larger threshold at end
+                    discontinuity_count++;
+                }
+            }
+            INFO("Channel " << ch << " discontinuities in last 100 samples: " << discontinuity_count);
+            REQUIRE(discontinuity_count < 10); // Should be minimal
+        }
+    }
+    
+    SECTION("Fast Speed (2x) - Reaches End") {
+        playback_stage.play(0);
+        playback_stage.set_tape_speed(2.0f);
+        
+        // Render enough frames to exceed tape length (at 2x speed, reaches end faster)
+        int frames_to_render = (tape_size_frames / 2) + 10; // At 2x, need half the frames
+        std::vector<float> output_samples;
+        output_samples.reserve(BUFFER_SIZE * NUM_CHANNELS * frames_to_render);
+        
+        bool was_playing = true;
+        unsigned int last_position = 0;
+        
+        for (int frame = 0; frame < frames_to_render; ++frame) {
+            global_time_param->set_value(frame);
+            global_time_param->render();
+            
+            playback_stage.render(frame);
+            final_stage.render(frame);
+            
+            bool is_playing_now = playback_stage.is_playing();
+            unsigned int current_position = playback_stage.get_current_tape_position(frame);
+            
+            // Get output data
+            auto output_param = final_stage.find_parameter("final_output_audio_texture");
+            REQUIRE(output_param != nullptr);
+            const float* output_data = static_cast<const float*>(output_param->get_value());
+            REQUIRE(output_data != nullptr);
+            
+            // Store output samples
+            for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+                output_samples.push_back(output_data[i]);
+            }
+            
+            // Verify position doesn't exceed tape size
+            REQUIRE(current_position <= tape_size_samples);
+            
+            // Once stopped, position should remain constant
+            if (!is_playing_now && was_playing) {
+                INFO("Tape stopped at frame " << frame << " (2x speed), position: " << current_position);
+                REQUIRE(current_position >= tape_size_samples - BUFFER_SIZE * 2); // At 2x, might stop a bit earlier
+            }
+            
+            // When stopped, position should stay within bounds (may adjust slightly due to window updates)
+            if (!is_playing_now) {
+                REQUIRE(current_position >= 0);
+                REQUIRE(current_position <= tape_size_samples);
+            }
+            
+            was_playing = is_playing_now;
+            last_position = current_position;
+        }
+        
+        // Verify tape stopped
+        REQUIRE_FALSE(playback_stage.is_playing());
+        
+        // Verify final position is at or near end
+        unsigned int final_position = playback_stage.get_current_tape_position(frames_to_render - 1);
+        REQUIRE(final_position >= tape_size_samples - BUFFER_SIZE * 2);
+        REQUIRE(final_position <= tape_size_samples);
+    }
+    
+    playback_stage.stop();
+    
+    // Cleanup
+    delete global_time_param;
+}
+
+TEMPLATE_TEST_CASE("AudioTapeRenderStage - Reverse Playback Reaching Beginning of Tape", 
+                   "[audio_tape_render_stage][gl_test][template][edge_cases]", 
+                   TestParam1, TestParam2, TestParam3) {
+    
+    constexpr auto params = get_test_params(TestType::value);
+    constexpr int BUFFER_SIZE = params.buffer_size;
+    constexpr int NUM_CHANNELS = params.num_channels;
+    constexpr int SAMPLE_RATE = 44100;
+    constexpr float TEST_FREQUENCY = 440.0f;
+    constexpr float TEST_GAIN = 0.3f;
+    constexpr int RECORD_FRAMES = SAMPLE_RATE / BUFFER_SIZE * 2; // Record 2 seconds
+    
+    // Initialize window and OpenGL context
+    SDLWindow window(BUFFER_SIZE, NUM_CHANNELS);
+    GLContext context;
+    
+    // Create sine generator
+    AudioGeneratorRenderStage generator(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS, 
+                                        "build/shaders/multinote_sine_generator_render_stage.glsl");
+    
+    // Create record stage
+    AudioRecordRenderStage record_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    
+    // Create playback stage
+    AudioPlaybackRenderStage playback_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    
+    // Create final render stage
+    AudioFinalRenderStage final_stage(BUFFER_SIZE, SAMPLE_RATE, NUM_CHANNELS);
+    
+    // Add global_time parameter
+    auto global_time_param = new AudioIntBufferParameter("global_time", AudioParameter::ConnectionType::INPUT);
+    global_time_param->set_value(0);
+    global_time_param->initialize();
+    
+    // Initialize all stages
+    REQUIRE(generator.initialize());
+    REQUIRE(record_stage.initialize());
+    REQUIRE(playback_stage.initialize());
+    REQUIRE(final_stage.initialize());
+    
+    // Connect stages
+    REQUIRE(generator.connect_render_stage(&record_stage));
+    REQUIRE(playback_stage.connect_render_stage(&final_stage));
+    
+    context.prepare_draw();
+    
+    // Bind all stages
+    REQUIRE(generator.bind());
+    REQUIRE(record_stage.bind());
+    REQUIRE(playback_stage.bind());
+    REQUIRE(final_stage.bind());
+    
+    // Record sine wave
+    record_stage.record(0);
+    generator.play_note({TEST_FREQUENCY, TEST_GAIN});
+    
+    for (int frame = 0; frame < RECORD_FRAMES; ++frame) {
+        global_time_param->set_value(frame);
+        global_time_param->render();
+        
+        generator.render(frame);
+        record_stage.render(frame);
+    }
+    
+    generator.stop_note(TEST_FREQUENCY);
+    record_stage.stop();
+    
+    // Get tape size
+    auto tape = record_stage.get_tape().lock();
+    REQUIRE(tape != nullptr);
+    unsigned int tape_size_samples = tape->size();
+    unsigned int tape_size_frames = tape_size_samples / BUFFER_SIZE;
+    
+    // Load tape to playback stage
+    playback_stage.load_tape(record_stage.get_tape());
+    
+    SECTION("Reverse Normal Speed (-1x) - Reaches Beginning") {
+        // Start playback from near the end, then reverse
+        playback_stage.play(tape_size_frames - 5); // Start 5 frames from end
+        playback_stage.set_tape_speed(-1.0f); // Reverse playback
+        
+        // Render enough frames to go past beginning
+        int frames_to_render = tape_size_frames + 10;
+        std::vector<float> output_samples;
+        output_samples.reserve(BUFFER_SIZE * NUM_CHANNELS * frames_to_render);
+        
+        bool was_playing = true;
+        unsigned int last_position = tape_size_samples;
+        
+        for (int frame = 0; frame < frames_to_render; ++frame) {
+            global_time_param->set_value(frame);
+            global_time_param->render();
+            
+            playback_stage.render(frame);
+            final_stage.render(frame);
+            
+            bool is_playing_now = playback_stage.is_playing();
+            unsigned int current_position = playback_stage.get_current_tape_position(frame);
+            
+            // Get output data
+            auto output_param = final_stage.find_parameter("final_output_audio_texture");
+            REQUIRE(output_param != nullptr);
+            const float* output_data = static_cast<const float*>(output_param->get_value());
+            REQUIRE(output_data != nullptr);
+            
+            // Store output samples
+            for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+                output_samples.push_back(output_data[i]);
+            }
+            
+            // Verify position doesn't go below 0 (should be clamped)
+            REQUIRE(current_position >= 0);
+            REQUIRE(current_position <= tape_size_samples);
+            
+            // Position should decrease during reverse playback
+            if (is_playing_now && was_playing) {
+                REQUIRE(current_position <= last_position); // Should be moving backward
+            }
+            
+            // Once stopped, position should remain constant
+            if (!is_playing_now && was_playing) {
+                INFO("Tape stopped at frame " << frame << " (reverse), position: " << current_position);
+                REQUIRE(current_position <= BUFFER_SIZE); // Should be near or at beginning
+            }
+            
+            // When stopped, position should stay within bounds (may adjust slightly due to window updates)
+            if (!is_playing_now) {
+                REQUIRE(current_position >= 0);
+                REQUIRE(current_position <= tape_size_samples);
+            }
+            
+            was_playing = is_playing_now;
+            last_position = current_position;
+        }
+        
+        // Verify tape stopped
+        REQUIRE_FALSE(playback_stage.is_playing());
+        
+        // Verify final position is at or near beginning
+        unsigned int final_position = playback_stage.get_current_tape_position(frames_to_render - 1);
+        REQUIRE(final_position <= BUFFER_SIZE);
+        REQUIRE(final_position >= 0);
+        
+        // Check for discontinuities near the beginning
+        std::vector<std::vector<float>> channel_samples(NUM_CHANNELS);
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            channel_samples[ch].reserve(output_samples.size() / NUM_CHANNELS);
+        }
+        for (size_t i = 0; i + (NUM_CHANNELS - 1) < output_samples.size(); i += NUM_CHANNELS) {
+            for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+                channel_samples[ch].push_back(output_samples[i + ch]);
+            }
+        }
+        
+        // Check last portion of audio (where it stops) for discontinuities
+        for (int ch = 0; ch < NUM_CHANNELS; ++ch) {
+            const auto &samples = channel_samples[ch];
+            if (samples.size() < 100) continue;
+            
+            // Check last 100 samples for discontinuities
+            size_t start_check = samples.size() > 100 ? samples.size() - 100 : 0;
+            std::size_t discontinuity_count = 0;
+            for (size_t i = start_check + 1; i < samples.size(); ++i) {
+                float diff = std::abs(samples[i] - samples[i - 1]);
+                if (diff > 0.3f) { // Allow larger threshold at boundary
+                    discontinuity_count++;
+                }
+            }
+            INFO("Channel " << ch << " discontinuities in last 100 samples (reverse): " << discontinuity_count);
+            REQUIRE(discontinuity_count < 10); // Should be minimal
+        }
+    }
+    
+    SECTION("Reverse Fast Speed (-2x) - Reaches Beginning") {
+        // Start playback from near the end, then reverse fast
+        playback_stage.play(tape_size_frames - 3); // Start 3 frames from end
+        playback_stage.set_tape_speed(-2.0f); // Fast reverse playback
+        
+        // Render enough frames to go past beginning (at 2x reverse, reaches beginning faster)
+        int frames_to_render = (tape_size_frames / 2) + 10;
+        std::vector<float> output_samples;
+        output_samples.reserve(BUFFER_SIZE * NUM_CHANNELS * frames_to_render);
+        
+        bool was_playing = true;
+        unsigned int last_position = tape_size_samples;
+        
+        for (int frame = 0; frame < frames_to_render; ++frame) {
+            global_time_param->set_value(frame);
+            global_time_param->render();
+            
+            playback_stage.render(frame);
+            final_stage.render(frame);
+            
+            bool is_playing_now = playback_stage.is_playing();
+            unsigned int current_position = playback_stage.get_current_tape_position(frame);
+            
+            // Get output data
+            auto output_param = final_stage.find_parameter("final_output_audio_texture");
+            REQUIRE(output_param != nullptr);
+            const float* output_data = static_cast<const float*>(output_param->get_value());
+            REQUIRE(output_data != nullptr);
+            
+            // Store output samples
+            for (int i = 0; i < BUFFER_SIZE * NUM_CHANNELS; ++i) {
+                output_samples.push_back(output_data[i]);
+            }
+            
+            // Verify position doesn't go below 0
+            REQUIRE(current_position >= 0);
+            REQUIRE(current_position <= tape_size_samples);
+            
+            // Position should decrease during reverse playback
+            if (is_playing_now && was_playing) {
+                REQUIRE(current_position <= last_position); // Should be moving backward
+            }
+            
+            // Once stopped, position should remain constant
+            if (!is_playing_now && was_playing) {
+                INFO("Tape stopped at frame " << frame << " (-2x speed), position: " << current_position);
+                REQUIRE(current_position <= BUFFER_SIZE * 2); // At 2x reverse, might stop a bit earlier
+            }
+            
+            // When stopped, position should stay within bounds (may adjust slightly due to window updates)
+            if (!is_playing_now) {
+                REQUIRE(current_position >= 0);
+                REQUIRE(current_position <= tape_size_samples);
+            }
+            
+            was_playing = is_playing_now;
+            last_position = current_position;
+        }
+        
+        // Verify tape stopped
+        REQUIRE_FALSE(playback_stage.is_playing());
+        
+        // Verify final position is at or near beginning
+        unsigned int final_position = playback_stage.get_current_tape_position(frames_to_render - 1);
+        REQUIRE(final_position <= BUFFER_SIZE * 2);
+        REQUIRE(final_position >= 0);
+    }
+    
+    playback_stage.stop();
+    
     // Cleanup
     delete global_time_param;
 }

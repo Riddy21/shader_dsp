@@ -499,9 +499,13 @@ void AudioRenderStageHistory2::advance_tape_position_with_delta(int time_delta) 
         // Check if we've reached the end or beginning after advancing (only if not looping)
         if (!loop_enabled) {
             if (samples_to_advance > 0 && new_position >= tape_size) {
+                // Clamp to exactly tape_size (end of tape) before stopping
+                set_tape_position(tape_size);
                 stop_tape();
             } else if (samples_to_advance < 0 && new_position == 0u && current_position > 0u) {
                 // Only stop if we were moving backwards and reached 0 (not if we were already at 0)
+                // Clamp to exactly 0 (beginning of tape) before stopping
+                set_tape_position(0u);
                 stop_tape();
             }
         }
