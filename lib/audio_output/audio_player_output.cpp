@@ -111,8 +111,17 @@ bool AudioPlayerOutput::close() {
         return false;
     }
 
+    // Explicitly pause just in case stop() wasn't called or failed
+    SDL_PauseAudioDevice(m_device_id, 1);
+    
+    // Clear any queued audio to potentially unblock the consumer
+    SDL_ClearQueuedAudio(m_device_id);
+    
     SDL_CloseAudioDevice(m_device_id);
     m_device_id = 0;
+    
+    // Quit the audio subsystem to ensure clean state for next initialization
+    SDL_QuitSubSystem(SDL_INIT_AUDIO);
 
     printf("Closed audio device.\n");
     return true;

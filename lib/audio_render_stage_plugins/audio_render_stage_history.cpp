@@ -361,8 +361,18 @@ void AudioRenderStageHistory2::increment_tape_position_by_one() {
 
 void AudioRenderStageHistory2::update_tape_position(const unsigned int time) {
     // Early returns for invalid states
+    // Save m_last_time before calling calculate_time_delta to detect first frame
+    unsigned int last_time_before = m_last_time;
     int time_delta = calculate_time_delta(time);
     if (time_delta == 0) {
+        // First frame: even if time_delta is 0, advance by 1 buffer period (default increment)
+        // This happens when m_last_time was 0 before calling calculate_time_delta
+        // (meaning this is the first call, not a duplicate call with the same time)
+        if (last_time_before == 0) {
+            // Advance by 1 buffer period (time_delta = 1)
+            advance_tape_position_with_delta(1);
+            return;
+        }
         return; // Time hasn't changed, no update needed
     }
     
