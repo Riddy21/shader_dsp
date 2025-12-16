@@ -122,14 +122,21 @@ bool ButtonComponent::initialize() {
         return false;
     }
 
-    // Create a rectangle shape (two triangles)
+    // Create a rectangle shape (two triangles for fill, four points for outline)
     // Vertices in normalized device coordinates (from -1 to 1)
     float vertices[] = {
+        // Fill (Triangles)
         -1.0f, -1.0f,  // bottom left
         -1.0f,  1.0f,  // top left
          1.0f,  1.0f,  // top right
         
         -1.0f, -1.0f,  // bottom left
+         1.0f,  1.0f,  // top right
+         1.0f, -1.0f,  // bottom right
+         
+        // Outline (Line Loop)
+        -1.0f, -1.0f,  // bottom left
+        -1.0f,  1.0f,  // top left
          1.0f,  1.0f,  // top right
          1.0f, -1.0f   // bottom right
     };
@@ -157,6 +164,10 @@ void ButtonComponent::render_content() {
     
     glUseProgram(m_shader_program->get_program());
     
+    // Enable blending for transparency
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
     // Set color based on button state
     float* color = m_color;
     if (m_is_pressed) {
@@ -167,10 +178,21 @@ void ButtonComponent::render_content() {
     glUniform4f(glGetUniformLocation(m_shader_program->get_program(), "uColor"), 
                 color[0], color[1], color[2], color[3]);
     
-    // Draw the button background
     glBindVertexArray(m_vao);
+    
+    // Draw the button background
     glDrawArrays(GL_TRIANGLES, 0, 6);
+    
+    // Draw border if enabled
+    if (m_show_border) {
+        glLineWidth(m_border_width);
+        glUniform4f(glGetUniformLocation(m_shader_program->get_program(), "uColor"), 
+                    m_border_color[0], m_border_color[1], m_border_color[2], m_border_color[3]);
+        glDrawArrays(GL_LINE_LOOP, 6, 4);
+    }
+    
     glBindVertexArray(0);
+    glDisable(GL_BLEND);
     
     glUseProgram(0);
     
@@ -201,6 +223,21 @@ void ButtonComponent::set_active_colors(float r, float g, float b, float a) {
     m_active_color[1] = g;
     m_active_color[2] = b;
     m_active_color[3] = a;
+}
+
+void ButtonComponent::set_border_color(float r, float g, float b, float a) {
+    m_border_color[0] = r;
+    m_border_color[1] = g;
+    m_border_color[2] = b;
+    m_border_color[3] = a;
+}
+
+void ButtonComponent::set_border_visible(bool visible) {
+    m_show_border = visible;
+}
+
+void ButtonComponent::set_border_width(float width) {
+    m_border_width = width;
 }
 
 void ButtonComponent::update_children() {

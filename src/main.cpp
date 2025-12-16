@@ -6,8 +6,12 @@
 #include "engine/event_handler.h"
 #include "graphics_core/graphics_display.h"
 #include "graphics_views/debug_view.h"
+#include "graphics_views/style_debug_view.h"
+#include "graphics_views/button_debug_view.h"
 #include "graphics_views/mock_interface_view.h"
 #include "graphics_views/menu_view.h"
+#include "graphics_components/text_component.h"
+#include "graphics_core/ui_font_styles.h"
 
 #define MIDDLE_C 261.63f
 #define SEMI_TONE 1.059463f
@@ -85,13 +89,23 @@ int main() {
 
     setup_keyboard(synthesizer, event_loop);
 
+    // Load custom fonts
+    TextComponent::load_font(UIFontStyles::FONT_MONO_REGULAR, "media/fonts/Hack-Regular.ttf", UIFontStyles::FontSize::REGULAR);
+    TextComponent::load_font(UIFontStyles::FONT_MONO_BOLD, "media/fonts/Hack-Bold.ttf", UIFontStyles::FontSize::REGULAR);
+    TextComponent::load_font(UIFontStyles::FONT_MONO_THIN, "media/fonts/LibertadMono-Thin-.otf", UIFontStyles::FontSize::REGULAR);
+    TextComponent::load_font(UIFontStyles::FONT_MONO_BOLD_ALT, "media/fonts/LibertadMono-Bold-.otf", UIFontStyles::FontSize::REGULAR);
+    TextComponent::load_font(UIFontStyles::FONT_DISPLAY, "media/fonts/Super Smash TV.ttf", UIFontStyles::FontSize::LARGE);
+
     GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
     graphics_display->add_view("debug", new DebugView());
-    graphics_display->change_view("debug");
+    graphics_display->add_view("style_debug", new StyleDebugView());
+    graphics_display->add_view("button_debug", new ButtonDebugView());
+    graphics_display->change_view("style_debug");
 
     // Create another window for the interface
     GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
     interface_display->add_view("debug", new DebugView());
+    interface_display->add_view("style_debug", new StyleDebugView());
     interface_display->add_view("interface", new MockInterfaceView());
     interface_display->add_view("menu", new MenuView());
     interface_display->change_view("menu");
@@ -119,6 +133,28 @@ int main() {
             return true;
         }
     ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 's',
+        [&graphics_display](const SDL_Event&) {
+            graphics_display->change_view("style_debug");
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'd',
+        [&graphics_display](const SDL_Event&) {
+            graphics_display->change_view("debug");
+            return true;
+        }
+    ));
+
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'b',
+        [&graphics_display](const SDL_Event&) {
+            graphics_display->change_view("button_debug");
+            return true;
+        }
+    ));
 
     //Register key to toggle component outlines
     event_handler.register_entry(new KeyboardEventHandlerEntry(
@@ -134,6 +170,7 @@ int main() {
     
     std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
     std::cout << "Press 'o' to toggle component outlines for debugging layout." << std::endl;
+    std::cout << "Press 's' to view style debug screen, 'd' for audio debug screen." << std::endl;
 
     event_loop.run_loop();
     SDL_Quit();

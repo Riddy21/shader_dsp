@@ -1,6 +1,7 @@
 #include <iostream>
 #include "graphics_components/text_component.h"
 #include "utilities/shader_program.h"
+#include "graphics_core/ui_font_styles.h"
 
 // Initialize static members
 std::unique_ptr<AudioShaderProgram> TextComponent::s_text_shader = nullptr;
@@ -24,6 +25,33 @@ TextComponent::TextComponent(
     m_scaling_params.horizontal_alignment = 0.5;
     m_scaling_params.vertical_alignment = 0.5;
     m_scaling_params.custom_aspect_ratio = 1.0f; // Use natural aspect ratio
+    
+    // OpenGL resource initialization moved to initialize() method
+
+    m_text_dirty = true;
+}
+
+TextComponent::TextComponent(
+    float x, 
+    float y, 
+    float width, 
+    float height, 
+    const std::string& text,
+    const UIFontStyles::FontStyle& font_style,
+    const std::array<float, 4>& color
+) : GraphicsComponent(x, y, width, height),
+    m_text(text)
+{
+    // Initialize scaling parameters with defaults
+    m_scaling_params.scale_mode = ContentScaling::ScaleMode::FIT;
+    m_scaling_params.horizontal_alignment = 0.5;
+    m_scaling_params.vertical_alignment = 0.5;
+    m_scaling_params.custom_aspect_ratio = 1.0f; // Use natural aspect ratio
+    
+    // Apply style settings
+    set_font(font_style.font_name);
+    set_font_size(font_style.size);
+    set_text_color(color[0], color[1], color[2], color[3]);
     
     // OpenGL resource initialization moved to initialize() method
 

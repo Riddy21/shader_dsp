@@ -5,6 +5,7 @@
 #include <string>
 #include "graphics_components/button_component.h"
 #include "graphics_components/text_component.h"
+#include "graphics_core/ui_button_style.h"
 
 class TextButtonComponent : public ButtonComponent {
 public:
@@ -12,7 +13,16 @@ public:
         float x, float y, float width, float height, 
         const std::string& text, ButtonCallback callback
     );
+    // Constructor with style and color
+    TextButtonComponent(
+        float x, float y, float width, float height, 
+        const std::string& text, const UIButtonStyle& style, const std::array<float, 4>& color,
+        ButtonCallback callback
+    );
     ~TextButtonComponent() override;
+
+    // Apply a style with a base color
+    void set_style(const UIButtonStyle& style, const std::array<float, 4>& color);
 
     // Text-specific methods
     void set_text(const std::string& text);

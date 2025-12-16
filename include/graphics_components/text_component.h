@@ -10,12 +10,15 @@
 #include "utilities/shader_program.h"
 #include "graphics_core/graphics_component.h"
 #include "graphics_core/content_scaling.h"
+#include "graphics_core/ui_font_styles.h"
 
 #define DEFAULT_FONT_SIZE 64
 
 class TextComponent : public GraphicsComponent {
 public:
     TextComponent(float x, float y, float width, float height, const std::string& text);
+    TextComponent(float x, float y, float width, float height, const std::string& text, 
+                 const UIFontStyles::FontStyle& font_style, const std::array<float, 4>& color);
     ~TextComponent() override;
 
     void render_content() override;

@@ -26,6 +26,11 @@ public:
     void set_hover_colors(float r, float g, float b, float a);
     void set_active_colors(float r, float g, float b, float a);
     
+    // Border support
+    void set_border_color(float r, float g, float b, float a);
+    void set_border_visible(bool visible);
+    void set_border_width(float width); // In pixels or normalized? Let's assume uniform width logic later
+    
     // Check if button is in pressed state (used by the global mouse up handler)
     bool is_pressed() const { return m_is_pressed; }
     
@@ -45,6 +50,11 @@ protected:
     float m_color[4] = {0.3f, 0.3f, 0.3f, 1.0f};         // Normal state color
     float m_hover_color[4] = {0.4f, 0.4f, 0.4f, 1.0f};   // Hover state color
     float m_active_color[4] = {0.2f, 0.2f, 0.2f, 1.0f};  // Pressed state color
+
+    // Border properties
+    bool m_show_border = false;
+    float m_border_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float m_border_width = 1.0f;
 
 private:
 

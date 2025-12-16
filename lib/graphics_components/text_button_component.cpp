@@ -14,9 +14,61 @@ TextButtonComponent::TextButtonComponent(
     add_child(m_text_component);
 }
 
+TextButtonComponent::TextButtonComponent(
+    float x, float y, float width, float height, 
+    const std::string& text, const UIButtonStyle& style, const std::array<float, 4>& color, ButtonCallback callback
+) : ButtonComponent(x, y, width, height, callback),
+    m_text_component(nullptr)
+{
+    // Create the text component as a child of this button
+    m_text_component = new TextComponent(x, y, width, height, text);
+    
+    // Add the raw pointer to the GraphicsComponent's children list
+    // This transfers ownership to the parent component
+    add_child(m_text_component);
+    
+    // Apply style
+    set_style(style, color);
+}
+
 TextButtonComponent::~TextButtonComponent()
 {
     // No need to manually delete m_text_component as it's managed by the parent
+}
+
+void TextButtonComponent::set_style(const UIButtonStyle& style, const std::array<float, 4>& color) {
+    // Helper to create a color with specific alpha
+    auto with_alpha = [](const std::array<float, 4>& c, float alpha) -> float* {
+        static float result[4];
+        result[0] = c[0]; result[1] = c[1]; result[2] = c[2]; result[3] = alpha;
+        return result;
+    };
+
+    // Apply background colors based on style alpha and base color
+    set_colors(color[0], color[1], color[2], style.normal_bg_alpha);
+    set_hover_colors(color[0], color[1], color[2], style.hover_bg_alpha);
+    set_active_colors(color[0], color[1], color[2], style.active_bg_alpha);
+    
+    // Apply border properties
+    set_border_color(color[0], color[1], color[2], color[3]); // Border uses full alpha
+    set_border_width(style.border_width);
+    set_border_visible(style.show_border);
+    
+    // Apply text properties
+    set_font(style.font_style.font_name);
+    set_font_size(style.font_style.size);
+    
+    // Set text colors
+    // Use the base color for text
+    set_text_color(color[0], color[1], color[2], color[3]);
+    set_hover_text_color(color[0], color[1], color[2], color[3]);
+    
+    // Active text - maybe black/dark if background is bright?
+    // For now, let's keep it black on active to match previous request "when selected... darker"
+    // Actually, "hover and selected brighter". If active BG is 0.7 alpha (bright), dark text makes sense.
+    // Let's use BG_DARK for active text to ensure contrast
+    // Hardcoded for now as per previous behavior
+    set_active_text_color(0.1f, 0.1f, 0.12f, 1.0f);
 }
 
 void TextButtonComponent::set_text(const std::string& text) {
