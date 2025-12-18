@@ -89,23 +89,15 @@ int main() {
 
     setup_keyboard(synthesizer, event_loop);
 
-    // Load custom fonts
-    TextComponent::load_font(UIFontStyles::FONT_MONO_REGULAR, "media/fonts/Hack-Regular.ttf", UIFontStyles::FontSize::REGULAR);
-    TextComponent::load_font(UIFontStyles::FONT_MONO_BOLD, "media/fonts/Hack-Bold.ttf", UIFontStyles::FontSize::REGULAR);
-    TextComponent::load_font(UIFontStyles::FONT_MONO_THIN, "media/fonts/LibertadMono-Thin-.otf", UIFontStyles::FontSize::REGULAR);
-    TextComponent::load_font(UIFontStyles::FONT_MONO_BOLD_ALT, "media/fonts/LibertadMono-Bold-.otf", UIFontStyles::FontSize::REGULAR);
-    TextComponent::load_font(UIFontStyles::FONT_DISPLAY, "media/fonts/Super Smash TV.ttf", UIFontStyles::FontSize::LARGE);
-
     GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
     graphics_display->add_view("debug", new DebugView());
-    graphics_display->add_view("style_debug", new StyleDebugView());
-    graphics_display->add_view("button_debug", new ButtonDebugView());
-    graphics_display->change_view("style_debug");
+    graphics_display->change_view("debug");
 
     // Create another window for the interface
     GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
     interface_display->add_view("debug", new DebugView());
     interface_display->add_view("style_debug", new StyleDebugView());
+    interface_display->add_view("button_debug", new ButtonDebugView());
     interface_display->add_view("interface", new MockInterfaceView());
     interface_display->add_view("menu", new MenuView());
     interface_display->change_view("menu");
@@ -134,24 +126,16 @@ int main() {
         }
     ));
     event_handler.register_entry(new KeyboardEventHandlerEntry(
-        SDL_KEYDOWN, 's',
-        [&graphics_display](const SDL_Event&) {
-            graphics_display->change_view("style_debug");
-            return true;
-        }
-    ));
-    event_handler.register_entry(new KeyboardEventHandlerEntry(
-        SDL_KEYDOWN, 'd',
-        [&graphics_display](const SDL_Event&) {
-            graphics_display->change_view("debug");
-            return true;
-        }
-    ));
-
-    event_handler.register_entry(new KeyboardEventHandlerEntry(
         SDL_KEYDOWN, 'b',
-        [&graphics_display](const SDL_Event&) {
-            graphics_display->change_view("button_debug");
+        [&interface_display](const SDL_Event&) {
+            interface_display->change_view("button_debug");
+            return true;
+        }
+    ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'v',
+        [&interface_display](const SDL_Event&) {
+            interface_display->change_view("style_debug");
             return true;
         }
     ));

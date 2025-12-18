@@ -9,6 +9,7 @@ GLuint TextComponent::s_text_vao = 0;
 GLuint TextComponent::s_text_vbo = 0;
 bool TextComponent::s_graphics_initialized = false;
 bool TextComponent::s_ttf_initialized = false;
+bool TextComponent::s_project_fonts_loaded = false;
 std::unordered_map<std::string, TextComponent::FontInfo> TextComponent::s_fonts;
 
 TextComponent::TextComponent(
@@ -37,8 +38,7 @@ TextComponent::TextComponent(
     float width, 
     float height, 
     const std::string& text,
-    const UIFontStyles::FontStyle& font_style,
-    const std::array<float, 4>& color
+    const UIFontStyles::FontStyle& font_style
 ) : GraphicsComponent(x, y, width, height),
     m_text(text)
 {
@@ -51,7 +51,9 @@ TextComponent::TextComponent(
     // Apply style settings
     set_font(font_style.font_name);
     set_font_size(font_style.size);
-    set_text_color(color[0], color[1], color[2], color[3]);
+    set_horizontal_alignment(font_style.h_align);
+    set_vertical_alignment(font_style.v_align);
+    set_antialiased(font_style.antialiased);
     
     // OpenGL resource initialization moved to initialize() method
 
@@ -68,6 +70,13 @@ TextComponent::~TextComponent() {
 bool TextComponent::initialize() {
     // Initialize non-OpenGL resources
     initialize_ttf();
+    
+    // Load project fonts on first initialization
+    if (!s_project_fonts_loaded) {
+        load_project_fonts();
+        s_project_fonts_loaded = true;
+    }
+    
     initialize_default_font();
 
     // Initialize static graphics resources
@@ -144,6 +153,12 @@ bool TextComponent::load_font(const std::string& font_name, const std::string& f
     return true;
 }
 
+void TextComponent::load_project_fonts() {
+    load_font(UIFontStyles::LIBERTAD_THIN, "media/fonts/LibertadMono-Thin-.otf", UIFontStyles::FontSize::REGULAR);
+    load_font(UIFontStyles::LIBERTAD_BOLD, "media/fonts/LibertadMono-Bold-.otf", UIFontStyles::FontSize::REGULAR);
+    load_font(UIFontStyles::EIGHT_BIT, "media/fonts/PressStart2P-Regular.ttf", UIFontStyles::FontSize::REGULAR);
+}
+
 TTF_Font* TextComponent::get_sized_font() {
     // Check if font exists
     auto font_it = s_fonts.find(m_font_name);
@@ -187,12 +202,12 @@ std::vector<std::string> TextComponent::get_available_fonts() {
 }
 
 bool TextComponent::set_font(const std::string& font_name) {
-    if (s_fonts.find(font_name) != s_fonts.end()) {
-        m_font_name = font_name;
-        m_text_dirty = true; // Mark for update
-        return true;
-    }
-    return false;
+    m_font_name = font_name;
+    m_text_dirty = true; // Mark for update
+    
+    // Return true if currently loaded, but we set it regardless
+    // because it might be loaded later during initialization
+    return s_fonts.find(font_name) != s_fonts.end();
 }
 
 void TextComponent::initialize_static_graphics() {
@@ -289,7 +304,12 @@ void TextComponent::initialize_text() {
         static_cast<Uint8>(m_text_color[3] * 255)
     };
     
-    SDL_Surface* surface = TTF_RenderText_Blended(font, m_text.c_str(), color);
+    SDL_Surface* surface = nullptr;
+    if (m_antialiased) {
+        surface = TTF_RenderText_Blended(font, m_text.c_str(), color);
+    } else {
+        surface = TTF_RenderText_Solid(font, m_text.c_str(), color);
+    }
     
     if (!surface) {
         printf("Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError());
@@ -310,8 +330,9 @@ void TextComponent::initialize_text() {
     glBindTexture(GL_TEXTURE_2D, m_text_texture);
 
     // Set texture parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    GLint filter_mode = m_antialiased ? GL_LINEAR : GL_NEAREST;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter_mode);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter_mode);
 
     // Upload texture data
     glTexImage2D(
@@ -408,10 +429,20 @@ void TextComponent::set_text_color(float r, float g, float b, float a) {
     m_text_dirty = true; // Mark for update
 }
 
+void TextComponent::set_text_color(const std::array<float, 4>& color) {
+    set_text_color(color[0], color[1], color[2], color[3]);
+}
+
 void TextComponent::set_font_size(int size) {
     if (m_font_size == size) return;
     m_font_size = size;
     m_text_dirty = true; // Mark for update
+}
+
+void TextComponent::set_antialiased(bool antialiased) {
+    if (m_antialiased == antialiased) return;
+    m_antialiased = antialiased;
+    m_text_dirty = true;
 }
 
 // New ContentScaling API

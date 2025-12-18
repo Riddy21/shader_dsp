@@ -33,40 +33,40 @@ struct UIButtonStyle {
 
 namespace UIButtonStyles {
     // Style 1: Primary (Standard Menu)
-    // - Font: Mono Regular
+    // - Font: Title
     // - Border: 2.0
     const UIButtonStyle PRIMARY(
-        UIFontStyles::Presets::BODY_REGULAR,
+        UIFontStyles::Presets::TITLE,
         2.0f,
         true,
         0.0f, 0.3f, 0.7f
     );
 
     // Style 2: Secondary (Data/Status)
-    // - Font: Mono Bold
+    // - Font: Subtitle
     // - Border: 2.0
     const UIButtonStyle SECONDARY(
-        UIFontStyles::Presets::MONO_BOLD_REGULAR,
+        UIFontStyles::Presets::SUBTITLE,
         2.0f,
         true,
         0.0f, 0.3f, 0.7f
     );
 
     // Style 3: Display (Headings/Big Buttons)
-    // - Font: Display Font
+    // - Font: Title
     // - Border: 2.0
     const UIButtonStyle DISPLAY(
-        UIFontStyles::Presets::HEADING_SMALL,
+        UIFontStyles::Presets::TITLE,
         2.0f,
         true,
         0.0f, 0.3f, 0.7f
     );
     
     // Style 4: Minimal
-    // - Font: Mono Thin
+    // - Font: Subtitle
     // - Border: 1.0
     const UIButtonStyle MINIMAL(
-        UIFontStyles::Presets::MONO_THIN_REGULAR,
+        UIFontStyles::Presets::SUBTITLE,
         1.0f,
         true,
         0.0f, 0.3f, 0.7f

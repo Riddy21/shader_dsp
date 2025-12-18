@@ -18,7 +18,7 @@ class TextComponent : public GraphicsComponent {
 public:
     TextComponent(float x, float y, float width, float height, const std::string& text);
     TextComponent(float x, float y, float width, float height, const std::string& text, 
-                 const UIFontStyles::FontStyle& font_style, const std::array<float, 4>& color);
+                 const UIFontStyles::FontStyle& font_style);
     ~TextComponent() override;
 
     void render_content() override;
@@ -27,7 +27,9 @@ public:
     const std::string& get_text() const { return m_text; }
     
     void set_text_color(float r, float g, float b, float a);
+    void set_text_color(const std::array<float, 4>& color);
     void set_font_size(int size);
+    void set_antialiased(bool antialiased);
     
     // TODO: Consider moving this to graphics component
     // Content scaling methods (using the unified ContentScaling API)
@@ -42,6 +44,9 @@ public:
     // Add a new font to the available fonts
     static bool load_font(const std::string& font_name, const std::string& font_path, int default_size = DEFAULT_FONT_SIZE);
     
+    // Load standard project fonts
+    static void load_project_fonts();
+
     // Get list of available fonts
     static std::vector<std::string> get_available_fonts();
 
@@ -60,6 +65,7 @@ private:
     int m_font_size = DEFAULT_FONT_SIZE;
     int m_texture_width = 0;
     int m_texture_height = 0;
+    bool m_antialiased = true;
     
     // Content scaling parameters
     ContentScaling::ScalingParams m_scaling_params;
@@ -79,6 +85,7 @@ private:
     
     static std::unordered_map<std::string, FontInfo> s_fonts;
     static bool s_ttf_initialized;
+    static bool s_project_fonts_loaded;
     static void initialize_ttf();
     static void initialize_static_graphics();
     

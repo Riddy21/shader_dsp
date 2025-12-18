@@ -29,8 +29,13 @@ public:
     const std::string& get_text() const;
     
     void set_text_color(float r, float g, float b, float a);
+    void set_text_color(const std::array<float, 4>& color);
+    
     void set_hover_text_color(float r, float g, float b, float a);
+    void set_hover_text_color(const std::array<float, 4>& color);
+    
     void set_active_text_color(float r, float g, float b, float a);
+    void set_active_text_color(const std::array<float, 4>& color);
     
     void set_font_size(int size);
     void set_horizontal_alignment(float alignment);

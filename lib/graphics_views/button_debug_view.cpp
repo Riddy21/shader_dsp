@@ -27,14 +27,14 @@ ButtonDebugView::ButtonDebugView() : GraphicsView() {
     };
 
     // Style 1: Primary Orange (Start Game)
-    add_button("START NEW GAME", UIButtonStyles::PRIMARY, UIColorPalette::ACCENT_ORANGE);
+    add_button("RECORD", UIButtonStyles::PRIMARY, UIColorPalette::ACCENT_ORANGE);
 
     // Style 2: Secondary Green (Options)
-    add_button("SYSTEM OPTIONS", UIButtonStyles::SECONDARY, UIColorPalette::ACCENT_GREEN);
+    add_button("PLAY", UIButtonStyles::SECONDARY, UIColorPalette::ACCENT_GREEN);
 
     // Style 3: Display Amber (Load)
-    add_button("LOAD SAVE DATA", UIButtonStyles::DISPLAY, UIColorPalette::ACCENT_AMBER);
+    add_button("SETTINGS", UIButtonStyles::DISPLAY, UIColorPalette::ACCENT_AMBER);
     
     // Style 4: Minimal Blue (Credits)
-    add_button("VIEW CREDITS", UIButtonStyles::MINIMAL, UIColorPalette::ACCENT_BLUE);
+    add_button("CREDITS", UIButtonStyles::MINIMAL, UIColorPalette::ACCENT_BLUE);
 }

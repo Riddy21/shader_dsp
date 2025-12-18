@@ -57,6 +57,11 @@ void TextButtonComponent::set_style(const UIButtonStyle& style, const std::array
     // Apply text properties
     set_font(style.font_style.font_name);
     set_font_size(style.font_style.size);
+    set_horizontal_alignment(style.font_style.h_align);
+    set_vertical_alignment(style.font_style.v_align);
+    if (m_text_component) {
+        m_text_component->set_antialiased(style.font_style.antialiased);
+    }
     
     // Set text colors
     // Use the base color for text
@@ -93,6 +98,10 @@ void TextButtonComponent::set_text_color(float r, float g, float b, float a) {
     }
 }
 
+void TextButtonComponent::set_text_color(const std::array<float, 4>& color) {
+    set_text_color(color[0], color[1], color[2], color[3]);
+}
+
 void TextButtonComponent::set_hover_text_color(float r, float g, float b, float a) {
     m_hover_text_color[0] = r;
     m_hover_text_color[1] = g;
@@ -105,6 +114,10 @@ void TextButtonComponent::set_hover_text_color(float r, float g, float b, float 
     }
 }
 
+void TextButtonComponent::set_hover_text_color(const std::array<float, 4>& color) {
+    set_hover_text_color(color[0], color[1], color[2], color[3]);
+}
+
 void TextButtonComponent::set_active_text_color(float r, float g, float b, float a) {
     m_active_text_color[0] = r;
     m_active_text_color[1] = g;
@@ -115,6 +128,10 @@ void TextButtonComponent::set_active_text_color(float r, float g, float b, float
     if (is_pressed() && m_text_component) {
         m_text_component->set_text_color(r, g, b, a);
     }
+}
+
+void TextButtonComponent::set_active_text_color(const std::array<float, 4>& color) {
+    set_active_text_color(color[0], color[1], color[2], color[3]);
 }
 
 void TextButtonComponent::set_font_size(int size) {
