@@ -3,13 +3,14 @@
 #include "utilities/shader_program.h"
 
 GraphComponent::GraphComponent(
+    PositionMode position_mode,
     const float x, 
     const float y, 
     const float width, 
     const float height, 
     const std::vector<float>& data,
     const bool is_dynamic
-) : GraphicsComponent(x, y, width, height),
+) : GraphicsComponent(position_mode, x, y, width, height),
     m_data(&data),
     m_shader_program(nullptr),
     m_vao(0),
@@ -17,6 +18,17 @@ GraphComponent::GraphComponent(
     m_is_dynamic(is_dynamic)
 {
     // OpenGL resource initialization moved to initialize() method
+}
+
+GraphComponent::GraphComponent(
+    const float x, 
+    const float y, 
+    const float width, 
+    const float height, 
+    const std::vector<float>& data,
+    const bool is_dynamic
+) : GraphComponent(PositionMode::CORNER, x, y, width, height, data, is_dynamic)
+{
 }
 
 GraphComponent::~GraphComponent() {

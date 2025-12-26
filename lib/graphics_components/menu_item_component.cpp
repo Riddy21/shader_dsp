@@ -4,16 +4,17 @@
 #include "engine/event_handler.h"
 
 MenuItemComponent::MenuItemComponent(
+    PositionMode position_mode,
     float x, float y, float width, float height,
     const std::string& text, int item_index
-) : GraphicsComponent(x, y, width, height),
+) : GraphicsComponent(position_mode, x, y, width, height),
     m_index(item_index)
 {
     // Don't initialize OpenGL resources here - they'll be initialized by the base class
     // when render() is first called and an OpenGL context is available
     
     // Create the text component as a child
-    m_text_component = new TextComponent(x, y, width, height, text);
+    m_text_component = new TextComponent(position_mode, x, y, width, height, text);
     m_text_component->set_horizontal_alignment(0.5f); // Center text
     m_text_component->set_vertical_alignment(0.5f);
     m_text_component->set_text_color(
@@ -23,6 +24,13 @@ MenuItemComponent::MenuItemComponent(
         m_normal_text_color[3]
     );
     add_child(m_text_component);
+}
+
+MenuItemComponent::MenuItemComponent(
+    float x, float y, float width, float height,
+    const std::string& text, int item_index
+) : MenuItemComponent(PositionMode::CORNER, x, y, width, height, text, item_index)
+{
 }
 
 MenuItemComponent::~MenuItemComponent() {

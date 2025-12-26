@@ -9,8 +9,15 @@
 // FIXME: Think about whether an event handler and render context should be passed for every component
 class GraphicsComponent {
 public:
+    // Positioning mode: how x,y coordinates are interpreted
+    enum class PositionMode {
+        CORNER,  // x,y is top-left corner (default)
+        CENTER   // x,y is center point
+    };
+    
     // Constructor with position, dimensions, event handler, and render context
     GraphicsComponent(
+        PositionMode position_mode = PositionMode::CORNER,
         const float x = 0.0f, 
         const float y = 0.0f, 
         const float width = 0.0f, 
@@ -27,11 +34,21 @@ public:
     
     // Initialize component resources - called when OpenGL context is available
     virtual bool initialize();
-    void render();
+    virtual void render();
     void set_position(const float x, const float y);
     void get_position(float& x, float& y) const;
     void set_dimensions(const float width, const float height);
     void get_dimensions(float& width, float& height) const;
+    
+    // Position mode getters/setters
+    void set_position_mode(PositionMode mode);
+    PositionMode get_position_mode() const { return m_position_mode; }
+    
+    // Get corner position (always returns top-left corner regardless of mode)
+    void get_corner_position(float& x, float& y) const;
+    
+    // Get center position
+    void get_center_position(float& x, float& y) const;
     
     // Set the render context for this component
     void set_render_context(const RenderContext& render_context);
@@ -66,10 +83,11 @@ protected:
     
     virtual void render_content(); // Components should override this instead of render()
 
-    float m_x = 0.0f;
-    float m_y = 0.0f;
+    float m_x = 0.0f;  // Always stored as top-left corner (normalized coordinates)
+    float m_y = 0.0f;  // Always stored as top-left corner (normalized coordinates)
     float m_width = 0.0f;
     float m_height = 0.0f;
+    PositionMode m_position_mode = PositionMode::CORNER;  // How x,y is interpreted
     
     // Render context for this component
     RenderContext m_render_context;

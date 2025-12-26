@@ -13,12 +13,13 @@ bool TextComponent::s_project_fonts_loaded = false;
 std::unordered_map<std::string, TextComponent::FontInfo> TextComponent::s_fonts;
 
 TextComponent::TextComponent(
+    PositionMode position_mode,
     float x, 
     float y, 
     float width, 
     float height, 
     const std::string& text
-) : GraphicsComponent(x, y, width, height),
+) : GraphicsComponent(position_mode, x, y, width, height),
     m_text(text)
 {
     // Initialize scaling parameters with defaults
@@ -37,9 +38,20 @@ TextComponent::TextComponent(
     float y, 
     float width, 
     float height, 
+    const std::string& text
+) : TextComponent(PositionMode::CORNER, x, y, width, height, text)
+{
+}
+
+TextComponent::TextComponent(
+    PositionMode position_mode,
+    float x, 
+    float y, 
+    float width, 
+    float height, 
     const std::string& text,
     const UIFontStyles::FontStyle& font_style
-) : GraphicsComponent(x, y, width, height),
+) : GraphicsComponent(position_mode, x, y, width, height),
     m_text(text)
 {
     // Initialize scaling parameters with defaults
@@ -58,6 +70,17 @@ TextComponent::TextComponent(
     // OpenGL resource initialization moved to initialize() method
 
     m_text_dirty = true;
+}
+
+TextComponent::TextComponent(
+    float x, 
+    float y, 
+    float width, 
+    float height, 
+    const std::string& text,
+    const UIFontStyles::FontStyle& font_style
+) : TextComponent(PositionMode::CORNER, x, y, width, height, text, font_style)
+{
 }
 
 TextComponent::~TextComponent() {

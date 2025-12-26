@@ -12,6 +12,8 @@
 
 class GraphComponent : public GraphicsComponent {
 public:
+    GraphComponent(PositionMode position_mode, const float x, const float y, const float width, const float height, 
+                  const std::vector<float>& data, const bool is_dynamic = true);
     GraphComponent(const float x, const float y, const float width, const float height, 
                   const std::vector<float>& data, const bool is_dynamic = true);
     ~GraphComponent() override;

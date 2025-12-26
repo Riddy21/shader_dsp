@@ -6,10 +6,11 @@
 // TODO: Add scrolling support
 // TODO: Don't render items that are not visible in the menu and add scrolling support
 MenuSelectionComponent::MenuSelectionComponent(
+    PositionMode position_mode,
     float x, float y, float width, float height,
     const std::vector<std::string>& items,
     SelectionCallback callback
-) : GraphicsComponent(x, y, width, height),
+) : GraphicsComponent(position_mode, x, y, width, height),
     m_callback(callback)
 {
     set_items(items);
@@ -45,6 +46,14 @@ MenuSelectionComponent::MenuSelectionComponent(
     };
 }
 
+MenuSelectionComponent::MenuSelectionComponent(
+    float x, float y, float width, float height,
+    const std::vector<std::string>& items,
+    SelectionCallback callback
+) : MenuSelectionComponent(PositionMode::CORNER, x, y, width, height, items, callback)
+{
+}
+
 MenuSelectionComponent::~MenuSelectionComponent() {
     // Child components are cleaned up by the base class
 }
@@ -52,8 +61,9 @@ MenuSelectionComponent::~MenuSelectionComponent() {
 int MenuSelectionComponent::add_item(const std::string& text) {
     int index = static_cast<int>(m_items.size());
     
-    // Create a new menu item
+    // Create a new menu item (use CORNER mode for items since they're positioned relative to parent)
     auto* item = new MenuItemComponent(
+        PositionMode::CORNER,
         m_x,  // Will be updated in update_layout
         m_y,  // Will be updated in update_layout
         m_width, 

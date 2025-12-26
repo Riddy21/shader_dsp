@@ -6,13 +6,88 @@
 #include "engine/renderable_entity.h"
 
 ButtonComponent::ButtonComponent(
+    PositionMode position_mode,
     float x, 
     float y, 
     float width, 
     float height, 
     ButtonCallback callback
-) : GraphicsComponent(x, y, width, height),
+) : GraphicsComponent(position_mode, x, y, width, height),
     m_callback(callback)
+{
+    // OpenGL resource initialization moved to initialize() method
+
+    // Mouse event handlers now accept normalized coordinates directly
+    auto mouse_down_handler = std::make_shared<MouseClickEventHandlerEntry>(
+        SDL_MOUSEBUTTONDOWN,
+        m_x, m_y, m_width, m_height,
+        [this](const SDL_Event& event) {
+            m_is_pressed = true;
+            return true;
+        },
+        m_render_context
+    );
+
+    auto mouse_up_handler = std::make_shared<MouseClickEventHandlerEntry>(
+        SDL_MOUSEBUTTONUP,
+        -1.0f, 1.0f, 2.0f, 2.0f,
+        [this](const SDL_Event& event) {
+            if (m_is_pressed) {
+                m_is_pressed = false;
+                if (m_callback) {
+                    m_callback();
+                }
+            }
+            return true;
+        },
+        m_render_context
+    );
+
+    auto mouse_motion_handler = std::make_shared<MouseMotionEventHandlerEntry>(
+        m_x, m_y, m_width, m_height,
+        [this](const SDL_Event& event) {
+            m_is_hovered = true;
+            return true;
+        },
+        m_render_context
+    );
+
+    auto mouse_enter_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
+        m_x, m_y, m_width, m_height,
+        MouseEnterLeaveEventHandlerEntry::Mode::ENTER,
+        [this](const SDL_Event& event) {
+            m_is_hovered = true;
+            return true;
+        },
+        m_render_context
+    );
+
+    auto mouse_leave_handler = std::make_shared<MouseEnterLeaveEventHandlerEntry>(
+        m_x, m_y, m_width, m_height,
+        MouseEnterLeaveEventHandlerEntry::Mode::LEAVE,
+        [this](const SDL_Event& event) {
+            m_is_hovered = false;
+            return true;
+        },
+        m_render_context
+    );
+
+    m_event_handler_entries = {
+        mouse_down_handler,
+        mouse_up_handler,
+        mouse_motion_handler,
+        mouse_enter_handler,
+        mouse_leave_handler
+    };
+}
+
+ButtonComponent::ButtonComponent(
+    float x, 
+    float y, 
+    float width, 
+    float height, 
+    ButtonCallback callback
+) : ButtonComponent(PositionMode::CORNER, x, y, width, height, callback)
 {
     // OpenGL resource initialization moved to initialize() method
 

@@ -5,16 +5,28 @@ bool GraphicsComponent::s_global_outline = false;
 
 // Constructor with event handler and render context
 GraphicsComponent::GraphicsComponent(
+    PositionMode position_mode,
     const float x, 
     const float y, 
     const float width, 
     const float height,
     EventHandler* event_handler,
     const RenderContext& render_context
-) : m_x(x), m_y(y), m_width(width), m_height(height), 
+) : m_width(width), m_height(height), m_position_mode(position_mode),
     m_event_handler(event_handler), m_render_context(render_context),
     m_initialized(false)
 {
+    // Convert position based on mode - always store as corner coordinates
+    if (position_mode == PositionMode::CENTER) {
+        // Convert center to top-left corner
+        m_x = x - width * 0.5f;
+        m_y = y + height * 0.5f;  // In normalized coords, y increases downward, so add half height
+    } else {
+        // CORNER mode - use directly
+        m_x = x;
+        m_y = y;
+    }
+    
     // Register event handlers if the event handler is provided
     if (m_event_handler) {
         register_event_handlers(m_event_handler);
@@ -128,22 +140,62 @@ void GraphicsComponent::unregister_event_handlers() {
 }
 
 void GraphicsComponent::set_position(const float x, const float y) {
-    float dx = x - m_x;
-    float dy = y - m_y;
-    m_x = x;
-    m_y = y;
+    float old_corner_x = m_x;
+    float old_corner_y = m_y;
+    
+    // Convert input position to corner coordinates based on mode
+    if (m_position_mode == PositionMode::CENTER) {
+        // Convert center to top-left corner
+        m_x = x - m_width * 0.5f;
+        m_y = y + m_height * 0.5f;
+    } else {
+        // CORNER mode - use directly
+        m_x = x;
+        m_y = y;
+    }
+    
+    // Calculate delta for children
+    float dx = m_x - old_corner_x;
+    float dy = m_y - old_corner_y;
     
     // Update positions of all children
     for (auto& child : m_children) {
         float child_x, child_y;
-        child->get_position(child_x, child_y);
+        child->get_corner_position(child_x, child_y);
         child->set_position(child_x + dx, child_y + dy);
     }
 }
 
 void GraphicsComponent::get_position(float& x, float& y) const {
+    // Return position based on current mode
+    if (m_position_mode == PositionMode::CENTER) {
+        get_center_position(x, y);
+    } else {
+        get_corner_position(x, y);
+    }
+}
+
+void GraphicsComponent::get_corner_position(float& x, float& y) const {
     x = m_x;
     y = m_y;
+}
+
+void GraphicsComponent::get_center_position(float& x, float& y) const {
+    x = m_x + m_width * 0.5f;
+    y = m_y - m_height * 0.5f;  // In normalized coords, subtract half height
+}
+
+void GraphicsComponent::set_position_mode(PositionMode mode) {
+    if (mode == m_position_mode) return;
+    
+    // Convert current position to the new mode
+    float current_x, current_y;
+    get_position(current_x, current_y);
+    
+    m_position_mode = mode;
+    
+    // Set position again with new mode (will convert correctly)
+    set_position(current_x, current_y);
 }
 
 void GraphicsComponent::set_dimensions(const float width, const float height) {

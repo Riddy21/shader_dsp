@@ -15,6 +15,10 @@ public:
     using SelectionCallback = std::function<void(std::string)>;
     
     MenuItemComponent(
+        PositionMode position_mode, float x, float y, float width, float height,
+        const std::string& text, int item_index
+    );
+    MenuItemComponent(
         float x, float y, float width, float height,
         const std::string& text, int item_index
     );

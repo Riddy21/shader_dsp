@@ -12,6 +12,8 @@
 #include "graphics_views/menu_view.h"
 #include "graphics_components/text_component.h"
 #include "graphics_core/ui_font_styles.h"
+#include "graphics_views/tape_view.h"
+#include "graphics_views/mouse_test_view.h"
 
 #define MIDDLE_C 261.63f
 #define SEMI_TONE 1.059463f
@@ -89,9 +91,10 @@ int main() {
 
     setup_keyboard(synthesizer, event_loop);
 
-    GraphicsDisplay* graphics_display = new GraphicsDisplay(800, 600, "Synthesizer");
+    GraphicsDisplay* graphics_display = new GraphicsDisplay(320, 240, "Synthesizer");
     graphics_display->add_view("debug", new DebugView());
-    graphics_display->change_view("debug");
+    graphics_display->add_view("tape", new TapeView());
+    graphics_display->change_view("tape");
 
     // Create another window for the interface
     GraphicsDisplay* interface_display = new GraphicsDisplay(400, 200, "Interface");
@@ -100,6 +103,7 @@ int main() {
     interface_display->add_view("button_debug", new ButtonDebugView());
     interface_display->add_view("interface", new MockInterfaceView());
     interface_display->add_view("menu", new MenuView());
+    interface_display->add_view("mouse_test", new MouseTestView());
     interface_display->change_view("menu");
 
    auto & event_handler = EventHandler::get_instance();
@@ -139,6 +143,13 @@ int main() {
             return true;
         }
     ));
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, 'm',
+        [&interface_display](const SDL_Event&) {
+            interface_display->change_view("mouse_test");
+            return true;
+        }
+    ));
 
     //Register key to toggle component outlines
     event_handler.register_entry(new KeyboardEventHandlerEntry(
@@ -155,6 +166,7 @@ int main() {
     std::cout << "Press keys to play notes. 'p' to pause, 'r' to resume, 'q' to quit." << std::endl;
     std::cout << "Press 'o' to toggle component outlines for debugging layout." << std::endl;
     std::cout << "Press 's' to view style debug screen, 'd' for audio debug screen." << std::endl;
+    std::cout << "Press 'm' to view mouse test screen (click and drag to resize shape)." << std::endl;
 
     event_loop.run_loop();
     SDL_Quit();

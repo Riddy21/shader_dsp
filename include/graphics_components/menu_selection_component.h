@@ -13,6 +13,11 @@ public:
     using SelectionCallback = std::function<void(std::string)>;
     
     MenuSelectionComponent(
+        PositionMode position_mode, float x, float y, float width, float height,
+        const std::vector<std::string>& items,
+        SelectionCallback callback = nullptr
+    );
+    MenuSelectionComponent(
         float x, float y, float width, float height,
         const std::vector<std::string>& items,
         SelectionCallback callback = nullptr

@@ -12,6 +12,8 @@
 
 class ImageComponent : public GraphicsComponent {
 public:
+    ImageComponent(PositionMode position_mode, float x, float y, float width, float height, 
+                   const std::string& image_path);
     ImageComponent(float x, float y, float width, float height, const std::string& image_path);
     ~ImageComponent() override;
 
@@ -25,6 +27,9 @@ public:
     
     // Set tint color (applied as a multiplication to the image)
     void set_tint_color(float r, float g, float b, float a);
+    
+    // Set rotation angle in radians
+    void set_rotation(float angle_radians);
     
     // Content scaling methods (using the unified ContentScaling API)
     void set_scale_mode(ContentScaling::ScaleMode mode);
@@ -52,6 +57,7 @@ private:
     std::string m_image_path;
     float m_tint_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     float m_natural_aspect_ratio = 1.0f;
+    float m_rotation = 0.0f; // Rotation angle in radians
     ContentScaling::ScalingParams m_scaling_params;
     
     GLuint m_texture = 0;

@@ -10,12 +10,13 @@ bool ImageComponent::s_graphics_initialized = false;
 bool ImageComponent::s_img_initialized = false;
 
 ImageComponent::ImageComponent(
+    PositionMode position_mode,
     float x, 
     float y, 
     float width, 
     float height, 
     const std::string& image_path
-) : GraphicsComponent(x, y, width, height),
+) : GraphicsComponent(position_mode, x, y, width, height),
     m_image_path(image_path)
 {
     // Initialize scaling parameters with defaults
@@ -24,6 +25,16 @@ ImageComponent::ImageComponent(
     m_scaling_params.vertical_alignment = 0.5;
     m_scaling_params.custom_aspect_ratio = 1.0f; // Use natural aspect ratio
     
+}
+
+ImageComponent::ImageComponent(
+    float x, 
+    float y, 
+    float width, 
+    float height, 
+    const std::string& image_path
+) : ImageComponent(PositionMode::CORNER, x, y, width, height, image_path)
+{
 }
 
 ImageComponent::~ImageComponent() {
@@ -72,11 +83,33 @@ void ImageComponent::initialize_static_graphics() {
             layout (location = 0) in vec2 aPos;
             layout (location = 1) in vec2 aTexCoord;
             
+            uniform float uRotation;
+            uniform float uAspectRatio;
+            
             out vec2 TexCoord;
             
             void main() {
+                // Apply aspect ratio correction for viewport
+                // The viewport is non-square, so we need to correct for that by transforming 
+                // to a square space (physically uniform), rotating, then transforming back.
+                
+                // 1. Scale X by aspect ratio to match Y scale (physically square space)
+                vec2 square_pos = vec2(aPos.x * uAspectRatio, aPos.y);
+                
+                // 2. Apply rotation
+                float cos_angle = cos(uRotation);
+                float sin_angle = sin(uRotation);
+                mat2 rotation_matrix = mat2(
+                    cos_angle, -sin_angle,
+                    sin_angle,  cos_angle
+                );
+                vec2 rotated_pos = rotation_matrix * square_pos;
+                
+                // 3. Scale X back (undo step 1)
+                vec2 final_pos = vec2(rotated_pos.x / uAspectRatio, rotated_pos.y);
+                
                 // Using our coordinate system: 1 is top, -1 is bottom
-                gl_Position = vec4(aPos, 0.0, 1.0);
+                gl_Position = vec4(final_pos, 0.0, 1.0);
                 TexCoord = aTexCoord;
             }
         )";
@@ -228,16 +261,21 @@ void ImageComponent::render_content() {
     
     glUseProgram(s_image_shader->get_program());
     
-    // Set uniforms
-    glUniform1i(glGetUniformLocation(s_image_shader->get_program(), "uTexture"), 0);
-    glUniform4f(glGetUniformLocation(s_image_shader->get_program(), "uTintColor"),
-                m_tint_color[0], m_tint_color[1], m_tint_color[2], m_tint_color[3]);
-    
     // Calculate the component aspect ratio
     float component_aspect = m_width / m_height;
     
     // Get display aspect ratio from render context
     float display_aspect = m_render_context.get_aspect_ratio();
+    
+    // The true viewport aspect ratio combines component dimensions and the window aspect ratio
+    float viewport_aspect = component_aspect * display_aspect;
+    
+    // Set uniforms
+    glUniform1i(glGetUniformLocation(s_image_shader->get_program(), "uTexture"), 0);
+    glUniform4f(glGetUniformLocation(s_image_shader->get_program(), "uTintColor"),
+                m_tint_color[0], m_tint_color[1], m_tint_color[2], m_tint_color[3]);
+    glUniform1f(glGetUniformLocation(s_image_shader->get_program(), "uRotation"), m_rotation);
+    glUniform1f(glGetUniformLocation(s_image_shader->get_program(), "uAspectRatio"), viewport_aspect);
     
     // Calculate the vertex data using the content scaling utility
     auto vertex_data = ContentScaling::calculateVertexData(
@@ -272,6 +310,10 @@ void ImageComponent::set_tint_color(float r, float g, float b, float a) {
     m_tint_color[1] = g;
     m_tint_color[2] = b;
     m_tint_color[3] = a;
+}
+
+void ImageComponent::set_rotation(float angle_radians) {
+    m_rotation = angle_radians;
 }
 
 // New ContentScaling API

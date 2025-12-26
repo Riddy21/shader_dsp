@@ -1,17 +1,25 @@
 #include "graphics_components/image_button_component.h"
 
 ImageButtonComponent::ImageButtonComponent(
+    PositionMode position_mode,
     float x, float y, float width, float height, 
     const std::string& image_path, ButtonCallback callback
-) : ButtonComponent(x, y, width, height, callback),
+) : ButtonComponent(position_mode, x, y, width, height, callback),
     m_image_component(nullptr)
 {
     // Create the image component as a child of this button
-    m_image_component = new ImageComponent(x, y, width, height, image_path);
+    m_image_component = new ImageComponent(position_mode, x, y, width, height, image_path);
     
     // Add the raw pointer to the GraphicsComponent's children list
     // This transfers ownership to the parent component
     add_child(m_image_component);
+}
+
+ImageButtonComponent::ImageButtonComponent(
+    float x, float y, float width, float height, 
+    const std::string& image_path, ButtonCallback callback
+) : ImageButtonComponent(PositionMode::CORNER, x, y, width, height, image_path, callback)
+{
 }
 
 ImageButtonComponent::~ImageButtonComponent()
