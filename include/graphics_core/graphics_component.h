@@ -11,17 +11,22 @@ class GraphicsComponent {
 public:
     // Positioning mode: how x,y coordinates are interpreted
     enum class PositionMode {
-        CORNER,  // x,y is top-left corner (default)
-        CENTER   // x,y is center point
+        TOP_LEFT,     // x,y is top-left corner (default)
+        CENTER,       // x,y is center point
+        CENTER_BOTTOM,// x,y is center of bottom edge
+        CENTER_TOP,   // x,y is center of top edge
+        TOP_RIGHT,    // x,y is top-right corner
+        BOTTOM_LEFT,  // x,y is bottom-left corner
+        BOTTOM_RIGHT  // x,y is bottom-right corner
     };
     
     // Constructor with position, dimensions, event handler, and render context
     GraphicsComponent(
-        PositionMode position_mode = PositionMode::CORNER,
         const float x = 0.0f, 
         const float y = 0.0f, 
         const float width = 0.0f, 
         const float height = 0.0f,
+        PositionMode position_mode = PositionMode::TOP_LEFT,
         EventHandler* event_handler = nullptr,
         const RenderContext& render_context = RenderContext()
     );
@@ -87,7 +92,7 @@ protected:
     float m_y = 0.0f;  // Always stored as top-left corner (normalized coordinates)
     float m_width = 0.0f;
     float m_height = 0.0f;
-    PositionMode m_position_mode = PositionMode::CORNER;  // How x,y is interpreted
+    PositionMode m_position_mode = PositionMode::TOP_LEFT;  // How x,y is interpreted
     
     // Render context for this component
     RenderContext m_render_context;

@@ -5,23 +5,14 @@
 #include "engine/event_handler.h"
 
 MouseTestComponent::MouseTestComponent(
-    PositionMode position_mode,
     float x, 
     float y, 
     float width, 
-    float height
-) : GraphicsComponent(position_mode, x, y, width, height)
+    float height,
+    PositionMode position_mode
+) : GraphicsComponent(x, y, width, height, position_mode)
 {
     // Start in TOP_LEFT state - shape will render and adjust as mouse moves
-}
-
-MouseTestComponent::MouseTestComponent(
-    float x, 
-    float y, 
-    float width, 
-    float height
-) : MouseTestComponent(PositionMode::CORNER, x, y, width, height)
-{
 }
 
 MouseTestComponent::~MouseTestComponent() {

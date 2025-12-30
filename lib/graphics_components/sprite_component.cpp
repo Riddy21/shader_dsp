@@ -1,24 +1,24 @@
 #include <iostream>
 #include <algorithm>
-#include "graphics_components/image_component.h"
+#include "graphics_components/sprite_component.h"
 #include "utilities/shader_program.h"
 
 // Initialize static members
-std::unique_ptr<AudioShaderProgram> ImageComponent::s_image_shader = nullptr;
-GLuint ImageComponent::s_image_vao = 0;
-GLuint ImageComponent::s_image_vbo = 0;
-bool ImageComponent::s_graphics_initialized = false;
-bool ImageComponent::s_img_initialized = false;
+std::unique_ptr<AudioShaderProgram> SpriteComponent::s_sprite_shader = nullptr;
+GLuint SpriteComponent::s_sprite_vao = 0;
+GLuint SpriteComponent::s_sprite_vbo = 0;
+bool SpriteComponent::s_graphics_initialized = false;
+bool SpriteComponent::s_img_initialized = false;
 
-ImageComponent::ImageComponent(
+SpriteComponent::SpriteComponent(
     float x, 
     float y, 
     float width, 
     float height, 
-    const std::string& image_path,
+    const std::vector<std::string>& frame_paths,
     PositionMode position_mode
 ) : GraphicsComponent(x, y, width, height, position_mode),
-    m_image_path(image_path)
+    m_frame_paths(frame_paths)
 {
     // Initialize scaling parameters with defaults
     m_scaling_params.scale_mode = ContentScaling::ScaleMode::FIT;
@@ -26,38 +26,44 @@ ImageComponent::ImageComponent(
     m_scaling_params.vertical_alignment = 0.5;
     m_scaling_params.custom_aspect_ratio = 1.0f; // Use natural aspect ratio
     
-    // Set default max resolution to 320x320
+    // Set default max resolution to 800x800
     m_max_width = 800;
     m_max_height = 800;
 }
 
-ImageComponent::~ImageComponent() {
+SpriteComponent::~SpriteComponent() {
     // Clean up OpenGL resources
-    if (m_texture != 0) {
-        glDeleteTextures(1, &m_texture);
+    for (GLuint texture : m_textures) {
+        if (texture != 0) {
+            glDeleteTextures(1, &texture);
+        }
     }
+    m_textures.clear();
 }
 
-bool ImageComponent::initialize() {
+bool SpriteComponent::initialize() {
     // Initialize SDL_image (non-OpenGL initialization)
     initialize_img();
 
     // Initialize static graphics resources
     initialize_static_graphics();
     
-    // Load the image if a path was provided
-    if (!m_image_path.empty()) {
-        if (!load_image(m_image_path)) {
-            std::cerr << "Failed to load image: " << m_image_path << std::endl;
+    // Load the frames if paths were provided
+    if (!m_frame_paths.empty()) {
+        if (!load_frames(m_frame_paths)) {
+            std::cerr << "Failed to load sprite frames" << std::endl;
             return false;
         }
     }
+    
+    // Initialize animation timing
+    m_last_frame_time = SDL_GetTicks();
     
     GraphicsComponent::initialize();
     return true;
 }
 
-void ImageComponent::initialize_img() {
+void SpriteComponent::initialize_img() {
     // Initialize SDL_image if it hasn't been initialized yet
     if (!s_img_initialized) {
         int img_flags = IMG_INIT_PNG | IMG_INIT_JPG;
@@ -69,9 +75,9 @@ void ImageComponent::initialize_img() {
     }
 }
 
-void ImageComponent::initialize_static_graphics() {
+void SpriteComponent::initialize_static_graphics() {
     if (!s_graphics_initialized) {
-        // Create a shader program for rendering images
+        // Create a shader program for rendering sprites (same as ImageComponent)
         const std::string vertex_shader_src = R"(
             #version 300 es
             layout (location = 0) in vec2 aPos;
@@ -123,13 +129,13 @@ void ImageComponent::initialize_static_graphics() {
             }
         )";
         
-        s_image_shader = std::make_unique<AudioShaderProgram>(vertex_shader_src, fragment_shader_src);
-        if (!s_image_shader->initialize()) {
-            printf("Failed to initialize image shader program\n");
+        s_sprite_shader = std::make_unique<AudioShaderProgram>(vertex_shader_src, fragment_shader_src);
+        if (!s_sprite_shader->initialize()) {
+            printf("Failed to initialize sprite shader program\n");
             return;
         }
         
-        // Create a quad with texture coordinates for rendering images
+        // Create a quad with texture coordinates for rendering sprites
         float vertices[] = {
             // positions    // texture coords
             -1.0f, -1.0f,   0.0f, 1.0f,  // bottom left
@@ -141,11 +147,11 @@ void ImageComponent::initialize_static_graphics() {
              1.0f, -1.0f,   1.0f, 1.0f   // bottom right
         };
         
-        glGenVertexArrays(1, &s_image_vao);
-        glGenBuffers(1, &s_image_vbo);
+        glGenVertexArrays(1, &s_sprite_vao);
+        glGenBuffers(1, &s_sprite_vbo);
         
-        glBindVertexArray(s_image_vao);
-        glBindBuffer(GL_ARRAY_BUFFER, s_image_vbo);
+        glBindVertexArray(s_sprite_vao);
+        glBindBuffer(GL_ARRAY_BUFFER, s_sprite_vbo);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
         
         // Position attribute
@@ -163,44 +169,70 @@ void ImageComponent::initialize_static_graphics() {
     }
 }
 
-bool ImageComponent::load_image(const std::string& image_path) {
+bool SpriteComponent::load_frames(const std::vector<std::string>& frame_paths) {
     if (!s_img_initialized) {
         printf("SDL_image is not initialized\n");
         return false;
     }
     
-    m_image_path = image_path;
+    // Clear existing textures
+    for (GLuint texture : m_textures) {
+        if (texture != 0) {
+            glDeleteTextures(1, &texture);
+        }
+    }
+    m_textures.clear();
+    m_textures.resize(frame_paths.size(), 0);
     
-    // Load image
-    SDL_Surface* surface = IMG_Load(image_path.c_str());
-    if (!surface) {
-        printf("Unable to load image %s! SDL_image Error: %s\n", image_path.c_str(), IMG_GetError());
+    m_frame_paths = frame_paths;
+    
+    // Load each frame
+    for (size_t i = 0; i < frame_paths.size(); ++i) {
+        SDL_Surface* surface = IMG_Load(frame_paths[i].c_str());
+        if (!surface) {
+            printf("Unable to load sprite frame %zu: %s! SDL_image Error: %s\n", 
+                   i, frame_paths[i].c_str(), IMG_GetError());
+            // Continue loading other frames even if one fails
+            continue;
+        }
+        
+        create_texture_from_surface(surface, i);
+        
+        // Free the surface
+        SDL_FreeSurface(surface);
+    }
+    
+    // Check if at least one frame was loaded
+    bool any_loaded = false;
+    for (GLuint texture : m_textures) {
+        if (texture != 0) {
+            any_loaded = true;
+            break;
+        }
+    }
+    
+    if (!any_loaded) {
+        printf("Failed to load any sprite frames\n");
         return false;
     }
     
-    create_texture_from_surface(surface);
-    
-    // Free the surface
-    SDL_FreeSurface(surface);
+    // Reset to first frame
+    m_current_frame = 0;
+    m_last_frame_time = SDL_GetTicks();
     
     return true;
 }
 
-bool ImageComponent::load_from_surface(SDL_Surface* surface) {
-    if (!surface) {
-        printf("Invalid surface provided\n");
-        return false;
+void SpriteComponent::create_texture_from_surface(SDL_Surface* surface, size_t frame_index) {
+    if (frame_index >= m_textures.size()) {
+        printf("Frame index out of bounds\n");
+        return;
     }
     
-    create_texture_from_surface(surface);
-    return true;
-}
-
-void ImageComponent::create_texture_from_surface(SDL_Surface* surface) {
     // Delete old texture if it exists
-    if (m_texture != 0) {
-        glDeleteTextures(1, &m_texture);
-        m_texture = 0;
+    if (m_textures[frame_index] != 0) {
+        glDeleteTextures(1, &m_textures[frame_index]);
+        m_textures[frame_index] = 0;
     }
     
     SDL_Surface* final_surface = surface;
@@ -266,11 +298,14 @@ void ImageComponent::create_texture_from_surface(SDL_Surface* surface) {
     }
     
     // Calculate aspect ratio from original surface (before scaling)
-    m_natural_aspect_ratio = static_cast<float>(surface->w) / static_cast<float>(surface->h);
+    // Use the first frame's aspect ratio for all frames
+    if (frame_index == 0) {
+        m_natural_aspect_ratio = static_cast<float>(surface->w) / static_cast<float>(surface->h);
+    }
     
     // Create texture from surface
-    glGenTextures(1, &m_texture);
-    glBindTexture(GL_TEXTURE_2D, m_texture);
+    glGenTextures(1, &m_textures[frame_index]);
+    glBindTexture(GL_TEXTURE_2D, m_textures[frame_index]);
     
     // Set texture parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -310,17 +345,54 @@ void ImageComponent::create_texture_from_surface(SDL_Surface* surface) {
     }
 }
 
-void ImageComponent::render_content() {
-    if (m_texture == 0 || !s_graphics_initialized || !s_image_shader) return;
+void SpriteComponent::update_animation() {
+    if (!m_playing || m_textures.empty()) {
+        return;
+    }
+    
+    Uint32 current_time = SDL_GetTicks();
+    Uint32 frame_duration = static_cast<Uint32>(1000.0f / m_frame_rate); // milliseconds per frame
+    
+    if (current_time - m_last_frame_time >= frame_duration) {
+        m_current_frame++;
+        
+        if (m_current_frame >= static_cast<int>(m_textures.size())) {
+            if (m_looping) {
+                m_current_frame = 0;
+            } else {
+                m_current_frame = static_cast<int>(m_textures.size()) - 1;
+                m_playing = false; // Stop at last frame
+            }
+        }
+        
+        m_last_frame_time = current_time;
+    }
+}
+
+void SpriteComponent::render_content() {
+    if (m_textures.empty() || !s_graphics_initialized || !s_sprite_shader) return;
+    
+    // Update animation
+    update_animation();
+    
+    // Get the current frame texture
+    if (m_current_frame < 0 || m_current_frame >= static_cast<int>(m_textures.size())) {
+        return;
+    }
+    
+    GLuint current_texture = m_textures[m_current_frame];
+    if (current_texture == 0) {
+        return;
+    }
     
     // Bind texture
-    glBindTexture(GL_TEXTURE_2D, m_texture);
+    glBindTexture(GL_TEXTURE_2D, current_texture);
     
     // Save current state
     GLint current_program;
     glGetIntegerv(GL_CURRENT_PROGRAM, &current_program);
     
-    glUseProgram(s_image_shader->get_program());
+    glUseProgram(s_sprite_shader->get_program());
     
     // Calculate the component aspect ratio
     float component_aspect = m_width / m_height;
@@ -332,11 +404,11 @@ void ImageComponent::render_content() {
     float viewport_aspect = component_aspect * display_aspect;
     
     // Set uniforms
-    glUniform1i(glGetUniformLocation(s_image_shader->get_program(), "uTexture"), 0);
-    glUniform4f(glGetUniformLocation(s_image_shader->get_program(), "uTintColor"),
+    glUniform1i(glGetUniformLocation(s_sprite_shader->get_program(), "uTexture"), 0);
+    glUniform4f(glGetUniformLocation(s_sprite_shader->get_program(), "uTintColor"),
                 m_tint_color[0], m_tint_color[1], m_tint_color[2], m_tint_color[3]);
-    glUniform1f(glGetUniformLocation(s_image_shader->get_program(), "uRotation"), m_rotation);
-    glUniform1f(glGetUniformLocation(s_image_shader->get_program(), "uAspectRatio"), viewport_aspect);
+    glUniform1f(glGetUniformLocation(s_sprite_shader->get_program(), "uRotation"), m_rotation);
+    glUniform1f(glGetUniformLocation(s_sprite_shader->get_program(), "uAspectRatio"), viewport_aspect);
     
     // Calculate the vertex data using the content scaling utility
     auto vertex_data = ContentScaling::calculateVertexData(
@@ -351,11 +423,11 @@ void ImageComponent::render_content() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     
     // Update the vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, s_image_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, s_sprite_vbo);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * vertex_data.size(), vertex_data.data());
     
-    // Draw image
-    glBindVertexArray(s_image_vao);
+    // Draw sprite
+    glBindVertexArray(s_sprite_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     
     // Restore state
@@ -366,55 +438,70 @@ void ImageComponent::render_content() {
     glDisable(GL_BLEND);
 }
 
-void ImageComponent::set_tint_color(float r, float g, float b, float a) {
+void SpriteComponent::set_frame_rate(float fps) {
+    m_frame_rate = std::max(0.1f, fps); // Minimum 0.1 fps
+}
+
+void SpriteComponent::set_looping(bool looping) {
+    m_looping = looping;
+}
+
+void SpriteComponent::play() {
+    m_playing = true;
+    m_last_frame_time = SDL_GetTicks();
+}
+
+void SpriteComponent::pause() {
+    m_playing = false;
+}
+
+void SpriteComponent::stop() {
+    m_playing = false;
+    m_current_frame = 0;
+    m_last_frame_time = SDL_GetTicks();
+}
+
+void SpriteComponent::set_frame(int frame_index) {
+    if (frame_index >= 0 && frame_index < static_cast<int>(m_textures.size())) {
+        m_current_frame = frame_index;
+        m_last_frame_time = SDL_GetTicks();
+    }
+}
+
+void SpriteComponent::set_tint_color(float r, float g, float b, float a) {
     m_tint_color[0] = r;
     m_tint_color[1] = g;
     m_tint_color[2] = b;
     m_tint_color[3] = a;
 }
 
-void ImageComponent::set_rotation(float angle_radians) {
+void SpriteComponent::set_rotation(float angle_radians) {
     m_rotation = angle_radians;
 }
 
-// New ContentScaling API
-void ImageComponent::set_scale_mode(ContentScaling::ScaleMode mode) {
+void SpriteComponent::set_scale_mode(ContentScaling::ScaleMode mode) {
     m_scaling_params.scale_mode = mode;
 }
 
-void ImageComponent::set_horizontal_alignment(const float alignment) {
+void SpriteComponent::set_horizontal_alignment(const float alignment) {
     m_scaling_params.horizontal_alignment = alignment;
 }
 
-void ImageComponent::set_vertical_alignment(const float alignment) {
+void SpriteComponent::set_vertical_alignment(const float alignment) {
     m_scaling_params.vertical_alignment = alignment;
 }
 
-void ImageComponent::set_aspect_ratio(const float ratio) {
+void SpriteComponent::set_aspect_ratio(const float ratio) {
     m_scaling_params.custom_aspect_ratio = ratio;
 }
 
-// Legacy API (for backward compatibility)
-void ImageComponent::set_scale_mode(ScaleMode mode) {
-    switch (mode) {
-        case ScaleMode::STRETCH:
-            m_scaling_params.scale_mode = ContentScaling::ScaleMode::STRETCH;
-            break;
-        case ScaleMode::CONTAIN:
-            m_scaling_params.scale_mode = ContentScaling::ScaleMode::FIT;
-            break;
-        case ScaleMode::COVER:
-            m_scaling_params.scale_mode = ContentScaling::ScaleMode::FILL;
-            break;
-    }
-}
-
-void ImageComponent::set_max_resolution(int max_width, int max_height) {
+void SpriteComponent::set_max_resolution(int max_width, int max_height) {
     m_max_width = max_width;
     m_max_height = max_height;
     
-    // If an image is already loaded, reload it with the new max resolution
-    if (!m_image_path.empty() && m_texture != 0) {
-        load_image(m_image_path);
+    // Reload all frames with the new max resolution
+    if (!m_frame_paths.empty()) {
+        load_frames(m_frame_paths);
     }
 }
+

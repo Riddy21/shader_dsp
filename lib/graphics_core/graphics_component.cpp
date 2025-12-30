@@ -5,11 +5,11 @@ bool GraphicsComponent::s_global_outline = false;
 
 // Constructor with event handler and render context
 GraphicsComponent::GraphicsComponent(
-    PositionMode position_mode,
     const float x, 
     const float y, 
     const float width, 
     const float height,
+    PositionMode position_mode,
     EventHandler* event_handler,
     const RenderContext& render_context
 ) : m_width(width), m_height(height), m_position_mode(position_mode),
@@ -17,14 +17,36 @@ GraphicsComponent::GraphicsComponent(
     m_initialized(false)
 {
     // Convert position based on mode - always store as corner coordinates
-    if (position_mode == PositionMode::CENTER) {
-        // Convert center to top-left corner
-        m_x = x - width * 0.5f;
-        m_y = y + height * 0.5f;  // In normalized coords, y increases downward, so add half height
-    } else {
-        // CORNER mode - use directly
-        m_x = x;
-        m_y = y;
+    switch (position_mode) {
+        case PositionMode::CENTER:
+            m_x = x - width * 0.5f;
+            m_y = y + height * 0.5f;
+            break;
+        case PositionMode::CENTER_BOTTOM:
+            m_x = x - width * 0.5f;
+            m_y = y + height;
+            break;
+        case PositionMode::CENTER_TOP:
+            m_x = x - width * 0.5f;
+            m_y = y;
+            break;
+        case PositionMode::TOP_RIGHT:
+            m_x = x - width;
+            m_y = y;
+            break;
+        case PositionMode::BOTTOM_LEFT:
+            m_x = x;
+            m_y = y + height;
+            break;
+        case PositionMode::BOTTOM_RIGHT:
+            m_x = x - width;
+            m_y = y + height;
+            break;
+        case PositionMode::TOP_LEFT:
+        default:
+            m_x = x;
+            m_y = y;
+            break;
     }
     
     // Register event handlers if the event handler is provided
@@ -144,14 +166,36 @@ void GraphicsComponent::set_position(const float x, const float y) {
     float old_corner_y = m_y;
     
     // Convert input position to corner coordinates based on mode
-    if (m_position_mode == PositionMode::CENTER) {
-        // Convert center to top-left corner
-        m_x = x - m_width * 0.5f;
-        m_y = y + m_height * 0.5f;
-    } else {
-        // CORNER mode - use directly
-        m_x = x;
-        m_y = y;
+    switch (m_position_mode) {
+        case PositionMode::CENTER:
+            m_x = x - m_width * 0.5f;
+            m_y = y + m_height * 0.5f;
+            break;
+        case PositionMode::CENTER_BOTTOM:
+            m_x = x - m_width * 0.5f;
+            m_y = y + m_height;
+            break;
+        case PositionMode::CENTER_TOP:
+            m_x = x - m_width * 0.5f;
+            m_y = y;
+            break;
+        case PositionMode::TOP_RIGHT:
+            m_x = x - m_width;
+            m_y = y;
+            break;
+        case PositionMode::BOTTOM_LEFT:
+            m_x = x;
+            m_y = y + m_height;
+            break;
+        case PositionMode::BOTTOM_RIGHT:
+            m_x = x - m_width;
+            m_y = y + m_height;
+            break;
+        case PositionMode::TOP_LEFT:
+        default:
+            m_x = x;
+            m_y = y;
+            break;
     }
     
     // Calculate delta for children
@@ -168,10 +212,36 @@ void GraphicsComponent::set_position(const float x, const float y) {
 
 void GraphicsComponent::get_position(float& x, float& y) const {
     // Return position based on current mode
-    if (m_position_mode == PositionMode::CENTER) {
-        get_center_position(x, y);
-    } else {
-        get_corner_position(x, y);
+    switch (m_position_mode) {
+        case PositionMode::CENTER:
+            x = m_x + m_width * 0.5f;
+            y = m_y - m_height * 0.5f;
+            break;
+        case PositionMode::CENTER_BOTTOM:
+            x = m_x + m_width * 0.5f;
+            y = m_y - m_height;
+            break;
+        case PositionMode::CENTER_TOP:
+            x = m_x + m_width * 0.5f;
+            y = m_y;
+            break;
+        case PositionMode::TOP_RIGHT:
+            x = m_x + m_width;
+            y = m_y;
+            break;
+        case PositionMode::BOTTOM_LEFT:
+            x = m_x;
+            y = m_y - m_height;
+            break;
+        case PositionMode::BOTTOM_RIGHT:
+            x = m_x + m_width;
+            y = m_y - m_height;
+            break;
+        case PositionMode::TOP_LEFT:
+        default:
+            x = m_x;
+            y = m_y;
+            break;
     }
 }
 

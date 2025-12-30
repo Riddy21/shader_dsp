@@ -10,8 +10,7 @@
 
 class MouseTestComponent : public GraphicsComponent {
 public:
-    MouseTestComponent(PositionMode position_mode, float x, float y, float width, float height);
-    MouseTestComponent(float x, float y, float width, float height);
+    MouseTestComponent(float x, float y, float width, float height, PositionMode position_mode = PositionMode::TOP_LEFT);
     ~MouseTestComponent() override;
 
     void render_content() override;

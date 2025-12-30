@@ -1,14 +1,14 @@
 #include "graphics_components/text_button_component.h"
 
 TextButtonComponent::TextButtonComponent(
-    PositionMode position_mode,
     float x, float y, float width, float height, 
-    const std::string& text, ButtonCallback callback
-) : ButtonComponent(position_mode, x, y, width, height, callback),
+    const std::string& text, ButtonCallback callback,
+    PositionMode position_mode
+) : ButtonComponent(x, y, width, height, callback, position_mode),
     m_text_component(nullptr)
 {
     // Create the text component as a child of this button
-    m_text_component = new TextComponent(position_mode, x, y, width, height, text);
+    m_text_component = new TextComponent(x, y, width, height, text, position_mode);
     
     // Add the raw pointer to the GraphicsComponent's children list
     // This transfers ownership to the parent component
@@ -17,20 +17,13 @@ TextButtonComponent::TextButtonComponent(
 
 TextButtonComponent::TextButtonComponent(
     float x, float y, float width, float height, 
-    const std::string& text, ButtonCallback callback
-) : TextButtonComponent(PositionMode::CORNER, x, y, width, height, text, callback)
-{
-}
-
-TextButtonComponent::TextButtonComponent(
-    PositionMode position_mode,
-    float x, float y, float width, float height, 
-    const std::string& text, const UIButtonStyle& style, const std::array<float, 4>& color, ButtonCallback callback
-) : ButtonComponent(position_mode, x, y, width, height, callback),
+    const std::string& text, const UIButtonStyle& style, const std::array<float, 4>& color, ButtonCallback callback,
+    PositionMode position_mode
+) : ButtonComponent(x, y, width, height, callback, position_mode),
     m_text_component(nullptr)
 {
     // Create the text component as a child of this button
-    m_text_component = new TextComponent(position_mode, x, y, width, height, text);
+    m_text_component = new TextComponent(x, y, width, height, text, position_mode);
     
     // Add the raw pointer to the GraphicsComponent's children list
     // This transfers ownership to the parent component
@@ -38,13 +31,6 @@ TextButtonComponent::TextButtonComponent(
     
     // Apply style
     set_style(style, color);
-}
-
-TextButtonComponent::TextButtonComponent(
-    float x, float y, float width, float height, 
-    const std::string& text, const UIButtonStyle& style, const std::array<float, 4>& color, ButtonCallback callback
-) : TextButtonComponent(PositionMode::CORNER, x, y, width, height, text, style, color, callback)
-{
 }
 
 TextButtonComponent::~TextButtonComponent()

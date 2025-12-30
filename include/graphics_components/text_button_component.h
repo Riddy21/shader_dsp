@@ -10,23 +10,16 @@
 class TextButtonComponent : public ButtonComponent {
 public:
     TextButtonComponent(
-        PositionMode position_mode, float x, float y, float width, float height, 
-        const std::string& text, ButtonCallback callback
-    );
-    TextButtonComponent(
         float x, float y, float width, float height, 
-        const std::string& text, ButtonCallback callback
+        const std::string& text, ButtonCallback callback,
+        PositionMode position_mode = PositionMode::TOP_LEFT
     );
     // Constructor with style and color
     TextButtonComponent(
-        PositionMode position_mode, float x, float y, float width, float height, 
-        const std::string& text, const UIButtonStyle& style, const std::array<float, 4>& color,
-        ButtonCallback callback
-    );
-    TextButtonComponent(
         float x, float y, float width, float height, 
         const std::string& text, const UIButtonStyle& style, const std::array<float, 4>& color,
-        ButtonCallback callback
+        ButtonCallback callback,
+        PositionMode position_mode = PositionMode::TOP_LEFT
     );
     ~TextButtonComponent() override;
 

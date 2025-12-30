@@ -16,13 +16,10 @@
 
 class TextComponent : public GraphicsComponent {
 public:
-    TextComponent(PositionMode position_mode, float x, float y, float width, float height, 
-                  const std::string& text);
-    TextComponent(float x, float y, float width, float height, const std::string& text);
-    TextComponent(PositionMode position_mode, float x, float y, float width, float height, 
-                  const std::string& text, const UIFontStyles::FontStyle& font_style);
     TextComponent(float x, float y, float width, float height, const std::string& text, 
-                 const UIFontStyles::FontStyle& font_style);
+                  PositionMode position_mode = PositionMode::TOP_LEFT);
+    TextComponent(float x, float y, float width, float height, const std::string& text, 
+                 const UIFontStyles::FontStyle& font_style, PositionMode position_mode = PositionMode::TOP_LEFT);
     ~TextComponent() override;
 
     void render_content() override;

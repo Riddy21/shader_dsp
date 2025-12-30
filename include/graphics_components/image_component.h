@@ -12,9 +12,9 @@
 
 class ImageComponent : public GraphicsComponent {
 public:
-    ImageComponent(PositionMode position_mode, float x, float y, float width, float height, 
-                   const std::string& image_path);
-    ImageComponent(float x, float y, float width, float height, const std::string& image_path);
+    ImageComponent(float x, float y, float width, float height, 
+                   const std::string& image_path,
+                   PositionMode position_mode = PositionMode::TOP_LEFT);
     ~ImageComponent() override;
 
     void render_content() override;
@@ -47,6 +47,14 @@ public:
     
     // Get the aspect ratio of the loaded image
     float get_natural_aspect_ratio() const { return m_natural_aspect_ratio; }
+    
+    // Set maximum resolution for texture loading (0 = no limit)
+    // Images larger than this will be scaled down while maintaining aspect ratio
+    void set_max_resolution(int max_width, int max_height);
+    
+    // Get maximum resolution
+    int get_max_width() const { return m_max_width; }
+    int get_max_height() const { return m_max_height; }
 
 protected:
     bool initialize() override;
@@ -59,6 +67,8 @@ private:
     float m_natural_aspect_ratio = 1.0f;
     float m_rotation = 0.0f; // Rotation angle in radians
     ContentScaling::ScalingParams m_scaling_params;
+    int m_max_width = 0;  // 0 means no limit
+    int m_max_height = 0; // 0 means no limit
     
     GLuint m_texture = 0;
     static std::unique_ptr<AudioShaderProgram> s_image_shader;

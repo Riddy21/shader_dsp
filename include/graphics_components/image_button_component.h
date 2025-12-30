@@ -9,12 +9,9 @@
 class ImageButtonComponent : public ButtonComponent {
 public:
     ImageButtonComponent(
-        PositionMode position_mode, float x, float y, float width, float height, 
-        const std::string& image_path, ButtonCallback callback
-    );
-    ImageButtonComponent(
         float x, float y, float width, float height, 
-        const std::string& image_path, ButtonCallback callback
+        const std::string& image_path, ButtonCallback callback,
+        PositionMode position_mode = PositionMode::TOP_LEFT
     );
     ~ImageButtonComponent() override;
 

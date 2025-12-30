@@ -16,8 +16,8 @@ class ButtonComponent : public GraphicsComponent {
 public:
     using ButtonCallback = std::function<void()>;
 
-    ButtonComponent(PositionMode position_mode, float x, float y, float width, float height, ButtonCallback callback);
-    ButtonComponent(float x, float y, float width, float height, ButtonCallback callback);
+    ButtonComponent(float x, float y, float width, float height, ButtonCallback callback, 
+                    PositionMode position_mode = PositionMode::TOP_LEFT);
     ~ButtonComponent() override;
 
     void render_content() override;
