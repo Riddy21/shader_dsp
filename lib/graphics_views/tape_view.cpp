@@ -8,6 +8,7 @@
 #include "graphics_components/sprite_component.h"
 #include "graphics_components/mouse_test_component.h"
 #include "graphics_components/equalizer_component.h"
+#include "graphics_components/track_display_component.h"
 #include "graphics_core/graphics_component.h"
 #include "audio_synthesizer/audio_synthesizer.h"
 #include <SDL2/SDL.h>
@@ -55,6 +56,16 @@ TapeView::TapeView() : GraphicsView() {
         GraphicsComponent::PositionMode::CENTER_BOTTOM
     );
     add_component(m_equalizer);
+    
+    // Add track display component with 6 tracks and measure with ticks
+    m_track_display = new TrackDisplayComponent(
+        0.0f, -0.84f,  // Position: center-top area
+        1.3f, 0.34f,  // Width and height
+        GraphicsComponent::PositionMode::CENTER_BOTTOM,
+        6,           // 6 tracks
+        10           // 10 ticks
+    );
+    add_component(m_track_display);
 }
 
 void TapeView::render() {
