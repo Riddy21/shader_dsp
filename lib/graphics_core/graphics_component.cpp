@@ -1,7 +1,14 @@
 #include "graphics_core/graphics_component.h"
+#include <iostream>
 
 // Initialize static variables
 bool GraphicsComponent::s_global_outline = false;
+int GraphicsComponent::s_viewport_offset_x = 0;
+int GraphicsComponent::s_viewport_offset_y = 0;
+
+// Track the global window size for correct FBO mapping
+static int s_global_window_width = 0;
+static int s_global_window_height = 0;
 
 // Constructor with event handler and render context
 GraphicsComponent::GraphicsComponent(
@@ -55,6 +62,10 @@ GraphicsComponent::GraphicsComponent(
     }
 }
 
+GraphicsComponent::~GraphicsComponent() {
+    cleanup_fbo();
+}
+
 bool GraphicsComponent::initialize() {
     for (auto& child : m_children) {
         child->initialize();
@@ -70,23 +81,87 @@ void GraphicsComponent::render() {
     // Skip rendering if dimensions are zero
     if (m_width <= 0 || m_height <= 0) return;
     
-    // Begin local rendering with viewport and scissor
-    begin_local_rendering();
-    
-    // Render this component's content
-    render_content();
-    
-    // End local rendering
-    end_local_rendering();
-    
-    // Draw debug outline if enabled
-    if (m_show_outline || s_global_outline) {
-        draw_outline();
-    }
-    
-    // Render all children
-    for (auto& child : m_children) {
-        child->render();
+    if (m_post_processing_enabled) {
+        prepare_fbo();
+        
+        // Save previous FBO and viewport
+        GLint prev_fbo;
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prev_fbo);
+        GLint prev_viewport[4];
+        glGetIntegerv(GL_VIEWPORT, prev_viewport);
+        
+        // Calculate component position in window pixels for global offset
+        int win_w = prev_viewport[2]; // Assuming current viewport covers window or is parent's viewport
+        int win_h = prev_viewport[3];
+        
+        // Note: begin_local_rendering uses m_saved_viewport to calculate pixels.
+        // We can reuse the logic but we need the result here.
+        // Actually, we can just let begin_local_rendering calculate it if we didn't offset yet.
+        // But we need to offset it.
+        
+        // Calculate component viewport in window coordinates (absolute)
+        int x_pos = static_cast<int>((m_x + 1.0f) * 0.5f * win_w);
+        int y_pos = static_cast<int>(((m_y - m_height) + 1.0f) * 0.5f * win_h);
+        
+        // Update global offset
+        int old_offset_x = s_viewport_offset_x;
+        int old_offset_y = s_viewport_offset_y;
+        
+        s_viewport_offset_x += x_pos;
+        s_viewport_offset_y += y_pos;
+        
+        // Bind FBO
+        glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+        glViewport(0, 0, m_fbo_width, m_fbo_height);
+        
+        // Clear FBO
+        glClearColor(0.0f, 0.0f, 0.0f, 0.0f); // Transparent
+        glClear(GL_COLOR_BUFFER_BIT); // No depth buffer by default unless added
+        
+        // Render content to FBO
+        // Note: We need to use begin_local_rendering here to set up scissor/viewport inside FBO
+        begin_local_rendering();
+        render_content();
+        end_local_rendering();
+        
+        // Render children to FBO
+        for (auto& child : m_children) {
+            child->render();
+        }
+        
+        // Restore state
+        s_viewport_offset_x = old_offset_x;
+        s_viewport_offset_y = old_offset_y;
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, prev_fbo);
+        glViewport(prev_viewport[0], prev_viewport[1], prev_viewport[2], prev_viewport[3]);
+        
+        // Now render the result to screen
+        // We use begin_local_rendering to target the component's screen area
+        begin_local_rendering();
+        render_post_process();
+        end_local_rendering();
+        
+        // Debug outline on top of post-process result
+        if (m_show_outline || s_global_outline) {
+            draw_outline();
+        }
+        
+    } else {
+        // Standard rendering path
+        begin_local_rendering();
+        
+        render_content();
+        
+        end_local_rendering();
+        
+        if (m_show_outline || s_global_outline) {
+            draw_outline();
+        }
+        
+        for (auto& child : m_children) {
+            child->render();
+        }
     }
 }
 
@@ -98,16 +173,39 @@ void GraphicsComponent::begin_local_rendering() {
         glGetIntegerv(GL_SCISSOR_BOX, m_saved_scissor_box);
     }
     
+    // Determine the reference width/height for NDC conversion.
+    // If we are at the top level (no offset), we capture the global window size.
+    // If we are rendering into an FBO (offset > 0), we must use the global window size
+    // to correctly map the component's global NDC coordinates to local pixels.
+    
+    int ref_width = m_saved_viewport[2];
+    int ref_height = m_saved_viewport[3];
+    
+    if (s_viewport_offset_x == 0 && s_viewport_offset_y == 0) {
+        // Top-level rendering - store the global window size
+        s_global_window_width = ref_width;
+        s_global_window_height = ref_height;
+    } else {
+        // Nested rendering (likely inside FBO) - use the stored global size
+        // If s_global_window_width is 0 for some reason (shouldn't happen if top-level called render), fallback
+        if (s_global_window_width > 0) {
+            ref_width = s_global_window_width;
+            ref_height = s_global_window_height;
+        }
+    }
+    
     // Calculate new viewport based on component position and dimensions
     // Convert from normalized device coordinates to window coordinates
-    int window_width = m_saved_viewport[2];
-    int window_height = m_saved_viewport[3];
-    
-    // Calculate component viewport in window coordinates
-    int x_pos = static_cast<int>((m_x + 1.0f) * 0.5f * window_width);
-    int y_pos = static_cast<int>(((m_y - m_height) + 1.0f) * 0.5f * window_height);
-    int comp_width = static_cast<int>(m_width * 0.5f * window_width);
-    int comp_height = static_cast<int>(m_height * 0.5f * window_height);
+    // Using ref_width/height ensures consistency between global and local rendering
+    int x_pos = static_cast<int>((m_x + 1.0f) * 0.5f * ref_width);
+    int y_pos = static_cast<int>(((m_y - m_height) + 1.0f) * 0.5f * ref_height);
+    int comp_width = static_cast<int>(m_width * 0.5f * ref_width);
+    int comp_height = static_cast<int>(m_height * 0.5f * ref_height);
+
+    // Apply global offset (used when rendering to FBO)
+    // This transforms global window coordinates to local FBO coordinates
+    x_pos -= s_viewport_offset_x;
+    y_pos -= s_viewport_offset_y;
 
     // Set viewport to only render within the component's area
     glViewport(x_pos, y_pos, comp_width, comp_height);
@@ -467,4 +565,222 @@ void GraphicsComponent::draw_outline() {
     } else {
         glBlendFunc(blend_src, blend_dst);
     }
+}
+
+void GraphicsComponent::set_post_processing_enabled(bool enabled) {
+    m_post_processing_enabled = enabled;
+}
+
+void GraphicsComponent::set_post_process_fragment_shader(const std::string& fragment_shader_src) {
+    m_custom_post_frag_shader = fragment_shader_src;
+    
+    // If post-processing resources are already initialized, recompile the shader
+    if (m_post_program != 0) {
+        // Delete old program
+        glDeleteProgram(m_post_program);
+        m_post_program = 0;
+        
+        // Recompile with new shader
+        compile_post_process_shader();
+    }
+}
+
+void GraphicsComponent::prepare_fbo() {
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    int window_width = viewport[2];
+    int window_height = viewport[3];
+
+    // Calculate component pixel size
+    int pixel_width = static_cast<int>(m_width * 0.5f * window_width);
+    int pixel_height = static_cast<int>(m_height * 0.5f * window_height);
+    
+    // Ensure minimum size
+    if (pixel_width <= 0) pixel_width = 1;
+    if (pixel_height <= 0) pixel_height = 1;
+
+    // Check if resize needed
+    if (m_fbo == 0 || pixel_width != m_fbo_width || pixel_height != m_fbo_height) {
+        m_fbo_width = pixel_width;
+        m_fbo_height = pixel_height;
+        
+        if (m_fbo == 0) {
+            glGenFramebuffers(1, &m_fbo);
+            glGenTextures(1, &m_texture);
+            initialize_post_process_resources();
+        }
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, m_fbo);
+        
+        glBindTexture(GL_TEXTURE_2D, m_texture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_fbo_width, m_fbo_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_texture, 0);
+        
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "Framebuffer is not complete!" << std::endl;
+        }
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+}
+
+void GraphicsComponent::cleanup_fbo() {
+    if (m_fbo != 0) {
+        glDeleteFramebuffers(1, &m_fbo);
+        m_fbo = 0;
+    }
+    if (m_texture != 0) {
+        glDeleteTextures(1, &m_texture);
+        m_texture = 0;
+    }
+    if (m_post_vao != 0) {
+        glDeleteVertexArrays(1, &m_post_vao);
+        m_post_vao = 0;
+    }
+    if (m_post_vbo != 0) {
+        glDeleteBuffers(1, &m_post_vbo);
+        m_post_vbo = 0;
+    }
+    if (m_post_program != 0) {
+        glDeleteProgram(m_post_program);
+        m_post_program = 0;
+    }
+}
+
+void GraphicsComponent::initialize_post_process_resources() {
+    // Create quad for post-process rendering
+    float vertices[] = {
+        // x, y, u, v
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f, -1.0f, 1.0f, 0.0f,
+         1.0f,  1.0f, 1.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 0.0f,
+         1.0f,  1.0f, 1.0f, 1.0f,
+        -1.0f,  1.0f, 0.0f, 1.0f
+    };
+    
+    glGenVertexArrays(1, &m_post_vao);
+    glGenBuffers(1, &m_post_vbo);
+    
+    glBindVertexArray(m_post_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, m_post_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    
+    // Compile the post-process shader
+    compile_post_process_shader();
+}
+
+void GraphicsComponent::compile_post_process_shader() {
+    // Standard vertex shader for post-processing
+    const char* vert_src = R"(
+        #version 300 es
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec2 aTexCoord;
+        out vec2 TexCoord;
+        void main() {
+            gl_Position = vec4(aPos, 0.0, 1.0);
+            TexCoord = aTexCoord;
+        }
+    )";
+    
+    // Use custom fragment shader if provided, otherwise use default pass-through
+    const char* frag_src;
+    std::string default_frag = R"(
+        #version 300 es
+        precision mediump float;
+        out vec4 FragColor;
+        in vec2 TexCoord;
+        uniform sampler2D uTexture;
+        void main() {
+            FragColor = texture(uTexture, TexCoord);
+        }
+    )";
+    
+    if (!m_custom_post_frag_shader.empty()) {
+        frag_src = m_custom_post_frag_shader.c_str();
+    } else {
+        frag_src = default_frag.c_str();
+    }
+    
+    GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vert, 1, &vert_src, NULL);
+    glCompileShader(vert);
+    
+    // Check vertex shader compilation
+    GLint success;
+    glGetShaderiv(vert, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        char info_log[512];
+        glGetShaderInfoLog(vert, 512, NULL, info_log);
+        std::cerr << "Post-process vertex shader compilation failed: " << info_log << std::endl;
+        glDeleteShader(vert);
+        return;
+    }
+    
+    GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(frag, 1, &frag_src, NULL);
+    glCompileShader(frag);
+    
+    // Check fragment shader compilation
+    glGetShaderiv(frag, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        char info_log[512];
+        glGetShaderInfoLog(frag, 512, NULL, info_log);
+        std::cerr << "Post-process fragment shader compilation failed: " << info_log << std::endl;
+        glDeleteShader(vert);
+        glDeleteShader(frag);
+        return;
+    }
+    
+    m_post_program = glCreateProgram();
+    glAttachShader(m_post_program, vert);
+    glAttachShader(m_post_program, frag);
+    glLinkProgram(m_post_program);
+    
+    // Check program linking
+    glGetProgramiv(m_post_program, GL_LINK_STATUS, &success);
+    if (!success) {
+        char info_log[512];
+        glGetProgramInfoLog(m_post_program, 512, NULL, info_log);
+        std::cerr << "Post-process shader program linking failed: " << info_log << std::endl;
+        glDeleteProgram(m_post_program);
+        m_post_program = 0;
+    }
+    
+    glDeleteShader(vert);
+    glDeleteShader(frag);
+}
+
+void GraphicsComponent::render_post_process() {
+    if (m_post_program == 0 || m_post_vao == 0) return;
+    
+    glUseProgram(m_post_program);
+    
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, m_texture);
+    glUniform1i(glGetUniformLocation(m_post_program, "uTexture"), 0);
+    
+    // Enable blending
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    
+    glBindVertexArray(m_post_vao);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+    
+    glDisable(GL_BLEND);
+    glUseProgram(0);
 }

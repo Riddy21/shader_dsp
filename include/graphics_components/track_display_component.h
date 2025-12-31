@@ -54,9 +54,6 @@ public:
     );
     ~TrackDisplayComponent() override;
 
-    // Override render to apply full-component effects
-    void render() override;
-
 protected:
     bool initialize() override;
     void render_content() override;
@@ -67,22 +64,7 @@ private:
     TrackMeasureComponent* m_measure_component;
     std::vector<TrackRowComponent*> m_track_components;
     
-    // FBO for post-processing effects
-    GLuint m_fbo = 0;
-    GLuint m_fbo_texture = 0;
-    GLuint m_depth_buffer = 0; // In case we need depth, though likely not for 2D
-    int m_fbo_width = 0;
-    int m_fbo_height = 0;
-    
-    // Resources for compositing
-    std::unique_ptr<AudioShaderProgram> m_composite_shader;
-    GLuint m_quad_vao = 0;
-    GLuint m_quad_vbo = 0;
-    
     void layout_components();
-    void initialize_fbo(int width, int height);
-    void render_composite(int window_width, int window_height);
 };
 
 #endif // TRACK_DISPLAY_COMPONENT_H
-

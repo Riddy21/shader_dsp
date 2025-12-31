@@ -249,6 +249,40 @@ TrackDisplayComponent::~TrackDisplayComponent() {
 }
 
 bool TrackDisplayComponent::initialize() {
+    // Set custom post-processing fragment shader (shadow vignette on sides)
+    const std::string pp_frag = R"(
+        #version 300 es
+        precision mediump float;
+        out vec4 FragColor;
+        in vec2 TexCoord;
+        uniform sampler2D uTexture;
+        void main() {
+            vec4 col = texture(uTexture, TexCoord);
+            float x = TexCoord.x;
+            
+            // Left shadow: starts at 0.20 (closer to middle), fades to 0.0 at left edge
+            // smoothstep(0.0, 0.25, x) returns 0 at x=0, 1 at x=0.25
+            // So 1.0 - smoothstep gives 1 at x=0, 0 at x=0.25
+            float left = 1.0 - smoothstep(0.0, 0.25, x);
+            
+            // Right shadow: starts at 0.80 (closer to middle), fades to 1.0 at right edge
+            // smoothstep(0.75, 1.0, x) returns 0 at x=0.75, 1 at x=1.0
+            float right = smoothstep(0.75, 1.0, x);
+            
+            float shadow_intensity = max(left, right);
+            
+            // Fade to transparent by reducing alpha channel
+            // shadow_intensity goes from 0 (center) to 1 (edges)
+            // So alpha becomes 0 at the edges (fully transparent)
+            float final_alpha = col.a * (1.0 - shadow_intensity);
+            
+            FragColor = vec4(col.rgb, final_alpha);
+        }
+    )";
+    
+    set_post_process_fragment_shader(pp_frag);
+    set_post_processing_enabled(true);
+
     layout_components();
     GraphicsComponent::initialize();
     return true;
@@ -295,4 +329,3 @@ void TrackDisplayComponent::render_content() {
     // it just contains child components that render
     // The base class will handle rendering children
 }
-

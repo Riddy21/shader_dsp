@@ -2,6 +2,7 @@
 #include <SDL2/SDL.h>
 #include <vector>
 #include <memory>
+#include <string>
 
 #include "engine/event_handler.h"
 #include "engine/renderable_entity.h"
@@ -31,7 +32,7 @@ public:
         const RenderContext& render_context = RenderContext()
     );
     
-    virtual ~GraphicsComponent() = default;
+    virtual ~GraphicsComponent();
 
     // Event handler registration methods
     virtual void register_event_handlers(EventHandler* event_handler);
@@ -81,12 +82,32 @@ public:
     // Static method to toggle outline display for all components
     static void set_global_outline(bool show) { s_global_outline = show; }
     
+    // Post-processing support
+    // When enabled, the component and its children are rendered to an FBO first,
+    // then the render_post_process() method is called to draw the result to the screen.
+    // By default, post-processing is disabled.
+    void set_post_processing_enabled(bool enabled);
+    bool is_post_processing_enabled() const { return m_post_processing_enabled; }
+    
+    // Set a custom post-processing fragment shader.
+    // The shader should have:
+    // - Input: in vec2 TexCoord (texture coordinates)
+    // - Uniform: uniform sampler2D uTexture (the rendered FBO texture)
+    // - Output: out vec4 FragColor
+    // If no custom shader is set, a default pass-through shader is used.
+    // This should be called before initialize() or before enabling post-processing.
+    void set_post_process_fragment_shader(const std::string& fragment_shader_src);
+
 protected:
     // New methods for viewport-based rendering
     void begin_local_rendering();
     void end_local_rendering();
     
     virtual void render_content(); // Components should override this instead of render()
+
+    // Renders the FBO texture to the screen. Derived classes can override this to apply effects.
+    // The default implementation draws a simple textured quad.
+    virtual void render_post_process();
 
     float m_x = 0.0f;  // Always stored as top-left corner (normalized coordinates)
     float m_y = 0.0f;  // Always stored as top-left corner (normalized coordinates)
@@ -122,4 +143,27 @@ protected:
     GLint m_saved_viewport[4] = {0, 0, 0, 0};
     GLint m_saved_scissor_box[4] = {0, 0, 0, 0};
     GLboolean m_saved_scissor_test = GL_FALSE;
+
+    // Post-processing resources
+    bool m_post_processing_enabled = false;
+    std::string m_custom_post_frag_shader; // Custom fragment shader source (empty = use default)
+    GLuint m_fbo = 0;
+    GLuint m_texture = 0;
+    GLuint m_rbo = 0; // For depth/stencil if needed
+    int m_fbo_width = 0;
+    int m_fbo_height = 0;
+    
+    // For rendering the FBO texture to screen (default implementation)
+    GLuint m_post_vao = 0;
+    GLuint m_post_vbo = 0;
+    GLuint m_post_program = 0;
+    
+    void prepare_fbo();
+    void cleanup_fbo();
+    void initialize_post_process_resources();
+    void compile_post_process_shader();
+    
+    // Global offsets for viewport calculation (used when rendering to FBO)
+    static int s_viewport_offset_x;
+    static int s_viewport_offset_y;
 };
