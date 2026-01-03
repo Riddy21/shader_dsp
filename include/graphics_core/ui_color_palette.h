@@ -51,7 +51,7 @@ namespace UIColorPalette {
     constexpr std::array<float, 4> STATUS_WARNING = {0.9686f, 0.8196f, 0.3059f, 1.0f}; // #F7D14E - Yellow for warnings
     constexpr std::array<float, 4> STATUS_ERROR = {1.0f, 0.5098f, 0.3608f, 1.0f};     // #FF825C - Orange for errors
     constexpr std::array<float, 4> STATUS_INFO = {0.2f, 0.4706f, 0.7804f, 1.0f};      // #3378C7 - Blue for info
-    
+
     // Utility: Convert array to individual RGBA values
     inline void get_rgba(const std::array<float, 4>& color, float& r, float& g, float& b, float& a) {
         r = color[0];

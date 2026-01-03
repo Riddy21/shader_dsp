@@ -14,16 +14,23 @@
 TrackMeasureComponent::TrackMeasureComponent(
     float x, float y, float width, float height,
     PositionMode position_mode,
-    size_t num_ticks
+    float bpm,
+    float zoom,
+    float position_seconds
 ) : GraphicsComponent(x, y, width, height, position_mode),
-    m_num_ticks(num_ticks),
+    m_bpm(bpm),
+    m_zoom(zoom),
+    m_position_seconds(position_seconds),
     m_shader_program(nullptr),
     m_vao(0),
     m_vbo(0),
     m_vertex_count(0)
 {
     // Ensure reasonable defaults
-    if (m_num_ticks == 0) m_num_ticks = 10;
+    if (m_bpm <= 0.0f) m_bpm = 120.0f; // Default to 120 BPM
+    if (m_zoom <= 0.0f) m_zoom = 1.0f;
+    // Default position is 0 (center at time 0)
+    if (m_position_seconds < 0.0f) m_position_seconds = 0.0f;
 }
 
 TrackMeasureComponent::~TrackMeasureComponent() {
@@ -35,30 +42,72 @@ TrackMeasureComponent::~TrackMeasureComponent() {
     }
 }
 
+size_t TrackMeasureComponent::calculate_num_ticks() const {
+    // Calculate visible duration
+    float visible_duration = MAX_TIMELINE_DURATION_SECONDS / m_zoom;
+    
+    // Calculate beat duration in seconds (60 seconds per minute / beats per minute)
+    float beat_duration = 60.0f / m_bpm;
+    
+    // Calculate how many beats fit in the visible duration
+    float num_beats = visible_duration / beat_duration;
+    
+    // Return number of ticks (beats) to show, add 1 to include the end tick
+    // Cap at reasonable maximum to avoid performance issues
+    size_t num_ticks = static_cast<size_t>(num_beats) + 1;
+    return std::min(num_ticks, static_cast<size_t>(1000)); // Max 1000 ticks
+}
+
 bool TrackMeasureComponent::initialize() {
     // Shader for drawing vertical tick lines using instanced rendering
-    // The shader calculates tick positions based on instance ID
+    // The shader calculates tick positions based on BPM, zoom, and position
     const std::string vertex_shader_src = R"(
         #version 300 es
         layout (location = 0) in vec2 aPos;  // x ignored, y used
         
-        uniform float uNumTicks;  // Number of ticks
+        uniform float uNumTicks;  // Number of ticks (beats) to render
+        uniform float uZoom;  // Zoom level (1.0 = full view)
+        uniform float uPosition;  // Current scroll position in seconds
+        uniform float uMaxDuration;  // Maximum timeline duration (600 seconds = 10 minutes)
+        uniform float uBPM;  // Beats per minute
         
         void main() {
-            // Calculate progress t from 0.0 to 1.0
-            float t = 0.0;
-            if (uNumTicks > 1.0) {
-                t = float(gl_InstanceID) / (uNumTicks - 1.0);
-            } else {
-                t = 0.5; // Center if single tick
+            // Calculate visible time range based on zoom and position
+            // Position represents the CENTER of the viewport (position 0 = center at time 0)
+            float visible_duration = uMaxDuration / uZoom;
+            float center_time = uPosition; // Position directly represents center time
+            float start_time = center_time - visible_duration * 0.5;
+            float end_time = center_time + visible_duration * 0.5;
+            
+            // Calculate beat duration in seconds
+            float beat_duration = 60.0 / uBPM;
+            
+            // Calculate the first beat time that's >= start_time
+            // We use floor even for negative start_time to ensure we get the beat before or at start_time
+            float first_beat_time = floor(start_time / beat_duration) * beat_duration;
+            
+            // Calculate tick time for this instance (beat time)
+            float tick_time = first_beat_time + float(gl_InstanceID) * beat_duration;
+            
+            // Only render if tick is within visible range
+            if (tick_time < start_time || tick_time > end_time) {
+                // Move off-screen
+                gl_Position = vec4(2.0, 0.0, 0.0, 1.0);
+                return;
             }
             
-            // Map t to x range [-1.0, 1.0]
-            // We use a slight inset (0.995 instead of 1.0) to prevent the edge ticks
-            // from being clipped by the viewport boundary or scissor test
-            float x_pos = mix(-0.995, 0.995, t);
+            // Only render ticks within the valid timeline range (0 to max)
+            if (tick_time < 0.0 || tick_time > uMaxDuration) {
+                gl_Position = vec4(2.0, 0.0, 0.0, 1.0);
+                return;
+            }
             
-            // Use the y coordinate from the vertex, x calculated from instance ID
+            // Map time to x position in normalized device coordinates [-1.0, 1.0]
+            // Map from visible range [start_time, end_time] to screen space [-1.0, 1.0]
+            float normalized_time = (tick_time - start_time) / visible_duration;
+            float x_pos = mix(-0.995, 0.995, normalized_time);
+            
+            // Use the y coordinate from the vertex, x calculated from time
             gl_Position = vec4(x_pos, aPos.y, 0.0, 1.0);
         }
     )";
@@ -110,8 +159,37 @@ bool TrackMeasureComponent::initialize() {
     return true;
 }
 
+void TrackMeasureComponent::set_zoom(float zoom) {
+    if (zoom > 0.0f) {
+        m_zoom = zoom;
+    }
+}
+
+void TrackMeasureComponent::set_position(float position_seconds) {
+    // Position represents the center of the viewport (position 0 = center at time 0)
+    // Clamp to valid range based on current zoom level to keep viewport within bounds
+    if (position_seconds >= 0.0f) {
+        float visible_duration = MAX_TIMELINE_DURATION_SECONDS / m_zoom;
+        float max_center = MAX_TIMELINE_DURATION_SECONDS - visible_duration * 0.5f;
+        
+        // Clamp center position to keep viewport within bounds
+        // Allow position 0 (which will show from 0 to visible_duration, centered at 0)
+        m_position_seconds = std::max(0.0f, std::min(position_seconds, max_center));
+    }
+}
+
+void TrackMeasureComponent::set_bpm(float bpm) {
+    if (bpm > 0.0f) {
+        m_bpm = bpm;
+    }
+}
+
 void TrackMeasureComponent::render_content() {
-    if (!m_shader_program || m_vao == 0 || m_num_ticks == 0) return;
+    if (!m_shader_program || m_vao == 0) return;
+
+    // Calculate number of ticks based on visible duration and BPM
+    size_t num_ticks = calculate_num_ticks();
+    if (num_ticks == 0) return;
 
     glUseProgram(m_shader_program->get_program());
 
@@ -122,13 +200,17 @@ void TrackMeasureComponent::render_content() {
                 UIColorPalette::PRIMARY_YELLOW[1],
                 UIColorPalette::PRIMARY_YELLOW[2],
                 UIColorPalette::PRIMARY_YELLOW[3]);
-    glUniform1f(glGetUniformLocation(program, "uNumTicks"), static_cast<float>(m_num_ticks));
+    glUniform1f(glGetUniformLocation(program, "uNumTicks"), static_cast<float>(num_ticks));
+    glUniform1f(glGetUniformLocation(program, "uZoom"), m_zoom);
+    glUniform1f(glGetUniformLocation(program, "uPosition"), m_position_seconds);
+    glUniform1f(glGetUniformLocation(program, "uMaxDuration"), MAX_TIMELINE_DURATION_SECONDS);
+    glUniform1f(glGetUniformLocation(program, "uBPM"), m_bpm);
 
     // Draw tick lines using instanced rendering
-    // We have 2 vertices (one line segment) and draw m_num_ticks instances
+    // We have 2 vertices (one line segment) and draw num_ticks instances
     glBindVertexArray(m_vao);
     glLineWidth(2.0f); // Make tick marks thicker
-    glDrawArraysInstanced(GL_LINES, 0, 2, m_num_ticks);
+    glDrawArraysInstanced(GL_LINES, 0, 2, num_ticks);
     glBindVertexArray(0);
 
     glUseProgram(0);
@@ -141,7 +223,9 @@ void TrackMeasureComponent::render_content() {
 TrackRowComponent::TrackRowComponent(float x, float y, float width, float height,
                                      PositionMode position_mode,
                                      AudioTape* tape,
-                                     float total_timeline_duration_seconds)
+                                     float total_timeline_duration_seconds,
+                                     float zoom,
+                                     float position_seconds)
     : GraphicsComponent(x, y, width, height, position_mode),
       m_shader_program(nullptr),
       m_vao(0),
@@ -150,12 +234,19 @@ TrackRowComponent::TrackRowComponent(float x, float y, float width, float height
       m_tape(tape),
       m_total_timeline_duration_seconds(total_timeline_duration_seconds),
       m_audio_start_offset_seconds(0.0f),
+      m_zoom(zoom),
+      m_position_seconds(position_seconds),
       m_selected(false),
       m_amplitude_texture_dirty(true),
       m_last_tape_size(0),
       m_last_record_position(0),
       m_update_frame_counter(0)
 {
+    // Ensure reasonable defaults
+    if (m_zoom <= 0.0f) m_zoom = 1.0f;
+    // Default position is 0 (center at time 0)
+    if (m_position_seconds < 0.0f) m_position_seconds = 0.0f;
+    
     // Initialize tracking values if tape is available
     if (m_tape) {
         m_last_tape_size = m_tape->size();
@@ -194,21 +285,42 @@ bool TrackRowComponent::initialize() {
         out vec4 FragColor;
         in vec2 TexCoord;
         uniform sampler2D uAmplitudeTexture;
-        uniform vec2 uAudioRegion; // x = start normalized, y = end normalized
+        uniform vec2 uAudioRegion; // x = start normalized, y = end normalized (in timeline time)
         uniform bool uSelected;
         uniform vec4 uYellowColor;
         uniform vec4 uOrangeColor;
         uniform vec4 uGreyColor;
         uniform float uThickness;
+        uniform float uZoom;  // Zoom level (1.0 = full view)
+        uniform float uPosition;  // Current scroll position in seconds
+        uniform float uMaxDuration;  // Maximum timeline duration (600 seconds = 10 minutes)
         
         void main() {
-            // Check if we're within the audio region horizontally
-            if (TexCoord.x < uAudioRegion.x || TexCoord.x > uAudioRegion.y) {
+            // Calculate visible time range based on zoom and position
+            // Position represents the CENTER of the viewport (position 0 = center at time 0)
+            float visible_duration = uMaxDuration / uZoom;
+            float center_time = uPosition; // Position directly represents center time
+            float visible_start_time = center_time - visible_duration * 0.5;
+            float visible_end_time = center_time + visible_duration * 0.5;
+            
+            // Map screen x coordinate (TexCoord.x: 0.0 to 1.0) to timeline time
+            // No clamping of start/end times here - we want to preserve linear mapping
+            // screen_time can be negative (if we are scrolling past 0) or > max_duration
+            float screen_time = visible_start_time + TexCoord.x * visible_duration;
+            
+            // Only render content for valid timeline range
+            if (screen_time < 0.0 || screen_time > uMaxDuration) {
+                discard;
+            }
+            
+            // Check if we're within the audio region horizontally (in timeline time)
+            if (screen_time < uAudioRegion.x || screen_time > uAudioRegion.y) {
                 discard; // Outside audio region
             }
             
-            // Map texture x coordinate to audio region for amplitude sampling
-            float audio_t = (TexCoord.x - uAudioRegion.x) / (uAudioRegion.y - uAudioRegion.x);
+            // Map timeline time to audio region for amplitude sampling
+            float audio_t = (screen_time - uAudioRegion.x) / (uAudioRegion.y - uAudioRegion.x);
+            audio_t = clamp(audio_t, 0.0, 1.0); // Ensure valid range for texture sampling
             
             // Sample amplitude from texture (1D texture, use x coordinate)
             float amplitude = texture(uAmplitudeTexture, vec2(audio_t, 0.0)).r;
@@ -397,15 +509,15 @@ void TrackRowComponent::render_content() {
         return;
     }
 
-    // Calculate the normalized position of the audio region
-    float audio_start_normalized = m_audio_start_offset_seconds / m_total_timeline_duration_seconds;
-    float audio_end_normalized = (m_audio_start_offset_seconds + audio_duration) / m_total_timeline_duration_seconds;
+    // Calculate audio region in timeline time (seconds)
+    float audio_start_time = m_audio_start_offset_seconds;
+    float audio_end_time = m_audio_start_offset_seconds + audio_duration;
     
-    // Clamp to [0, 1]
-    audio_start_normalized = std::max(0.0f, std::min(audio_start_normalized, 1.0f));
-    audio_end_normalized = std::max(0.0f, std::min(audio_end_normalized, 1.0f));
+    // Clamp to valid timeline range [0, MAX_TIMELINE_DURATION_SECONDS]
+    audio_start_time = std::max(0.0f, std::min(audio_start_time, MAX_TIMELINE_DURATION_SECONDS));
+    audio_end_time = std::max(0.0f, std::min(audio_end_time, MAX_TIMELINE_DURATION_SECONDS));
     
-    if (audio_end_normalized <= audio_start_normalized) {
+    if (audio_end_time <= audio_start_time) {
         return; // No valid audio region
     }
 
@@ -417,8 +529,11 @@ void TrackRowComponent::render_content() {
 
     GLuint program = m_shader_program->get_program();
     
-    // Set uniforms
-    glUniform2f(glGetUniformLocation(program, "uAudioRegion"), audio_start_normalized, audio_end_normalized);
+    // Set uniforms - audio region is now in timeline time (seconds)
+    glUniform2f(glGetUniformLocation(program, "uAudioRegion"), audio_start_time, audio_end_time);
+    glUniform1f(glGetUniformLocation(program, "uZoom"), m_zoom);
+    glUniform1f(glGetUniformLocation(program, "uPosition"), m_position_seconds);
+    glUniform1f(glGetUniformLocation(program, "uMaxDuration"), MAX_TIMELINE_DURATION_SECONDS);
     glUniform1i(glGetUniformLocation(program, "uSelected"), m_selected ? 1 : 0);
     glUniform4f(glGetUniformLocation(program, "uYellowColor"), 
                 UIColorPalette::PRIMARY_YELLOW[0], 
@@ -476,6 +591,26 @@ void TrackRowComponent::set_selected(bool selected) {
     m_selected = selected;
 }
 
+void TrackRowComponent::set_zoom(float zoom) {
+    if (zoom > 0.0f) {
+        m_zoom = zoom;
+    }
+}
+
+void TrackRowComponent::set_position(float position_seconds) {
+    // Position represents the center of the viewport (position 0 = center at time 0)
+    // Clamp to valid range based on current zoom level to keep viewport within bounds
+    if (position_seconds >= 0.0f) {
+        float visible_duration = MAX_TIMELINE_DURATION_SECONDS / m_zoom;
+        float min_center = visible_duration * 0.5f;
+        float max_center = MAX_TIMELINE_DURATION_SECONDS - visible_duration * 0.5f;
+        
+        // Clamp center position to keep viewport within bounds
+        // But allow position 0 (which will show from 0 to visible_duration)
+        m_position_seconds = std::max(0.0f, std::min(position_seconds, max_center));
+    }
+}
+
 // ============================================================================
 // TrackDisplayComponent Implementation
 // ============================================================================
@@ -491,12 +626,17 @@ TrackDisplayComponent::TrackDisplayComponent(
     m_num_ticks(num_ticks),
     m_total_timeline_duration_seconds(total_timeline_duration_seconds),
     m_measure_component(nullptr),
-    m_selected_track_index(-1)
+    m_selected_track_index(-1),
+    m_zoom(60.0f),  // Default zoom
+    m_position_seconds(0.0f)  // Default position (start at time 0)
 {
     // Ensure reasonable defaults
     if (m_num_tracks == 0) m_num_tracks = 6;
     if (m_num_ticks == 0) m_num_ticks = 10;
-    if (m_total_timeline_duration_seconds <= 0.0f) m_total_timeline_duration_seconds = 10.0f;
+    // Use max timeline duration of 10 minutes (600 seconds)
+    if (m_total_timeline_duration_seconds <= 0.0f) {
+        m_total_timeline_duration_seconds = 600.0f;
+    }
 }
 
 TrackDisplayComponent::~TrackDisplayComponent() {
@@ -563,12 +703,15 @@ void TrackDisplayComponent::layout_components() {
     float comp_x, comp_y;
     get_corner_position(comp_x, comp_y);
     
-    // Create measure component at the top
+    // Create measure component at the top with synchronized zoom and position
+    // Default BPM is 120 (standard tempo)
     m_measure_component = new TrackMeasureComponent(
         comp_x, comp_y,
         track_width, measure_height,
         PositionMode::TOP_LEFT,
-        m_num_ticks
+        120.0f,  // Default BPM
+        m_zoom,  // Use current zoom value
+        m_position_seconds  // Use current position value
     );
     add_child(m_measure_component);
     
@@ -584,7 +727,9 @@ void TrackDisplayComponent::layout_components() {
             track_width, track_row_height, // All tracks get exactly the same height
             PositionMode::TOP_LEFT,
             nullptr, // No tape initially
-            m_total_timeline_duration_seconds
+            m_total_timeline_duration_seconds,
+            m_zoom,  // Use current zoom value
+            m_position_seconds  // Use current position value
         );
         m_track_components.push_back(track);
         add_child(track);
@@ -603,6 +748,8 @@ void TrackDisplayComponent::set_timeline_duration(float duration_seconds) {
     for (auto* track : m_track_components) {
         track->set_timeline_duration(duration_seconds);
     }
+    // Ensure zoom and position remain synchronized after duration change
+    synchronize_zoom_and_position();
 }
 
 void TrackDisplayComponent::select_track(size_t track_index) {
@@ -618,6 +765,51 @@ void TrackDisplayComponent::select_track(size_t track_index) {
     } else {
         m_selected_track_index = -1;
     }
+    // Ensure zoom and position remain synchronized (selection doesn't affect zoom/position, but good practice)
+    synchronize_zoom_and_position();
+}
+
+void TrackDisplayComponent::synchronize_zoom_and_position() {
+    // Synchronize zoom and position across all children
+    if (m_measure_component) {
+        m_measure_component->set_zoom(m_zoom);
+        m_measure_component->set_position(m_position_seconds);
+    }
+    
+    for (auto* track : m_track_components) {
+        track->set_zoom(m_zoom);
+        track->set_position(m_position_seconds);
+    }
+}
+
+void TrackDisplayComponent::set_zoom(float zoom) {
+    if (zoom > 0.0f) {
+        m_zoom = zoom;
+        synchronize_zoom_and_position();
+    }
+}
+
+float TrackDisplayComponent::get_zoom() const {
+    return m_zoom;
+}
+
+void TrackDisplayComponent::set_position(float position_seconds) {
+    // Position represents the center of the viewport (position 0 = center at time 0)
+    // Clamp to valid range based on current zoom level to keep viewport within bounds
+    if (position_seconds >= 0.0f) {
+        float max_duration = TrackRowComponent::MAX_TIMELINE_DURATION_SECONDS;
+        float visible_duration = max_duration / m_zoom;
+        float max_center = max_duration - visible_duration * 0.5f;
+        
+        // Clamp center position to keep viewport within bounds
+        // Allow position 0 (which will show from 0 to visible_duration, centered at 0)
+        m_position_seconds = std::max(0.0f, std::min(position_seconds, max_center));
+        synchronize_zoom_and_position();
+    }
+}
+
+float TrackDisplayComponent::get_position() const {
+    return m_position_seconds;
 }
 
 void TrackDisplayComponent::create_placeholder_data() {

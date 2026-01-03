@@ -149,18 +149,18 @@ void GraphicsComponent::render() {
         
     } else {
         // Standard rendering path
-        begin_local_rendering();
-        
-        render_content();
-        
-        end_local_rendering();
-        
-        if (m_show_outline || s_global_outline) {
-            draw_outline();
-        }
-        
-        for (auto& child : m_children) {
-            child->render();
+    begin_local_rendering();
+    
+    render_content();
+    
+    end_local_rendering();
+    
+    if (m_show_outline || s_global_outline) {
+        draw_outline();
+    }
+    
+    for (auto& child : m_children) {
+        child->render();
         }
     }
 }

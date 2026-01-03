@@ -11,8 +11,10 @@
 #include "graphics_components/track_display_component.h"
 #include "graphics_core/graphics_component.h"
 #include "audio_synthesizer/audio_synthesizer.h"
+#include "engine/event_handler.h"
 #include <SDL2/SDL.h>
 #include <vector>
+#include <iostream>
 
 TapeView::TapeView() : GraphicsView() {
     auto & audio_synthesizer = AudioSynthesizer::get_instance();
@@ -66,6 +68,98 @@ TapeView::TapeView() : GraphicsView() {
         10           // 10 ticks
     );
     add_component(m_track_display);
+    
+    // Set up keyboard event handlers
+    setup_keyboard_events();
+}
+
+void TapeView::setup_keyboard_events() {
+    if (!m_track_display) return;
+    
+    auto& event_handler = EventHandler::get_instance();
+    
+    // Number keys 1-6 to select tracks (0-indexed: 0-5)
+    for (int i = 0; i < 6; ++i) {
+        SDL_Keycode keycode = SDLK_1 + i; // SDLK_1, SDLK_2, ..., SDLK_6
+        event_handler.register_entry(new KeyboardEventHandlerEntry(
+            SDL_KEYDOWN, keycode,
+            [this, i](const SDL_Event&) {
+                if (m_track_display) {
+                    m_track_display->select_track(i);
+                    std::cout << "[TapeView] Selected track " << (i + 1) << std::endl;
+                }
+                return true;
+            }
+        ));
+    }
+    
+    // Left arrow key to scroll left (decrease center position)
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, SDLK_LEFT,
+        [this](const SDL_Event&) {
+            if (m_track_display) {
+                float current_pos = m_track_display->get_position();
+                float current_zoom = m_track_display->get_zoom();
+                // Scroll amount depends on zoom: move by 10% of visible duration
+                // Visible duration = max_duration / zoom
+                // So delta = (max_duration / zoom) * 0.1
+                // Assuming max duration is 600s, this scales correctly
+                float visible_duration = 600.0f / current_zoom;
+                float delta = visible_duration * 0.05f; // Scroll by 5% of screen width
+                
+                float new_pos = current_pos - delta; 
+                m_track_display->set_position(new_pos); // set_position will clamp if needed
+                std::cout << "[TapeView] Center position: " << new_pos << " seconds (delta: " << delta << ")" << std::endl;
+            }
+            return true;
+        }
+    ));
+    
+    // Right arrow key to scroll right (increase center position)
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, SDLK_RIGHT,
+        [this](const SDL_Event&) {
+            if (m_track_display) {
+                float current_pos = m_track_display->get_position();
+                float current_zoom = m_track_display->get_zoom();
+                float visible_duration = 600.0f / current_zoom;
+                float delta = visible_duration * 0.05f; // Scroll by 5% of screen width
+                
+                float new_pos = current_pos + delta;
+                m_track_display->set_position(new_pos); // set_position will clamp if needed
+                std::cout << "[TapeView] Center position: " << new_pos << " seconds (delta: " << delta << ")" << std::endl;
+            }
+            return true;
+        }
+    ));
+    
+    // Up arrow key to zoom in (increase zoom)
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, SDLK_UP,
+        [this](const SDL_Event&) {
+            if (m_track_display) {
+                float current_zoom = m_track_display->get_zoom();
+                float new_zoom = current_zoom * 1.2f; // Increase zoom by 20%
+                m_track_display->set_zoom(new_zoom);
+                std::cout << "[TapeView] Zoom: " << new_zoom << "x" << std::endl;
+            }
+            return true;
+        }
+    ));
+    
+    // Down arrow key to zoom out (decrease zoom)
+    event_handler.register_entry(new KeyboardEventHandlerEntry(
+        SDL_KEYDOWN, SDLK_DOWN,
+        [this](const SDL_Event&) {
+            if (m_track_display) {
+                float current_zoom = m_track_display->get_zoom();
+                float new_zoom = std::max(0.1f, current_zoom / 1.2f); // Decrease zoom by 20%, min 0.1x
+                m_track_display->set_zoom(new_zoom);
+                std::cout << "[TapeView] Zoom: " << new_zoom << "x" << std::endl;
+            }
+            return true;
+        }
+    ));
 }
 
 void TapeView::render() {

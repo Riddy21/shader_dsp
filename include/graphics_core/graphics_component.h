@@ -97,7 +97,7 @@ public:
     // If no custom shader is set, a default pass-through shader is used.
     // This should be called before initialize() or before enabling post-processing.
     void set_post_process_fragment_shader(const std::string& fragment_shader_src);
-
+    
 protected:
     // New methods for viewport-based rendering
     void begin_local_rendering();

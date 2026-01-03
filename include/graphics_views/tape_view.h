@@ -18,6 +18,8 @@ public:
     void render() override;
 
 private:
+    void setup_keyboard_events(); // Set up keyboard event handlers
+    
     ImageComponent* m_tape_wheel_1 = nullptr;
     ImageComponent* m_tape_wheel_2 = nullptr;
     SpriteComponent* m_tape_line_sprite = nullptr;

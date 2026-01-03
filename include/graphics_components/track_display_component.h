@@ -15,19 +15,41 @@ public:
     TrackMeasureComponent(
         float x, float y, float width, float height,
         PositionMode position_mode = PositionMode::TOP_LEFT,
-        size_t num_ticks = 10
+        float bpm = 120.0f,
+        float zoom = 1.0f,
+        float position_seconds = 0.0f
     );
     ~TrackMeasureComponent() override;
+    
+    // Set zoom level (1.0 = see full timeline, higher = more zoomed in)
+    void set_zoom(float zoom);
+    float get_zoom() const { return m_zoom; }
+    
+    // Set current position/scroll offset in seconds (where we start viewing)
+    void set_position(float position_seconds);
+    float get_position() const { return m_position_seconds; }
+    
+    // Set BPM (beats per minute) for tick spacing
+    void set_bpm(float bpm);
+    float get_bpm() const { return m_bpm; }
+    
+    // Maximum timeline duration constant (10 minutes = 600 seconds)
+    static constexpr float MAX_TIMELINE_DURATION_SECONDS = 600.0f;
 
 protected:
     bool initialize() override;
     void render_content() override;
 
 private:
-    size_t m_num_ticks;
+    float m_bpm; // Beats per minute
+    float m_zoom; // Zoom level (1.0 = full view, higher = zoomed in)
+    float m_position_seconds; // Current scroll position in seconds
     std::unique_ptr<AudioShaderProgram> m_shader_program;
     GLuint m_vao, m_vbo;
     size_t m_vertex_count;  // Always 2 (one line segment)
+    
+    // Calculate number of ticks to render based on visible duration and BPM
+    size_t calculate_num_ticks() const;
 };
 
 // Component for rendering a single track row (horizontal bar)
@@ -36,7 +58,9 @@ public:
     TrackRowComponent(float x, float y, float width, float height,
                      PositionMode position_mode = PositionMode::TOP_LEFT,
                      AudioTape* tape = nullptr,
-                     float total_timeline_duration_seconds = 10.0f);
+                     float total_timeline_duration_seconds = 10.0f,
+                     float zoom = 1.0f,
+                     float position_seconds = 0.0f);
     ~TrackRowComponent() override;
     
     // Set the audio tape for this track
@@ -51,6 +75,17 @@ public:
     // Set selection state
     void set_selected(bool selected);
     bool is_selected() const { return m_selected; }
+    
+    // Set zoom level (1.0 = see full timeline, higher = more zoomed in)
+    void set_zoom(float zoom);
+    float get_zoom() const { return m_zoom; }
+    
+    // Set current position/scroll offset in seconds (where we start viewing)
+    void set_position(float position_seconds);
+    float get_position() const { return m_position_seconds; }
+    
+    // Maximum timeline duration constant (10 minutes = 600 seconds)
+    static constexpr float MAX_TIMELINE_DURATION_SECONDS = 600.0f;
 
 protected:
     bool initialize() override;
@@ -63,6 +98,8 @@ private:
     AudioTape* m_tape; // Pointer to audio tape (not owned)
     float m_total_timeline_duration_seconds; // Total duration of the timeline in seconds
     float m_audio_start_offset_seconds; // Start offset of audio on the timeline (default 0.0)
+    float m_zoom; // Zoom level (1.0 = full view, higher = zoomed in)
+    float m_position_seconds; // Current scroll position in seconds
     bool m_selected; // Whether this track is selected
     bool m_amplitude_texture_dirty; // Flag to indicate amplitude texture needs update
     
@@ -99,6 +136,14 @@ public:
     
     // Get the currently selected track index (returns -1 if none selected)
     int get_selected_track() const { return m_selected_track_index; }
+    
+    // Set zoom level for all tracks and measure (1.0 = see full timeline, higher = more zoomed in)
+    void set_zoom(float zoom);
+    float get_zoom() const;
+    
+    // Set current position/scroll offset in seconds for all tracks and measure
+    void set_position(float position_seconds);
+    float get_position() const;
 
 protected:
     bool initialize() override;
@@ -112,11 +157,16 @@ private:
     std::vector<TrackRowComponent*> m_track_components;
     int m_selected_track_index; // Currently selected track (-1 if none)
     
+    // Synchronized zoom and position for all tracks and measure
+    float m_zoom; // Current zoom level (synchronized across all components)
+    float m_position_seconds; // Current scroll position (synchronized across all components)
+    
     // Placeholder tapes for demonstration
     std::vector<std::shared_ptr<AudioTape>> m_placeholder_tapes;
     
     void layout_components();
     void create_placeholder_data();
+    void synchronize_zoom_and_position(); // Internal method to sync all children
 };
 
 #endif // TRACK_DISPLAY_COMPONENT_H
