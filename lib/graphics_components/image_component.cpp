@@ -18,7 +18,8 @@ ImageComponent::ImageComponent(
     const std::string& image_path,
     PositionMode position_mode
 ) : GraphicsComponent(x, y, width, height, position_mode),
-    m_image_path(image_path)
+    m_image_path(image_path),
+    m_rotation(0.0f, 8.0f, 1.0f)  // initial_value, frequency, damping
 {
     // Initialize scaling parameters with defaults
     m_scaling_params.scale_mode = ContentScaling::ScaleMode::FIT;
@@ -331,11 +332,14 @@ void ImageComponent::render_content() {
     // The true viewport aspect ratio combines component dimensions and the window aspect ratio
     float viewport_aspect = component_aspect * display_aspect;
     
+    // Update smooth rotation transition
+    m_rotation.update();
+    
     // Set uniforms
     glUniform1i(glGetUniformLocation(s_image_shader->get_program(), "uTexture"), 0);
     glUniform4f(glGetUniformLocation(s_image_shader->get_program(), "uTintColor"),
                 m_tint_color[0], m_tint_color[1], m_tint_color[2], m_tint_color[3]);
-    glUniform1f(glGetUniformLocation(s_image_shader->get_program(), "uRotation"), m_rotation);
+    glUniform1f(glGetUniformLocation(s_image_shader->get_program(), "uRotation"), m_rotation.get_current());
     glUniform1f(glGetUniformLocation(s_image_shader->get_program(), "uAspectRatio"), viewport_aspect);
     
     // Calculate the vertex data using the content scaling utility
@@ -374,7 +378,8 @@ void ImageComponent::set_tint_color(float r, float g, float b, float a) {
 }
 
 void ImageComponent::set_rotation(float angle_radians) {
-    m_rotation = angle_radians;
+    // Set target rotation immediately - visual will smoothly animate
+    m_rotation.set_target(angle_radians);
 }
 
 // New ContentScaling API

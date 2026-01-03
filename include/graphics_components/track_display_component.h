@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include "graphics_core/graphics_component.h"
+#include "graphics_core/smooth_value.h"
 #include "utilities/shader_program.h"
 
 // Forward declaration
@@ -16,6 +17,7 @@ public:
         float x, float y, float width, float height,
         PositionMode position_mode = PositionMode::TOP_LEFT,
         float bpm = 120.0f,
+        int beats_per_bar = 3,
         float zoom = 1.0f,
         float position_seconds = 0.0f
     );
@@ -33,6 +35,10 @@ public:
     void set_bpm(float bpm);
     float get_bpm() const { return m_bpm; }
     
+    // Set time signature (beats per bar, e.g., 4 for 4/4, 3 for 3/4, 6 for 6/8)
+    void set_beats_per_bar(int beats_per_bar);
+    int get_beats_per_bar() const { return m_beats_per_bar; }
+    
     // Maximum timeline duration constant (10 minutes = 600 seconds)
     static constexpr float MAX_TIMELINE_DURATION_SECONDS = 600.0f;
 
@@ -42,14 +48,23 @@ protected:
 
 private:
     float m_bpm; // Beats per minute
+    int m_beats_per_bar; // Beats per bar (e.g., 4 for 4/4, 3 for 3/4, 6 for 6/8)
     float m_zoom; // Zoom level (1.0 = full view, higher = zoomed in)
     float m_position_seconds; // Current scroll position in seconds
     std::unique_ptr<AudioShaderProgram> m_shader_program;
     GLuint m_vao, m_vbo;
     size_t m_vertex_count;  // Always 2 (one line segment)
     
-    // Calculate number of ticks to render based on visible duration and BPM
+    // Current consolidation state for hysteresis (mutable so it can be modified in const functions)
+    mutable int m_current_consolidation_level; // Track current level to prevent rapid switching
+    
+    // Calculate number of ticks to render based on visible duration, BPM, and consolidation level
     size_t calculate_num_ticks() const;
+    
+    // Calculate consolidation level based on zoom (0 = beats, 1 = bars, 2+ = multiple bars)
+    // Returns: (consolidation_level, ticks_per_consolidated_unit)
+    // consolidation_level: 0 = beats, 1 = bars, 2+ = groups of bars
+    std::pair<int, int> calculate_consolidation_level() const;
 };
 
 // Component for rendering a single track row (horizontal bar)
@@ -113,6 +128,27 @@ private:
     bool should_update_texture() const; // Check if texture should be updated
 };
 
+// Simple component that renders a vertical time bar (playback position indicator)
+class TimeBarComponent : public GraphicsComponent {
+public:
+    TimeBarComponent(
+        float x, float y, float width, float height,
+        PositionMode position_mode = PositionMode::TOP_LEFT
+    );
+    ~TimeBarComponent() override;
+    
+    // Maximum timeline duration constant
+    static constexpr float MAX_TIMELINE_DURATION_SECONDS = 600.0f;
+
+protected:
+    bool initialize() override;
+    void render_content() override;
+
+private:
+    std::unique_ptr<AudioShaderProgram> m_shader_program;
+    GLuint m_vao, m_vbo;
+};
+
 // Main component that contains the measure and track rows
 class TrackDisplayComponent : public GraphicsComponent {
 public:
@@ -144,6 +180,13 @@ public:
     // Set current position/scroll offset in seconds for all tracks and measure
     void set_position(float position_seconds);
     float get_position() const;
+    
+    // Calculate maximum zoom based on BPM (ensures ticks are never closer than 1 beat apart)
+    float calculate_max_zoom() const;
+    
+    // Set current playback time (in seconds) - displays a vertical line at this position
+    void set_current_time(float current_time_seconds);
+    float get_current_time() const { return m_current_time_seconds; }
 
 protected:
     bool initialize() override;
@@ -158,8 +201,15 @@ private:
     int m_selected_track_index; // Currently selected track (-1 if none)
     
     // Synchronized zoom and position for all tracks and measure
-    float m_zoom; // Current zoom level (synchronized across all components)
-    float m_position_seconds; // Current scroll position (synchronized across all components)
+    // Using SmoothValue for smooth visual transitions while keeping underlying values immediate
+    SmoothValue<float> m_zoom;
+    SmoothValue<float> m_position_seconds;
+    
+    // Current playback time (in seconds) - displayed as a vertical line
+    float m_current_time_seconds;
+    
+    // Time bar component (renders the current playback position)
+    TimeBarComponent* m_time_bar_component;
     
     // Placeholder tapes for demonstration
     std::vector<std::shared_ptr<AudioTape>> m_placeholder_tapes;
@@ -167,6 +217,7 @@ private:
     void layout_components();
     void create_placeholder_data();
     void synchronize_zoom_and_position(); // Internal method to sync all children
+    void update_smooth_transition(); // Update current values towards targets
 };
 
 #endif // TRACK_DISPLAY_COMPONENT_H

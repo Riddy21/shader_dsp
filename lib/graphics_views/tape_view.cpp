@@ -153,9 +153,9 @@ void TapeView::setup_keyboard_events() {
         [this](const SDL_Event&) {
             if (m_track_display) {
                 float current_zoom = m_track_display->get_zoom();
-                float new_zoom = std::max(0.1f, current_zoom / 1.2f); // Decrease zoom by 20%, min 0.1x
-                m_track_display->set_zoom(new_zoom);
-                std::cout << "[TapeView] Zoom: " << new_zoom << "x" << std::endl;
+                float new_zoom = current_zoom / 1.2f; // Decrease zoom by 20%
+                m_track_display->set_zoom(new_zoom); // set_zoom will clamp to min 1.0
+                std::cout << "[TapeView] Zoom: " << m_track_display->get_zoom() << "x" << std::endl;
             }
             return true;
         }

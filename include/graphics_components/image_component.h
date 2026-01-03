@@ -9,6 +9,7 @@
 #include "utilities/shader_program.h"
 #include "graphics_core/graphics_component.h"
 #include "graphics_core/content_scaling.h"
+#include "graphics_core/smooth_value.h"
 
 class ImageComponent : public GraphicsComponent {
 public:
@@ -65,7 +66,7 @@ private:
     std::string m_image_path;
     float m_tint_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
     float m_natural_aspect_ratio = 1.0f;
-    float m_rotation = 0.0f; // Rotation angle in radians
+    SmoothValue<float> m_rotation; // Rotation angle in radians (smooth visual transition)
     ContentScaling::ScalingParams m_scaling_params;
     int m_max_width = 0;  // 0 means no limit
     int m_max_height = 0; // 0 means no limit
