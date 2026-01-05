@@ -5,7 +5,7 @@
 #include "graphics_core/ui_color_palette.h"
 #include "graphics_core/ui_button_style.h"
 #include "graphics_components/image_component.h"
-#include "graphics_components/sprite_component.h"
+#include "graphics_components/tape_mechanism_component.h"
 #include "graphics_components/mouse_test_component.h"
 #include "graphics_components/equalizer_component.h"
 #include "graphics_components/track_display_component.h"
@@ -14,42 +14,23 @@
 #include "engine/event_handler.h"
 #include <SDL2/SDL.h>
 #include <vector>
-#include <iostream>
+#include <algorithm>
 
-TapeView::TapeView() : GraphicsView() {
+// TOOD: Add some features for tape speed and record speed
+
+TapeView::TapeView() : GraphicsView(), m_position_seconds(0.0f, 8.0f, 1.0f) {
     auto & audio_synthesizer = AudioSynthesizer::get_instance();
     const auto & channel_seperated_audio = audio_synthesizer.get_audio_data();
-    
-    std::cout << "[TapeView] Default constructor: channel_seperated_audio.size() = " 
-              << channel_seperated_audio.size() << std::endl;
     
     // Convert to vector of pointers for the constructor
     std::vector<const std::vector<float>*> data_ptrs;
     for (const auto& channel : channel_seperated_audio) {
         data_ptrs.push_back(&channel);
-        std::cout << "[TapeView] Channel size = " << channel.size() << std::endl;
     }
 
-    // add sprite of tape on tape case
-    std::vector<std::string> tape_line_frames = {
-        "media/assets/tape_page/tape_line1.png",
-        "media/assets/tape_page/tape_line2.png"
-    };
-    m_tape_line_sprite = new SpriteComponent(0.0f, -.89f, 2.0f, 2.03f, tape_line_frames, GraphicsComponent::PositionMode::CENTER_BOTTOM);
-    m_tape_line_sprite->set_frame_rate(2.0f); // 2 frames per second
-    m_tape_line_sprite->set_looping(true);
-    m_tape_line_sprite->play();
-    add_component(m_tape_line_sprite);
-    
-    // Initialize components
-    m_tape_wheel_1 = new ImageComponent(-.4187f, .0933f, 1.2f, 1.2f, "media/assets/tape_page/wheel1.png", GraphicsComponent::PositionMode::CENTER);
-    add_component(m_tape_wheel_1);
-
-    m_tape_wheel_2 = new ImageComponent(.4187f, .0933f, 1.2f, 1.2f, "media/assets/tape_page/wheel2.png", GraphicsComponent::PositionMode::CENTER);
-    add_component(m_tape_wheel_2);
-
-    auto tape_component = new ImageComponent(0.0f, 0.0f, 2.0f, 1.8f, "media/assets/tape_page/tape_case.png", GraphicsComponent::PositionMode::CENTER);
-    add_component(tape_component);
+    // Create tape mechanism component (includes case, wheels, and tape sprite)
+    m_tape_mechanism = new TapeMechanismComponent(0.0f, 0.0f, 2.0f, 1.8f, GraphicsComponent::PositionMode::CENTER);
+    add_component(m_tape_mechanism);
     
     m_equalizer = new EqualizerComponent(
         0.0f, -0.4f,  // Position: bottom-left area
@@ -86,7 +67,6 @@ void TapeView::setup_keyboard_events() {
             [this, i](const SDL_Event&) {
                 if (m_track_display) {
                     m_track_display->select_track(i);
-                    std::cout << "[TapeView] Selected track " << (i + 1) << std::endl;
                 }
                 return true;
             }
@@ -98,7 +78,7 @@ void TapeView::setup_keyboard_events() {
         SDL_KEYDOWN, SDLK_LEFT,
         [this](const SDL_Event&) {
             if (m_track_display) {
-                float current_pos = m_track_display->get_position();
+                float current_pos = get_position();
                 float current_zoom = m_track_display->get_zoom();
                 // Scroll amount depends on zoom: move by 10% of visible duration
                 // Visible duration = max_duration / zoom
@@ -108,8 +88,7 @@ void TapeView::setup_keyboard_events() {
                 float delta = visible_duration * 0.05f; // Scroll by 5% of screen width
                 
                 float new_pos = current_pos - delta; 
-                m_track_display->set_position(new_pos); // set_position will clamp if needed
-                std::cout << "[TapeView] Center position: " << new_pos << " seconds (delta: " << delta << ")" << std::endl;
+                set_position(new_pos); // set_position will clamp if needed
             }
             return true;
         }
@@ -120,14 +99,13 @@ void TapeView::setup_keyboard_events() {
         SDL_KEYDOWN, SDLK_RIGHT,
         [this](const SDL_Event&) {
             if (m_track_display) {
-                float current_pos = m_track_display->get_position();
+                float current_pos = get_position();
                 float current_zoom = m_track_display->get_zoom();
                 float visible_duration = 600.0f / current_zoom;
                 float delta = visible_duration * 0.05f; // Scroll by 5% of screen width
                 
                 float new_pos = current_pos + delta;
-                m_track_display->set_position(new_pos); // set_position will clamp if needed
-                std::cout << "[TapeView] Center position: " << new_pos << " seconds (delta: " << delta << ")" << std::endl;
+                set_position(new_pos); // set_position will clamp if needed
             }
             return true;
         }
@@ -141,7 +119,6 @@ void TapeView::setup_keyboard_events() {
                 float current_zoom = m_track_display->get_zoom();
                 float new_zoom = current_zoom * 1.2f; // Increase zoom by 20%
                 m_track_display->set_zoom(new_zoom);
-                std::cout << "[TapeView] Zoom: " << new_zoom << "x" << std::endl;
             }
             return true;
         }
@@ -155,25 +132,41 @@ void TapeView::setup_keyboard_events() {
                 float current_zoom = m_track_display->get_zoom();
                 float new_zoom = current_zoom / 1.2f; // Decrease zoom by 20%
                 m_track_display->set_zoom(new_zoom); // set_zoom will clamp to min 1.0
-                std::cout << "[TapeView] Zoom: " << m_track_display->get_zoom() << "x" << std::endl;
             }
             return true;
         }
     ));
 }
 
-void TapeView::render() {
-    // Calculate rotation based on time
-    Uint32 current_time_ms = SDL_GetTicks();
-    float current_time_seconds = current_time_ms / 1000.0f;
-    float rotation_angle = current_time_seconds * m_rotation_speed;
-    
-    // Update wheel rotations
-    if (m_tape_wheel_1) {
-        m_tape_wheel_1->set_rotation(rotation_angle);
+void TapeView::set_position(float position_seconds) {
+    // Position represents the center of the viewport (position 0 = center at time 0)
+    // Clamp position to stay within tape limits (0 to MAX_TIMELINE_DURATION_SECONDS)
+    if (position_seconds >= 0.0f) {
+        constexpr float MAX_TIMELINE_DURATION_SECONDS = 600.0f; // 10 minutes
+        float clamped_pos = std::max(0.0f, std::min(position_seconds, MAX_TIMELINE_DURATION_SECONDS));
+        m_position_seconds.set_target(clamped_pos);
+        
+        // Update track display component position
+        if (m_track_display) {
+            m_track_display->set_position(clamped_pos);
+        }
     }
-    if (m_tape_wheel_2) {
-        m_tape_wheel_2->set_rotation(rotation_angle);
+}
+
+float TapeView::get_position() const {
+    return m_position_seconds.get_target();
+}
+
+void TapeView::render() {
+    // Update position smooth transition
+    m_position_seconds.update();
+    
+    // Get current smooth/displayed position value (this is what's visually shown)
+    float current_smooth_position = m_position_seconds.get_current();
+    
+    // Update tape mechanism with smooth position (handles wheel rotation and sprite animation)
+    if (m_tape_mechanism) {
+        m_tape_mechanism->update_position(current_smooth_position);
     }
     
     // Call base class render to render all components

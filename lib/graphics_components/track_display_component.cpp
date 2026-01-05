@@ -325,6 +325,17 @@ bool TrackMeasureComponent::initialize() {
         return false;
     }
 
+    // Cache uniform locations
+    GLuint program = m_shader_program->get_program();
+    m_uColorLoc = glGetUniformLocation(program, "uColor");
+    m_uNumTicksLoc = glGetUniformLocation(program, "uNumTicks");
+    m_uZoomLoc = glGetUniformLocation(program, "uZoom");
+    m_uPositionLoc = glGetUniformLocation(program, "uPosition");
+    m_uMaxDurationLoc = glGetUniformLocation(program, "uMaxDuration");
+    m_uBPMLoc = glGetUniformLocation(program, "uBPM");
+    m_uBeatsPerBarLoc = glGetUniformLocation(program, "uBeatsPerBar");
+    m_uTicksPerUnitLoc = glGetUniformLocation(program, "uTicksPerUnit");
+
     // Create VAO and VBO for a single vertical line segment
     // We only need 2 vertices (bottom and top), and use instancing for multiple ticks
     glGenVertexArrays(1, &m_vao);
@@ -397,24 +408,26 @@ void TrackMeasureComponent::render_content() {
     glUseProgram(m_shader_program->get_program());
 
     // Set uniforms - use primary yellow color
-    GLuint program = m_shader_program->get_program();
-    glUniform4f(glGetUniformLocation(program, "uColor"), 
-                UIColorPalette::PRIMARY_YELLOW[0],
-                UIColorPalette::PRIMARY_YELLOW[1],
-                UIColorPalette::PRIMARY_YELLOW[2],
-                UIColorPalette::PRIMARY_YELLOW[3]);
-    glUniform1f(glGetUniformLocation(program, "uNumTicks"), static_cast<float>(num_ticks));
-    glUniform1f(glGetUniformLocation(program, "uZoom"), m_zoom);
-    glUniform1f(glGetUniformLocation(program, "uPosition"), m_position_seconds);
-    glUniform1f(glGetUniformLocation(program, "uMaxDuration"), MAX_TIMELINE_DURATION_SECONDS);
-    glUniform1f(glGetUniformLocation(program, "uBPM"), m_bpm);
-    glUniform1i(glGetUniformLocation(program, "uBeatsPerBar"), m_beats_per_bar);
-    glUniform1i(glGetUniformLocation(program, "uTicksPerUnit"), ticks_per_unit);
+    // Use cached locations for performance
+    if (m_uColorLoc != -1) {
+        glUniform4f(m_uColorLoc, 
+                    UIColorPalette::PRIMARY_YELLOW[0],
+                    UIColorPalette::PRIMARY_YELLOW[1],
+                    UIColorPalette::PRIMARY_YELLOW[2],
+                    UIColorPalette::PRIMARY_YELLOW[3]);
+    }
+    if (m_uNumTicksLoc != -1) glUniform1f(m_uNumTicksLoc, static_cast<float>(num_ticks));
+    if (m_uZoomLoc != -1) glUniform1f(m_uZoomLoc, m_zoom);
+    if (m_uPositionLoc != -1) glUniform1f(m_uPositionLoc, m_position_seconds);
+    if (m_uMaxDurationLoc != -1) glUniform1f(m_uMaxDurationLoc, MAX_TIMELINE_DURATION_SECONDS);
+    if (m_uBPMLoc != -1) glUniform1f(m_uBPMLoc, m_bpm);
+    if (m_uBeatsPerBarLoc != -1) glUniform1i(m_uBeatsPerBarLoc, m_beats_per_bar);
+    if (m_uTicksPerUnitLoc != -1) glUniform1i(m_uTicksPerUnitLoc, ticks_per_unit);
 
     // Enable blending for smooth tick rendering
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    
+
     // Draw tick lines using instanced rendering
     // We have 2 vertices (one line segment) and draw num_ticks instances
     glBindVertexArray(m_vao);
@@ -572,6 +585,19 @@ bool TrackRowComponent::initialize() {
         std::cerr << "Failed to initialize shader program for TrackRowComponent" << std::endl;
         return false;
     }
+    
+    // Cache uniform locations
+    GLuint program = m_shader_program->get_program();
+    m_uAmplitudeTextureLoc = glGetUniformLocation(program, "uAmplitudeTexture");
+    m_uAudioRegionLoc = glGetUniformLocation(program, "uAudioRegion");
+    m_uSelectedLoc = glGetUniformLocation(program, "uSelected");
+    m_uYellowColorLoc = glGetUniformLocation(program, "uYellowColor");
+    m_uOrangeColorLoc = glGetUniformLocation(program, "uOrangeColor");
+    m_uGreyColorLoc = glGetUniformLocation(program, "uGreyColor");
+    m_uThicknessLoc = glGetUniformLocation(program, "uThickness");
+    m_uZoomLoc = glGetUniformLocation(program, "uZoom");
+    m_uPositionLoc = glGetUniformLocation(program, "uPosition");
+    m_uMaxDurationLoc = glGetUniformLocation(program, "uMaxDuration");
 
     // Create a full-screen quad with texture coordinates
     // In component-local coordinates: (-1, -1) is bottom-left, (1, 1) is top-right
@@ -654,17 +680,20 @@ void TrackRowComponent::update_amplitude_texture() {
     }
     
     // Sample audio amplitude at regular intervals
-    const int texture_width = 256; // Resolution of amplitude texture
+    // Use higher resolution for better detail (1024 points)
+    const int texture_width = 1024; 
     std::vector<float> amplitudes;
     amplitudes.reserve(texture_width);
     
     unsigned int sample_rate = m_tape->sample_rate();
-    unsigned int samples_per_segment = sample_rate / 100; // ~10ms chunks
+    // Reduce samples per segment to keep total processing time reasonable
+    unsigned int samples_per_segment = sample_rate / 200; // ~5ms chunks
     
     // Sample audio amplitude at different points
     for (int i = 0; i < texture_width; ++i) {
         float t = static_cast<float>(i) / static_cast<float>(texture_width - 1);
-        float sample_time = m_audio_start_offset_seconds + t * audio_duration;
+        // Map 0..1 to the full audio duration (independent of timeline placement)
+        float sample_time = t * audio_duration; 
         unsigned int sample_offset = static_cast<unsigned int>(sample_time * sample_rate);
         
         auto audio_chunk = m_tape->playback(samples_per_segment, sample_offset, false);
@@ -739,31 +768,36 @@ void TrackRowComponent::render_content() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    GLuint program = m_shader_program->get_program();
-    
     // Set uniforms - audio region is now in timeline time (seconds)
-    glUniform2f(glGetUniformLocation(program, "uAudioRegion"), audio_start_time, audio_end_time);
-    glUniform1f(glGetUniformLocation(program, "uZoom"), m_zoom);
-    glUniform1f(glGetUniformLocation(program, "uPosition"), m_position_seconds);
-    glUniform1f(glGetUniformLocation(program, "uMaxDuration"), MAX_TIMELINE_DURATION_SECONDS);
-    glUniform1i(glGetUniformLocation(program, "uSelected"), m_selected ? 1 : 0);
-    glUniform4f(glGetUniformLocation(program, "uYellowColor"), 
-                UIColorPalette::PRIMARY_YELLOW[0], 
-                UIColorPalette::PRIMARY_YELLOW[1], 
-                UIColorPalette::PRIMARY_YELLOW[2], 
-                UIColorPalette::PRIMARY_YELLOW[3]);
-    glUniform4f(glGetUniformLocation(program, "uOrangeColor"), 
-                UIColorPalette::PRIMARY_ORANGE[0], 
-                UIColorPalette::PRIMARY_ORANGE[1], 
-                UIColorPalette::PRIMARY_ORANGE[2], 
-                UIColorPalette::PRIMARY_ORANGE[3]);
+    // Use cached locations
+    if (m_uAudioRegionLoc != -1) glUniform2f(m_uAudioRegionLoc, audio_start_time, audio_end_time);
+    if (m_uZoomLoc != -1) glUniform1f(m_uZoomLoc, m_zoom);
+    if (m_uPositionLoc != -1) glUniform1f(m_uPositionLoc, m_position_seconds);
+    if (m_uMaxDurationLoc != -1) glUniform1f(m_uMaxDurationLoc, MAX_TIMELINE_DURATION_SECONDS);
+    if (m_uSelectedLoc != -1) glUniform1i(m_uSelectedLoc, m_selected ? 1 : 0);
+    
+    if (m_uYellowColorLoc != -1) {
+        glUniform4f(m_uYellowColorLoc, 
+                    UIColorPalette::PRIMARY_YELLOW[0], 
+                    UIColorPalette::PRIMARY_YELLOW[1], 
+                    UIColorPalette::PRIMARY_YELLOW[2], 
+                    UIColorPalette::PRIMARY_YELLOW[3]);
+    }
+    if (m_uOrangeColorLoc != -1) {
+        glUniform4f(m_uOrangeColorLoc, 
+                    UIColorPalette::PRIMARY_ORANGE[0], 
+                    UIColorPalette::PRIMARY_ORANGE[1], 
+                    UIColorPalette::PRIMARY_ORANGE[2], 
+                    UIColorPalette::PRIMARY_ORANGE[3]);
+    }
+    
     float thickness = m_selected ? 0.6f : 0.5f;
-    glUniform1f(glGetUniformLocation(program, "uThickness"), thickness);
+    if (m_uThicknessLoc != -1) glUniform1f(m_uThicknessLoc, thickness);
     
     // Bind amplitude texture
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, m_amplitude_texture);
-    glUniform1i(glGetUniformLocation(program, "uAmplitudeTexture"), 0);
+    if (m_uAmplitudeTextureLoc != -1) glUniform1i(m_uAmplitudeTextureLoc, 0);
     
     // Render full-screen quad (shader will handle clipping to audio region and thickness)
     glBindVertexArray(m_vao);
@@ -796,7 +830,8 @@ void TrackRowComponent::set_timeline_duration(float duration_seconds) {
 
 void TrackRowComponent::set_audio_start_offset(float start_offset_seconds) {
     m_audio_start_offset_seconds = start_offset_seconds;
-    m_amplitude_texture_dirty = true;
+    // Don't set dirty flag here - texture content is independent of timeline position
+    // m_amplitude_texture_dirty = true;
 }
 
 void TrackRowComponent::set_selected(bool selected) {

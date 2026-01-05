@@ -58,6 +58,16 @@ private:
     // Current consolidation state for hysteresis (mutable so it can be modified in const functions)
     mutable int m_current_consolidation_level; // Track current level to prevent rapid switching
     
+    // Cached uniform locations
+    GLint m_uColorLoc = -1;
+    GLint m_uNumTicksLoc = -1;
+    GLint m_uZoomLoc = -1;
+    GLint m_uPositionLoc = -1;
+    GLint m_uMaxDurationLoc = -1;
+    GLint m_uBPMLoc = -1;
+    GLint m_uBeatsPerBarLoc = -1;
+    GLint m_uTicksPerUnitLoc = -1;
+    
     // Calculate number of ticks to render based on visible duration, BPM, and consolidation level
     size_t calculate_num_ticks() const;
     
@@ -118,6 +128,18 @@ private:
     bool m_selected; // Whether this track is selected
     bool m_amplitude_texture_dirty; // Flag to indicate amplitude texture needs update
     
+    // Cached uniform locations
+    GLint m_uAmplitudeTextureLoc = -1;
+    GLint m_uAudioRegionLoc = -1;
+    GLint m_uSelectedLoc = -1;
+    GLint m_uYellowColorLoc = -1;
+    GLint m_uOrangeColorLoc = -1;
+    GLint m_uGreyColorLoc = -1;
+    GLint m_uThicknessLoc = -1;
+    GLint m_uZoomLoc = -1;
+    GLint m_uPositionLoc = -1;
+    GLint m_uMaxDurationLoc = -1;
+    
     // Dynamic update tracking
     unsigned int m_last_tape_size; // Last known tape size to detect changes
     unsigned int m_last_record_position; // Last known record position to detect changes
@@ -160,7 +182,7 @@ public:
         float total_timeline_duration_seconds = 10.0f
     );
     ~TrackDisplayComponent() override;
-    
+
     // Set audio tape for a specific track index
     void set_track_tape(size_t track_index, AudioTape* tape);
     
