@@ -4,10 +4,6 @@
 #include "graphics_core/ui_font_styles.h"
 
 // Initialize static members
-std::unique_ptr<AudioShaderProgram> TextComponent::s_text_shader = nullptr;
-GLuint TextComponent::s_text_vao = 0;
-GLuint TextComponent::s_text_vbo = 0;
-bool TextComponent::s_graphics_initialized = false;
 bool TextComponent::s_ttf_initialized = false;
 bool TextComponent::s_project_fonts_loaded = false;
 std::unordered_map<std::string, TextComponent::FontInfo> TextComponent::s_fonts;
@@ -67,6 +63,13 @@ TextComponent::~TextComponent() {
     if (m_text_texture != 0) {
         glDeleteTextures(1, &m_text_texture);
     }
+    if (m_vao != 0) {
+        glDeleteVertexArrays(1, &m_vao);
+    }
+    if (m_vbo != 0) {
+        glDeleteBuffers(1, &m_vbo);
+    }
+    // m_shader unique_ptr handles itself
 }
 
 bool TextComponent::initialize() {
@@ -213,74 +216,73 @@ bool TextComponent::set_font(const std::string& font_name) {
 }
 
 void TextComponent::initialize_static_graphics() {
-    if (!s_graphics_initialized) {
-        // Create a simple texture rendering program
-        const std::string vertex_shader_src = R"(
-            #version 300 es
-            layout (location = 0) in vec2 aPos;
-            layout (location = 1) in vec2 aTexCoord;
-            
-            out vec2 TexCoord;
-            
-            void main() {
-                gl_Position = vec4(aPos, 0.0, 1.0);
-                TexCoord = aTexCoord;
-            }
-        )";
-
-        const std::string fragment_shader_src = R"(
-            #version 300 es
-            precision mediump float;
-            in vec2 TexCoord;
-            out vec4 FragColor;
-            
-            uniform sampler2D uTexture;
-            
-            void main() {
-            vec4 textureColor = texture(uTexture, TexCoord);
-            FragColor = textureColor;
-            }
-        )";
+    // Check if resources are already initialized
+    if (m_shader) return;
+    
+    // Create a simple texture rendering program
+    const std::string vertex_shader_src = R"(
+        #version 300 es
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec2 aTexCoord;
         
-        s_text_shader = std::make_unique<AudioShaderProgram>(vertex_shader_src, fragment_shader_src);
-        if (!s_text_shader->initialize()) {
-            printf("Failed to initialize text shader program\n");
-            return;
+        out vec2 TexCoord;
+        
+        void main() {
+            gl_Position = vec4(aPos, 0.0, 1.0);
+            TexCoord = aTexCoord;
         }
+    )";
+
+    const std::string fragment_shader_src = R"(
+        #version 300 es
+        precision mediump float;
+        in vec2 TexCoord;
+        out vec4 FragColor;
         
-        // Create a quad with texture coordinates for rendering text
-        // Default
-        float vertices[] = {
-            // positions    // texture coords
-            -1.0f, -1.0f,   0.0f, 1.0f,  // bottom left
-            -1.0f,  1.0f,   0.0f, 0.0f,  // top left
-             1.0f,  1.0f,   1.0f, 0.0f,  // top right
-            
-            -1.0f, -1.0f,   0.0f, 1.0f,  // bottom left
-             1.0f,  1.0f,   1.0f, 0.0f,  // top right
-             1.0f, -1.0f,   1.0f, 1.0f   // bottom right
-        };
+        uniform sampler2D uTexture;
         
-        glGenVertexArrays(1, &s_text_vao);
-        glGenBuffers(1, &s_text_vbo);
-        
-        glBindVertexArray(s_text_vao);
-        glBindBuffer(GL_ARRAY_BUFFER, s_text_vbo);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-        
-        // Position attribute
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        
-        // Texture coordinate attribute
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-        
-        glBindVertexArray(0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        
-        s_graphics_initialized = true;
+        void main() {
+        vec4 textureColor = texture(uTexture, TexCoord);
+        FragColor = textureColor;
+        }
+    )";
+    
+    m_shader = std::make_unique<AudioShaderProgram>(vertex_shader_src, fragment_shader_src);
+    if (!m_shader->initialize()) {
+        printf("Failed to initialize text shader program\n");
+        return;
     }
+    
+    // Create a quad with texture coordinates for rendering text
+    // Default
+    float vertices[] = {
+        // positions    // texture coords
+        -1.0f, -1.0f,   0.0f, 1.0f,  // bottom left
+        -1.0f,  1.0f,   0.0f, 0.0f,  // top left
+         1.0f,  1.0f,   1.0f, 0.0f,  // top right
+        
+        -1.0f, -1.0f,   0.0f, 1.0f,  // bottom left
+         1.0f,  1.0f,   1.0f, 0.0f,  // top right
+         1.0f, -1.0f,   1.0f, 1.0f   // bottom right
+    };
+    
+    glGenVertexArrays(1, &m_vao);
+    glGenBuffers(1, &m_vbo);
+    
+    glBindVertexArray(m_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    // Position attribute
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+    // Texture coordinate attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 void TextComponent::initialize_text() {
@@ -360,7 +362,10 @@ void TextComponent::initialize_text() {
 }
 
 void TextComponent::render_content() {
-    if (!s_graphics_initialized || !s_text_shader) return;
+    // Ensure graphics are initialized (this will happen when render is called with valid context)
+    initialize_static_graphics();
+    
+    if (!m_shader || m_vao == 0) return;
     
     if (m_text_dirty) {
         initialize_text();
@@ -369,16 +374,17 @@ void TextComponent::render_content() {
     if (m_text_texture == 0 || m_text.empty()) return;
     
     // Bind texture
+    glActiveTexture(GL_TEXTURE0); // Explicitly use texture unit 0
     glBindTexture(GL_TEXTURE_2D, m_text_texture);
     
     // Save current state
     GLint current_program;
     glGetIntegerv(GL_CURRENT_PROGRAM, &current_program);
     
-    glUseProgram(s_text_shader->get_program());
+    glUseProgram(m_shader->get_program());
     
     // Set texture uniform
-    glUniform1i(glGetUniformLocation(s_text_shader->get_program(), "uTexture"), 0);
+    glUniform1i(glGetUniformLocation(m_shader->get_program(), "uTexture"), 0);
     
     // Enable blending for text
     glEnable(GL_BLEND);
@@ -402,11 +408,11 @@ void TextComponent::render_content() {
     );
     
     // Update the vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, s_text_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
     glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(float) * vertex_data.size(), vertex_data.data());
     
     // Draw text
-    glBindVertexArray(s_text_vao);
+    glBindVertexArray(m_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
     
     // Restore state
@@ -414,7 +420,9 @@ void TextComponent::render_content() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(current_program);
-    glDisable(GL_BLEND);
+    
+    // Do not disable blending unconditionally as it might be needed by other components
+    // glDisable(GL_BLEND); 
 }
 
 void TextComponent::set_text(const std::string& text) {

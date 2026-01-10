@@ -17,7 +17,7 @@ public:
     bool draw_outline_called = false;
 
     MockGraphicsComponent(float x, float y, float w, float h, EventHandler* eh = nullptr, RenderContext ctx = RenderContext())
-        : GraphicsComponent(x, y, w, h, eh, ctx) {}
+        : GraphicsComponent(x, y, w, h, GraphicsComponent::PositionMode::TOP_LEFT, eh, ctx) {}
 
     bool initialize() override {
         initialize_called = true;
@@ -98,7 +98,7 @@ TEST_CASE("GraphicsComponent constructor", "[graphics_component]") {
     RenderContext ctx;
     ctx.window_id = 1;
 
-    GraphicsComponent comp(0.1f, 0.2f, 0.3f, 0.4f, &eh, ctx);
+    GraphicsComponent comp(0.1f, 0.2f, 0.3f, 0.4f, GraphicsComponent::PositionMode::TOP_LEFT, &eh, ctx);
 
     REQUIRE(comp.m_x == 0.1f);
     REQUIRE(comp.m_y == 0.2f);

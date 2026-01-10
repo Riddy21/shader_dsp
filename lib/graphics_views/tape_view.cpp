@@ -9,6 +9,7 @@
 #include "graphics_components/mouse_test_component.h"
 #include "graphics_components/equalizer_component.h"
 #include "graphics_components/track_display_component.h"
+#include "graphics_components/track_number_component.h"
 #include "graphics_core/graphics_component.h"
 #include "audio_synthesizer/audio_synthesizer.h"
 #include "engine/event_handler.h"
@@ -40,15 +41,30 @@ TapeView::TapeView() : GraphicsView(), m_position_seconds(0.0f, 8.0f, 1.0f) {
     );
     add_component(m_equalizer);
     
+    // Set number of tracks to 6
+    m_num_tracks = 6;
+    
     // Add track display component with 6 tracks and measure with ticks
     m_track_display = new TrackDisplayComponent(
         0.0f, -0.84f,  // Position: center-top area
         1.3f, 0.34f,  // Width and height
         GraphicsComponent::PositionMode::CENTER_BOTTOM,
-        6,           // 6 tracks
+        m_num_tracks,  // 6 tracks
         10           // 10 ticks
     );
     add_component(m_track_display);
+    
+    // Track number display - scroll wheel style
+    // Position below the track display (track display bottom is around -0.84)
+    // -0.92 puts it comfortably below
+    m_track_number_display = new TrackNumberComponent(
+        0.0f, 0.071f, 
+        .5f, 0.23f,   // Wider height to accommodate scroll wheel
+        GraphicsComponent::PositionMode::CENTER_TOP
+    );
+    m_track_number_display->set_num_tracks(m_num_tracks); // Set number of tracks to 6
+    m_track_number_display->select_track(1); // Initialize to track 1
+    add_component(m_track_number_display);
     
     // Set up keyboard event handlers
     setup_keyboard_events();
@@ -65,8 +81,9 @@ void TapeView::setup_keyboard_events() {
         event_handler.register_entry(new KeyboardEventHandlerEntry(
             SDL_KEYDOWN, keycode,
             [this, i](const SDL_Event&) {
-                if (m_track_display) {
-                    m_track_display->select_track(i);
+                // Only process if track exists
+                if (i < m_num_tracks) {
+                    select_track(i);
                 }
                 return true;
             }
@@ -155,6 +172,41 @@ void TapeView::set_position(float position_seconds) {
 
 float TapeView::get_position() const {
     return m_position_seconds.get_target();
+}
+
+void TapeView::select_track(int track_index) {
+    // Clamp track index to valid range
+    if (track_index < 0) {
+        track_index = -1; // No track selected
+    } else if (track_index >= m_num_tracks) {
+        track_index = m_num_tracks - 1; // Clamp to last valid track
+    }
+    
+    // Update track display component (0-indexed)
+    if (m_track_display) {
+        if (track_index >= 0) {
+            m_track_display->select_track(static_cast<size_t>(track_index));
+        } else {
+            // Deselect all tracks by selecting an invalid index (definitely out of range)
+            m_track_display->select_track(static_cast<size_t>(m_num_tracks + 1));
+        }
+    }
+    
+    // Update track number display (1-indexed, track 0 means "--")
+    if (m_track_number_display) {
+        if (track_index >= 0 && track_index < m_num_tracks) {
+            m_track_number_display->select_track(track_index + 1);
+        } else {
+            m_track_number_display->select_track(0); // Will display as "--"
+        }
+    }
+}
+
+int TapeView::get_selected_track() const {
+    if (m_track_display) {
+        return m_track_display->get_selected_track();
+    }
+    return -1;
 }
 
 void TapeView::render() {

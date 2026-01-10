@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <map>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 
@@ -73,10 +74,11 @@ private:
     
     GLuint m_text_texture = 0;
     bool m_text_dirty = true; // Flag to indicate text texture needs update
-    static std::unique_ptr<AudioShaderProgram> s_text_shader;
-    static GLuint s_text_vao;
-    static GLuint s_text_vbo;
-    static bool s_graphics_initialized;
+    
+    // Per-instance OpenGL resources
+    std::unique_ptr<AudioShaderProgram> m_shader;
+    GLuint m_vao = 0;
+    GLuint m_vbo = 0;
     
     // Font management
     struct FontInfo {
@@ -88,7 +90,7 @@ private:
     static bool s_ttf_initialized;
     static bool s_project_fonts_loaded;
     static void initialize_ttf();
-    static void initialize_static_graphics();
+    void initialize_static_graphics();
     
     // Initialize default font
     static void initialize_default_font();
