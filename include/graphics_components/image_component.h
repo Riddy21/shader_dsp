@@ -29,6 +29,13 @@ public:
     // Set tint color (applied as a multiplication to the image)
     void set_tint_color(float r, float g, float b, float a);
     
+    // Set color overlay (applied to all pixels, preserves alpha channel)
+    // Color values should be in range [0.0, 1.0]
+    void set_color_overlay(float r, float g, float b);
+    
+    // Remove color overlay
+    void clear_color_overlay();
+    
     // Set rotation angle in radians
     void set_rotation(float angle_radians);
     
@@ -62,9 +69,11 @@ protected:
 
 private:
     void create_texture_from_surface(SDL_Surface* surface);
+    void apply_color_overlay_to_surface(SDL_Surface* surface, float r, float g, float b);
     
     std::string m_image_path;
     float m_tint_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float m_color_overlay[3] = {-1.0f, -1.0f, -1.0f}; // -1 means no overlay
     float m_natural_aspect_ratio = 1.0f;
     SmoothValue<float> m_rotation; // Rotation angle in radians (smooth visual transition)
     ContentScaling::ScalingParams m_scaling_params;

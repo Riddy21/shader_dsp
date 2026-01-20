@@ -1,5 +1,6 @@
 #include <iostream>
 #include <algorithm>
+#include <cstring>
 #include "graphics_components/image_component.h"
 #include "utilities/shader_program.h"
 
@@ -179,6 +180,11 @@ bool ImageComponent::load_image(const std::string& image_path) {
         return false;
     }
     
+    // Apply color overlay if set
+    if (m_color_overlay[0] >= 0.0f) {
+        apply_color_overlay_to_surface(surface, m_color_overlay[0], m_color_overlay[1], m_color_overlay[2]);
+    }
+    
     create_texture_from_surface(surface);
     
     // Free the surface
@@ -193,8 +199,104 @@ bool ImageComponent::load_from_surface(SDL_Surface* surface) {
         return false;
     }
     
-    create_texture_from_surface(surface);
+    // Create a copy of the surface to avoid modifying the original
+    SDL_Surface* surface_copy = SDL_ConvertSurface(surface, surface->format, 0);
+    if (!surface_copy) {
+        printf("Failed to copy surface: %s\n", SDL_GetError());
+        create_texture_from_surface(surface);
+        return true;
+    }
+    
+    // Apply color overlay if set
+    if (m_color_overlay[0] >= 0.0f) {
+        apply_color_overlay_to_surface(surface_copy, m_color_overlay[0], m_color_overlay[1], m_color_overlay[2]);
+    }
+    
+    create_texture_from_surface(surface_copy);
+    
+    // Free the copy
+    SDL_FreeSurface(surface_copy);
+    
     return true;
+}
+
+void ImageComponent::apply_color_overlay_to_surface(SDL_Surface* surface, float r, float g, float b) {
+    if (!surface || !surface->pixels) {
+        return;
+    }
+    
+    // Lock the surface to access pixel data
+    if (SDL_LockSurface(surface) != 0) {
+        printf("Failed to lock surface for color overlay: %s\n", SDL_GetError());
+        return;
+    }
+    
+    // Clamp color values to [0.0, 1.0]
+    r = std::max(0.0f, std::min(1.0f, r));
+    g = std::max(0.0f, std::min(1.0f, g));
+    b = std::max(0.0f, std::min(1.0f, b));
+    
+    // Convert to 0-255 range
+    Uint8 overlay_r = static_cast<Uint8>(r * 255.0f);
+    Uint8 overlay_g = static_cast<Uint8>(g * 255.0f);
+    Uint8 overlay_b = static_cast<Uint8>(b * 255.0f);
+    
+    SDL_PixelFormat* format = surface->format;
+    int bytes_per_pixel = format->BytesPerPixel;
+    int pitch = surface->pitch;
+    Uint8* pixels = static_cast<Uint8*>(surface->pixels);
+    
+    // Process each pixel
+    for (int y = 0; y < surface->h; ++y) {
+        Uint8* row = pixels + (y * pitch);
+        for (int x = 0; x < surface->w; ++x) {
+            Uint8* pixel = row + (x * bytes_per_pixel);
+            
+            // Read current pixel value
+            Uint32 pixel_value = 0;
+            if (bytes_per_pixel == 4) {
+                pixel_value = *reinterpret_cast<Uint32*>(pixel);
+            } else if (bytes_per_pixel == 3) {
+                // For 24-bit, read bytes and construct pixel value
+                // SDL stores pixels in the format's native byte order
+                memcpy(&pixel_value, pixel, 3);
+            } else {
+                continue; // Skip unsupported formats
+            }
+            
+            // Extract current color components
+            Uint8 current_r, current_g, current_b, current_a = 255; // Default alpha for RGB surfaces
+            if (format->Amask != 0) {
+                // Surface has alpha channel
+                SDL_GetRGBA(pixel_value, format, &current_r, &current_g, &current_b, &current_a);
+            } else {
+                // Surface has no alpha channel
+                SDL_GetRGB(pixel_value, format, &current_r, &current_g, &current_b);
+            }
+            
+            // Apply overlay: replace RGB with overlay color, preserve alpha
+            Uint32 new_pixel;
+            if (format->Amask != 0) {
+                new_pixel = SDL_MapRGBA(format, overlay_r, overlay_g, overlay_b, current_a);
+            } else {
+                new_pixel = SDL_MapRGB(format, overlay_r, overlay_g, overlay_b);
+            }
+            
+            // Write back the new pixel value
+            if (bytes_per_pixel == 4) {
+                *reinterpret_cast<Uint32*>(pixel) = new_pixel;
+            } else if (bytes_per_pixel == 3) {
+                // For 24-bit, extract and write RGB bytes
+                Uint8 new_r, new_g, new_b;
+                SDL_GetRGB(new_pixel, format, &new_r, &new_g, &new_b);
+                // Write bytes in the same order SDL expects
+                memcpy(pixel, &new_pixel, 3);
+            }
+        }
+    }
+    
+    // Unlock the surface
+    SDL_UnlockSurface(surface);
 }
 
 void ImageComponent::create_texture_from_surface(SDL_Surface* surface) {
@@ -375,6 +477,28 @@ void ImageComponent::set_tint_color(float r, float g, float b, float a) {
     m_tint_color[1] = g;
     m_tint_color[2] = b;
     m_tint_color[3] = a;
+}
+
+void ImageComponent::set_color_overlay(float r, float g, float b) {
+    m_color_overlay[0] = r;
+    m_color_overlay[1] = g;
+    m_color_overlay[2] = b;
+    
+    // Reload the image with the overlay applied
+    if (!m_image_path.empty() && m_texture != 0) {
+        load_image(m_image_path);
+    }
+}
+
+void ImageComponent::clear_color_overlay() {
+    m_color_overlay[0] = -1.0f;
+    m_color_overlay[1] = -1.0f;
+    m_color_overlay[2] = -1.0f;
+    
+    // Reload the image without overlay
+    if (!m_image_path.empty() && m_texture != 0) {
+        load_image(m_image_path);
+    }
 }
 
 void ImageComponent::set_rotation(float angle_radians) {
